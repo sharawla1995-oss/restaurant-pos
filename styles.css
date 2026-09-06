@@ -89,4 +89,5 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .delivery-mini-kpis>div{background:linear-gradient(145deg,#172434,#101925);border-color:#34455a}.delivery-row{background:linear-gradient(145deg,#162333,#101925);min-height:64px}.delivery-row:hover{background:#19293b}.delivery-queue-panel{background:#0f1926}
 @media(max-width:760px){.page{padding:12px}.home-grid{gap:10px}.home-card{min-height:112px;padding:13px}.home-hero:after{font-size:65px}.delivery-row{min-height:58px;border-radius:11px}.delivery-row-id b{font-size:14px}.delivery-row strong{font-size:14px}.delivery-row .status-pill{font-size:10px;padding:5px 7px}.delivery-rows{gap:5px}}
 /* Receipts must never be visible in the application layout. */
-.print-zone,#receiptPrintFrame{display:none!important}
+.print-zone{display:none!important}
+#receiptPrintFrame{position:fixed!important;width:1px!important;height:1px!important;right:-9999px!important;bottom:-9999px!important;border:0!important;opacity:0!important;pointer-events:none!important}

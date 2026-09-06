@@ -218,7 +218,7 @@ async function checkout(payment){
  if(modifierRows.length)await rest('order_item_modifiers','',{method:'POST',body:JSON.stringify(modifierRows)});
  try{await rest('order_payments','',{method:'POST',body:JSON.stringify([{order_id:o.id,method:payment,amount:c.total}])})}catch(e){}
  await audit('create_order','order',o.id,{order_number:orderNo,total:c.total,payment,order_type:orderType,shift_id:openShift?.id||null});
- state.cart=[];state.selectedCustomer=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ أوردر ${o.order_number||'#'+o.id}`);renderPOS();
+ state.cart=[];state.selectedCustomer=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ أوردر ${o.order_number||'#'+o.id}`);renderPOS();showReceipt(o,savedItems);
 }
 const orderTypeLabel=v=>({takeaway:'تيك أواي',delivery:'دليفري',dinein:'صالة'}[v]||v||'');
 const paymentLabel=v=>({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',card:'InstaPay',visa:'InstaPay',mixed:'دفع مختلط'}[v]||v||'');

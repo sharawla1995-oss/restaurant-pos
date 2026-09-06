@@ -1,11 +1,8 @@
-# Top Burger POS V8.3
+# Top Burger POS V8.3.1 — Print Fix
 
-- Cache-busted V8.3 assets so the new JS/CSS actually load.
-- Receipt is no longer mounted under application pages; printing uses an isolated hidden iframe removed after printing.
-- No automatic receipt preview after checkout. Reprint remains available from Orders.
-- Customer lookup runs while typing (debounced) and fills saved name/address/area when available.
-- Compact delivery rows + filters/search are active in this build.
-- Dashboard receives the approved dark/gold accent styling.
-- No SQL changes required.
-
-User creation is intentionally NOT faked in this static build: secure Supabase Auth account creation needs a server-side Edge Function/service-role secret and will be added as a separate secured backend step.
+- After confirming an order, a temporary receipt modal opens with: Customer Invoice / Preparation Receipt / Close.
+- The receipt is NOT mounted under any app page.
+- Printing uses an off-screen iframe that remains printable on mobile Chrome.
+- Reprint from Orders remains available.
+- Cache version bumped to 8.3.1.
+- No SQL changes.
