@@ -8,7 +8,7 @@ settings:{
   enable_inventory:false,enable_delivery:true,enable_customer_search:true,
   enable_delivery_drivers:true,enable_mixed_payment:true
 },
-modifiers:[],productModifiers:[],deliveryZones:[],drivers:[],selectedCustomer:null};
+modifiers:[],productModifiers:[],deliveryZones:[],drivers:[],employeeBranches:[],selectedCustomer:null};
 const money=n=>`${Number(n||0).toFixed(2)} ج.م`;
 const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
@@ -22,6 +22,11 @@ function branchName(id){return state.branches.find(b=>String(b.id)===String(id))
 function driverName(id){return state.drivers.find(d=>String(d.id)===String(id))?.name||''}
 function zoneName(id){return state.deliveryZones.find(z=>String(z.id)===String(id))?.name||''}
 function employeeName(id,employees=[]){return employees.find(e=>String(e.id)===String(id))?.name||''}
+function isAdmin(){return state.employee?.role==='admin'}
+function isCallCenter(){return ['callcenter','delivery'].includes(state.employee?.role)}
+function allowedBranchIds(){if(isAdmin())return state.branches.map(b=>Number(b.id));const ids=(state.employeeBranches||[]).map(x=>Number(x.branch_id));if(!ids.length&&state.employee?.branch_id)ids.push(Number(state.employee.branch_id));return [...new Set(ids)]}
+function allowedBranches(){const ids=new Set(allowedBranchIds().map(String));return state.branches.filter(b=>ids.has(String(b.id)))}
+function canSeeAllBranches(){return isAdmin()||allowedBranchIds().length>1}
 function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
 function localDateInput(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function rangeISO(from,to){return {from:new Date(`${from}T00:00:00`).toISOString(),to:new Date(`${to}T23:59:59.999`).toISOString()}}
@@ -42,11 +47,12 @@ async function bootstrap(){
     rest('delivery_drivers','select=*&active=eq.true&order=name')
   ]);
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
-  state.employee=emps[0];state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.deliveryZones=zones||[];state.drivers=drivers||[];for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
+  state.employee=emps[0];state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.deliveryZones=zones||[];state.drivers=drivers||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
-  $('#branchName').textContent=branchName(state.employee.branch_id);
-  $$('#nav [data-page="users"],#nav [data-page="settings"]').forEach(b=>b.classList.toggle('hidden',state.employee.role!=='admin'));
-  const k=$('#nav [data-page="kitchen"]'), inv=$('#nav [data-page="inventory"]'); if(k)k.classList.toggle('hidden',!state.settings.enable_kitchen); if(inv)inv.classList.toggle('hidden',!state.settings.enable_inventory); const del=$('#nav [data-page="delivery"]'); if(del)del.classList.toggle('hidden',!state.settings.enable_delivery);
+  $('#branchName').textContent=canSeeAllBranches()?`الفروع: ${allowedBranches().map(b=>b.name).join(' + ')}`:branchName(state.employee.branch_id);
+  $$('#nav [data-page="users"],#nav [data-page="settings"],#nav [data-page="deliverySettings"]').forEach(b=>b.classList.toggle('hidden',!isAdmin()));
+  $$('#nav [data-page="reports"],#nav [data-page="expenses"],#nav [data-page="shifts"],#nav [data-page="products"]').forEach(b=>{if(!isAdmin()&&!['cashier'].includes(state.employee.role)) b.classList.add('hidden')});
+  const k=$('#nav [data-page="kitchen"]'), inv=$('#nav [data-page="inventory"]'); if(k)k.classList.toggle('hidden',!state.settings.enable_kitchen); if(inv)inv.classList.toggle('hidden',!state.settings.enable_inventory); const del=$('#nav [data-page="deliveryOrders"]'); if(del)del.classList.toggle('hidden',!state.settings.enable_delivery);
   show('appView');showPage('pos');
 }
 
@@ -56,9 +62,9 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await
 $('#logoutBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-const titles={pos:'الكاشير',orders:'الطلبات',customers:'العملاء',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
+const titles={pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
-async function showPage(p){try{navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({pos:renderPOS,orders:renderOrders,customers:renderCustomers,delivery:renderDelivery,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 function renderPOS(){
  $('#page').innerHTML=`<div class="pos-layout"><section class="catalog">
@@ -72,7 +78,7 @@ function renderPOS(){
    <input id="customerName" placeholder="اسم العميل">
   </div>
   <div id="deliveryFields" class="delivery-fields hidden">
-   <select id="deliveryBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(state.employee.branch_id)?'selected':''}>${b.name}</option>`).join('')}</select>
+   <select id="deliveryBranch">${allowedBranches().map(b=>`<option value="${b.id}" ${String(b.id)===String(state.employee.branch_id)?'selected':''}>${b.name}</option>`).join('')}</select>
    <select id="deliveryZone"><option value="">اختر المنطقة</option>${state.deliveryZones.map(z=>`<option value="${z.id}" data-fee="${z.delivery_fee}" data-branch="${z.branch_id||''}">${z.name} — ${money(z.delivery_fee)}</option>`).join('')}</select>
    <textarea id="deliveryAddress" rows="2" placeholder="عنوان التوصيل"></textarea>
    <select id="deliveryDriver"><option value="">المندوب — يحدد لاحقًا</option></select>
@@ -271,10 +277,10 @@ async function renderReports(){
       <div class="toolbar">
         <label>من<input id="repFrom" type="date" value="${today}"></label>
         <label>إلى<input id="repTo" type="date" value="${today}"></label>
-        <label>الفرع<select id="repBranch"><option value="all">كل الفروع</option>${state.branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label>
+        <label>الفرع<select id="repBranch">${canSeeAllBranches()?'<option value="all">كل الفروع المسموحة</option>':''}${allowedBranches().map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label>
         <label>نوع الطلب<select id="repType"><option value="all">الكل</option><option value="takeaway">تيك أواي</option><option value="delivery">دليفري</option><option value="dinein">صالة</option></select></label>
         <label>الدفع<select id="repPay"><option value="all">الكل</option><option value="cash">كاش</option><option value="wallet">محفظة</option><option value="instapay">InstaPay</option></select></label>
-        <label>الموظف<select id="repEmployee"><option value="all">كل الموظفين</option></select></label>
+        <label>الموظف<select id="repEmployee"><option value="all">كل الموظفين</option></select></label><label>الوردية<select id="repShift"><option value="all">كل الورديات</option></select></label>
         <button id="runReport" class="primary">عرض التقرير</button>
         <button id="exportReport" class="secondary">تصدير CSV</button>
       </div>
@@ -303,12 +309,14 @@ async function renderReports(){
       const orders=await safeFetch('orders',`select=*&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`);
       const expenses=await safeFetch('expenses',`select=*&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`);
       const shifts=await safeFetch('shifts',`select=*&opened_at=lte.${encodeURIComponent(r.to)}&order=opened_at.desc`);
+      const shiftSel=$('#repShift');if(shiftSel){const current=shiftSel.value;shiftSel.innerHTML='<option value="all">كل الورديات</option>'+shifts.map(sh=>`<option value="${sh.id}">#${sh.id} — ${branchName(sh.branch_id)} — ${fmtDate(sh.opened_at)}</option>`).join('');if([...shiftSel.options].some(o=>o.value===current))shiftSel.value=current;}
 
       const bf=$('#repBranch')?.value||'all';
       const tf=$('#repType')?.value||'all';
       const pf=$('#repPay')?.value||'all';
       const ef=$('#repEmployee')?.value||'all';
-      let ord=(orders||[]).filter(o=>(bf==='all'||String(o.branch_id)===bf)&&(tf==='all'||String(o.order_type||o.type)===tf)&&(ef==='all'||String(o.employee_id)===ef));
+      const sf=$('#repShift')?.value||'all';
+      let ord=(orders||[]).filter(o=>(bf==='all'||String(o.branch_id)===bf)&&(tf==='all'||String(o.order_type||o.type)===tf)&&(ef==='all'||String(o.employee_id)===ef)&&(sf==='all'||String(o.shift_id)===sf));
 
       let payments=[];
       const ids=ord.map(o=>o.id).filter(Boolean);
@@ -326,7 +334,7 @@ async function renderReports(){
 
       const valid=ord.filter(o=>String(o.status||'').toLowerCase()!=='cancelled');
       const cancelled=ord.filter(o=>String(o.status||'').toLowerCase()==='cancelled');
-      const ex=(expenses||[]).filter(x=>(bf==='all'||String(x.branch_id)===bf)&&(ef==='all'||String(x.employee_id)===ef));
+      const ex=(expenses||[]).filter(x=>(bf==='all'||String(x.branch_id)===bf)&&(ef==='all'||String(x.employee_id)===ef)&&(sf==='all'||String(x.shift_id)===sf));
       const sales=valid.reduce((a,o)=>a+Number(o.total??o.total_amount??0),0);
       const discounts=valid.reduce((a,o)=>a+Number(o.discount??o.discount_amount??0),0);
       const deliveryFees=valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0);
@@ -376,7 +384,7 @@ async function renderReports(){
       const fromMs=new Date(r.from).getTime(),toMs=new Date(r.to).getTime();
       const shiftRows=(shifts||[]).filter(sh=>{
         const openMs=new Date(sh.opened_at||0).getTime(); const closeMs=sh.closed_at?new Date(sh.closed_at).getTime():Infinity;
-        return openMs<=toMs&&closeMs>=fromMs&&(bf==='all'||String(sh.branch_id)===bf)&&(ef==='all'||String(sh.employee_id)===ef);
+        return openMs<=toMs&&closeMs>=fromMs&&(bf==='all'||String(sh.branch_id)===bf)&&(ef==='all'||String(sh.employee_id)===ef)&&(sf==='all'||String(sh.id)===sf);
       }).map(sh=>{
         const so=valid.filter(o=>String(o.shift_id)===String(sh.id));
         const sx=ex.filter(x=>String(x.shift_id)===String(sh.id));
@@ -428,3 +436,48 @@ if('serviceWorker' in navigator){
   caches?.keys?.().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});
 }
 init();
+
+
+/* V7 — branch permissions, delivery operations and website-ready UI */
+async function renderDeliveryOrders(){
+  $('#page').innerHTML='<div class="panel"><h2>🛵 طلبات الدليفري</h2><div class="empty">جاري التحميل...</div></div>';
+  const [orders,drivers]=await Promise.all([
+    rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200'),
+    rest('delivery_drivers','select=*&active=eq.true&order=name')
+  ]);
+  state.drivers=drivers||[];
+  const active=orders||[];
+  const counts={new:active.filter(o=>o.status==='new'||o.status==='ready').length,out:active.filter(o=>o.status==='out_for_delivery').length};
+  const driverCards=state.drivers.map(d=>{const os=active.filter(o=>String(o.driver_id)===String(d.id)&&o.status==='out_for_delivery');const cash=os.filter(o=>String(o.payment_method)==='cash').reduce((a,o)=>a+Number(o.total||0),0);return `<div class="driver-stat"><b>${esc(d.name)}</b><span>${branchName(d.branch_id)}</span><strong>${os.length} طلب</strong><small>تحصيل متوقع ${money(cash)}</small></div>`}).join('');
+  $('#page').innerHTML=`<div class="grid delivery-kpis"><div class="card kpi soft-blue"><small>طلبات جديدة</small><strong>${counts.new}</strong></div><div class="card kpi soft-amber"><small>خرجت مع المندوب</small><strong>${counts.out}</strong></div><div class="card kpi soft-green"><small>إجمالي النشط</small><strong>${active.length}</strong></div></div>
+  ${driverCards?`<div class="driver-strip">${driverCards}</div>`:''}
+  <div class="panel"><div class="shift-title"><h2>الطلبات الحالية</h2><span class="tag">تحديث مباشر عند فتح الصفحة</span></div><div class="delivery-cards">${active.map(o=>deliveryOrderCard(o)).join('')||'<div class="empty">لا توجد طلبات دليفري حالية</div>'}</div></div>`;
+  $('#page').onclick=async e=>{
+    const detail=e.target.closest('[data-order-detail]');if(detail)return openOrderDetails(detail.dataset.orderDetail);
+    const assign=e.target.closest('[data-assign]');if(assign){
+      const o=active.find(x=>String(x.id)===String(assign.dataset.assign));if(!o)return;
+      const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));if(!list.length)return toast('لا يوجد مندوب فعال في هذا الفرع');
+      const names=list.map((d,i)=>`${i+1}- ${d.name}`).join('\n');const pick=prompt(`اختار المندوب:\n${names}`);const d=list[Number(pick)-1];if(!d)return;
+      await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',o.id,{driver_id:d.id});toast(`تم التسليم إلى ${d.name}`);return renderDeliveryOrders();
+    }
+    const delivered=e.target.closest('[data-delivered]');if(delivered){await rest('orders',`id=eq.${delivered.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',delivered.dataset.delivered,{});toast('تم تسجيل التسليم');return renderDeliveryOrders();}
+  };
+}
+function deliveryOrderCard(o){const drv=driverName(o.driver_id);return `<article class="delivery-order-card status-${esc(o.status)}"><div class="doc-head"><div><h3>${esc(o.order_number||'#'+o.id)}</h3><small>${fmtDate(o.created_at)} • ${branchName(o.branch_id)}</small></div><span class="status-pill">${statusLabel(o.status)}</span></div><div class="delivery-info"><div><b>العميل</b><span>${esc(o.customer_name||'-')}</span></div><div><b>الموبايل</b><a href="tel:${esc(o.customer_phone||'')}">${esc(o.customer_phone||'-')}</a></div><div class="wide"><b>العنوان</b><span>${esc([o.delivery_area,o.delivery_address].filter(Boolean).join(' — ')||'-')}</span></div><div><b>التحصيل</b><strong>${money(o.total)}</strong></div><div><b>الدفع</b><span>${paymentLabel(o.payment_method)}</span></div><div><b>المندوب</b><span>${esc(drv||'لم يحدد')}</span></div></div><div class="card-actions"><button class="secondary" data-order-detail="${o.id}">تفاصيل / طباعة</button>${o.status==='out_for_delivery'?`<button class="primary" data-delivered="${o.id}">✓ تم التسليم</button>`:`<button class="primary" data-assign="${o.id}">🛵 تسليم لمندوب</button>`}</div></article>`}
+
+async function renderDeliverySettings(){
+ if(!isAdmin()){ $('#page').innerHTML='<div class="empty">إعدادات الدليفري متاحة للمدير فقط</div>';return; }
+ const [drivers,zones,settlements]=await Promise.all([rest('delivery_drivers','select=*&order=active.desc,name'),rest('delivery_zones','select=*&order=active.desc,name'),rest('driver_settlements','select=*&order=created_at.desc&limit=50').catch(()=>[])]);
+ state.drivers=drivers||[];state.deliveryZones=zones||[];
+ $('#page').innerHTML=`<div class="grid delivery-admin-grid"><div class="panel"><h2>🛵 المناديب</h2><div class="form-grid"><label>الاسم<input id="driverName"></label><label>الموبايل<input id="driverPhone" inputmode="tel"></label><label>الفرع<select id="driverBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="chips">${drivers.map(d=>`<span class="chip">${esc(d.name)} • ${branchName(d.branch_id)}</span>`).join('')||'لا يوجد مناديب'}</div></div><div class="panel"><h2>📍 مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName"></label><label>رسوم التوصيل<input id="zoneFee" type="number" min="0" value="0"></label><label>الفرع المسؤول<select id="zoneBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="chips">${zones.map(z=>`<span class="chip">${esc(z.name)} • ${money(z.delivery_fee)} • ${branchName(z.branch_id)}</span>`).join('')||'لا توجد مناطق'}</div></div></div><div class="panel"><h2>تسويات المناديب</h2><p>التسوية تحسب طلبات الكاش التي تم تسليمها ولم تتم تسويتها بعد.</p><div class="driver-settle-list">${drivers.map(d=>`<button class="secondary" data-settle="${d.id}">تسوية ${esc(d.name)}</button>`).join('')}</div>${settlements.length?`<div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>المندوب</th><th>الفرع</th><th>الطلبات</th><th>المبلغ</th></tr></thead><tbody>${settlements.map(x=>`<tr><td>${fmtDate(x.created_at)}</td><td>${driverName(x.driver_id)}</td><td>${branchName(x.branch_id)}</td><td>${x.orders_count}</td><td>${money(x.amount)}</td></tr>`).join('')}</tbody></table></div>`:''}</div>`;
+ $('#addDriver').onclick=async()=>{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:Number($('#driverBranch').value),active:true}])});toast('تمت إضافة المندوب');renderDeliverySettings()};
+ $('#addZone').onclick=async()=>{if(!$('#zoneName').value.trim())return toast('اكتب اسم المنطقة');await rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:$('#zoneName').value.trim(),delivery_fee:Number($('#zoneFee').value||0),branch_id:Number($('#zoneBranch').value),active:true}])});toast('تمت إضافة المنطقة');renderDeliverySettings()};
+ $('#page').onclick=async e=>{const b=e.target.closest('[data-settle]');if(!b)return;const did=Number(b.dataset.settle);const d=drivers.find(x=>x.id===did);const os=await rest('orders',`select=id,total&driver_id=eq.${did}&status=eq.delivered&payment_method=eq.cash&driver_settled_at=is.null`);const amount=os.reduce((a,o)=>a+Number(o.total||0),0);if(!os.length)return toast('لا توجد تحصيلات كاش غير مسواة لهذا المندوب');if(!confirm(`تسوية ${d.name}: ${os.length} طلب بإجمالي ${money(amount)}؟`))return;const now=new Date().toISOString();await rest('orders',`id=in.(${os.map(o=>o.id).join(',')})`,{method:'PATCH',body:JSON.stringify({driver_settled_at:now})});await rest('driver_settlements','',{method:'POST',body:JSON.stringify([{driver_id:did,branch_id:d.branch_id,employee_id:state.employee.id,orders_count:os.length,amount,created_at:now}])});await audit('driver_settlement','delivery_driver',did,{orders_count:os.length,amount});toast('تمت تسوية المندوب');renderDeliverySettings()};
+}
+
+async function renderUsers(){
+ if(!isAdmin()){ $('#page').innerHTML='<div class="empty">المستخدمون متاحون للمدير فقط</div>';return; }
+ const [rows,links]=await Promise.all([rest('employees','select=id,name,username,role,branch_id,active&order=id'),rest('employee_branches','select=*')]);
+ $('#page').innerHTML=`<div class="panel"><h2>المستخدمون وصلاحيات الفروع</h2><p>الكاشير يعمل على فرعه فقط. الكول سنتر يمكن منحه فرعًا أو أكثر. المدير يرى كل الفروع.</p><div class="user-cards">${rows.map(u=>`<div class="user-card"><div><b>${esc(u.name)}</b><small>${esc(u.role)} • الفرع الأساسي: ${branchName(u.branch_id)}</small></div>${u.role==='admin'?'<span class="tag">كل الفروع</span>':`<div class="branch-checks">${state.branches.map(b=>`<label><input type="checkbox" data-emp="${u.id}" data-branch="${b.id}" ${links.some(x=>String(x.employee_id)===String(u.id)&&String(x.branch_id)===String(b.id))?'checked':''}> ${esc(b.name)}</label>`).join('')}</div>`}</div>`).join('')}</div></div>`;
+ $('#page').onchange=async e=>{const c=e.target.closest('input[data-emp][data-branch]');if(!c)return;const employee_id=Number(c.dataset.emp),branch_id=Number(c.dataset.branch);if(c.checked){await rest('employee_branches','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{employee_id,branch_id}])})}else{await rest('employee_branches',`employee_id=eq.${employee_id}&branch_id=eq.${branch_id}`,{method:'DELETE'})}toast('تم تحديث صلاحية الفرع')};
+}

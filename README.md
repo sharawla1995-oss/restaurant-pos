@@ -1,39 +1,17 @@
-# Restaurant POS V6
+# Restaurant POS V7
 
-1. Run `supabase-v6.sql` once in Supabase SQL Editor.
-2. Upload/replace `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js` in the GitHub Pages repo root.
+V7 adds:
+- Branch permissions per employee (`employee_branches`).
+- Cashier can be limited to one branch; call center can be granted both branches; admin sees all.
+- Separate main page for delivery orders and manager-only delivery settings.
+- Driver cash settlement tracking.
+- Shift filter in reports.
+- Calm, mobile-friendly visual refresh.
+- Website-ready catalog fields (`website_visible`, `website_sort_order`) while keeping public website writes closed until a controlled API/Edge Function is added.
+
+## Upgrade
+1. Run `supabase-v7.sql` once in Supabase SQL Editor.
+2. Upload `index.html`, `app.js`, `styles.css`, `manifest.json`, `sw.js` to GitHub Pages root, replacing same-name files.
 3. Hard refresh/reopen the site.
 
-V6 adds shift-linked sales/expenses, cash settlement, detailed reports, delivery driver selection in POS, richer delivery receipts, and 80mm print CSS.
-
-# Restaurant POS Cloud V5 Foundation
-
-This release starts the agreed sales-first rebuild.
-
-Included now:
-- Two branches renamed to العشرين and الدقي.
-- Cash / Wallet / InstaPay.
-- Customer lookup by phone during checkout.
-- Customer list.
-- Delivery zones and delivery fees.
-- Delivery drivers and order assignment.
-- Delivery order routing to a branch.
-- Preparation receipt + customer receipt.
-- Order source / delivery fields / order number foundation.
-- Inventory and kitchen disabled by default but can be enabled by admin.
-- Branch-specific product availability table and mixed-payment schema foundation.
-- Audit log schema foundation.
-
-## Installation
-1. Run `supabase-v5.sql` once in Supabase SQL Editor.
-2. Upload the six website files at repository root:
-   index.html, app.js, styles.css, manifest.json, sw.js, README.md
-3. Do not upload the SQL file to GitHub unless you want to keep it as documentation.
-
-
-## V5.1 Fix
-- Forces fresh app.js/styles.css loading.
-- Removes stale service-worker caches.
-- Fixes delivery page so old POS content cannot remain when delivery data loading fails.
-- Confirms payment UI: Cash / Wallet / InstaPay.
-- No SQL changes required after V5 SQL succeeded.
+No need to rerun older SQL files.

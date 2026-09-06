@@ -38,3 +38,14 @@
  .print-zone .r-items>div,.print-zone .r-totals>div{display:flex!important;justify-content:space-between!important;gap:5px!important;margin:4px 0!important}
  .print-zone small{color:#000!important}.print-zone hr{border:0!important;border-top:1px dashed #000!important;margin:5px 0!important}
 }
+
+
+/* V7 calm visual system */
+:root{--soft:#f7f9fc;--soft-blue:#eef6ff;--soft-green:#eefbf4;--soft-amber:#fff8e8;--soft-violet:#f7f2ff}
+body{background:var(--soft)}
+.panel,.card,.cart,.table-wrap{box-shadow:0 4px 18px rgba(15,23,42,.035)}
+.topbar{background:rgba(255,255,255,.96);backdrop-filter:blur(8px)}
+.sidebar nav button{margin:1px 0}.soft-blue{background:var(--soft-blue)}.soft-green{background:var(--soft-green)}.soft-amber{background:var(--soft-amber)}
+.delivery-kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px}.driver-strip{display:flex;gap:10px;overflow:auto;margin-bottom:14px;padding-bottom:3px}.driver-stat{min-width:190px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:4px}.driver-stat span,.driver-stat small{color:var(--muted)}.driver-stat strong{font-size:18px}.delivery-cards{display:grid;gap:12px}.delivery-order-card{background:#fff;border:1px solid var(--line);border-right:5px solid #cbd5e1;border-radius:14px;padding:14px}.delivery-order-card.status-new,.delivery-order-card.status-ready{border-right-color:#f59e0b}.delivery-order-card.status-out_for_delivery{border-right-color:#3b82f6}.doc-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.doc-head h3{margin:0 0 4px}.status-pill{padding:5px 9px;border-radius:999px;background:#f1f5f9;font-size:12px;font-weight:800}.delivery-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:13px 0}.delivery-info>div{background:#f8fafc;border-radius:10px;padding:9px;display:grid;gap:3px}.delivery-info b{font-size:11px;color:var(--muted)}.delivery-info .wide{grid-column:span 2}.delivery-info a{color:inherit;font-weight:700}.card-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.driver-settle-list{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.user-cards{display:grid;gap:10px}.user-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;display:flex;justify-content:space-between;gap:12px;align-items:center}.user-card small{display:block;color:var(--muted);margin-top:4px}.branch-checks{display:flex;gap:12px;flex-wrap:wrap}.branch-checks label{display:flex;align-items:center;gap:5px}
+@media(max-width:700px){.delivery-kpis{grid-template-columns:1fr 1fr 1fr}.delivery-info{grid-template-columns:1fr 1fr}.delivery-info .wide{grid-column:1/-1}.user-card{align-items:flex-start;flex-direction:column}.table-wrap table{min-width:680px}}
+@media(max-width:470px){.delivery-kpis{grid-template-columns:1fr}.card-actions button{flex:1}.delivery-info{grid-template-columns:1fr}.delivery-info .wide{grid-column:auto}}
