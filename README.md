@@ -21,3 +21,11 @@ Included now:
 2. Upload the six website files at repository root:
    index.html, app.js, styles.css, manifest.json, sw.js, README.md
 3. Do not upload the SQL file to GitHub unless you want to keep it as documentation.
+
+
+## V5.1 Fix
+- Forces fresh app.js/styles.css loading.
+- Removes stale service-worker caches.
+- Fixes delivery page so old POS content cannot remain when delivery data loading fails.
+- Confirms payment UI: Cash / Wallet / InstaPay.
+- No SQL changes required after V5 SQL succeeded.

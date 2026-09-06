@@ -162,7 +162,7 @@ async function checkout(payment){
  state.cart=[];state.selectedCustomer=null;toast(`تم حفظ أوردر ${o.order_number||'#'+o.id}`);showReceipt(o,clean);renderPOS();
 }
 const orderTypeLabel=v=>({takeaway:'تيك أواي',delivery:'دليفري',dinein:'صالة'}[v]||v||'');
-const paymentLabel=v=>({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',mixed:'دفع مختلط'}[v]||v||'');
+const paymentLabel=v=>({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',card:'InstaPay',visa:'InstaPay',mixed:'دفع مختلط'}[v]||v||'');
 const statusLabel=v=>({new:'جديد',preparing:'قيد التحضير',ready:'جاهز',out_for_delivery:'خرج مع المندوب',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'}[v]||v||'');
 
 function receiptHTML(o,items){return `<div class="receipt"><h2>Restaurant POS</h2><div class="r-meta">أوردر #${o.id}<br>${fmtDate(o.created_at||new Date().toISOString())}<br>${branchName(o.branch_id)}</div><hr><div class="r-items">${items.map(i=>`<div><span>${i.product_name} × ${i.quantity}${i.notes?`<small>${i.notes}</small>`:''}</span><b>${money(i.total)}</b></div>`).join('')}</div><hr><div class="r-totals"><div><span>الإجمالي</span><b>${money(o.subtotal)}</b></div>${Number(o.discount||0)?`<div><span>خصم</span><b>${money(o.discount)}</b></div>`:''}<div><span>المطلوب</span><b>${money(o.total)}</b></div></div><hr><div class="r-footer">${orderTypeLabel(o.order_type)} • ${paymentLabel(o.payment_method)}<br>شكرًا لزيارتكم</div></div>`}
@@ -189,29 +189,36 @@ async function renderCustomers(){
 }
 
 async function renderDelivery(){
- const [drivers,zones,outOrders]=await Promise.all([
-   rest('delivery_drivers','select=*&order=active.desc,name'),
-   rest('delivery_zones','select=*&order=active.desc,name'),
-   rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=100')
- ]);
+ $('#page').innerHTML=`<div class="panel"><h2>تحميل شاشة الدليفري...</h2></div>`;
+ let drivers=[],zones=[],outOrders=[];
+ try{drivers=await rest('delivery_drivers','select=*&order=active.desc,name')}catch(e){console.error('drivers',e)}
+ try{zones=await rest('delivery_zones','select=*&order=active.desc,name')}catch(e){console.error('zones',e)}
+ try{outOrders=await rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=100')}catch(e){console.error('delivery orders',e)}
+ state.drivers=drivers||[]; state.deliveryZones=zones||[];
  $('#page').innerHTML=`<div class="grid delivery-admin-grid">
- <div class="panel"><h2>مناديب التوصيل</h2><div class="form-grid"><label>الاسم<input id="driverName"></label><label>الموبايل<input id="driverPhone"></label><label>الفرع<select id="driverBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="chips">${drivers.map(d=>`<span class="chip">${d.name} • ${branchName(d.branch_id)}</span>`).join('')||'لا يوجد مناديب'}</div></div>
- <div class="panel"><h2>مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName"></label><label>رسوم التوصيل<input id="zoneFee" type="number" value="0"></label><label>الفرع<select id="zoneBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="chips">${zones.map(z=>`<span class="chip">${z.name} • ${money(z.delivery_fee)} • ${branchName(z.branch_id)}</span>`).join('')||'لا توجد مناطق'}</div></div></div>
- <div class="panel"><h2>طلبات الدليفري الحالية</h2><div class="table-wrap"><table><thead><tr><th>الأوردر</th><th>الفرع</th><th>العميل</th><th>العنوان</th><th>الحالة</th><th>المندوب</th><th></th></tr></thead><tbody>${outOrders.map(o=>`<tr><td>${o.order_number||'#'+o.id}</td><td>${branchName(o.branch_id)}</td><td>${o.customer_phone||''}</td><td>${o.delivery_address||''}</td><td>${statusLabel(o.status)}</td><td>${drivers.find(d=>String(d.id)===String(o.driver_id))?.name||'-'}</td><td>${o.status!=='out_for_delivery'?`<button class="secondary" data-assign="${o.id}">تسليم لمندوب</button>`:`<button class="primary" data-delivered="${o.id}">تم التسليم</button>`}</td></tr>`).join('')}</tbody></table></div></div>`;
- $('#addDriver').onclick=async()=>{if(!$('#driverName').value)return toast('اكتب اسم المندوب');await rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value,phone:$('#driverPhone').value||null,branch_id:Number($('#driverBranch').value),active:true}])});toast('تمت إضافة المندوب');renderDelivery()};
- $('#addZone').onclick=async()=>{if(!$('#zoneName').value)return toast('اكتب اسم المنطقة');await rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:$('#zoneName').value,delivery_fee:Number($('#zoneFee').value||0),branch_id:Number($('#zoneBranch').value),active:true}])});toast('تمت إضافة المنطقة');renderDelivery()};
+ <div class="panel"><h2>🛵 مناديب التوصيل</h2><div class="form-grid"><label>الاسم<input id="driverName" placeholder="اسم المندوب"></label><label>الموبايل<input id="driverPhone" inputmode="tel" placeholder="رقم الموبايل"></label><label>الفرع<select id="driverBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="chips">${drivers.map(d=>`<span class="chip">${d.name} • ${branchName(d.branch_id)}</span>`).join('')||'لا يوجد مناديب حتى الآن'}</div></div>
+ <div class="panel"><h2>📍 مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName" placeholder="اسم المنطقة"></label><label>رسوم التوصيل<input id="zoneFee" type="number" min="0" value="0"></label><label>الفرع المسؤول<select id="zoneBranch">${state.branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}</select></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="chips">${zones.map(z=>`<span class="chip">${z.name} • ${money(z.delivery_fee)} • ${branchName(z.branch_id)}</span>`).join('')||'لا توجد مناطق حتى الآن'}</div></div></div>
+ <div class="panel"><h2>طلبات الدليفري الحالية</h2><div class="table-wrap"><table><thead><tr><th>الأوردر</th><th>الفرع</th><th>العميل</th><th>العنوان</th><th>الحالة</th><th>المندوب</th><th>إجراء</th></tr></thead><tbody>${outOrders.length?outOrders.map(o=>`<tr><td>${o.order_number||'#'+o.id}</td><td>${branchName(o.branch_id)}</td><td>${o.customer_phone||'-'}</td><td>${o.delivery_address||'-'}</td><td>${statusLabel(o.status)}</td><td>${drivers.find(d=>String(d.id)===String(o.driver_id))?.name||'-'}</td><td>${o.status!=='out_for_delivery'?`<button class="secondary" data-assign="${o.id}">تسليم لمندوب</button>`:`<button class="primary" data-delivered="${o.id}">تم التسليم</button>`}</td></tr>`).join(''):'<tr><td colspan="7">لا توجد طلبات دليفري حالية</td></tr>'}</tbody></table></div></div>`;
+ $('#addDriver').onclick=async()=>{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:Number($('#driverBranch').value),active:true}])});toast('تمت إضافة المندوب');renderDelivery()};
+ $('#addZone').onclick=async()=>{if(!$('#zoneName').value.trim())return toast('اكتب اسم المنطقة');await rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:$('#zoneName').value.trim(),delivery_fee:Number($('#zoneFee').value||0),branch_id:Number($('#zoneBranch').value),active:true}])});toast('تمت إضافة المنطقة');renderDelivery()};
  $('#page').onclick=async e=>{
    const a=e.target.closest('[data-assign]'); if(a){
      const available=drivers.filter(d=>d.active);
      if(!available.length)return toast('أضف مندوب أولاً');
      const names=available.map((d,i)=>`${i+1}) ${d.name}`).join('\n');
-     const pick=prompt(`اختر رقم المندوب:\n${names}`,'1'); const d=available[Number(pick)-1]; if(!d)return;
+     const pick=prompt(`اختر رقم المندوب:\n${names}`,'1');
+     const d=available[Number(pick)-1]; if(!d)return;
      await rest('orders',`id=eq.${a.dataset.assign}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});
      toast(`الأوردر خرج مع ${d.name}`);renderDelivery();return;
    }
-   const done=e.target.closest('[data-delivered]');if(done){await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});toast('تم تسجيل التسليم');renderDelivery()}
+   const done=e.target.closest('[data-delivered]');
+   if(done){
+     await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});
+     toast('تم تسجيل التسليم');renderDelivery()
+   }
  };
 }
+
 async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders','select=*&status=in.(new,preparing,ready)&order=created_at.asc&limit=100');const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${i.quantity} ×</b> ${i.product_name}${i.notes?`<small class=\"kitchen-note\">📝 ${i.notes}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">جاهز</button>`:''}${o.status==='ready'?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;await rest('orders',`id=eq.${b.dataset.id}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})});toast('تم تحديث حالة الطلب');renderKitchen()}}
 
 async function renderShifts(){const rows=await rest('shifts',`select=*&employee_id=eq.${state.employee.id}&order=opened_at.desc&limit=30`),open=rows.find(s=>s.status==='open'&&!s.closed_at);$('#page').innerHTML=`<div class="panel"><h2>${open?'الشيفت الحالي مفتوح':'فتح شيفت جديد'}</h2>${open?`<p>بدأ: ${fmtDate(open.opened_at)} — افتتاحية: ${money(open.opening_cash)}</p><div class="toolbar"><label>النقدية الفعلية<input id="closingCash" type="number" value="0"></label><button id="closeShift" class="danger">إغلاق الشيفت</button></div>`:`<div class="toolbar"><label>عهدة بداية الشيفت<input id="openingCash" type="number" value="0"></label><button id="openShift" class="primary">فتح الشيفت</button></div>`}</div>`;if(open)$('#closeShift').onclick=async()=>{await rest('shifts',`id=eq.${open.id}`,{method:'PATCH',body:JSON.stringify({closing_cash:Number($('#closingCash').value||0),closed_at:new Date().toISOString(),status:'closed'})});toast('تم إغلاق الشيفت');renderShifts()};else $('#openShift').onclick=async()=>{await rest('shifts','',{method:'POST',body:JSON.stringify([{branch_id:state.employee.branch_id,employee_id:state.employee.id,opening_cash:Number($('#openingCash').value||0),status:'open'}])});toast('تم فتح الشيفت');renderShifts()}}
@@ -243,5 +250,8 @@ async function renderSettings(){
 }
 
 async function init(){if(!cfg.url||!cfg.key)return show('setupView');if(!session?.access_token)return show('loginView');try{await bootstrap()}catch(e){localStorage.removeItem('sbSession');session=null;show('loginView');toast(e.message)}}
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  caches?.keys?.().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});
+}
 init();
