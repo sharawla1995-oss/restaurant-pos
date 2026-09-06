@@ -91,3 +91,12 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 /* Receipts must never be visible in the application layout. */
 .print-zone{display:none!important}
 #receiptPrintFrame{position:fixed!important;width:1px!important;height:1px!important;right:-9999px!important;bottom:-9999px!important;border:0!important;opacity:0!important;pointer-events:none!important}
+
+/* V8.4 — strict active-branch mode */
+.branch-switch{margin-inline-start:auto;border:1px solid #4a5e77;background:#142337;color:#f6c453;border-radius:999px;padding:8px 12px;font-weight:800}
+.branch-picker{min-height:calc(100vh - 100px);display:grid;place-items:center;align-content:center;gap:22px;max-width:900px;margin:auto}
+.branch-picker-head{text-align:center}.branch-picker-head span{color:#f4b323;font-weight:900;letter-spacing:1px;font-size:12px}.branch-picker-head h1{font-size:34px;margin:8px 0}.branch-picker-head p{color:#9aa8bb;max-width:620px;margin:auto;line-height:1.7}
+.branch-picker-grid{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.branch-pick-card{background:linear-gradient(145deg,#17283b,#0e1825);border:1px solid #3c536c;color:#fff;border-radius:22px;padding:24px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;text-align:right;min-height:140px;box-shadow:0 14px 32px #0004}
+.branch-pick-card.alt{background:linear-gradient(145deg,#2b2416,#17150f);border-color:#725c27}.branch-pick-card:hover{transform:translateY(-2px);border-color:#f4b323}.branch-pick-icon{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-size:34px;background:#1d2c3e}.branch-pick-card.alt .branch-pick-icon{background:#302814}.branch-pick-card b{display:block;font-size:24px;margin-bottom:7px}.branch-pick-card small{color:#a9b5c5}.branch-pick-card>span:last-child{font-size:30px;color:#f4b323}
+@media(max-width:650px){.branch-picker{min-height:calc(100vh - 85px)}.branch-picker-grid{grid-template-columns:1fr}.branch-pick-card{min-height:120px;padding:18px}.branch-picker-head h1{font-size:27px}.branch-switch{font-size:11px;padding:7px 9px}}

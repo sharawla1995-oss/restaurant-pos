@@ -1,6 +1,12 @@
-Top Burger POS V8.3.3 — Customer Autofill
+# Top Burger POS — V8.4 Branch Isolation
 
-- Robust Egyptian phone normalization (+20 / 0020 / spaces / Arabic digits).
-- Autofills customer name, area, address, delivery zone, fee and responsible branch.
-- Multiple saved addresses can be selected.
-- No SQL changes required.
+التحديث ده يغيّر طريقة تشغيل الفروع:
+
+- الحساب المسموح له بفرعين يشوف شاشة اختيار: العشرين / الدقي.
+- بعد اختيار الفرع، الكاشير والطلبات والدليفري والورديات والمصروفات والتقارير تعمل على الفرع المختار فقط.
+- مفيش "كل الفروع" داخل التقارير.
+- تغيير الفرع من زر واضح أعلى الشاشة.
+- الكاشير ذو فرع واحد يدخل فرعه مباشرة.
+- الدليفري لا يغيّر الفرع تلقائيًا حسب المنطقة؛ تظهر مناطق ومناديب الفرع الحالي فقط.
+- العملاء يظلون قابلين للبحث برقم الموبايل، بينما الأوردر نفسه يتسجل على الفرع الحالي.
+- مفيش SQL جديد في V8.4.
