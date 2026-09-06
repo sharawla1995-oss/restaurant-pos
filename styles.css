@@ -103,3 +103,12 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 
 /* V8.6 management */
 .manage-list{display:grid;gap:8px;margin-top:12px}.manage-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.03)}.manage-row.muted{opacity:.55}.manage-row span:last-child{display:flex;gap:6px}.expense-toolbar{flex-wrap:wrap}.kpi-line{margin:12px 0;padding:12px;border-radius:12px;background:rgba(255,255,255,.04)}.delivery-fee-manual{display:grid;gap:6px;width:100%}.danger{background:#5b1f2b;color:#fff;border:1px solid #8b3144}
+
+/* V8.7 users & permissions */
+.users-admin-head .section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.user-management-list{display:grid;gap:12px}
+.user-management-list .user-card{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(160px,1fr) auto;align-items:center;gap:14px}
+.user-main{display:flex;flex-direction:column;gap:4px}.user-main small{opacity:.72}
+.user-branch-tags{display:flex;gap:6px;flex-wrap:wrap}.row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.user-edit-modal{width:min(720px,94vw)}.user-branches-box{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:14px}.user-branches-box .branch-checks{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap}.user-branches-box small{display:block;margin-top:8px;opacity:.7}.check-line{display:flex!important;align-items:center;gap:8px}.check-line input{width:auto!important}
+@media(max-width:760px){.user-management-list .user-card{grid-template-columns:1fr}.row-actions{justify-content:flex-start}}

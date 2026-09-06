@@ -16,6 +16,7 @@ function show(id){['setupView','loginView','appView'].forEach(x=>$('#'+x).classL
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
+async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
 async function logout(){try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
 function branchName(id){return state.branches.find(b=>String(b.id)===String(id))?.name||''}
@@ -60,7 +61,7 @@ async function audit(action,entityType,entityId,details={}){try{await rest('audi
 
 async function bootstrap(){
   const [emps,branches,cats,products,settingsRows,modifiers,productModifiers,zones,drivers]=await Promise.all([
-    rest('employees','select=*&auth_user_id=eq.'+session.user.id),
+    rest('employees','select=*&auth_user_id=eq.'+session.user.id+'&active=eq.true'),
     rest('branches','select=*&active=eq.true&order=id'),
     rest('categories','select=*&active=eq.true&order=sort_order'),
     rest('products','select=*&active=eq.true&order=id'),
@@ -666,7 +667,52 @@ async function renderDeliverySettings(){
 
 async function renderUsers(){
  if(!isAdmin()){ $('#page').innerHTML='<div class="empty">المستخدمون متاحون للمدير فقط</div>';return; }
- const [rows,links]=await Promise.all([rest('employees','select=id,name,username,role,branch_id,active&order=id'),rest('employee_branches','select=*')]);
- $('#page').innerHTML=`<div class="panel"><h2>المستخدمون وصلاحيات الفروع</h2><p>الكاشير يعمل على فرعه فقط. الكول سنتر يمكن منحه فرعًا أو أكثر. المدير يرى كل الفروع.</p><div class="user-cards">${rows.map(u=>`<div class="user-card"><div><b>${esc(u.name)}</b><small>${esc(u.role)} • الفرع الأساسي: ${branchName(u.branch_id)}</small></div>${u.role==='admin'?'<span class="tag">كل الفروع</span>':`<div class="branch-checks">${state.branches.map(b=>`<label><input type="checkbox" data-emp="${u.id}" data-branch="${b.id}" ${links.some(x=>String(x.employee_id)===String(u.id)&&String(x.branch_id)===String(b.id))?'checked':''}> ${esc(b.name)}</label>`).join('')}</div>`}</div>`).join('')}</div></div>`;
- $('#page').onchange=async e=>{const c=e.target.closest('input[data-emp][data-branch]');if(!c)return;const employee_id=Number(c.dataset.emp),branch_id=Number(c.dataset.branch);if(c.checked){await rest('employee_branches','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{employee_id,branch_id}])})}else{await rest('employee_branches',`employee_id=eq.${employee_id}&branch_id=eq.${branch_id}`,{method:'DELETE'})}toast('تم تحديث صلاحية الفرع')};
+ let rows=[];
+ try{
+   const [employees,links]=await Promise.all([
+     rest('employees','select=id,name,username,role,branch_id,active,auth_user_id&order=id'),
+     rest('employee_branches','select=employee_id,branch_id')
+   ]);
+   rows=(employees||[]).map(u=>({...u,email:u.username||'',branch_ids:(links||[]).filter(x=>String(x.employee_id)===String(u.id)).map(x=>Number(x.branch_id))}));
+ }catch(e){
+   $('#page').innerHTML=`<div class="panel"><h2>المستخدمون والصلاحيات</h2><div class="empty"><b>تعذر تحميل المستخدمين.</b><p>${esc(e.message)}</p></div></div>`;return;
+ }
+ const roleLabel=r=>({admin:'مدير',cashier:'كاشير',callcenter:'كول سنتر'}[r]||r);
+ const branchChecks=(selected=[],admin=false)=>admin?'<span class="tag">كل الفروع</span>':state.branches.map(b=>`<label><input type="checkbox" class="user-branch" value="${b.id}" ${selected.map(String).includes(String(b.id))?'checked':''}> ${esc(b.name)}</label>`).join('');
+ $('#page').innerHTML=`
+ <div class="panel users-admin-head">
+   <div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>إضافة مستخدم، تعديل دوره وفروعه، وتفعيله أو إيقافه.</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div>
+ </div>
+ <div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}">
+   <div class="user-main"><b>${esc(u.name)}</b><small>${esc(u.email||u.username||'بدون بريد')} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div>
+   <div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div>
+   <div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div>
+ </div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
+
+ const openForm=(u=null)=>{
+   const editing=!!u, role=u?.role||'cashier', ids=u?.branch_ids||[currentBranchId()];
+   const m=document.createElement('div');m.className='modal';
+   m.innerHTML=`<form class="modal-card user-edit-modal" id="userForm"><h2>${editing?'تعديل المستخدم':'إضافة مستخدم جديد'}</h2>
+   <div class="form-grid">
+    <label>الاسم<input id="uName" value="${esc(u?.name||'')}" required></label>
+    <label>البريد الإلكتروني<input id="uEmail" type="email" value="${esc(u?.email||'')}" ${editing?'readonly':''} required></label>
+    ${editing?'':`<label>كلمة المرور<input id="uPassword" type="password" minlength="6" required></label>`}
+    <label>الدور<select id="uRole"><option value="cashier" ${role==='cashier'?'selected':''}>كاشير</option><option value="callcenter" ${role==='callcenter'?'selected':''}>كول سنتر</option><option value="admin" ${role==='admin'?'selected':''}>مدير</option></select></label>
+    <label>الفرع الأساسي<select id="uHomeBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(u?.branch_id||currentBranchId())?'selected':''}>${esc(b.name)}</option>`).join('')}</select></label>
+    <label class="check-line"><input id="uActive" type="checkbox" ${u?.active===false?'':'checked'}> المستخدم فعال</label>
+   </div>
+   <div class="user-branches-box"><b>الفروع المسموح بها</b><div id="uBranchChecks" class="branch-checks">${branchChecks(ids,role==='admin')}</div><small id="uBranchHint">${role==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'}</small></div>
+   <div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ</button></div></form>`;
+   document.body.appendChild(m);
+   const redrawBranches=()=>{const r=m.querySelector('#uRole').value;const box=m.querySelector('#uBranchChecks');const current=[...m.querySelectorAll('.user-branch:checked')].map(x=>x.value);box.innerHTML=branchChecks(current.length?current:ids,r==='admin');m.querySelector('#uBranchHint').textContent=r==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'};
+   m.querySelector('#uRole').onchange=redrawBranches;
+   m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove()};
+   m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length)return toast('حدد فرعًا واحدًا على الأقل');const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const active=m.querySelector('#uActive').checked;try{if(editing){await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({name:m.querySelector('#uName').value.trim(),role,branch_id,active})});await rest('employee_branches',`employee_id=eq.${u.id}`,{method:'DELETE'});if(branch_ids.length)await rest('employee_branches','',{method:'POST',body:JSON.stringify(branch_ids.map(bid=>({employee_id:u.id,branch_id:bid})))});}else{const result=await callFunction('smart-function',{action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),email:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_ids});if(active===false&&result?.employee_id)await rest('employees',`id=eq.${result.employee_id}`,{method:'PATCH',body:JSON.stringify({active:false})});}m.remove();toast(editing?'تم تعديل المستخدم':'تم إنشاء المستخدم');renderUsers()}catch(err){toast(err.message)}};
+ };
+ $('#newUserBtn').onclick=()=>openForm();
+ $('#page').onclick=async e=>{
+   const eb=e.target.closest('[data-edit-user]');if(eb){const u=rows.find(x=>String(x.id)===eb.dataset.editUser);if(u)openForm(u);return}
+   const tb=e.target.closest('[data-toggle-user]');if(tb){const u=rows.find(x=>String(x.id)===tb.dataset.toggleUser);if(!u)return;if(String(u.auth_user_id)===String(session.user.id)&&u.active!==false)return toast('لا يمكنك إيقاف حسابك الحالي');if(!confirm(`${u.active===false?'تفعيل':'إيقاف'} ${u.name}؟`))return;try{await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({active:u.active===false})});toast('تم تحديث حالة المستخدم');renderUsers()}catch(err){toast(err.message)}return}
+   const pb=e.target.closest('[data-password-user]');if(pb){const u=rows.find(x=>String(x.id)===pb.dataset.passwordUser);if(!u)return;const password=prompt(`كلمة المرور الجديدة لـ ${u.name}`);if(password===null)return;if(password.length<6)return toast('كلمة المرور 6 أحرف على الأقل');try{await callFunction('smart-function',{action:'password',employee_id:u.id,password});toast('تم تغيير كلمة المرور')}catch(err){toast(err.message)}return}
+ };
 }
