@@ -109,6 +109,7 @@ function renderPOS(){
   <div id="deliveryFields" class="delivery-fields hidden">
    <select id="deliveryBranch">${allowedBranches().map(b=>`<option value="${b.id}" ${String(b.id)===String(state.employee.branch_id)?'selected':''}>${b.name}</option>`).join('')}</select>
    <select id="deliveryZone"><option value="">اختر المنطقة</option>${state.deliveryZones.map(z=>`<option value="${z.id}" data-fee="${z.delivery_fee}" data-branch="${z.branch_id||''}">${z.name} — ${money(z.delivery_fee)}</option>`).join('')}</select>
+   <select id="savedCustomerAddress" class="hidden"><option value="">اختر عنوان محفوظ</option></select>
    <textarea id="deliveryAddress" rows="2" placeholder="عنوان التوصيل"></textarea>
    <select id="deliveryDriver"><option value="">المندوب — يحدد لاحقًا</option></select>
   </div>
@@ -136,6 +137,7 @@ function renderPOS(){
    refreshDeliveryDrivers();drawCart();
  });
  $('#deliveryBranch')?.addEventListener('change',refreshDeliveryDrivers);
+ $('#savedCustomerAddress')?.addEventListener('change',applySavedCustomerAddress);
  let customerLookupTimer; $('#customerPhone').addEventListener('input',()=>{clearTimeout(customerLookupTimer);customerLookupTimer=setTimeout(lookupCustomerByPhone,350)}); $('#customerPhone').addEventListener('blur',lookupCustomerByPhone);
  $('.pay-actions').onclick=e=>{const b=e.target.closest('[data-pay]');if(b)checkout(b.dataset.pay)};
  toggleDeliveryFields();refreshDeliveryDrivers();drawProducts();drawCart();
@@ -147,27 +149,71 @@ function toggleDeliveryFields(){
  $('#deliveryFields')?.classList.toggle('hidden',!delivery);
  $('#deliveryFeeLine')?.classList.toggle('hidden',!delivery);
 }
+function normalizePhone(v){
+ const ar='٠١٢٣٤٥٦٧٨٩', fa='۰۱۲۳۴۵۶۷۸۹';
+ let x=String(v||'').replace(/[٠-٩]/g,c=>String(ar.indexOf(c))).replace(/[۰-۹]/g,c=>String(fa.indexOf(c))).replace(/\D/g,'');
+ if(x.startsWith('0020'))x=x.slice(4); else if(x.startsWith('20')&&x.length>=12)x=x.slice(2);
+ if(x.length===10&&x.startsWith('1'))x='0'+x;
+ return x;
+}
+function phoneCandidates(v){
+ const n=normalizePhone(v); if(!n)return [];
+ const out=[n]; if(n.startsWith('0')){out.push('20'+n.slice(1),'+20'+n.slice(1),'0020'+n.slice(1));}
+ return [...new Set(out)];
+}
+function findZoneByArea(area){
+ const a=String(area||'').trim(); if(!a)return null;
+ return state.deliveryZones.find(x=>String(x.name||'').trim()===a)||state.deliveryZones.find(x=>String(x.name||'').trim().includes(a)||a.includes(String(x.name||'').trim()))||null;
+}
+function applyCustomerAddress(addr){
+ if(!addr)return;
+ if($('#deliveryAddress'))$('#deliveryAddress').value=addr.address||'';
+ const z=findZoneByArea(addr.area);
+ if(z&&$('#deliveryZone')){$('#deliveryZone').value=z.id;if(z.branch_id&&$('#deliveryBranch'))$('#deliveryBranch').value=z.branch_id;refreshDeliveryDrivers();drawCart();}
+}
+function applySavedCustomerAddress(){
+ const el=$('#savedCustomerAddress'); if(!el||!state.customerAddresses)return;
+ const a=state.customerAddresses.find(x=>String(x.id)===String(el.value)); if(a)applyCustomerAddress(a);
+}
 async function lookupCustomerByPhone(){
  if(!state.settings.enable_customer_search)return;
- const phone=($('#customerPhone')?.value||'').trim();
- if(phone.length<7)return;
+ const input=$('#customerPhone'); if(!input)return;
+ const raw=input.value.trim(), normalized=normalizePhone(raw);
+ if(normalized.length<10)return;
  try{
-   const rows=await rest('customers',`select=*&phone=eq.${encodeURIComponent(phone)}&limit=1`);
+   let rows=[];
+   for(const cand of phoneCandidates(raw)){
+     rows=await rest('customers',`select=*&phone=eq.${encodeURIComponent(cand)}&limit=1`);
+     if(rows?.length)break;
+   }
+   // Fallback for old customer data containing spaces, dashes or country code formatting.
+   if(!rows?.length){
+     const tail=normalized.slice(-10);
+     const possible=await rest('customers',`select=*&phone=ilike.*${encodeURIComponent(tail.slice(-8))}*&limit=25`);
+     rows=(possible||[]).filter(c=>normalizePhone(c.phone).slice(-10)===tail).slice(0,1);
+   }
    if(rows?.length){
-     state.selectedCustomer=rows[0];
-     $('#customerName').value=rows[0].name||'';
-     const adds=await rest('customer_addresses',`select=*&customer_id=eq.${rows[0].id}&order=is_default.desc,id.desc&limit=5`);
-     const preferred=adds?.[0]||null;
-     const savedAddress=(preferred?.address||rows[0].address||'').trim();
-     if($('#deliveryAddress')) $('#deliveryAddress').value=savedAddress;
-     const area=(preferred?.area||rows[0].area||'').trim();
-     if(area&&$('#deliveryZone')){const z=state.deliveryZones.find(x=>String(x.name||'').trim()===area);if(z){$('#deliveryZone').value=z.id;if(z.branch_id)$('#deliveryBranch').value=z.branch_id;refreshDeliveryDrivers();drawCart();}}
-     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${rows[0].name||phone}</b>${area?` • ${area}`:''}${savedAddress?` • ${esc(savedAddress)}`:''}`;
+     const c=rows[0]; state.selectedCustomer=c;
+     if($('#customerName'))$('#customerName').value=c.name||'';
+     let adds=[]; try{adds=await rest('customer_addresses',`select=*&customer_id=eq.${c.id}&order=is_default.desc,id.desc&limit=20`)}catch(e){}
+     if(!adds.length&&(c.address||c.area))adds=[{id:'customer',label:'العنوان الأساسي',address:c.address||'',area:c.area||'',is_default:true}];
+     state.customerAddresses=adds;
+     const sel=$('#savedCustomerAddress');
+     if(sel){
+       sel.classList.toggle('hidden',adds.length<=1);
+       sel.innerHTML='<option value="">اختر عنوان محفوظ</option>'+adds.map((a,i)=>`<option value="${esc(a.id)}" ${i===0?'selected':''}>${esc(a.label||a.area||`عنوان ${i+1}`)} — ${esc(a.address||'')}</option>`).join('');
+     }
+     const preferred=adds[0]||{address:c.address||'',area:c.area||''}; applyCustomerAddress(preferred);
+     const area=preferred.area||c.area||'', savedAddress=preferred.address||c.address||'';
+     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${esc(c.name||raw)}</b>${area?` • ${esc(area)}`:''}${savedAddress?` • ${esc(savedAddress)}`:''}`;
    }else{
-     state.selectedCustomer=null;
+     state.selectedCustomer=null; state.customerAddresses=[];
+     if($('#customerName'))$('#customerName').value='';
+     if($('#deliveryAddress'))$('#deliveryAddress').value='';
+     const sel=$('#savedCustomerAddress');if(sel){sel.classList.add('hidden');sel.innerHTML='<option value="">اختر عنوان محفوظ</option>'}
      $('#customerHint').textContent='عميل جديد — سيتم حفظه مع الأوردر';
    }
- }catch(e){ $('#customerHint').textContent=''; }
+ }catch(e){console.error('customer lookup',e);$('#customerHint').textContent='تعذر تحميل بيانات العميل';}
 }
 
 function drawProducts(){const q=($('#productSearch')?.value||'').trim().toLowerCase();const list=state.products.filter(p=>(state.cat==='all'||String(p.category_id)===String(state.cat))&&(!q||String(p.name).toLowerCase().includes(q)));$('#productsGrid').innerHTML=list.map(p=>`<button class="product" data-id="${p.id}"><b>${p.name}</b><span>${money(p.price)}</span></button>`).join('')||'<div class="empty">أضف أصناف من صفحة الأصناف</div>';$('#productsGrid').onclick=e=>{const b=e.target.closest('.product');if(b){const p=state.products.find(x=>String(x.id)===String(b.dataset.id));addProductToCart(p)}}}
