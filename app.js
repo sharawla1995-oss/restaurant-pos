@@ -165,15 +165,44 @@ function findZoneByArea(area){
  const a=String(area||'').trim(); if(!a)return null;
  return state.deliveryZones.find(x=>String(x.name||'').trim()===a)||state.deliveryZones.find(x=>String(x.name||'').trim().includes(a)||a.includes(String(x.name||'').trim()))||null;
 }
-function applyCustomerAddress(addr){
- if(!addr)return;
- if($('#deliveryAddress'))$('#deliveryAddress').value=addr.address||'';
- const z=findZoneByArea(addr.area);
- if(z&&$('#deliveryZone')){$('#deliveryZone').value=z.id;if(z.branch_id&&$('#deliveryBranch'))$('#deliveryBranch').value=z.branch_id;refreshDeliveryDrivers();drawCart();}
+function applyCustomerAddress(addr, fallback={}){
+ if(!addr&&!fallback)return;
+ const address=(addr?.address||fallback.address||'').trim();
+ const area=(addr?.area||fallback.area||'').trim();
+ const directZoneId=addr?.delivery_zone_id||fallback.delivery_zone_id||null;
+ if($('#deliveryAddress'))$('#deliveryAddress').value=address;
+ let z=null;
+ if(directZoneId)z=state.deliveryZones.find(x=>String(x.id)===String(directZoneId))||null;
+ if(!z&&area)z=findZoneByArea(area);
+ if(z&&$('#deliveryZone')){
+   $('#deliveryZone').value=z.id;
+   if(z.branch_id&&$('#deliveryBranch'))$('#deliveryBranch').value=z.branch_id;
+   refreshDeliveryDrivers();
+ }
+ drawCart();
 }
 function applySavedCustomerAddress(){
  const el=$('#savedCustomerAddress'); if(!el||!state.customerAddresses)return;
- const a=state.customerAddresses.find(x=>String(x.id)===String(el.value)); if(a)applyCustomerAddress(a);
+ const a=state.customerAddresses.find(x=>String(x.id)===String(el.value));
+ if(a)applyCustomerAddress(a,state.selectedCustomer||{});
+}
+async function recentDeliveryForPhone(raw){
+ const normalized=normalizePhone(raw); if(!normalized)return null;
+ let rows=[];
+ for(const cand of phoneCandidates(raw)){
+   try{
+     rows=await rest('orders',`select=id,customer_phone,customer_name,delivery_address,delivery_area,delivery_zone_id,branch_id,created_at&order_type=eq.delivery&customer_phone=eq.${encodeURIComponent(cand)}&order=created_at.desc&limit=10`);
+     if(rows?.length)break;
+   }catch(e){}
+ }
+ if(!rows?.length){
+   try{
+     const tail=normalized.slice(-8);
+     const possible=await rest('orders',`select=id,customer_phone,customer_name,delivery_address,delivery_area,delivery_zone_id,branch_id,created_at&order_type=eq.delivery&customer_phone=ilike.*${encodeURIComponent(tail)}*&order=created_at.desc&limit=30`);
+     rows=(possible||[]).filter(o=>normalizePhone(o.customer_phone).slice(-10)===normalized.slice(-10));
+   }catch(e){}
+ }
+ return (rows||[]).find(o=>o.delivery_address||o.delivery_area||o.delivery_zone_id)||rows?.[0]||null;
 }
 async function lookupCustomerByPhone(){
  if(!state.settings.enable_customer_search)return;
@@ -186,7 +215,6 @@ async function lookupCustomerByPhone(){
      rows=await rest('customers',`select=*&phone=eq.${encodeURIComponent(cand)}&limit=1`);
      if(rows?.length)break;
    }
-   // Fallback for old customer data containing spaces, dashes or country code formatting.
    if(!rows?.length){
      const tail=normalized.slice(-10);
      const possible=await rest('customers',`select=*&phone=ilike.*${encodeURIComponent(tail.slice(-8))}*&limit=25`);
@@ -195,22 +223,49 @@ async function lookupCustomerByPhone(){
    if(rows?.length){
      const c=rows[0]; state.selectedCustomer=c;
      if($('#customerName'))$('#customerName').value=c.name||'';
-     let adds=[]; try{adds=await rest('customer_addresses',`select=*&customer_id=eq.${c.id}&order=is_default.desc,id.desc&limit=20`)}catch(e){}
-     if(!adds.length&&(c.address||c.area))adds=[{id:'customer',label:'العنوان الأساسي',address:c.address||'',area:c.area||'',is_default:true}];
+
+     let adds=[];
+     try{adds=await rest('customer_addresses',`select=*&customer_id=eq.${c.id}&order=is_default.desc,id.desc&limit=20`)}catch(e){}
+     const lastOrder=await recentDeliveryForPhone(raw);
+
+     // Complete old/incomplete address rows from the customer record or the last delivery order.
+     const fallbackArea=(c.area||lastOrder?.delivery_area||zoneName(lastOrder?.delivery_zone_id)||'').trim();
+     const fallbackAddress=(c.address||lastOrder?.delivery_address||'').trim();
+     const fallbackZone=lastOrder?.delivery_zone_id||null;
+     adds=(adds||[]).map(a=>({
+       ...a,
+       address:(a.address||fallbackAddress||'').trim(),
+       area:(a.area||fallbackArea||'').trim(),
+       delivery_zone_id:a.delivery_zone_id||fallbackZone||null
+     }));
+     if(!adds.length&&(fallbackAddress||fallbackArea||fallbackZone)){
+       adds=[{id:'customer',label:'العنوان الأساسي',address:fallbackAddress,area:fallbackArea,is_default:true,delivery_zone_id:fallbackZone}];
+     }
+
      state.customerAddresses=adds;
      const sel=$('#savedCustomerAddress');
      if(sel){
        sel.classList.toggle('hidden',adds.length<=1);
-       sel.innerHTML='<option value="">اختر عنوان محفوظ</option>'+adds.map((a,i)=>`<option value="${esc(a.id)}" ${i===0?'selected':''}>${esc(a.label||a.area||`عنوان ${i+1}`)} — ${esc(a.address||'')}</option>`).join('');
+       sel.innerHTML='<option value="">اختر عنوان محفوظ</option>'+adds.map((a,i)=>`<option value="${esc(a.id)}" ${i===0?'selected':''}>${esc(a.label||a.area||`عنوان ${i+1}`)}${a.address?` — ${esc(a.address)}`:''}</option>`).join('');
      }
-     const preferred=adds[0]||{address:c.address||'',area:c.area||''}; applyCustomerAddress(preferred);
-     const area=preferred.area||c.area||'', savedAddress=preferred.address||c.address||'';
-     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${esc(c.name||raw)}</b>${area?` • ${esc(area)}`:''}${savedAddress?` • ${esc(savedAddress)}`:''}`;
+
+     const preferred=adds[0]||{
+       address:fallbackAddress,
+       area:fallbackArea,
+       delivery_zone_id:fallbackZone
+     };
+     applyCustomerAddress(preferred,{address:fallbackAddress,area:fallbackArea,delivery_zone_id:fallbackZone});
+
+     const finalArea=preferred.area||fallbackArea||'';
+     const finalAddress=preferred.address||fallbackAddress||'';
+     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${esc(c.name||raw)}</b>${finalArea?` • ${esc(finalArea)}`:''}${finalAddress?` • ${esc(finalAddress)}`:''}`;
    }else{
      state.selectedCustomer=null; state.customerAddresses=[];
      if($('#customerName'))$('#customerName').value='';
      if($('#deliveryAddress'))$('#deliveryAddress').value='';
+     if($('#deliveryZone'))$('#deliveryZone').value='';
      const sel=$('#savedCustomerAddress');if(sel){sel.classList.add('hidden');sel.innerHTML='<option value="">اختر عنوان محفوظ</option>'}
+     drawCart();
      $('#customerHint').textContent='عميل جديد — سيتم حفظه مع الأوردر';
    }
  }catch(e){console.error('customer lookup',e);$('#customerHint').textContent='تعذر تحميل بيانات العميل';}
