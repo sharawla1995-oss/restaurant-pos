@@ -53,7 +53,7 @@ async function bootstrap(){
   $$('#nav [data-page="users"],#nav [data-page="settings"],#nav [data-page="deliverySettings"]').forEach(b=>b.classList.toggle('hidden',!isAdmin()));
   $$('#nav [data-page="reports"],#nav [data-page="expenses"],#nav [data-page="shifts"],#nav [data-page="products"]').forEach(b=>{if(!isAdmin()&&!['cashier'].includes(state.employee.role)) b.classList.add('hidden')});
   const k=$('#nav [data-page="kitchen"]'), inv=$('#nav [data-page="inventory"]'); if(k)k.classList.toggle('hidden',!state.settings.enable_kitchen); if(inv)inv.classList.toggle('hidden',!state.settings.enable_inventory); const del=$('#nav [data-page="deliveryOrders"]'); if(del)del.classList.toggle('hidden',!state.settings.enable_delivery);
-  show('appView');showPage('pos');
+  show('appView');showPage('home');
 }
 
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
@@ -62,9 +62,38 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await
 $('#logoutBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-const titles={pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
+const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
-async function showPage(p){try{navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+
+
+async function renderHome(){
+  const ids=allowedBranchIds();
+  let activeDelivery=[], openShift=null;
+  try{activeDelivery=await rest('orders','select=id,status,branch_id&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200')}catch(e){}
+  try{openShift=await getOpenShift()}catch(e){}
+  activeDelivery=(activeDelivery||[]).filter(o=>isAdmin()||ids.includes(Number(o.branch_id)));
+  const cards=[
+    ['pos','🧾','الكاشير','بيع وإنشاء أوردر جديد','mint'],
+    ['deliveryOrders','🛵','طلبات الدليفري',`${activeDelivery.length} طلب نشط`,'amber'],
+    ['orders','📋','الطلبات','متابعة وطباعة الطلبات','blue'],
+    ['customers','👤','العملاء','بحث وبيانات العملاء','violet'],
+    ['shifts','🕘','الورديات',openShift?'الوردية مفتوحة 🟢':'لا توجد وردية مفتوحة','green'],
+    ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
+    ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
+    ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
+    ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب والتسويات','violet'],
+    ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
+    ['settings','⚙️','الإعدادات','تشغيل وإيقاف المميزات','slate']
+  ];
+  const hidden=new Set();
+  if(!isAdmin()){hidden.add('users');hidden.add('settings');hidden.add('deliverySettings')}
+  if(!isAdmin()&&!['cashier'].includes(state.employee.role)){hidden.add('reports');hidden.add('expenses');hidden.add('shifts');hidden.add('products')}
+  if(!state.settings.enable_delivery)hidden.add('deliveryOrders');
+  const visible=cards.filter(c=>!hidden.has(c[0]));
+  $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">TOP BURGER • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>${canSeeAllBranches()?`الفروع: ${allowedBranches().map(b=>esc(b.name)).join(' + ')}`:`فرع ${esc(branchName(state.employee.branch_id))}`}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}</section>`;
+  $('#page').onclick=e=>{const b=e.target.closest('[data-home-page]');if(b)showPage(b.dataset.homePage)};
+}
 
 function renderPOS(){
  $('#page').innerHTML=`<div class="pos-layout"><section class="catalog">
@@ -463,7 +492,7 @@ async function renderDeliveryOrders(){
     const delivered=e.target.closest('[data-delivered]');if(delivered){await rest('orders',`id=eq.${delivered.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',delivered.dataset.delivered,{});toast('تم تسجيل التسليم');return renderDeliveryOrders();}
   };
 }
-function deliveryOrderCard(o){const drv=driverName(o.driver_id);return `<article class="delivery-order-card status-${esc(o.status)}"><div class="doc-head"><div><h3>${esc(o.order_number||'#'+o.id)}</h3><small>${fmtDate(o.created_at)} • ${branchName(o.branch_id)}</small></div><span class="status-pill">${statusLabel(o.status)}</span></div><div class="delivery-info"><div><b>العميل</b><span>${esc(o.customer_name||'-')}</span></div><div><b>الموبايل</b><a href="tel:${esc(o.customer_phone||'')}">${esc(o.customer_phone||'-')}</a></div><div class="wide"><b>العنوان</b><span>${esc([o.delivery_area,o.delivery_address].filter(Boolean).join(' — ')||'-')}</span></div><div><b>التحصيل</b><strong>${money(o.total)}</strong></div><div><b>الدفع</b><span>${paymentLabel(o.payment_method)}</span></div><div><b>المندوب</b><span>${esc(drv||'لم يحدد')}</span></div></div><div class="card-actions"><button class="secondary" data-order-detail="${o.id}">تفاصيل / طباعة</button>${o.status==='out_for_delivery'?`<button class="primary" data-delivered="${o.id}">✓ تم التسليم</button>`:`<button class="primary" data-assign="${o.id}">🛵 تسليم لمندوب</button>`}</div></article>`}
+function deliveryOrderCard(o){const drv=driverName(o.driver_id);return `<article class="delivery-order-card compact status-${esc(o.status)}"><button class="delivery-summary" data-order-detail="${o.id}"><span class="order-main"><b>${esc(o.order_number||'#'+o.id)}</b><small>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</small></span><span class="order-customer"><b>${esc(o.customer_name||o.customer_phone||'بدون اسم')}</b><small>${esc(zoneName(o.delivery_zone_id)||'')}</small></span><strong class="order-total">${money(o.total)}</strong><span class="status-pill">${statusLabel(o.status)}</span></button><div class="compact-actions">${o.status==='out_for_delivery'?`<span class="driver-mini">🛵 ${esc(drv||'مندوب')}</span><button class="primary" data-delivered="${o.id}">تم التسليم</button>`:`<button class="primary" data-assign="${o.id}">تسليم لمندوب</button>`}</div></article>`}
 
 async function renderDeliverySettings(){
  if(!isAdmin()){ $('#page').innerHTML='<div class="empty">إعدادات الدليفري متاحة للمدير فقط</div>';return; }
