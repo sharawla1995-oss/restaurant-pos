@@ -25,6 +25,24 @@ function zoneName(id){return state.deliveryZones.find(z=>String(z.id)===String(i
 function employeeName(id,employees=[]){return employees.find(e=>String(e.id)===String(id))?.name||''}
 function isAdmin(){return state.employee?.role==='admin'}
 function isCallCenter(){return ['callcenter','delivery'].includes(state.employee?.role)}
+const ROLE_PAGES={
+  admin:new Set(['home','pos','orders','customers','deliveryOrders','deliverySettings','delivery','kitchen','shifts','inventory','expenses','products','reports','users','settings']),
+  cashier:new Set(['home','pos','orders','customers','deliveryOrders','delivery','shifts']),
+  callcenter:new Set(['home','pos','orders','customers','deliveryOrders','delivery']),
+  delivery:new Set(['home','pos','orders','customers','deliveryOrders','delivery'])
+};
+function canAccessPage(page){
+  const role=state.employee?.role||'';
+  const allowed=ROLE_PAGES[role]||new Set(['home']);
+  if(!allowed.has(page))return false;
+  if(page==='deliveryOrders'||page==='delivery')return !!state.settings.enable_delivery;
+  if(page==='kitchen')return isAdmin()&&!!state.settings.enable_kitchen;
+  if(page==='inventory')return isAdmin()&&!!state.settings.enable_inventory;
+  return true;
+}
+function applyRoleNavigation(){
+  $$('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
+}
 function allowedBranchIds(){if(isAdmin())return state.branches.map(b=>Number(b.id));const ids=(state.employeeBranches||[]).map(x=>Number(x.branch_id));if(!ids.length&&state.employee?.branch_id)ids.push(Number(state.employee.branch_id));return [...new Set(ids)]}
 function allowedBranches(){const ids=new Set(allowedBranchIds().map(String));return state.branches.filter(b=>ids.has(String(b.id)))}
 function canSeeAllBranches(){return isAdmin()||allowedBranchIds().length>1}
@@ -74,10 +92,13 @@ async function bootstrap(){
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
   state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.deliveryZones=zones||[];state.drivers=drivers||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
-  state.activeBranchId=allowedBranches().length===1?Number(allowedBranches()[0].id):null;refreshBranchChrome();
-  $$('#nav [data-page="users"],#nav [data-page="settings"],#nav [data-page="deliverySettings"]').forEach(b=>b.classList.toggle('hidden',!isAdmin()));
-  $$('#nav [data-page="reports"],#nav [data-page="expenses"],#nav [data-page="shifts"],#nav [data-page="products"]').forEach(b=>{if(!isAdmin()&&!['cashier'].includes(state.employee.role)) b.classList.add('hidden')});
-  const k=$('#nav [data-page="kitchen"]'), inv=$('#nav [data-page="inventory"]'); if(k)k.classList.toggle('hidden',!state.settings.enable_kitchen); if(inv)inv.classList.toggle('hidden',!state.settings.enable_inventory); const del=$('#nav [data-page="deliveryOrders"]'); if(del)del.classList.toggle('hidden',!state.settings.enable_delivery);
+  const allowed=allowedBranches();
+  const allowedIds=allowedBranchIds();
+  // مستخدم الفرع الواحد يدخل فرعه مباشرة حتى لو قائمة branches تأخرت/كانت مقيدة بـRLS.
+  state.activeBranchId=allowed.length===1?Number(allowed[0].id):((!isAdmin()&&allowedIds.length===1)?Number(allowedIds[0]):null);
+  if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
+  refreshBranchChrome();
+  applyRoleNavigation();
   show('appView');if(state.activeBranchId)showPage('home');else renderBranchPicker();
 }
 
@@ -89,7 +110,7 @@ $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPag
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -111,11 +132,7 @@ async function renderHome(){
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
     ['settings','⚙️','الإعدادات','تشغيل وإيقاف المميزات','slate']
   ];
-  const hidden=new Set();
-  if(!isAdmin()){hidden.add('users');hidden.add('settings');hidden.add('deliverySettings')}
-  if(!isAdmin()&&!['cashier'].includes(state.employee.role)){hidden.add('reports');hidden.add('expenses');hidden.add('shifts');hidden.add('products')}
-  if(!state.settings.enable_delivery)hidden.add('deliveryOrders');
-  const visible=cards.filter(c=>!hidden.has(c[0]));
+  const visible=cards.filter(c=>canAccessPage(c[0]));
   $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">TOP BURGER • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>فرع ${esc(branchName(currentBranchId()))}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}</section>`;
   $('#page').onclick=e=>{const b=e.target.closest('[data-home-page]');if(b)showPage(b.dataset.homePage)};
 }
