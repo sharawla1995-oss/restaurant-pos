@@ -1,5 +1,23 @@
-# Restaurant POS Cloud V3
+# Restaurant POS Cloud V5 Foundation
 
-V3 adds optional feature toggles synced via Supabase, per-product extras/removals/notes, modifier pricing, and item notes stored on order items.
+This release starts the agreed sales-first rebuild.
 
-Run `supabase-v3.sql` once before uploading the six web files.
+Included now:
+- Two branches renamed to العشرين and الدقي.
+- Cash / Wallet / InstaPay.
+- Customer lookup by phone during checkout.
+- Customer list.
+- Delivery zones and delivery fees.
+- Delivery drivers and order assignment.
+- Delivery order routing to a branch.
+- Preparation receipt + customer receipt.
+- Order source / delivery fields / order number foundation.
+- Inventory and kitchen disabled by default but can be enabled by admin.
+- Branch-specific product availability table and mixed-payment schema foundation.
+- Audit log schema foundation.
+
+## Installation
+1. Run `supabase-v5.sql` once in Supabase SQL Editor.
+2. Upload the six website files at repository root:
+   index.html, app.js, styles.css, manifest.json, sw.js, README.md
+3. Do not upload the SQL file to GitHub unless you want to keep it as documentation.
