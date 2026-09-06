@@ -1,3 +1,11 @@
+# Restaurant POS V6
+
+1. Run `supabase-v6.sql` once in Supabase SQL Editor.
+2. Upload/replace `index.html`, `app.js`, `styles.css`, `manifest.json`, and `sw.js` in the GitHub Pages repo root.
+3. Hard refresh/reopen the site.
+
+V6 adds shift-linked sales/expenses, cash settlement, detailed reports, delivery driver selection in POS, richer delivery receipts, and 80mm print CSS.
+
 # Restaurant POS Cloud V5 Foundation
 
 This release starts the agreed sales-first rebuild.
