@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Restaurant POS Cloud</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="toast"></div>
+
+<section id="setupView" class="login-wrap hidden">
+  <form id="setupForm" class="card login-card">
+    <div class="brand-mark">POS</div>
+    <h1>ربط قاعدة البيانات</h1>
+    <p>يتم تنفيذ هذه الخطوة مرة واحدة على كل جهاز.</p>
+    <label>Supabase Project URL
+      <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" required>
+    </label>
+    <label>Publishable key
+      <textarea id="publishableKey" rows="4" placeholder="sb_publishable_..." required></textarea>
+    </label>
+    <button class="primary" type="submit">حفظ ومتابعة</button>
+    <small>استخدم Publishable key فقط. لا تستخدم Secret key أو service_role.</small>
+  </form>
+</section>
+
+<section id="loginView" class="login-wrap hidden">
+  <form id="loginForm" class="card login-card">
+    <div class="brand-mark">POS</div>
+    <h1>نظام الكاشير</h1>
+    <p>دخول الإدارة والموظفين</p>
+    <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+    <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
+    <button class="primary" type="submit">تسجيل الدخول</button>
+    <button id="changeConnection" class="secondary" type="button" style="margin-top:8px">تغيير بيانات Supabase</button>
+  </form>
+</section>
+
+<section id="appView" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><b>POS</b><span>Restaurant POS</span></div>
+    <nav id="nav">
+      <button data-page="pos" class="active">🧾 الكاشير</button>
+      <button data-page="orders">📋 الطلبات</button>
+      <button data-page="shifts">🕘 الشيفت</button>
+      <button data-page="inventory">📦 المخزون</button>
+      <button data-page="expenses">💸 المصروفات</button>
+      <button data-page="products">🍔 الأصناف</button>
+      <button data-page="reports">📊 التقارير</button>
+      <button data-page="users">👥 المستخدمون</button>
+      <button data-page="settings">⚙️ الإعدادات</button>
+    </nav>
+    <div class="sidebar-foot"><span id="who"></span><button id="logoutBtn">خروج</button></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><div id="clock"></div></header>
+    <div id="page" class="page"></div>
+  </main>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

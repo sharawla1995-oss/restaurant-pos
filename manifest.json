@@ -1,0 +1,10 @@
+{
+  "name":"Restaurant POS Cloud",
+  "short_name":"POS",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f4f6f8",
+  "theme_color":"#111827",
+  "lang":"ar",
+  "dir":"rtl"
+}
