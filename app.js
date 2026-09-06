@@ -157,10 +157,12 @@ async function lookupCustomerByPhone(){
      state.selectedCustomer=rows[0];
      $('#customerName').value=rows[0].name||'';
      const adds=await rest('customer_addresses',`select=*&customer_id=eq.${rows[0].id}&order=is_default.desc,id.desc&limit=5`);
-     if(adds?.length && $('#deliveryAddress')) $('#deliveryAddress').value=adds[0].address||'';
-     const area=(adds?.[0]?.area||rows[0].area||'').trim();
+     const preferred=adds?.[0]||null;
+     const savedAddress=(preferred?.address||rows[0].address||'').trim();
+     if($('#deliveryAddress')) $('#deliveryAddress').value=savedAddress;
+     const area=(preferred?.area||rows[0].area||'').trim();
      if(area&&$('#deliveryZone')){const z=state.deliveryZones.find(x=>String(x.name||'').trim()===area);if(z){$('#deliveryZone').value=z.id;if(z.branch_id)$('#deliveryBranch').value=z.branch_id;refreshDeliveryDrivers();drawCart();}}
-     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${rows[0].name||phone}</b>${area?` • ${area}`:''}`;
+     $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${rows[0].name||phone}</b>${area?` • ${area}`:''}${savedAddress?` • ${esc(savedAddress)}`:''}`;
    }else{
      state.selectedCustomer=null;
      $('#customerHint').textContent='عميل جديد — سيتم حفظه مع الأوردر';
@@ -470,28 +472,46 @@ init();
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>🛵 طلبات الدليفري</h2><div class="empty">جاري التحميل...</div></div>';
   const [orders,drivers]=await Promise.all([
-    rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200'),
+    rest('orders','select=*&order_type=eq.delivery&order=created_at.desc&limit=200'),
     rest('delivery_drivers','select=*&active=eq.true&order=name')
   ]);
   state.drivers=drivers||[];
-  const active=orders||[];
-  const counts={new:active.filter(o=>o.status==='new'||o.status==='ready').length,out:active.filter(o=>o.status==='out_for_delivery').length};
-  const driverCards=state.drivers.map(d=>{const os=active.filter(o=>String(o.driver_id)===String(d.id)&&o.status==='out_for_delivery');const cash=os.filter(o=>String(o.payment_method)==='cash').reduce((a,o)=>a+Number(o.total||0),0);return `<div class="driver-stat"><b>${esc(d.name)}</b><span>${branchName(d.branch_id)}</span><strong>${os.length} طلب</strong><small>تحصيل متوقع ${money(cash)}</small></div>`}).join('');
-  $('#page').innerHTML=`<div class="grid delivery-kpis"><div class="card kpi soft-blue"><small>طلبات جديدة</small><strong>${counts.new}</strong></div><div class="card kpi soft-amber"><small>خرجت مع المندوب</small><strong>${counts.out}</strong></div><div class="card kpi soft-green"><small>إجمالي النشط</small><strong>${active.length}</strong></div></div>
-  ${driverCards?`<div class="driver-strip">${driverCards}</div>`:''}
-  <div class="panel"><div class="shift-title"><h2>الطلبات الحالية</h2><span class="tag">تحديث مباشر عند فتح الصفحة</span></div><div class="delivery-cards">${active.map(o=>deliveryOrderCard(o)).join('')||'<div class="empty">لا توجد طلبات دليفري حالية</div>'}</div></div>`;
-  $('#page').onclick=async e=>{
-    const detail=e.target.closest('[data-order-detail]');if(detail)return openOrderDetails(detail.dataset.orderDetail);
-    const assign=e.target.closest('[data-assign]');if(assign){
-      const o=active.find(x=>String(x.id)===String(assign.dataset.assign));if(!o)return;
-      const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));if(!list.length)return toast('لا يوجد مندوب فعال في هذا الفرع');
-      const names=list.map((d,i)=>`${i+1}- ${d.name}`).join('\n');const pick=prompt(`اختار المندوب:\n${names}`);const d=list[Number(pick)-1];if(!d)return;
-      await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',o.id,{driver_id:d.id});toast(`تم التسليم إلى ${d.name}`);return renderDeliveryOrders();
-    }
-    const delivered=e.target.closest('[data-delivered]');if(delivered){await rest('orders',`id=eq.${delivered.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',delivered.dataset.delivered,{});toast('تم تسجيل التسليم');return renderDeliveryOrders();}
+  const all=(orders||[]).filter(o=>o.status!=='cancelled');
+  const active=all.filter(o=>['new','ready','out_for_delivery'].includes(o.status));
+  const counts={new:all.filter(o=>o.status==='new'||o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
+  $('#page').innerHTML=`<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
+  <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">جديد</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
+  let filter='active';
+  const draw=()=>{
+    const q=($('#deliverySearch')?.value||'').trim().toLowerCase();
+    const rows=all.filter(o=>{
+      const ok=filter==='all'||(filter==='active'?['new','ready','out_for_delivery'].includes(o.status):filter==='new'?['new','ready'].includes(o.status):o.status===filter);
+      const hay=[o.order_number,o.customer_name,o.customer_phone,o.delivery_area,o.delivery_address,branchName(o.branch_id)].join(' ').toLowerCase();
+      return ok&&(!q||hay.includes(q));
+    });
+    $('#deliveryRows').innerHTML=rows.map(o=>deliveryOrderCard(o)).join('')||'<div class="empty">لا توجد طلبات مطابقة</div>';
   };
+  $('#deliverySearch').oninput=draw;
+  $('#deliveryFilter').onclick=e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;$$('#deliveryFilter button').forEach(x=>x.classList.toggle('active',x===b));draw()};
+  $('#page').onclick=async e=>{
+    const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
+  };
+  draw();
 }
-function deliveryOrderCard(o){const drv=driverName(o.driver_id);return `<article class="delivery-order-card compact status-${esc(o.status)}"><button class="delivery-summary" data-order-detail="${o.id}"><span class="order-main"><b>${esc(o.order_number||'#'+o.id)}</b><small>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</small></span><span class="order-customer"><b>${esc(o.customer_name||o.customer_phone||'بدون اسم')}</b><small>${esc(zoneName(o.delivery_zone_id)||'')}</small></span><strong class="order-total">${money(o.total)}</strong><span class="status-pill">${statusLabel(o.status)}</span></button><div class="compact-actions">${o.status==='out_for_delivery'?`<span class="driver-mini">🛵 ${esc(drv||'مندوب')}</span><button class="primary" data-delivered="${o.id}">تم التسليم</button>`:`<button class="primary" data-assign="${o.id}">تسليم لمندوب</button>`}</div></article>`}
+function deliveryOrderCard(o){const drv=driverName(o.driver_id);const area=o.delivery_area||zoneName(o.delivery_zone_id)||'';return `<button class="delivery-row status-${esc(o.status)}" data-order-detail="${o.id}"><span class="delivery-row-id"><b>${esc(o.order_number||'#'+o.id)}</b><small>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(o.customer_name||o.customer_phone||'بدون اسم')}</b><small>${esc(area)}${drv?` • 🛵 ${esc(drv)}`:''}</small></span><strong>${money(o.total)}</strong><span class="status-pill">${statusLabel(o.status)}</span><span class="delivery-chevron">‹</span></button>`}
+async function openDeliveryOrderDetails(id){
+ const [orders,items]=await Promise.all([rest('orders',`select=*&id=eq.${id}`),rest('order_items',`select=*&order_id=eq.${id}&order=id`)]);const o=orders[0];if(!o)return toast('الأوردر غير موجود');o._driver_name=driverName(o.driver_id);
+ const m=document.createElement('div');m.className='modal';
+ const action=o.status==='out_for_delivery'?'<button class="primary" data-delivered>✅ تم التسليم</button>':(['new','ready'].includes(o.status)?'<button class="primary" data-assign>🛵 تسليم لمندوب</button>':'');
+ m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(o.order_number||'#'+o.id)}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${action}</div></div>`;
+ document.body.appendChild(m);
+ m.onclick=async e=>{
+   if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
+   if(e.target.closest('[data-print]')){printReceipt(o,items);return}
+   if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));if(!list.length)return toast('لا يوجد مندوب فعال في هذا الفرع');const names=list.map((d,i)=>`${i+1}- ${d.name}`).join('\n');const pick=prompt(`اختار المندوب:\n${names}`);const d=list[Number(pick)-1];if(!d)return;await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',o.id,{driver_id:d.id});m.remove();toast(`تم التسليم إلى ${d.name}`);return renderDeliveryOrders()}
+   if(e.target.closest('[data-delivered]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+ };
+}
 
 async function renderDeliverySettings(){
  if(!isAdmin()){ $('#page').innerHTML='<div class="empty">إعدادات الدليفري متاحة للمدير فقط</div>';return; }
