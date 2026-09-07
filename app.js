@@ -207,13 +207,14 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
+    ['branchProductAvailability','🌐','توافر أصناف الموقع','تشغيل وإيقاف الأصناف على الموقع','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب والتسويات','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
     ['settings','⚙️','الإعدادات','تشغيل وإيقاف المميزات','slate']
   ];
   const visible=cards.filter(c=>canAccessPage(c[0]));
-  $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">TOP BURGER • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>فرع ${esc(branchName(currentBranchId()))}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}</section>`;
-  $('#page').onclick=e=>{const b=e.target.closest('[data-home-page]');if(b)showPage(b.dataset.homePage)};
+  $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">TOP BURGER • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>فرع ${esc(branchName(currentBranchId()))}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}<button class="home-card tone-rose" data-home-logout><span class="home-icon">🚪</span><span class="home-copy"><b>تسجيل الخروج</b><small>الخروج من حساب المستخدم الحالي</small></span><span class="home-arrow">‹</span></button></section>`;
+  $('#page').onclick=e=>{const b=e.target.closest('[data-home-page]');if(b)return showPage(b.dataset.homePage);if(e.target.closest('[data-home-logout]'))logout()};
 }
 
 function renderPOS(){
