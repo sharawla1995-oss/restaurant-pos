@@ -704,7 +704,7 @@ async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').inn
 async function shiftMetrics(shift){
  const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id);
  const [orders,payments,expenses,returns,returnPays]=await Promise.all([
-  rest('orders',`select=id,total,subtotal,discount,delivery_fee,status,order_type,payment_method&shift_id=eq.${shift.id}`),
+  rest('orders',`select=id,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status&shift_id=eq.${shift.id}`),
   rest('order_payments',`select=order_id,method,amount&order_id=in.(${orderIds.join(',')||0})`),
   rest('expenses',`select=amount&shift_id=eq.${shift.id}`),
   rest('returns',`select=id,total&shift_id=eq.${shift.id}`).catch(()=>[]),
@@ -712,7 +712,13 @@ async function shiftMetrics(shift){
  ]);
  const valid=orders.filter(o=>o.status!=='cancelled');const ids=new Set(valid.map(o=>o.id));let cash=0,wallet=0,instapay=0;
  for(const p of payments){if(!ids.has(p.order_id))continue;if(p.method==='cash')cash+=Number(p.amount||0);if(p.method==='wallet')wallet+=Number(p.amount||0);if(p.method==='instapay')instapay+=Number(p.amount||0)}
- for(const o of valid){if(payments.some(p=>p.order_id===o.id))continue;const v=Number(o.total||0);if(o.payment_method==='cash')cash+=v;else if(o.payment_method==='wallet')wallet+=v;else if(o.payment_method==='instapay')instapay+=v}
+ for(const o of valid){
+  if(payments.some(p=>p.order_id===o.id))continue;
+  const isWebsite=String(o.source||'')==='website';
+  const websiteCollected=!isWebsite||o.payment_status==='confirmed'||(o.payment_method==='cash'&&['delivered','completed'].includes(o.status));
+  if(!websiteCollected)continue;
+  const v=Number(o.total||0);if(o.payment_method==='cash')cash+=v;else if(o.payment_method==='wallet')wallet+=v;else if(o.payment_method==='instapay')instapay+=v;
+ }
  let returnCash=0,returnWallet=0,returnInstapay=0;for(const p of returnPays){if(p.method==='cash')returnCash+=Number(p.amount||0);if(p.method==='wallet')returnWallet+=Number(p.amount||0);if(p.method==='instapay')returnInstapay+=Number(p.amount||0)}
  cash-=returnCash;wallet-=returnWallet;instapay-=returnInstapay;
  const grossSales=valid.reduce((a,o)=>a+Number(o.total||0),0),returnTotal=(returns||[]).reduce((a,r)=>a+Number(r.total||0),0),sales=grossSales-returnTotal,exp=expenses.reduce((a,e)=>a+Number(e.amount||0),0),expected=Number(shift.opening_cash||0)+cash-exp;
@@ -721,18 +727,37 @@ async function shiftMetrics(shift){
 async function shiftReportData(shift){
  const orders=await rest('orders',`select=id,order_number,total,subtotal,discount,delivery_fee,status,order_type,payment_method,created_at&shift_id=eq.${shift.id}&order=created_at.asc`);
  const ids=(orders||[]).map(o=>o.id);
- const [items,expenses]=await Promise.all([
+ const [items,expenses,returnRows]=await Promise.all([
    ids.length?rest('order_items',`select=order_id,product_name,quantity,unit_price,total&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
-   rest('expenses',`select=id,description,amount,created_at,employee_id&shift_id=eq.${shift.id}&order=created_at.asc`)
+   rest('expenses',`select=id,description,amount,created_at,employee_id&shift_id=eq.${shift.id}&order=created_at.asc`),
+   rest('returns',`select=*&shift_id=eq.${shift.id}&order=created_at.asc`).catch(()=>[])
  ]);
  const valid=(orders||[]).filter(o=>o.status!=='cancelled');
  const validIds=new Set(valid.map(o=>String(o.id)));
  const products=new Map();
- for(const i of (items||[])){if(!validIds.has(String(i.order_id)))continue;const k=i.product_name||'صنف';const x=products.get(k)||{name:k,qty:0,total:0};x.qty+=Number(i.quantity||0);x.total+=Number(i.total||0);products.set(k,x)}
- const returnRows=await rest('returns',`select=*&shift_id=eq.${shift.id}&order=created_at.asc`).catch(()=>[]); return {orders:orders||[],valid,items:items||[],expenses:expenses||[],products:[...products.values()].sort((a,b)=>b.qty-a.qty),deliveryCount:valid.filter(o=>o.order_type==='delivery').length,deliveryFees:valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0),cancelled:(orders||[]).filter(o=>o.status==='cancelled'),cancelledValue:(orders||[]).filter(o=>o.status==='cancelled').reduce((a,o)=>a+Number(o.total||0),0),returns:returnRows,returnTotal:returnRows.reduce((a,r)=>a+Number(r.total||0),0)};
+ for(const i of (items||[])){
+   if(!validIds.has(String(i.order_id)))continue;
+   const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
+   x.qty+=Number(i.quantity||0);x.total+=Number(i.total||0);products.set(k,x);
+ }
+ const returnIds=(returnRows||[]).map(r=>r.id);
+ const returnItems=returnIds.length?await rest('return_items',`select=return_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):[];
+ for(const i of returnItems){
+   const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
+   x.qty-=Number(i.quantity||0);x.total-=Number(i.total||0);products.set(k,x);
+ }
+ return {
+   orders:orders||[],valid,items:items||[],expenses:expenses||[],returnItems,
+   products:[...products.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty),
+   deliveryCount:valid.filter(o=>o.order_type==='delivery').length,
+   deliveryFees:valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0),
+   cancelled:(orders||[]).filter(o=>o.status==='cancelled'),
+   cancelledValue:(orders||[]).filter(o=>o.status==='cancelled').reduce((a,o)=>a+Number(o.total||0),0),
+   returns:returnRows||[],returnTotal:(returnRows||[]).reduce((a,r)=>a+Number(r.total||0),0)
+ };
 }
 function shiftReportHTML(sh,employees,mtr,data){
- const sales=sh.closed_at?Number(sh.sales_total||mtr.sales):mtr.sales,cash=sh.closed_at?Number(sh.cash_sales||mtr.cash):mtr.cash,wallet=sh.closed_at?Number(sh.wallet_sales||mtr.wallet):mtr.wallet,instapay=sh.closed_at?Number(sh.instapay_sales||mtr.instapay):mtr.instapay,exp=sh.closed_at?Number(sh.expenses_total||mtr.exp):mtr.exp,expected=sh.closed_at?Number(sh.expected_cash||mtr.expected):mtr.expected;
+ const sales=sh.closed_at?Number(sh.sales_total??mtr.sales):mtr.sales,cash=sh.closed_at?Number(sh.cash_sales??mtr.cash):mtr.cash,wallet=sh.closed_at?Number(sh.wallet_sales??mtr.wallet):mtr.wallet,instapay=sh.closed_at?Number(sh.instapay_sales??mtr.instapay):mtr.instapay,exp=sh.closed_at?Number(sh.expenses_total??mtr.exp):mtr.exp,expected=sh.closed_at?Number(sh.expected_cash??mtr.expected):mtr.expected;
  return `<div class="shift-print"><h2>${esc(businessName())}</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
  <div class="r-totals"><div><span>صافي المبيعات بعد المرتجعات</span><b>${money(sales)}</b></div>${Number(data.returnTotal||0)?`<div><span>المرتجعات</span><b>-${money(data.returnTotal)}</b></div>`:``}<div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div><div><span>كاش</span><b>${money(cash)}</b></div><div><span>محفظة</span><b>${money(wallet)}</b></div><div><span>InstaPay</span><b>${money(instapay)}</b></div><div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
  <h3>مبيعات الأصناف</h3><table class="shift-report-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${data.products.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>'}</tbody></table><hr>
@@ -742,7 +767,7 @@ function shiftReportHTML(sh,employees,mtr,data){
 async function openShiftReport(sh,employees){const [mtr,data]=await Promise.all([shiftMetrics(sh),shiftReportData(sh)]);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
 async function renderShifts(){const employees=await rest('employees','select=id,name,branch_id,role,active&order=name');const isAdmin=state.employee.role==='admin';const rows=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);const open=rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;$('#page').innerHTML=`${open?`<div class="panel shift-current"><div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div><div>محفظة <b>${money(metrics.wallet)}</b></div><div>InstaPay <b>${money(metrics.instapay)}</b></div><div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
  const drawHistory=()=>{const list=rows;$('#shiftRows').innerHTML=list.map(x=>`<tr><td>${x.id}</td><td>${branchName(x.branch_id)}</td><td>${employeeName(x.employee_id,employees)}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'-'}</td><td>${money(x.sales_total||0)}</td><td>${money(x.cash_sales||0)}</td><td>${money(x.expenses_total||0)}</td><td class="${Number(x.cash_difference||0)<0?'negative':'positive'}">${x.closed_at?money(x.cash_difference||0):'-'}</td><td><span class="tag">${x.status==='open'?'مفتوحة':'مقفولة'}</span></td><td><button class="secondary" data-shift="${x.id}">التفاصيل</button></td></tr>`).join('')||'<tr><td colspan="11">لا توجد ورديات</td></tr>'};drawHistory();
- if(open)$('#closeShift').onclick=async()=>{const actual=Number($('#closingCash').value);if(!Number.isFinite(actual))return toast('اكتب الكاش الفعلي عند القفل');const pending=metrics.orders.filter(o=>o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status));if(pending.length)return toast(`فيه ${pending.length} أوردر دليفري معلق — خلصه أو الغيه قبل القفل`);const diff=actual-metrics.expected;await rest('shifts',`id=eq.${open.id}`,{method:'PATCH',body:JSON.stringify({closing_cash:actual,closed_at:new Date().toISOString(),status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count})});await audit('close_shift','shift',open.id,{sales:metrics.sales,expected_cash:metrics.expected,actual_cash:actual,difference:diff});toast(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${money(Math.abs(diff))}`);const closedShift={...open,closing_cash:actual,closed_at:new Date().toISOString(),status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count};await renderShifts();await openShiftReport(closedShift,employees)};
+ if(open)$('#closeShift').onclick=async()=>{const actual=Number($('#closingCash').value);if(!Number.isFinite(actual))return toast('اكتب الكاش الفعلي عند القفل');const pending=metrics.orders.filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));if(pending.length)return toast(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);const diff=actual-metrics.expected;await rest('shifts',`id=eq.${open.id}`,{method:'PATCH',body:JSON.stringify({closing_cash:actual,closed_at:new Date().toISOString(),status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count})});await audit('close_shift','shift',open.id,{sales:metrics.sales,expected_cash:metrics.expected,actual_cash:actual,difference:diff});toast(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${money(Math.abs(diff))}`);const closedShift={...open,closing_cash:actual,closed_at:new Date().toISOString(),status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count};await renderShifts();await openShiftReport(closedShift,employees)};
  else $('#openShift').onclick=async()=>{const opening=Number($('#openingCash').value||0);const created=await rest('shifts','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{branch_id:currentBranchId(),employee_id:state.employee.id,opening_cash:opening,status:'open'}])});await audit('open_shift','shift',created?.[0]?.id,{opening_cash:opening});toast('تم فتح الوردية');renderShifts()};
  $('#page').addEventListener('click',async e=>{const b=e.target.closest('[data-shift]');if(!b)return;const sh=rows.find(x=>String(x.id)===String(b.dataset.shift));if(!sh)return;await openShiftReport(sh,employees)});
 }
@@ -984,6 +1009,7 @@ async function renderInventory(){if(!state.settings.enable_inventory){$('#page')
 function downloadCSV(name,rows){const csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 async function renderReports(){
   const today=localDateInput();
+  const reportPaymentMethods=branchPaymentList();
   $('#page').innerHTML=`
     <div class="panel report-filters">
       <h2>📊 مركز التقارير</h2>
@@ -992,7 +1018,7 @@ async function renderReports(){
         <label>إلى<input id="repTo" type="date" value="${today}"></label>
         <label>الفرع<select id="repBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label>
         <label>نوع الطلب<select id="repType"><option value="all">الكل</option><option value="takeaway">تيك أواي</option><option value="delivery">دليفري</option><option value="dinein">صالة</option></select></label>
-        <label>الدفع<select id="repPay"><option value="all">الكل</option><option value="cash">كاش</option><option value="wallet">محفظة</option><option value="instapay">InstaPay</option></select></label>
+        <label>الدفع<select id="repPay"><option value="all">الكل</option>${reportPaymentMethods.map(m=>`<option value="${esc(m.code)}">${esc(m.name)}</option>`).join('')}</select></label>
         <label>الموظف<select id="repEmployee"><option value="all">كل الموظفين</option></select></label><label>الوردية<select id="repShift"><option value="all">كل الورديات</option></select></label>
         <button id="runReport" class="primary">عرض التقرير</button>
         <button id="exportReport" class="secondary">تصدير CSV</button>
@@ -1009,131 +1035,94 @@ async function renderReports(){
   }catch(e){ console.warn('report employees',e); }
 
   const safeFetch=async(table,query)=>{try{return await fetchAll(table,query)}catch(e){console.warn('report '+table,e);return []}};
+  const fetchByIds=async(table,select,key,ids)=>{const out=[];for(let i=0;i<ids.length;i+=100){const part=ids.slice(i,i+100).join(',');if(!part)continue;out.push(...await safeFetch(table,`${select}&${key}=in.(${part})`));}return out;};
 
   const run=async()=>{
-    const body=$('#reportBody');
-    if(!body)return;
+    const body=$('#reportBody');if(!body)return;
     body.innerHTML='<div class="empty">جاري حساب التقرير...</div>';
     await new Promise(r=>setTimeout(r,30));
     try{
-      const from=$('#repFrom')?.value||today;
-      const to=$('#repTo')?.value||today;
-      const r=rangeISO(from,to);
-      const orders=await safeFetch('orders',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`);
-      const expenses=await safeFetch('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`);
-      const shifts=await safeFetch('shifts',`select=*&branch_id=eq.${currentBranchId()}&opened_at=lte.${encodeURIComponent(r.to)}&order=opened_at.desc`);
+      const from=$('#repFrom')?.value||today,to=$('#repTo')?.value||today,r=rangeISO(from,to);
+      const [orders,expenses,shifts,allReturns]=await Promise.all([
+        safeFetch('orders',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`),
+        safeFetch('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`),
+        safeFetch('shifts',`select=*&branch_id=eq.${currentBranchId()}&opened_at=lte.${encodeURIComponent(r.to)}&order=opened_at.desc`),
+        safeFetch('returns',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`)
+      ]);
       const shiftSel=$('#repShift');if(shiftSel){const current=shiftSel.value;shiftSel.innerHTML='<option value="all">كل الورديات</option>'+shifts.map(sh=>`<option value="${sh.id}">#${sh.id} — ${branchName(sh.branch_id)} — ${fmtDate(sh.opened_at)}</option>`).join('');if([...shiftSel.options].some(o=>o.value===current))shiftSel.value=current;}
 
-      const bf=$('#repBranch')?.value||'all';
-      const tf=$('#repType')?.value||'all';
-      const pf=$('#repPay')?.value||'all';
-      const ef=$('#repEmployee')?.value||'all';
-      const sf=$('#repShift')?.value||'all';
+      const bf=$('#repBranch')?.value||'all',tf=$('#repType')?.value||'all',pf=$('#repPay')?.value||'all',ef=$('#repEmployee')?.value||'all',sf=$('#repShift')?.value||'all';
       let ord=(orders||[]).filter(o=>(bf==='all'||String(o.branch_id)===bf)&&(tf==='all'||String(o.order_type||o.type)===tf)&&(ef==='all'||String(o.employee_id)===ef)&&(sf==='all'||String(o.shift_id)===sf));
-
-      let payments=[];
-      const ids=ord.map(o=>o.id).filter(Boolean);
-      for(let i=0;i<ids.length;i+=100){
-        const part=ids.slice(i,i+100).join(',');
-        if(!part)continue;
-        const rows=await safeFetch('order_payments',`select=order_id,method,amount&order_id=in.(${part})`);
-        payments.push(...rows);
-      }
+      const orderIds=ord.map(o=>o.id).filter(Boolean);
+      const payments=await fetchByIds('order_payments','select=order_id,method,amount','order_id',orderIds);
       if(pf!=='all'){
-        const byOrder=new Map();
-        for(const p of payments){const k=String(p.order_id);if(!byOrder.has(k))byOrder.set(k,new Set());byOrder.get(k).add(String(p.method||'').toLowerCase())}
+        const byOrder=new Map();for(const p of payments){const k=String(p.order_id);if(!byOrder.has(k))byOrder.set(k,new Set());byOrder.get(k).add(String(p.method||'').toLowerCase());}
         ord=ord.filter(o=>byOrder.get(String(o.id))?.has(pf)||(!byOrder.has(String(o.id))&&String(o.payment_method||'').toLowerCase()===pf));
       }
 
-      const valid=ord.filter(o=>String(o.status||'').toLowerCase()!=='cancelled');
-      const cancelled=ord.filter(o=>String(o.status||'').toLowerCase()==='cancelled');
+      const valid=ord.filter(o=>String(o.status||'').toLowerCase()!=='cancelled'),cancelled=ord.filter(o=>String(o.status||'').toLowerCase()==='cancelled');
       const ex=(expenses||[]).filter(x=>(bf==='all'||String(x.branch_id)===bf)&&(ef==='all'||String(x.employee_id)===ef)&&(sf==='all'||String(x.shift_id)===sf));
-      const sales=valid.reduce((a,o)=>a+Number(o.total??o.total_amount??0),0);
-      const discounts=valid.reduce((a,o)=>a+Number(o.discount??o.discount_amount??0),0);
-      const deliveryFees=valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0);
-      const expTotal=ex.reduce((a,x)=>a+Number(x.amount||0),0);
-      const avg=valid.length?sales/valid.length:0;
-
-      const pmap={cash:0,wallet:0,instapay:0};
-      const validIds=new Set(valid.map(o=>String(o.id)));
-      const paidIds=new Set();
-      for(const p of payments){
-        if(!validIds.has(String(p.order_id)))continue;
-        const m=String(p.method||'').toLowerCase();
-        if(Object.prototype.hasOwnProperty.call(pmap,m))pmap[m]+=Number(p.amount||0);
-        paidIds.add(String(p.order_id));
+      let returns=(allReturns||[]).filter(x=>(bf==='all'||String(x.branch_id)===bf)&&(ef==='all'||String(x.employee_id)===ef)&&(sf==='all'||String(x.shift_id)===sf));
+      const returnIdsAll=returns.map(x=>x.id).filter(Boolean);
+      const returnPaymentsAll=await fetchByIds('return_payments','select=return_id,method,amount','return_id',returnIdsAll);
+      if(pf!=='all'){
+        const idsByMethod=new Set(returnPaymentsAll.filter(x=>String(x.method||'').toLowerCase()===pf).map(x=>String(x.return_id)));
+        returns=returns.filter(x=>idsByMethod.has(String(x.id)));
       }
+      const returnIds=returns.map(x=>x.id).filter(Boolean),returnIdSet=new Set(returnIds.map(String));
+      const returnPayments=returnPaymentsAll.filter(x=>returnIdSet.has(String(x.return_id)));
+      const returnItems=await fetchByIds('return_items','select=return_id,product_name,quantity,total','return_id',returnIds);
+
+      const grossSales=valid.reduce((a,o)=>a+Number(o.total??o.total_amount??0),0),returnTotal=returns.reduce((a,x)=>a+Number(x.total||0),0),sales=grossSales-returnTotal;
+      const discounts=valid.reduce((a,o)=>a+Number(o.discount??o.discount_amount??0),0),deliveryFees=valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0),expTotal=ex.reduce((a,x)=>a+Number(x.amount||0),0),avg=valid.length?grossSales/valid.length:0;
+
+      const paymentTotals={};
+      for(const m of reportPaymentMethods)paymentTotals[String(m.code).toLowerCase()]=0;
+      const validIds=new Set(valid.map(o=>String(o.id))),paidIds=new Set();
+      for(const p of payments){if(!validIds.has(String(p.order_id)))continue;const m=String(p.method||'').toLowerCase();paymentTotals[m]=(paymentTotals[m]||0)+Number(p.amount||0);paidIds.add(String(p.order_id));}
       for(const o of valid){
         if(paidIds.has(String(o.id)))continue;
-        const m=String(o.payment_method||'').toLowerCase();
-        if(Object.prototype.hasOwnProperty.call(pmap,m))pmap[m]+=Number(o.total??o.total_amount??0);
+        const isWebsite=String(o.source||'')==='website';
+        const websiteCollected=!isWebsite||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase()));
+        if(!websiteCollected)continue;
+        const m=String(o.payment_method||'').toLowerCase();if(m&&m!=='mixed')paymentTotals[m]=(paymentTotals[m]||0)+Number(o.total??o.total_amount??0);
       }
+      for(const p of returnPayments){const m=String(p.method||'').toLowerCase();paymentTotals[m]=(paymentTotals[m]||0)-Number(p.amount||0);}
 
-      let items=[];
-      const itemIds=valid.map(o=>o.id).filter(Boolean);
-      for(let i=0;i<itemIds.length;i+=100){
-        const part=itemIds.slice(i,i+100).join(',');
-        if(!part)continue;
-        const rows=await safeFetch('order_items',`select=*&order_id=in.(${part})`);
-        items.push(...rows);
-      }
+      let items=await fetchByIds('order_items','select=*','order_id',valid.map(o=>o.id).filter(Boolean));
       const prod={};
-      for(const it of items){
-        const name=it.product_name||it.name||'صنف';
-        if(!prod[name])prod[name]={name,qty:0,total:0};
-        const qty=Number(it.quantity||1);
-        prod[name].qty+=qty;
-        prod[name].total+=Number(it.total??it.line_total??it.price*qty??0);
-      }
-      const products=Object.values(prod).sort((a,b)=>b.qty-a.qty);
-
-      const branchAgg={},empAgg={};
-      for(const o of valid){
-        const bid=String(o.branch_id??''); const eid=String(o.employee_id??'');
-        if(!branchAgg[bid])branchAgg[bid]={sales:0,count:0}; branchAgg[bid].sales+=Number(o.total??o.total_amount??0); branchAgg[bid].count++;
-        if(!empAgg[eid])empAgg[eid]={sales:0,count:0}; empAgg[eid].sales+=Number(o.total??o.total_amount??0); empAgg[eid].count++;
-      }
+      for(const it of items){const name=it.product_name||it.name||'صنف';if(!prod[name])prod[name]={name,qty:0,total:0};const qty=Number(it.quantity||1);prod[name].qty+=qty;prod[name].total+=Number(it.total??it.line_total??it.price*qty??0);}
+      for(const it of returnItems){const name=it.product_name||'صنف';if(!prod[name])prod[name]={name,qty:0,total:0};prod[name].qty-=Number(it.quantity||0);prod[name].total-=Number(it.total||0);}
+      const products=Object.values(prod).filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
 
       const fromMs=new Date(r.from).getTime(),toMs=new Date(r.to).getTime();
-      const shiftRows=(shifts||[]).filter(sh=>{
-        const openMs=new Date(sh.opened_at||0).getTime(); const closeMs=sh.closed_at?new Date(sh.closed_at).getTime():Infinity;
-        return openMs<=toMs&&closeMs>=fromMs&&(bf==='all'||String(sh.branch_id)===bf)&&(ef==='all'||String(sh.employee_id)===ef)&&(sf==='all'||String(sh.id)===sf);
-      }).map(sh=>{
-        const so=valid.filter(o=>String(o.shift_id)===String(sh.id));
-        const sx=ex.filter(x=>String(x.shift_id)===String(sh.id));
-        return {...sh,_sales:sh.closed_at?Number(sh.sales_total||0):so.reduce((a,o)=>a+Number(o.total??o.total_amount??0),0),_expenses:sh.closed_at?Number(sh.expenses_total||0):sx.reduce((a,x)=>a+Number(x.amount||0),0),_orders:sh.closed_at?Number(sh.orders_count||0):so.length};
-      });
+      const shiftRows=(shifts||[]).filter(sh=>{const openMs=new Date(sh.opened_at||0).getTime(),closeMs=sh.closed_at?new Date(sh.closed_at).getTime():Infinity;return openMs<=toMs&&closeMs>=fromMs&&(bf==='all'||String(sh.branch_id)===bf)&&(ef==='all'||String(sh.employee_id)===ef)&&(sf==='all'||String(sh.id)===sf);}).map(sh=>{const so=valid.filter(o=>String(o.shift_id)===String(sh.id)),sx=ex.filter(x=>String(x.shift_id)===String(sh.id));return {...sh,_sales:sh.closed_at?Number(sh.sales_total??0):so.reduce((a,o)=>a+Number(o.total??o.total_amount??0),0),_expenses:sh.closed_at?Number(sh.expenses_total??0):sx.reduce((a,x)=>a+Number(x.amount||0),0),_orders:sh.closed_at?Number(sh.orders_count??0):so.length};});
 
+      const paymentCards=reportPaymentMethods.map(m=>`<div class="card kpi"><small>${esc(m.name)}</small><strong>${money(paymentTotals[String(m.code).toLowerCase()]||0)}</strong></div>`).join('');
       body.innerHTML=`
         <div class="grid report-kpis">
-          <div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(sales)}</strong></div>
+          <div class="card kpi"><small>صافي المبيعات</small><strong>${money(sales)}</strong></div>
+          <div class="card kpi"><small>المرتجعات</small><strong>${money(returnTotal)}</strong></div>
           <div class="card kpi"><small>صافي بعد المصروفات</small><strong>${money(sales-expTotal)}</strong></div>
           <div class="card kpi"><small>عدد الأوردرات</small><strong>${valid.length}</strong></div>
           <div class="card kpi"><small>متوسط الفاتورة</small><strong>${money(avg)}</strong></div>
-          <div class="card kpi"><small>كاش</small><strong>${money(pmap.cash)}</strong></div>
-          <div class="card kpi"><small>محفظة</small><strong>${money(pmap.wallet)}</strong></div>
-          <div class="card kpi"><small>InstaPay</small><strong>${money(pmap.instapay)}</strong></div>
+          ${paymentCards}
           <div class="card kpi"><small>المصروفات</small><strong>${money(expTotal)}</strong></div>
           <div class="card kpi"><small>رسوم الدليفري</small><strong>${money(deliveryFees)}</strong></div>
           <div class="card kpi"><small>الخصومات</small><strong>${money(discounts)}</strong></div>
           <div class="card kpi"><small>الإلغاءات</small><strong>${cancelled.length}</strong></div>
           <div class="card kpi"><small>الورديات</small><strong>${shiftRows.length}</strong></div>
         </div>
-        <div class="panel"><h2>أفضل الأصناف</h2><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الكمية</th><th>المبيعات</th></tr></thead><tbody>${products.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
+        <div class="panel"><h2>صافي مبيعات الأصناف بعد المرتجعات</h2><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الكمية</th><th>المبيعات</th></tr></thead><tbody>${products.slice(0,30).map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
         <div class="panel"><h2>الورديات خلال الفترة</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>الأوردرات</th><th>المبيعات</th><th>المصروفات</th><th>العجز/الزيادة</th></tr></thead><tbody>${shiftRows.map(x=>`<tr><td>${x.id}</td><td>${esc(branchName(x.branch_id))}</td><td>${esc(employeeName(x.employee_id,employees)||'موظف')}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'مفتوحة الآن'}</td><td>${x._orders}</td><td>${money(x._sales)}</td><td>${money(x._expenses)}</td><td>${x.closed_at?money(x.cash_difference||0):'-'}</td></tr>`).join('')||'<tr><td colspan="9">لا توجد ورديات</td></tr>'}</tbody></table></div></div>`;
 
-      lastExport=[['الفترة',from+' إلى '+to],['إجمالي المبيعات',sales],['صافي بعد المصروفات',sales-expTotal],['عدد الأوردرات',valid.length],['كاش',pmap.cash],['محفظة',pmap.wallet],['InstaPay',pmap.instapay],['المصروفات',expTotal],[],['الصنف','الكمية','المبيعات'],...products.map(x=>[x.name,x.qty,x.total])];
-    }catch(e){
-      console.error('report error',e);
-      body.innerHTML=`<div class="panel"><h2>تعذر تحميل التقرير</h2><p>${esc(e?.message||String(e)||'خطأ غير معروف')}</p><button id="retryReport" class="primary">إعادة المحاولة</button></div>`;
-      $('#retryReport')?.addEventListener('click',run);
-    }
+      lastExport=[['الفترة',from+' إلى '+to],['إجمالي المبيعات قبل المرتجعات',grossSales],['المرتجعات',returnTotal],['صافي المبيعات',sales],['صافي بعد المصروفات',sales-expTotal],['عدد الأوردرات',valid.length],...reportPaymentMethods.map(m=>[m.name,paymentTotals[String(m.code).toLowerCase()]||0]),['المصروفات',expTotal],[],['الصنف','الكمية','صافي المبيعات'],...products.map(x=>[x.name,x.qty,x.total])];
+    }catch(e){console.error('report error',e);body.innerHTML=`<div class="panel"><h2>تعذر تحميل التقرير</h2><p>${esc(e?.message||String(e)||'خطأ غير معروف')}</p><button id="retryReport" class="primary">إعادة المحاولة</button></div>`;$('#retryReport')?.addEventListener('click',run);}
   };
 
   $('#runReport').onclick=run;
   $('#exportReport').onclick=()=>{if(!lastExport.length)return toast('اعرض التقرير الأول');downloadCSV(`report-${$('#repFrom').value}-${$('#repTo').value}.csv`,lastExport)};
 }
-
 async function renderUsers(){const rows=await rest('employees','select=id,name,username,role,branch_id,active&order=id');$('#page').innerHTML=`<div class="panel"><h2>المستخدمون</h2><p>إنشاء حسابات تسجيل الدخول الجديدة يتم حاليًا من Supabase Authentication ثم ربطها بجدول employees.</p><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>الفرع</th><th>الحالة</th></tr></thead><tbody>${rows.map(u=>`<tr><td>${u.name}</td><td>${u.username||''}</td><td>${u.role}</td><td>${branchName(u.branch_id)}</td><td>${u.active?'فعال':'موقوف'}</td></tr>`).join('')}</tbody></table></div></div>`}
 
 const BACKUP_GROUPS={
