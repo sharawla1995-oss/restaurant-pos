@@ -9,7 +9,7 @@ settings:{
   enable_inventory:false,enable_delivery:true,enable_customer_search:true,
   enable_delivery_drivers:true,enable_mixed_payment:true
 },
-modifiers:[],productModifiers:[],productVariants:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null};
+modifiers:[],productModifiers:[],productVariants:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false};
 let websiteOrderWatchTimer=null;
 let knownWebsiteOrderIds=new Set();
 let websiteOrderWatchPrimed=false;
@@ -567,44 +567,51 @@ function openItemOptions(p){const mods=productModifierList(p);const variants=pro
 function cartCalc(){const subtotal=state.cart.reduce((s,i)=>s+(Number(i.price||0)*Number(i.qty||0)),0);const f=financialCfg();let discountValue=Number($('#discount')?.value||0),discountType=$('#discountType')?.value||'amount';if(!f.discount_enabled||!discountAllowed())discountValue=0;if(discountType==='percent')discountValue=Math.min(Math.max(0,discountValue),Number(f.max_discount_percent||100));let manualDiscount=discountType==='percent'?subtotal*discountValue/100:Math.max(0,discountValue);manualDiscount=Math.min(subtotal,manualDiscount,subtotal*Number(f.max_discount_percent||100)/100);const promoDiscount=Math.max(0,Math.min(Number(state.activePromo?.discount||0),Math.max(0,subtotal-manualDiscount)));const discount=Math.min(subtotal,manualDiscount+promoDiscount);const base=Math.max(0,subtotal-discount);let taxAmount=f.tax_enabled?base*Number(f.tax_rate||0)/100:0;if(f.tax_enabled&&f.prices_include_tax)taxAmount=base-(base/(1+Number(f.tax_rate||0)/100));const serviceAmount=f.service_enabled?base*Number(f.service_rate||0)/100:0;let deliveryFee=0;if($('#orderType')?.value==='delivery')deliveryFee=Number($('#manualDeliveryFee')?.value||0);const total=Math.max(0,base+(f.tax_enabled&&!f.prices_include_tax?taxAmount:0)+serviceAmount+deliveryFee);return{subtotal,discount,manualDiscount,promoDiscount,discountType,discountValue,taxAmount,serviceAmount,deliveryFee,total}}
 function drawCart(){if(!$('#cartItems'))return;$('#cartItems').innerHTML=state.cart.length?state.cart.map((i,n)=>`<div class="cart-item"><div class="cart-row"><b>${i.name}</b><b>${money(i.price*i.qty)}</b></div>${i.modifiers?.length?`<small>+ ${i.modifiers.map(x=>x.name).join('، ')}</small>`:''}${i.removed?.length?`<small>بدون: ${i.removed.join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${i.notes}</small>`:''}<div class="qty"><button data-a="plus" data-i="${n}">+</button><b>${i.qty}</b><button data-a="minus" data-i="${n}">−</button><button data-a="del" data-i="${n}">🗑</button></div></div>`).join(''):'<div class="empty">أضف أصناف للأوردر</div>';$('#cartItems').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=state.cart[+b.dataset.i];invalidateActivePromo();if(b.dataset.a==='plus')i.qty++;if(b.dataset.a==='minus'){i.qty--;if(i.qty<=0)state.cart.splice(+b.dataset.i,1)}if(b.dataset.a==='del')state.cart.splice(+b.dataset.i,1);drawCart()};const c=cartCalc();$('#subtotal').textContent=money(c.subtotal);if($('#posPromoResult')&&state.activePromo){$('#posPromoResult').classList.remove('hidden');$('#posPromoResult').innerHTML=`✅ ${esc(state.activePromo.code)} — خصم ${money(c.promoDiscount)} <button type="button" class="link-btn" id="removePosPromo">إلغاء</button>`;const rb=$('#removePosPromo');if(rb)rb.onclick=()=>{invalidateActivePromo();drawCart()}}if($('#deliveryFee'))$('#deliveryFee').textContent=money(c.deliveryFee);if($('#taxAmount'))$('#taxAmount').textContent=money(c.taxAmount);if($('#serviceAmount'))$('#serviceAmount').textContent=money(c.serviceAmount);if($('#taxLine'))$('#taxLine').classList.toggle('hidden',!financialCfg().tax_enabled);if($('#serviceLine'))$('#serviceLine').classList.toggle('hidden',!financialCfg().service_enabled);$('#grand').textContent=money(c.total)}
 async function checkout(payment,payments=null){
+ if(state.checkoutInProgress)return toast('جاري حفظ الفاتورة...');
  if(!state.cart.length)return toast('الأوردر فارغ');
- const c=cartCalc(), orderType=$('#orderType').value;
-
- let openShift=await getOpenShift();if(!openShift){toast('لازم تفتح وردية قبل تسجيل البيع');setTimeout(()=>showPage('shifts'),700);return;}
- const phone=($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
- let customerId=state.selectedCustomer?.id||null;
- const area=orderType==='delivery'?($('#deliveryZone')?.selectedOptions?.[0]?.textContent?.split('—')[0]?.trim()||null):null;
- if(phone && !customerId){
-   try{
-     const createdCustomer=await rest('customers','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{name:name||phone,phone,address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,area}])});
-     customerId=createdCustomer?.[0]?.id||null;
-     if(customerId && orderType==='delivery' && $('#deliveryAddress')?.value){
-       await rest('customer_addresses','',{method:'POST',body:JSON.stringify([{customer_id:customerId,label:'العنوان الأساسي',address:$('#deliveryAddress').value,area,is_default:true}])});
-     }
-   }catch(e){}
- }
- const branchId=currentBranchId();
- const source=(state.employee.role==='delivery'||state.employee.role==='callcenter')?'callcenter':'pos';
- const selectedDriver=orderType==='delivery'&&$('#deliveryDriver')?.value?Number($('#deliveryDriver').value):null;
- const order=[{
-   branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
-   payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
-   status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
-   delivery_address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,delivery_area:area,
-   delivery_zone_id:orderType==='delivery'&&$('#deliveryZone')?.value?Number($('#deliveryZone').value):null,
-   driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
- }];
- const created=await rest('orders','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(order)});
- const o=created[0];
- const items=state.cart.map(i=>({order_id:o.id,product_id:i.product_id,product_name:i.name,quantity:i.qty,unit_price:i.price,cost:i.cost,total:i.price*i.qty,notes:[i.removed?.length?`بدون: ${i.removed.join('، ')}`:'',i.notes||''].filter(Boolean).join(' | ')||null,_mods:i.modifiers||[]}));
- const clean=items.map(({_mods,...x})=>x);
- const savedItems=await rest('order_items','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(clean)});
- const modifierRows=[];savedItems.forEach((saved,idx)=>{for(const md of(items[idx]._mods||[]))modifierRows.push({order_item_id:saved.id,modifier_id:md.id,modifier_name:md.name,price:md.price})});
- if(modifierRows.length)await rest('order_item_modifiers','',{method:'POST',body:JSON.stringify(modifierRows)});
- try{const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({order_id:o.id,method:x.method,amount:Number(x.amount)}));await rest('order_payments','',{method:'POST',body:JSON.stringify(payRows)})}catch(e){}
- if(state.activePromo?.id&&c.promoDiscount>0){try{await rpc('redeem_promo_code',{p_promo_id:Number(state.activePromo.id),p_code:state.activePromo.code,p_branch_id:branchId,p_channel:'pos',p_customer_phone:phone||null,p_discount:c.promoDiscount,p_order_id:Number(o.id),p_website_order_id:null})}catch(e){console.error('promo redemption',e)}}
- await audit('create_order','order',o.id,{invoice_number:o.invoice_number,bon_number:o.bon_number,total:c.total,payment,order_type:orderType,shift_id:openShift?.id||null});
- state.cart=[];state.selectedCustomer=null;state.activePromo=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
+ state.checkoutInProgress=true;
+ try{
+  const c=cartCalc(), orderType=$('#orderType').value;
+  let openShift=await getOpenShift();if(!openShift){toast('لازم تفتح وردية قبل تسجيل البيع');setTimeout(()=>showPage('shifts'),700);return;}
+  const phone=($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
+  let customerId=state.selectedCustomer?.id||null;
+  const area=orderType==='delivery'?($('#deliveryZone')?.selectedOptions?.[0]?.textContent?.split('—')[0]?.trim()||null):null;
+  if(phone && !customerId){
+    try{
+      const createdCustomer=await rest('customers','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{name:name||phone,phone,address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,area}])});
+      customerId=createdCustomer?.[0]?.id||null;
+      if(customerId && orderType==='delivery' && $('#deliveryAddress')?.value){
+        await rest('customer_addresses','',{method:'POST',body:JSON.stringify([{customer_id:customerId,label:'العنوان الأساسي',address:$('#deliveryAddress').value,area,is_default:true}])});
+      }
+    }catch(e){}
+  }
+  const branchId=currentBranchId();
+  const source=(state.employee.role==='delivery'||state.employee.role==='callcenter')?'callcenter':'pos';
+  const selectedDriver=orderType==='delivery'&&$('#deliveryDriver')?.value?Number($('#deliveryDriver').value):null;
+  const orderPayload={
+    branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
+    payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
+    status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
+    delivery_address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,delivery_area:area,
+    delivery_zone_id:orderType==='delivery'&&$('#deliveryZone')?.value?Number($('#deliveryZone').value):null,
+    driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
+  };
+  const itemPayload=state.cart.map(i=>({
+    product_id:i.product_id,product_name:i.name,quantity:i.qty,unit_price:i.price,cost:i.cost,total:i.price*i.qty,
+    notes:[i.removed?.length?`بدون: ${i.removed.join('، ')}`:'',i.notes||''].filter(Boolean).join(' | ')||null,
+    modifiers:(i.modifiers||[]).map(md=>({id:md.id,name:md.name,price:Number(md.price||0)}))
+  }));
+  const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({method:x.method,amount:Number(x.amount)}));
+  const result=await rpc('create_pos_order_atomic',{p_order:orderPayload,p_items:itemPayload,p_payments:payRows});
+  const o=result?.order, savedItems=result?.items||[];
+  if(!o?.id)throw new Error('تمت العملية لكن تعذر قراءة الفاتورة');
+  state.cart=[];state.selectedCustomer=null;state.activePromo=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
+ }catch(e){
+  console.error('atomic checkout',e);
+  const msg=String(e?.message||'تعذر حفظ الفاتورة');
+  if(msg.includes('create_pos_order_atomic')||msg.includes('Could not find the function'))toast('شغّل SQL V9.7.1 أولًا');
+  else toast(msg);
+ }finally{state.checkoutInProgress=false;}
 }
 async function openMixedPayment(){const c=cartCalc();if(!state.cart.length)return toast('الأوردر فارغ');const methods=branchPaymentList();const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>➗ دفع مختلط</h2><p>المطلوب: <b>${money(c.total)}</b></p><div class="form-grid">${methods.map((x,i)=>`<label>${esc(x.name)}<input type="number" min="0" step="0.01" data-mix="${esc(x.code)}" value="${i===0?Number(c.total).toFixed(2):'0'}"></label>`).join('')}</div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-mix>تأكيد الدفع</button></div></div>`;document.body.appendChild(m);m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();if(e.target.closest('[data-save-mix]')){const rows=[...m.querySelectorAll('[data-mix]')].map(x=>({method:x.dataset.mix,amount:Number(x.value||0)})).filter(x=>x.amount>0);const sum=rows.reduce((a,x)=>a+x.amount,0);if(Math.abs(sum-c.total)>0.01)return toast(`مجموع طرق الدفع لازم يساوي ${money(c.total)}`);m.remove();await checkout('mixed',rows)}}}
 const orderTypeLabel=v=>({takeaway:'استلام فرع',pickup:'استلام فرع',delivery:'دليفري',dinein:'صالة'}[v]||v||'');
