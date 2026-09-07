@@ -2,6 +2,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=JSON.parse(localStorage.getItem('sbSession')||'null');
 let state={employee:null,branches:[],categories:[],products:[],cart:[],cat:'all',
+business:{business_name:'Top Burger',tagline:'🔥 طعم يستاهل التجربة',phone:'',address:'',logo_url:'',currency_symbol:'ج.م',receipt_footer:'شكرًا لزيارتكم',primary_color:'#b51f2b',accent_color:'#f0643d'},
 settings:{
   enable_extras:true,enable_removals:true,enable_item_notes:true,
   enable_kitchen:false,enable_receipt_print:true,enable_prep_receipt:true,
@@ -62,7 +63,7 @@ function startWebsiteOrderWatch(){
 // لو رجع للشاشة أو فتح التبويب بعد ما كان بالخلفية، افحص فورًا بدل انتظار المؤقت.
 window.addEventListener('focus',()=>{if(state.activeBranchId)checkWebsiteOrders()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.activeBranchId)checkWebsiteOrders()});
-const money=n=>`${Number(n||0).toFixed(2)} ج.م`;
+const money=n=>`${Number(n||0).toFixed(2)} ${state.business?.currency_symbol||'ج.م'}`;
 const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
 function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const type=opts.type||'text';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||'✏️'}</div><h2>${esc(opts.title||'إدخال البيانات')}</h2><p class="dialog-message">${esc(message)}</p><input class="dialog-input" type="${esc(type)}" value="${esc(defaultValue)}" ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''} autocomplete="off"><div class="modal-actions"><button class="secondary" data-dialog-cancel>إلغاء</button><button class="primary" data-dialog-ok>${esc(opts.okText||'حفظ')}</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('.dialog-input');setTimeout(()=>{input.focus();if(type!=='password')input.select()},30);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-cancel]'))finish(null);if(e.target.closest('[data-dialog-ok]'))finish(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter')finish(input.value);if(e.key==='Escape')finish(null)})})}
@@ -75,6 +76,16 @@ async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
 async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
+function businessName(){return state.business?.business_name||'Top Burger'}
+function businessTagline(){return state.business?.tagline||''}
+function applyBusinessBranding(){
+  document.title=`${businessName()} POS`;
+  const n=$('#appBrandName');if(n)n.textContent=businessName();
+  const logo=$('#appBrandLogo');if(logo){const u=state.business?.logo_url||'';logo.src=u;logo.classList.toggle('hidden',!u)}
+  const root=document.documentElement;
+  if(state.business?.primary_color)root.style.setProperty('--business-primary',state.business.primary_color);
+  if(state.business?.accent_color)root.style.setProperty('--business-accent',state.business.accent_color);
+}
 function branchName(id){return state.branches.find(b=>String(b.id)===String(id))?.name||''}
 function driverName(id){return state.drivers.find(d=>String(d.id)===String(id))?.name||''}
 function zoneName(id){return state.deliveryZones.find(z=>String(z.id)===String(id))?.name||''}
@@ -94,14 +105,16 @@ const PERMISSION_DEFS=[
   ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
   ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
   ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],
-  ['branchManagement','🏪 إدارة الفروع']
+  ['branchManagement','🏪 إدارة الفروع'],
+  ['businessSettings','🎨 هوية وإعدادات النشاط']
 ];
 const PERMISSION_GROUPS=[
   ['🧾 المبيعات',['pos','orders','customers','deliveryOrders','shifts']],
   ['📊 الإدارة',['expenses','reports','products','settings']],
   ['🚚 التشغيل',['deliverySettings','kitchen','inventory']],
   ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings']],
-  ['🏪 الفروع',['branchManagement']]
+  ['🏪 الفروع',['branchManagement']],
+  ['⚙️ النظام',['businessSettings']]
 ];
 function effectivePermissionSet(){
   if(isAdmin())return new Set(ALL_PAGES);
@@ -121,6 +134,7 @@ function canAccessPage(page){
   const allowed=effectivePermissionSet();
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings');
   if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
+  if(page==='settings')return isAdmin()||allowed.has('settings')||allowed.has('businessSettings');
   if(!allowed.has(page))return false;
   if(page==='deliveryOrders'||page==='delivery')return !!state.settings.enable_delivery;
   if(page==='kitchen')return !!state.settings.enable_kitchen;
@@ -160,7 +174,7 @@ function renderBranchPicker(){
   if($('#branchName')) $('#branchName').textContent='اختر الفرع';
   if($('#changeBranchBtn')) $('#changeBranchBtn').classList.add('hidden');
   $('#pageTitle').textContent='اختيار الفرع';
-  $('#page').innerHTML=`<section class="branch-picker"><div class="branch-picker-head"><span>TOP BURGER • POS</span><h1>اختار الفرع</h1><p>كل الطلبات والورديات والمصروفات والتقارير بعد الاختيار هتكون للفرع ده فقط.</p></div><div class="branch-picker-grid">${allowedBranches().map((b,i)=>`<button class="branch-pick-card ${i%2?'alt':''}" data-branch-pick="${b.id}"><span class="branch-pick-icon">🏪</span><div><b>${esc(b.name)}</b><small>الدخول إلى نظام الفرع</small></div><span>‹</span></button>`).join('')}</div></section>`;
+  $('#page').innerHTML=`<section class="branch-picker"><div class="branch-picker-head"><span>${esc(businessName().toUpperCase())} • POS</span><h1>اختار الفرع</h1><p>كل الطلبات والورديات والمصروفات والتقارير بعد الاختيار هتكون للفرع ده فقط.</p></div><div class="branch-picker-grid">${allowedBranches().map((b,i)=>`<button class="branch-pick-card ${i%2?'alt':''}" data-branch-pick="${b.id}"><span class="branch-pick-icon">🏪</span><div><b>${esc(b.name)}</b><small>الدخول إلى نظام الفرع</small></div><span>‹</span></button>`).join('')}</div></section>`;
   $('#page').onclick=e=>{const b=e.target.closest('[data-branch-pick]');if(b)selectBranch(b.dataset.branchPick)};
 }
 
@@ -273,7 +287,9 @@ async function bootstrap(){
     rest('delivery_drivers','select=*&active=eq.true&order=name')
   ]);
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
+  try{const br=await rest('business_settings','select=*&id=eq.1&limit=1');if(br?.[0])state.business={...state.business,...br[0]}}catch(e){}
   state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
+  applyBusinessBranding();
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
   const allowed=allowedBranches();
   const allowedIds=allowedBranchIds();
@@ -317,7 +333,7 @@ async function renderHome(){
     ['settings','⚙️','الإعدادات','تشغيل وإيقاف المميزات','slate']
   ];
   const visible=cards.filter(c=>canAccessPage(c[0]));
-  $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">TOP BURGER • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>فرع ${esc(branchName(currentBranchId()))}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}<button class="home-card tone-rose" data-home-logout><span class="home-icon">🚪</span><span class="home-copy"><b>تسجيل الخروج</b><small>الخروج من حساب المستخدم الحالي</small></span><span class="home-arrow">‹</span></button></section>`;
+  $('#page').innerHTML=`<section class="home-hero"><div><span class="home-kicker">${esc(businessName().toUpperCase())} • POS</span><h1>أهلاً ${esc(state.employee.name)}</h1><p>فرع ${esc(branchName(currentBranchId()))}</p></div><div class="home-shift ${openShift?'is-open':''}"><span>${openShift?'● الوردية مفتوحة':'○ الوردية مغلقة'}</span>${openShift?`<small>من ${fmtDate(openShift.opened_at)}</small>`:''}</div></section><section class="home-grid">${visible.map(c=>`<button class="home-card tone-${c[4]}" data-home-page="${c[0]}"><span class="home-icon">${c[1]}</span><span class="home-copy"><b>${c[2]}</b><small>${c[3]}</small></span><span class="home-arrow">‹</span></button>`).join('')}<button class="home-card tone-rose" data-home-logout><span class="home-icon">🚪</span><span class="home-copy"><b>تسجيل الخروج</b><small>الخروج من حساب المستخدم الحالي</small></span><span class="home-arrow">‹</span></button></section>`;
   $('#page').onclick=e=>{const b=e.target.closest('[data-home-page]');if(b)return showPage(b.dataset.homePage);if(e.target.closest('[data-home-logout]'))logout()};
 }
 
@@ -581,7 +597,7 @@ const paymentLabel=v=>({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',ca
 const statusLabel=v=>({new:'جديد',preparing:'قيد التحضير',ready:'جاهز',out_for_delivery:'خرج مع المندوب',delivered:'تم التسليم',completed:'مكتمل',cancelled:'ملغي'}[v]||v||'');
 
 function customerInfoHTML(o){if(o.order_type!=='delivery')return '';const n=o.customer_name||'';const ph=o.customer_phone||'';const area=o.delivery_area||zoneName(o.delivery_zone_id)||'';const addr=o.delivery_address||'';const drv=o._driver_name||driverName(o.driver_id)||'';return `<div class="r-customer">${n?`<div><b>العميل:</b> ${esc(n)}</div>`:''}${ph?`<div><b>الموبايل:</b> ${esc(ph)}</div>`:''}${area?`<div><b>المنطقة:</b> ${esc(area)}</div>`:''}${addr?`<div><b>العنوان:</b> ${esc(addr)}</div>`:''}${drv?`<div><b>المندوب:</b> ${esc(drv)}</div>`:''}</div><hr>`}
-function receiptHTML(o,items){return `<div class="receipt"><h2>Top Burger</h2><div class="r-meta"><b>${o.order_number||'#'+o.id}</b><br>${fmtDate(o.created_at||new Date().toISOString())}<br>${branchName(o.branch_id)}</div><hr>${customerInfoHTML(o)}<div class="r-items">${items.map(i=>`<div><span>${esc(i.product_name)} × ${i.quantity}${i.notes?`<small>${esc(i.notes)}</small>`:''}</span><b>${money(i.total)}</b></div>`).join('')}</div><hr><div class="r-totals"><div><span>إجمالي الأصناف</span><b>${money(o.subtotal)}</b></div>${Number(o.discount||0)?`<div><span>خصم</span><b>-${money(o.discount)}</b></div>`:''}${Number(o.delivery_fee||0)?`<div><span>الدليفري</span><b>${money(o.delivery_fee)}</b></div>`:''}<div class="grand-print"><span>المطلوب</span><b>${money(o.total)}</b></div></div><hr><div class="r-footer">${orderTypeLabel(o.order_type)} • ${paymentLabel(o.payment_method)}<br>شكرًا لزيارتكم</div></div>`}
+function receiptHTML(o,items){return `<div class="receipt">${state.business?.logo_url?`<img class="receipt-logo" src="${esc(state.business.logo_url)}" alt="">`:''}<h2>${esc(businessName())}</h2><div class="r-meta"><b>${o.order_number||'#'+o.id}</b><br>${fmtDate(o.created_at||new Date().toISOString())}<br>${branchName(o.branch_id)}</div><hr>${customerInfoHTML(o)}<div class="r-items">${items.map(i=>`<div><span>${esc(i.product_name)} × ${i.quantity}${i.notes?`<small>${esc(i.notes)}</small>`:''}</span><b>${money(i.total)}</b></div>`).join('')}</div><hr><div class="r-totals"><div><span>إجمالي الأصناف</span><b>${money(o.subtotal)}</b></div>${Number(o.discount||0)?`<div><span>خصم</span><b>-${money(o.discount)}</b></div>`:''}${Number(o.delivery_fee||0)?`<div><span>الدليفري</span><b>${money(o.delivery_fee)}</b></div>`:''}<div class="grand-print"><span>المطلوب</span><b>${money(o.total)}</b></div></div><hr><div class="r-footer">${orderTypeLabel(o.order_type)} • ${paymentLabel(o.payment_method)}<br>${esc(state.business?.receipt_footer||'شكرًا لزيارتكم')}</div></div>`}
 function printIsolated(html){const old=document.getElementById('receiptPrintFrame');if(old)old.remove();const f=document.createElement('iframe');f.id='receiptPrintFrame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);const d=f.contentDocument;d.open();d.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>@page{size:80mm auto;margin:2mm}body{margin:0;font-family:Arial,sans-serif;color:#000;direction:rtl}.receipt{width:76mm;font-size:12px;line-height:1.45}.receipt h2{text-align:center;font-size:19px;margin:3px 0}.receipt h1{text-align:center}.receipt hr{border:0;border-top:1px dashed #000;margin:6px 0}.r-meta,.r-footer{text-align:center}.r-customer{line-height:1.7}.r-items>div,.r-totals>div{display:flex;justify-content:space-between;gap:8px;margin:5px 0}.r-items small{display:block}.grand-print{font-size:15px;font-weight:900;border-top:1px dashed #000;padding-top:6px}.shift-print{width:76mm;font-size:11px}.shift-print h2,.shift-print h3{text-align:center;margin:5px 0}.shift-report-table{width:100%;border-collapse:collapse;font-size:10px}.shift-report-table th,.shift-report-table td{border-bottom:1px dashed #777;padding:4px 2px;text-align:right}.shift-report-table th:nth-child(n+2),.shift-report-table td:nth-child(n+2){text-align:left}.shift-report-table small{display:block;font-size:8px}</style></head><body>${html}</body></html>`);d.close();setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}finally{setTimeout(()=>f.remove(),1200)}},150)}
 function printReceipt(o,items){printIsolated(receiptHTML(o,items))}
 function prepReceiptHTML(o,items){return `<div class="receipt"><div class="receipt-head"><h2>ريسيت التحضير</h2><h1>${o.order_number||'#'+o.id}</h1><p>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</p><p>${orderTypeLabel(o.order_type)}</p></div><hr>${customerInfoHTML(o)}<div class="r-items">${items.map(i=>`<div class="prep-item"><span><b>${i.quantity} × ${esc(i.product_name)}</b>${i.notes?`<small class="prep-note">📝 ${esc(i.notes)}</small>`:''}</span><b>${money(i.total)}</b></div>`).join('')}</div><hr><div class="r-totals"><div><span>إجمالي الأصناف</span><b>${money(o.subtotal)}</b></div></div><div class="prep-service-note">بدون رسوم خدمة/دليفري</div></div>`}
@@ -643,7 +659,7 @@ async function shiftReportData(shift){
 }
 function shiftReportHTML(sh,employees,mtr,data){
  const sales=sh.closed_at?Number(sh.sales_total||mtr.sales):mtr.sales,cash=sh.closed_at?Number(sh.cash_sales||mtr.cash):mtr.cash,wallet=sh.closed_at?Number(sh.wallet_sales||mtr.wallet):mtr.wallet,instapay=sh.closed_at?Number(sh.instapay_sales||mtr.instapay):mtr.instapay,exp=sh.closed_at?Number(sh.expenses_total||mtr.exp):mtr.exp,expected=sh.closed_at?Number(sh.expected_cash||mtr.expected):mtr.expected;
- return `<div class="shift-print"><h2>Top Burger</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
+ return `<div class="shift-print"><h2>${esc(businessName())}</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
  <div class="r-totals"><div><span>إجمالي المبيعات</span><b>${money(sales)}</b></div><div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div><div><span>كاش</span><b>${money(cash)}</b></div><div><span>محفظة</span><b>${money(wallet)}</b></div><div><span>InstaPay</span><b>${money(instapay)}</b></div><div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
  <h3>مبيعات الأصناف</h3><table class="shift-report-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${data.products.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>'}</tbody></table><hr>
  <h3>المصروفات</h3><table class="shift-report-table"><thead><tr><th>البيان</th><th>المبلغ</th></tr></thead><tbody>${data.expenses.map(x=>`<tr><td>${esc(x.description||'مصروف')}<small>${fmtDate(x.created_at)}</small></td><td>${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</tbody></table><div class="r-totals"><div><span>إجمالي المصروفات</span><b>${money(exp)}</b></div></div><hr>
@@ -1026,22 +1042,42 @@ const BACKUP_GROUPS={
  delivery:{label:'الدليفري والمندوبين والمناطق',tables:['driver_settlements','delivery_drivers','delivery_zones']},
  catalog:{label:'الأصناف والتصنيفات والإضافات',tables:['product_modifiers','branch_products','modifiers','products','categories']},
  permissions:{label:'صلاحيات المستخدمين والفروع',tables:['employee_permissions','employee_branches']},
- settings:{label:'إعدادات البرنامج',tables:['app_settings']}
+ settings:{label:'إعدادات البرنامج وهوية النشاط',tables:['app_settings','business_settings']}
 };
 function selectedBackupGroups(root){return [...root.querySelectorAll('[data-backup-group]:checked')].map(x=>x.dataset.backupGroup)}
 async function exportBackup(groups){const data={format:'topburger-pos-backup',version:'8.9',created_at:new Date().toISOString(),groups:{}};for(const g of groups){data.groups[g]={};for(const t of BACKUP_GROUPS[g].tables){try{data.groups[g][t]=await rest(t,'select=*')}catch(e){data.groups[g][t]=[]}}}const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`top-burger-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 async function resetGroups(groups){return req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})})}
-async function restoreBackup(file,groups){const text=await file.text();let b;try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}if(b?.format!=='topburger-pos-backup')throw new Error('هذا ليس ملف Backup للبرنامج');const order=['categories','products','modifiers','branch_products','product_modifiers','customers','customer_addresses','shifts','orders','order_items','order_payments','order_item_modifiers','expenses','delivery_zones','delivery_drivers','driver_settlements','employee_branches','employee_permissions','app_settings'];const wanted=new Set(groups.flatMap(g=>BACKUP_GROUPS[g].tables));for(const t of order){if(!wanted.has(t))continue;let rows=null;for(const g of Object.values(b.groups||{})){if(g&&Array.isArray(g[t])){rows=g[t];break}}if(!rows?.length)continue;const r=await fetch(`${cfg.url}/rest/v1/${t}`,{method:'POST',headers:{...headers(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(`${t}: ${d.message||r.status}`)}}await reloadCatalog();}
+async function restoreBackup(file,groups){const text=await file.text();let b;try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}if(b?.format!=='topburger-pos-backup')throw new Error('هذا ليس ملف Backup للبرنامج');const order=['categories','products','modifiers','branch_products','product_modifiers','customers','customer_addresses','shifts','orders','order_items','order_payments','order_item_modifiers','expenses','delivery_zones','delivery_drivers','driver_settlements','employee_branches','employee_permissions','app_settings','business_settings'];const wanted=new Set(groups.flatMap(g=>BACKUP_GROUPS[g].tables));for(const t of order){if(!wanted.has(t))continue;let rows=null;for(const g of Object.values(b.groups||{})){if(g&&Array.isArray(g[t])){rows=g[t];break}}if(!rows?.length)continue;const r=await fetch(`${cfg.url}/rest/v1/${t}`,{method:'POST',headers:{...headers(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(`${t}: ${d.message||r.status}`)}}await reloadCatalog();}
 async function renderSettings(){
- if(state.employee.role!=='admin'){ $('#page').innerHTML='<div class="empty">الإعدادات متاحة للمدير فقط</div>'; return; }
- const groups=Object.entries(BACKUP_GROUPS).map(([k,v])=>`<label class="backup-check"><input type="checkbox" data-backup-group="${k}"> ${v.label}</label>`).join('');
- $('#page').innerHTML=`<div class="panel"><h2>تشغيل وإيقاف المميزات</h2><p>الإعدادات دي بتتزامن على كل الأجهزة.</p><div class="settings-list">${[['enable_extras','الإضافات Extras'],['enable_removals','حذف مكونات'],['enable_item_notes','ملاحظات على الصنف'],['enable_kitchen','شاشة المطبخ'],['enable_prep_receipt','ريسيت التحضير'],['enable_receipt_print','فاتورة العميل'],['enable_inventory','المخزون'],['enable_delivery','الدليفري'],['enable_customer_search','بحث العملاء بالهاتف'],['enable_delivery_drivers','مناديب التوصيل'],['enable_mixed_payment','الدفع المختلط']].map(([k,l])=>`<label class="setting-switch"><span>${l}</span><input type="checkbox" data-setting="${k}" ${state.settings[k]?'checked':''}></label>`).join('')}</div><button id="saveSettings" class="primary">حفظ الإعدادات</button></div>
- <div class="panel backup-panel"><h2>💾 النسخ الاحتياطي والاستعادة</h2><p>حدد البيانات المطلوبة. النسخة لا تحتوي كلمات مرور حسابات الدخول.</p><div class="backup-grid">${groups}</div><div class="toolbar"><button id="backupAll" class="secondary">تحديد الكل</button><button id="backupNone" class="secondary">إلغاء التحديد</button></div><div class="backup-actions"><button id="createBackup" class="primary">⬇️ إنشاء نسخة احتياطية</button><label class="file-action">📂 ملف الاستعادة<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="restoreBackup" class="secondary">♻️ استعادة المحدد</button><button id="resetSelected" class="danger">🗑️ إعادة ضبط المحدد</button></div><small>إعادة الضبط لا تحذف حساب المدير من Authentication. استخدمها بحذر وبعد إنشاء Backup.</small></div>`;
- $('#saveSettings').onclick=async()=>{const rows=[...document.querySelectorAll('[data-setting]')].map(x=>({key:x.dataset.setting,value:String(x.checked)}));for(const r of rows)await rest('app_settings',`key=eq.${encodeURIComponent(r.key)}`,{method:'PATCH',body:JSON.stringify({value:r.value})});Object.assign(state.settings,Object.fromEntries(rows.map(r=>[r.key,r.value==='true'])));toast('تم حفظ الإعدادات')};
- $('#backupAll').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=true);$('#backupNone').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=false);
- $('#createBackup').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد بيانات للنسخ');try{await exportBackup(g);toast('تم إنشاء النسخة الاحتياطية')}catch(e){toast(e.message)}};
- $('#restoreBackup').onclick=async()=>{const f=$('#restoreFile').files[0],g=selectedBackupGroups($('#page'));if(!f)return toast('اختر ملف النسخة');if(!g.length)return toast('حدد ما تريد استعادته');if(!await uiConfirm('استعادة البيانات المحددة من النسخة؟ سيتم دمجها مع البيانات الحالية.'))return;try{await restoreBackup(f,g);toast('تمت الاستعادة بنجاح')}catch(e){toast(e.message)}};
- $('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
+ const canBusiness=isAdmin()||hasFeaturePermission('businessSettings');
+ const canSystem=isAdmin()||hasFeaturePermission('settings');
+ if(!canBusiness&&!canSystem){ $('#page').innerHTML='<div class="empty">ليس لديك صلاحية لفتح الإعدادات</div>'; return; }
+ const b=state.business||{};
+ const businessPanel=canBusiness?`<div class="panel business-settings-panel"><h2>🎨 هوية وإعدادات النشاط</h2><p>البيانات دي تظهر تلقائيًا في الـPOS والموقع والفواتير.</p><div class="form-grid business-settings-grid">
+ <label>اسم النشاط<input id="bizName" value="${esc(b.business_name||'')}"></label>
+ <label>الشعار النصي / الجملة<input id="bizTagline" value="${esc(b.tagline||'')}"></label>
+ <label>رقم الهاتف<input id="bizPhone" value="${esc(b.phone||'')}"></label>
+ <label>العنوان<input id="bizAddress" value="${esc(b.address||'')}"></label>
+ <label>رمز العملة<input id="bizCurrency" value="${esc(b.currency_symbol||'ج.م')}"></label>
+ <label>نص أسفل الفاتورة<input id="bizFooter" value="${esc(b.receipt_footer||'')}"></label>
+ <label class="wide">رابط اللوجو<input id="bizLogo" value="${esc(b.logo_url||'')}" placeholder="https://..."></label>
+ <label>اللون الأساسي<input id="bizPrimary" type="color" value="${esc(b.primary_color||'#b51f2b')}"></label>
+ <label>اللون المساعد<input id="bizAccent" type="color" value="${esc(b.accent_color||'#f0643d')}"></label>
+ </div><button id="saveBusinessSettings" class="primary">حفظ هوية النشاط</button></div>`:'';
+ let systemPanel='',backupPanel='';
+ if(canSystem){
+   const groups=Object.entries(BACKUP_GROUPS).map(([k,v])=>`<label class="backup-check"><input type="checkbox" data-backup-group="${k}"> ${v.label}</label>`).join('');
+   systemPanel=`<div class="panel"><h2>تشغيل وإيقاف المميزات</h2><p>الإعدادات دي بتتزامن على كل الأجهزة.</p><div class="settings-list">${[['enable_extras','الإضافات Extras'],['enable_removals','حذف مكونات'],['enable_item_notes','ملاحظات على الصنف'],['enable_kitchen','شاشة المطبخ'],['enable_prep_receipt','ريسيت التحضير'],['enable_receipt_print','فاتورة العميل'],['enable_inventory','المخزون'],['enable_delivery','الدليفري'],['enable_customer_search','بحث العملاء بالهاتف'],['enable_delivery_drivers','مناديب التوصيل'],['enable_mixed_payment','الدفع المختلط']].map(([k,l])=>`<label class="setting-switch"><span>${l}</span><input type="checkbox" data-setting="${k}" ${state.settings[k]?'checked':''}></label>`).join('')}</div><button id="saveSettings" class="primary">حفظ الإعدادات</button></div>`;
+   backupPanel=`<div class="panel backup-panel"><h2>💾 النسخ الاحتياطي والاستعادة</h2><p>حدد البيانات المطلوبة. النسخة لا تحتوي كلمات مرور حسابات الدخول.</p><div class="backup-grid">${groups}</div><div class="toolbar"><button id="backupAll" class="secondary">تحديد الكل</button><button id="backupNone" class="secondary">إلغاء التحديد</button><button id="createBackup" class="primary">⬇️ إنشاء Backup</button></div><div class="toolbar"><label class="file-btn secondary">اختر ملف<input id="restoreFile" type="file" accept="application/json,.json"></label><button id="restoreBackup" class="secondary">♻️ استعادة المحدد</button><button id="resetSelected" class="danger">🗑️ إعادة ضبط المحدد</button></div><small>إعادة الضبط لا تحذف حساب المدير من Authentication. استخدمها بحذر وبعد إنشاء Backup.</small></div>`;
+ }
+ $('#page').innerHTML=businessPanel+systemPanel+backupPanel;
+ if($('#saveBusinessSettings'))$('#saveBusinessSettings').onclick=async()=>{try{const payload={p_business_name:$('#bizName').value.trim(),p_tagline:$('#bizTagline').value.trim()||null,p_phone:$('#bizPhone').value.trim()||null,p_address:$('#bizAddress').value.trim()||null,p_logo_url:$('#bizLogo').value.trim()||null,p_currency_symbol:$('#bizCurrency').value.trim()||'ج.م',p_receipt_footer:$('#bizFooter').value.trim()||'شكرًا لزيارتكم',p_primary_color:$('#bizPrimary').value,p_accent_color:$('#bizAccent').value};await rpc('update_business_settings',payload);const rows=await rest('business_settings','select=*&id=eq.1&limit=1');if(rows?.[0])state.business={...state.business,...rows[0]};applyBusinessBranding();toast('تم حفظ هوية النشاط وربطها بالنظام والموقع')}catch(e){toast(e.message)}};
+ if($('#saveSettings'))$('#saveSettings').onclick=async()=>{const rows=[...document.querySelectorAll('[data-setting]')].map(x=>({key:x.dataset.setting,value:String(x.checked)}));for(const r of rows)await rest('app_settings',`key=eq.${encodeURIComponent(r.key)}`,{method:'PATCH',body:JSON.stringify({value:r.value})});Object.assign(state.settings,Object.fromEntries(rows.map(r=>[r.key,r.value==='true'])));toast('تم حفظ الإعدادات')};
+ if($('#backupAll'))$('#backupAll').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=true);
+ if($('#backupNone'))$('#backupNone').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=false);
+ if($('#createBackup'))$('#createBackup').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد بيانات للنسخ');try{await exportBackup(g);toast('تم إنشاء النسخة الاحتياطية')}catch(e){toast(e.message)}};
+ if($('#restoreBackup'))$('#restoreBackup').onclick=async()=>{const f=$('#restoreFile').files[0],g=selectedBackupGroups($('#page'));if(!f)return toast('اختر ملف النسخة');if(!g.length)return toast('حدد ما تريد استعادته');if(!await uiConfirm('استعادة البيانات المحددة من النسخة؟ سيتم دمجها مع البيانات الحالية.'))return;try{await restoreBackup(f,g);toast('تمت الاستعادة بنجاح')}catch(e){toast(e.message)}};
+ if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
 async function init(){if(!cfg.url||!cfg.key)return show('setupView');if(!session?.access_token)return show('loginView');try{await bootstrap()}catch(e){localStorage.removeItem('sbSession');session=null;show('loginView');toast(e.message)}}

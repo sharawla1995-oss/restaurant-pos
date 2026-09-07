@@ -283,3 +283,7 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .permission-toggle:after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#d6deea;transition:.18s}
 .permission-toggle:checked{background:#159b7e;border-color:#20b99a}.permission-toggle:checked:after{left:20px;background:white}
 @media(max-width:650px){.branch-top-actions{flex-wrap:wrap;justify-content:flex-end}.manage-branch-btn,.add-branch-btn{font-size:10px;padding:6px 8px}.branch-admin-main{align-items:flex-start}.branch-admin-actions{display:grid;grid-template-columns:1fr 1fr}.branch-admin-actions button{width:100%}.branch-edit-modal .form-grid{grid-template-columns:1fr}.permission-row{padding:9px 11px;min-height:44px}.permission-group h4{font-size:13px}}
+
+/* V9.3.0 Business Control */
+.app-brand-logo{width:34px;height:34px;object-fit:contain;border-radius:8px;margin-inline:7px}.business-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.business-settings-grid .wide{grid-column:1/-1}.business-settings-panel input[type="color"]{min-height:44px;padding:4px}.receipt-logo{display:block;max-width:90px;max-height:70px;object-fit:contain;margin:0 auto 7px}
+@media(max-width:650px){.business-settings-grid{grid-template-columns:1fr}.business-settings-grid .wide{grid-column:auto}}
