@@ -1,4 +1,4 @@
-const CACHE='restaurant-pos-v9-0-stable';
+const CACHE='restaurant-pos-v9-1-1-menu';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(
   caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
