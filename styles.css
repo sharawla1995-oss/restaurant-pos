@@ -293,3 +293,13 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 
 /* V9.5.0 — website controls + POS bon counter */
 .next-bon-badge{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg,#111,#2f2f2f);color:#fff;border-radius:16px;padding:10px 14px;margin-bottom:10px}.next-bon-badge span{font-weight:800}.next-bon-badge b{font-size:28px;line-height:1}.next-bon-badge small{opacity:.7}.site-pay-list{display:grid;gap:14px}.site-pay-row{border:1px solid #e6e6e6;border-radius:18px;padding:14px;background:#fff}.site-pay-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.site-pay-options{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px}.site-pay-options label{display:flex;gap:7px;align-items:center}.compact-switch{min-width:155px}.theme-presets{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}.theme-presets button{border:1px solid #ddd;background:#fff;border-radius:12px;padding:10px 13px;font:inherit;cursor:pointer}.payment-status-chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}.payment-status-unpaid{background:#fff3cd;color:#6c5400}.payment-status-proof_submitted{background:#dceeff;color:#164b75}.payment-status-confirmed{background:#dcf8e6;color:#146b36}.payment-status-rejected{background:#ffe1e1;color:#8a1f1f}.payment-review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.receipt-preview{max-width:100%;border-radius:14px;margin-top:10px;max-height:420px;object-fit:contain;background:#f5f5f5}
+
+
+/* V9.5.1 — website payments dark-theme correction */
+.site-pay-row{background:#171717!important;border-color:#343434!important;color:#f7f7f7!important;box-shadow:0 8px 24px #0003}
+.site-pay-row b,.site-pay-row label,.site-pay-row span{color:#f7f7f7!important}
+.site-pay-row input[type="text"],.site-pay-row input:not([type]),.site-pay-row .form-grid input{background:#0f0f0f!important;color:#fff!important;border-color:#404040!important}
+.site-pay-row input::placeholder{color:#8f8f8f!important}
+.site-pay-row .setting-switch{background:#222!important;border-color:#3a3a3a!important}
+.site-pay-options{color:#efefef!important}
+.site-pay-options input{accent-color:#ef5350}
