@@ -35,17 +35,33 @@ async function checkWebsiteOrders(){
   if(!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('deliveryOrders'))return;
   try{
     const rows=await rest('website_orders',`select=id,customer_name,total,created_at&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`);
-    const ids=new Set((rows||[]).map(x=>String(x.id)));
-    if(!websiteOrderWatchPrimed){knownWebsiteOrderIds=ids;websiteOrderWatchPrimed=true;return;}
-    const fresh=(rows||[]).filter(x=>!knownWebsiteOrderIds.has(String(x.id)));
+    const list=rows||[];
+    const ids=new Set(list.map(x=>String(x.id)));
+
+    // أول فحص بعد الدخول/اختيار الفرع: لو فيه طلبات معلقة، ننبّه بأحدث طلب بدل ما نعتبرها كلها "مقروءة".
+    if(!websiteOrderWatchPrimed){
+      knownWebsiteOrderIds=ids;
+      websiteOrderWatchPrimed=true;
+      if(list.length) showWebsiteOrderAlert(list[list.length-1]);
+      return;
+    }
+
+    const fresh=list.filter(x=>!knownWebsiteOrderIds.has(String(x.id)));
     knownWebsiteOrderIds=ids;
-    if(fresh.length)showWebsiteOrderAlert(fresh[fresh.length-1]);
-  }catch(e){}
+    if(fresh.length) showWebsiteOrderAlert(fresh[fresh.length-1]);
+  }catch(e){console.warn('website order watch',e)}
 }
 function startWebsiteOrderWatch(){
-  clearInterval(websiteOrderWatchTimer);websiteOrderWatchPrimed=false;knownWebsiteOrderIds=new Set();
-  checkWebsiteOrders();websiteOrderWatchTimer=setInterval(checkWebsiteOrders,10000);
+  clearInterval(websiteOrderWatchTimer);
+  websiteOrderWatchPrimed=false;
+  knownWebsiteOrderIds=new Set();
+  checkWebsiteOrders();
+  websiteOrderWatchTimer=setInterval(checkWebsiteOrders,5000);
 }
+
+// لو رجع للشاشة أو فتح التبويب بعد ما كان بالخلفية، افحص فورًا بدل انتظار المؤقت.
+window.addEventListener('focus',()=>{if(state.activeBranchId)checkWebsiteOrders()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.activeBranchId)checkWebsiteOrders()});
 const money=n=>`${Number(n||0).toFixed(2)} ج.م`;
 const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
