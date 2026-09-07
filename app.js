@@ -110,6 +110,7 @@ function hasFeaturePermission(key){
 }
 function canAccessPage(page){
   const allowed=effectivePermissionSet();
+  if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability');
   if(!allowed.has(page))return false;
   if(page==='deliveryOrders'||page==='delivery')return !!state.settings.enable_delivery;
   if(page==='kitchen')return !!state.settings.enable_kitchen;
@@ -187,9 +188,9 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
+const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,branchProductAvailability:renderWebsiteAvailability,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -207,7 +208,7 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
-    ['branchProductAvailability','🌐','توافر أصناف الموقع','تشغيل وإيقاف الأصناف على الموقع','green'],
+    ['websiteManagement','🌐','إدارة الموقع','التحكم في الموقع وتوافر الأصناف','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب والتسويات','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
     ['settings','⚙️','الإعدادات','تشغيل وإيقاف المميزات','slate']
@@ -638,6 +639,13 @@ async function renderProducts(){
  $('#page').onclick=async e=>{const cu=e.target.closest('[data-cat-up]');if(cu)return moveCategoryOrder(cu.dataset.catUp,-1);const cd=e.target.closest('[data-cat-down]');if(cd)return moveCategoryOrder(cd.dataset.catDown,1);const pu=e.target.closest('[data-product-up]');if(pu)return moveProductOrder(pu.dataset.productUp,-1);const pd=e.target.closest('[data-product-down]');if(pd)return moveProductOrder(pd.dataset.productDown,1);const ip=e.target.closest('[data-image-product]');if(ip){const p=state.products.find(x=>String(x.id)===ip.dataset.imageProduct);if(p)return openProductImage(p)}const cfg=e.target.closest('[data-config]');if(cfg)return openProductConfig(state.products.find(p=>String(p.id)===String(cfg.dataset.config)));const ep=e.target.closest('[data-edit-product]');if(ep){const p=state.products.find(x=>String(x.id)===ep.dataset.editProduct);if(p)return openEditProductModal(p)}const tp=e.target.closest('[data-delete-product]');if(tp){const p=state.products.find(x=>String(x.id)===tp.dataset.deleteProduct);if(!p)return;if(!await uiConfirm(`حذف الصنف ${p.name}؟\nسيختفي من الكاشير والإدارة مع الاحتفاظ به داخل الفواتير القديمة.`))return;await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});toast('تم حذف الصنف');return renderProducts()}const ec=e.target.closest('[data-edit-cat]');if(ec){const c=state.categories.find(x=>String(x.id)===ec.dataset.editCat);const name=await uiPrompt('اسم التصنيف',c.name);if(name===null)return;await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim()})});await reloadCatalog();return renderProducts()}const tc=e.target.closest('[data-delete-cat]');if(tc){const c=state.categories.find(x=>String(x.id)===tc.dataset.deleteCat);if(!c)return;const linked=state.products.filter(p=>p.active!==false&&String(p.category_id)===String(c.id));const extra=linked.length?`\nوسيتم حذف ${linked.length} صنف تابع له من القوائم الحالية.`:'';if(!await uiConfirm(`حذف التصنيف ${c.name}؟${extra}\nالفواتير القديمة ستظل محفوظة.`))return;if(linked.length)await rest('products',`category_id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await reloadCatalog();toast('تم حذف التصنيف');return renderProducts()}};
 }
 
+
+
+async function renderWebsiteManagement(){
+ const canAvailability=hasFeaturePermission('branchProductAvailability');
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🌐 إدارة الموقع</h2><p class="muted">كل أدوات تشغيل الموقع هتكون مجمعة هنا بشكل منظم.</p></div></div><div class="home-grid">${canAvailability?`<button class="home-card tone-green" data-site-tool="availability"><span class="home-icon">🍔</span><span class="home-copy"><b>توافر أصناف الموقع</b><small>تشغيل وإيقاف الأصناف لكل فرع</small></span><span class="home-arrow">‹</span></button>`:''}</div></div>`;
+ $('#page').onclick=e=>{if(e.target.closest('[data-site-tool="availability"]'))showPage('branchProductAvailability')};
+}
 
 async function renderWebsiteAvailability(){
  if(!hasFeaturePermission('branchProductAvailability')){toast('ليس لديك صلاحية إدارة توافر أصناف الموقع');return showPage('home')}
