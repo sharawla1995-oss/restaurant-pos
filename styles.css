@@ -303,3 +303,5 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .site-pay-row .setting-switch{background:#222!important;border-color:#3a3a3a!important}
 .site-pay-options{color:#efefef!important}
 .site-pay-options input{accent-color:#ef5350}
+/* V9.6.0 Returns */
+.return-modal{max-width:850px}.return-modal .return-qty{min-width:95px;max-width:130px}.return-total-box{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.return-total-box b{font-size:1.35rem}.return-total-box small{display:block;width:100%;opacity:.75}.span-2{grid-column:1/-1}
