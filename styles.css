@@ -305,3 +305,6 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .site-pay-options input{accent-color:#ef5350}
 /* V9.6.0 Returns */
 .return-modal{max-width:850px}.return-modal .return-qty{min-width:95px;max-width:130px}.return-total-box{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.return-total-box b{font-size:1.35rem}.return-total-box small{display:block;width:100%;opacity:.75}.span-2{grid-column:1/-1}
+
+/* V9.7.0 Promo Codes */
+.promo-pos-box{margin:8px 0}.promo-pos-entry{display:flex;gap:8px}.promo-pos-entry input{flex:1;min-width:0}.promo-pos-result{margin-top:7px;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(30,170,90,.12);font-size:13px}.link-btn{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-weight:800}.promo-admin-modal{max-width:900px}.promo-product-checks{max-height:220px;overflow:auto;align-items:flex-start}
