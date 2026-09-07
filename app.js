@@ -19,6 +19,7 @@ function headers(auth=true){return {'Content-Type':'application/json','apikey':c
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
 async function logout(){try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
 function branchName(id){return state.branches.find(b=>String(b.id)===String(id))?.name||''}
@@ -833,15 +834,17 @@ function openDriverPicker(orderId, drivers, onDone){
 
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>🛵 طلبات الدليفري</h2><div class="empty">جاري التحميل...</div></div>';
-  const [orders,drivers]=await Promise.all([
+  const [orders,drivers,webOrders]=await Promise.all([
     rest('orders',`select=*&branch_id=eq.${currentBranchId()}&order_type=eq.delivery&order=created_at.desc&limit=200`),
-    rest('delivery_drivers','select=*&active=eq.true&order=name')
+    rest('delivery_drivers','select=*&active=eq.true&order=name'),
+    rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`).catch(()=>[])
   ]);
   state.drivers=drivers||[];
   const all=(orders||[]).filter(o=>o.status!=='cancelled');
   const active=all.filter(o=>['new','ready','out_for_delivery'].includes(o.status));
   const counts={new:all.filter(o=>o.status==='new'||o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
-  $('#page').innerHTML=`<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
+  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 طلبات الموقع الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)} • ${esc(w.delivery_address)}</small></span><strong>${money(w.total)}</strong><span><button class="primary" data-web-accept="${w.id}">✅ استلام</button> <button class="danger" data-web-reject="${w.id}">رفض</button></span></div>`).join('')}</div></div>`:'';
+  $('#page').innerHTML=`${websitePanel}<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
   <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">جديد</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
   let filter='active';
   const draw=()=>{
@@ -856,11 +859,13 @@ async function renderDeliveryOrders(){
   $('#deliverySearch').oninput=draw;
   $('#deliveryFilter').onclick=e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;$$('#deliveryFilter button').forEach(x=>x.classList.toggle('active',x===b));draw()};
   $('#page').onclick=async e=>{
+    const acc=e.target.closest('[data-web-accept]');if(acc){if(!await uiConfirm('استلام طلب الموقع وإضافته لطلبات الدليفري؟',{title:'استلام طلب الموقع',okText:'استلام'}))return;try{const d=await rpc('accept_website_order',{p_website_order_id:Number(acc.dataset.webAccept)});toast(`تم استلام ${d.order_number||'الطلب'}`);return renderDeliveryOrders()}catch(err){return toast(err.message)}}
+    const rej=e.target.closest('[data-web-reject]');if(rej){if(!await uiConfirm('رفض طلب الموقع؟',{title:'رفض الطلب',danger:true,okText:'رفض'}))return;try{await rpc('reject_website_order',{p_website_order_id:Number(rej.dataset.webReject)});toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
     const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
   };
   draw();
 }
-function deliveryOrderCard(o){const drv=driverName(o.driver_id);const area=o.delivery_area||zoneName(o.delivery_zone_id)||'';return `<button class="delivery-row status-${esc(o.status)}" data-order-detail="${o.id}"><span class="delivery-row-id"><b>${esc(o.order_number||'#'+o.id)}</b><small>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(o.customer_name||o.customer_phone||'بدون اسم')}</b><small>${esc(area)}${drv?` • 🛵 ${esc(drv)}`:''}</small></span><strong>${money(o.total)}</strong><span class="status-pill">${statusLabel(o.status)}</span><span class="delivery-chevron">‹</span></button>`}
+function deliveryOrderCard(o){const drv=driverName(o.driver_id);const web=o.source==='website'?'🌐 موقع • ':'';const area=o.delivery_area||zoneName(o.delivery_zone_id)||'';return `<button class="delivery-row status-${esc(o.status)}" data-order-detail="${o.id}"><span class="delivery-row-id"><b>${esc(o.order_number||'#'+o.id)}</b><small>${web}${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(o.customer_name||o.customer_phone||'بدون اسم')}</b><small>${esc(area)}${drv?` • 🛵 ${esc(drv)}`:''}</small></span><strong>${money(o.total)}</strong><span class="status-pill">${statusLabel(o.status)}</span><span class="delivery-chevron">‹</span></button>`}
 async function openDeliveryOrderDetails(id){
  const [orders,items]=await Promise.all([rest('orders',`select=*&id=eq.${id}`),rest('order_items',`select=*&order_id=eq.${id}&order=id`)]);const o=orders[0];if(!o)return toast('الأوردر غير موجود');o._driver_name=driverName(o.driver_id);
  const m=document.createElement('div');m.className='modal';

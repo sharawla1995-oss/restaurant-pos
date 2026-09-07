@@ -227,3 +227,4 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .extras-admin-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .extras-admin-list label{margin:0}
 @media(max-width:640px){.extras-admin-list{grid-template-columns:1fr}.product-edit-modal{max-height:92vh;overflow:auto}}
+.website-orders-panel{border:2px solid #ff9f1c}.website-pending{display:grid;grid-template-columns:minmax(120px,1fr) minmax(180px,2fr) auto auto;align-items:center;gap:10px;background:#fff8ed;border:1px solid #ffd39a}.website-pending>span:last-child{white-space:nowrap}@media(max-width:700px){.website-pending{grid-template-columns:1fr auto}.website-pending .delivery-row-customer{grid-column:1/-1}.website-pending>span:last-child{grid-column:1/-1;display:flex;gap:8px}.website-pending>span:last-child button{flex:1}}
