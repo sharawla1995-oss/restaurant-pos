@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Top Burger POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=9.2.5">
+  <link rel="stylesheet" href="styles.css?v=9.2.5.2">
 </head>
 <body>
 <div id="toast"></div>
@@ -41,7 +41,7 @@
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><span>Top Burger <small class="version-badge">V9.2.5 WEBSITE AVAILABILITY</small></span></div>
+    <div class="brand"><b>POS</b><span>Top Burger <small class="version-badge">V9.2.5.2 MENU AVAILABILITY</small></span></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
@@ -54,11 +54,13 @@
       <button data-page="inventory">📦 المخزون</button>
       <button data-page="expenses">💸 المصروفات</button>
       <button data-page="products">🍔 الأصناف</button>
+      <button data-page="branchProductAvailability">🌐 توافر أصناف الموقع</button>
       <button data-page="reports">📊 التقارير</button>
       <button data-page="users">👥 المستخدمون</button>
       <button data-page="settings">⚙️ الإعدادات</button>
+      <button id="logoutMenuBtn" type="button">🚪 تسجيل الخروج</button>
     </nav>
-    <div class="sidebar-foot"><span id="who"></span><button id="logoutBtn">خروج</button></div>
+    <div class="sidebar-foot"><span id="who"></span></div>
   </aside>
   <main class="main">
     <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button><div id="clock"></div></header>
@@ -66,6 +68,6 @@
   </main>
 </section>
 
-<script src="app.js?v=9.2.5"></script>
+<script src="app.js?v=9.2.5.2"></script>
 </body>
 </html>
