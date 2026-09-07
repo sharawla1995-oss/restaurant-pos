@@ -213,3 +213,9 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 
 /* V9.1.7 sorting controls */
 .sort-chip{display:inline-flex;align-items:center;gap:5px}.sort-arrow{min-width:36px;padding:6px 9px;font-size:18px;font-weight:900;line-height:1}.sort-arrow:disabled{opacity:.25;cursor:not-allowed}.sort-cell{white-space:nowrap}.sort-cell .sort-arrow{margin:2px}@media(max-width:700px){.sort-chip{width:100%;justify-content:flex-start;flex-wrap:wrap}.sort-chip b{min-width:110px}.sort-cell{min-width:92px}.sort-arrow{min-width:40px;min-height:36px}}
+
+/* V9.1.8 flexible product variants */
+.variant-builder{margin:14px 0;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.025)}
+.variant-builder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.variant-builder-head h3{margin:0 0 3px}.variant-builder-head p{margin:0}
+.variant-builder-list{display:grid;gap:8px}.variant-builder-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(110px,.55fr) 44px;gap:8px;align-items:center}.variant-builder-row input{width:100%;min-width:0}.variant-remove{height:42px;padding:0;font-size:22px;line-height:1}
+@media(max-width:700px){.variant-builder-head{align-items:flex-start;flex-direction:column}.variant-builder-row{grid-template-columns:minmax(0,1fr) 100px 40px}.product-edit-modal{max-height:92vh;overflow:auto}}

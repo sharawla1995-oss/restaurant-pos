@@ -504,16 +504,61 @@ function sortedActiveProducts(categoryId=null){return state.products.filter(p=>p
 async function moveCategoryOrder(id,dir){const items=sortedActiveCategories();const i=items.findIndex(x=>String(x.id)===String(id));const j=i+dir;if(i<0||j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]];await Promise.all(items.map((x,k)=>rest('categories',`id=eq.${x.id}`,{method:'PATCH',body:JSON.stringify({sort_order:(k+1)*10,website_sort_order:(k+1)*10})})));await reloadCatalog();toast('تم حفظ ترتيب التصنيفات');renderProducts()}
 async function moveProductOrder(id,dir){const p=state.products.find(x=>String(x.id)===String(id));if(!p)return;const items=sortedActiveProducts(p.category_id);const i=items.findIndex(x=>String(x.id)===String(id));const j=i+dir;if(i<0||j<0||j>=items.length)return;[items[i],items[j]]=[items[j],items[i]];await Promise.all(items.map((x,k)=>rest('products',`id=eq.${x.id}`,{method:'PATCH',body:JSON.stringify({website_sort_order:(k+1)*10})})));await reloadCatalog();toast('تم حفظ ترتيب الأصناف');renderProducts()}
 async function reloadCatalog(){state.categories=await rest('categories','select=*&order=id');state.products=await rest('products','select=*&order=id');}
+function variantBuilderHTML(rows=[]){
+ const data=rows.length?rows:[{name:'سينجل',price:'',sort_order:10},{name:'دبل',price:'',sort_order:20}];
+ return `<div class="variant-builder-list">${data.map((v,i)=>`<div class="variant-builder-row" data-variant-row ${v.id?`data-existing-id="${v.id}"`:''}><input data-variant-name placeholder="اسم الاختيار مثل سينجل" value="${esc(v.name||'')}"><input data-variant-price type="number" min="0" step="0.01" placeholder="السعر" value="${v.price??''}"><button type="button" class="danger variant-remove" data-remove-variant title="حذف الاختيار">×</button></div>`).join('')}</div>`;
+}
+function bindVariantBuilder(root,toggleSel,boxSel,addSel){
+ const toggle=root.querySelector(toggleSel),box=root.querySelector(boxSel),add=root.querySelector(addSel);
+ const sync=()=>{if(box)box.classList.toggle('hidden',!toggle?.checked)};
+ toggle?.addEventListener('change',sync);sync();
+ add?.addEventListener('click',()=>{const list=box.querySelector('.variant-builder-list');const row=document.createElement('div');row.className='variant-builder-row';row.setAttribute('data-variant-row','');row.innerHTML='<input data-variant-name placeholder="اسم الاختيار"><input data-variant-price type="number" min="0" step="0.01" placeholder="السعر"><button type="button" class="danger variant-remove" data-remove-variant title="حذف الاختيار">×</button>';list.appendChild(row)});
+ root.addEventListener('click',e=>{const b=e.target.closest('[data-remove-variant]');if(!b)return;const row=b.closest('[data-variant-row]');if(row)row.remove()});
+}
+function collectVariantRows(root,scope){
+ const rows=[...root.querySelectorAll(`${scope} [data-variant-row]`)];
+ const out=[];
+ for(let i=0;i<rows.length;i++){
+  const name=rows[i].querySelector('[data-variant-name]')?.value.trim()||'';
+  const raw=rows[i].querySelector('[data-variant-price]')?.value;
+  if(!name && (raw===''||raw==null))continue;
+  const price=Number(raw);
+  if(!name)throw new Error('اكتب اسم كل اختيار');
+  if(!Number.isFinite(price)||price<0)throw new Error(`راجع سعر ${name}`);
+  out.push({id:rows[i].dataset.existingId?Number(rows[i].dataset.existingId):null,name,price,sort_order:(i+1)*10,active:true});
+ }
+ return out;
+}
+
 async function renderProducts(){
  state.products=await rest('products','select=*&order=id'); state.modifiers=await rest('modifiers','select=*&order=id'); state.productModifiers=await rest('product_modifiers','select=*'); state.productVariants=await rest('product_variants','select=*&order=sort_order,id');
- $('#page').innerHTML=`<div class="panel"><h2>التصنيفات</h2><div class="toolbar"><input id="newCategory" placeholder="اسم التصنيف"><button id="addCategory" class="primary">إضافة تصنيف</button></div><div class="chips">${sortedActiveCategories().map((c,i,a)=>`<span class="chip sort-chip"><b>${esc(c.name)}</b> <button class="secondary sort-arrow" data-cat-up="${c.id}" ${i===0?'disabled':''} title="تحريك لأعلى">↑</button> <button class="secondary sort-arrow" data-cat-down="${c.id}" ${i===a.length-1?'disabled':''} title="تحريك لأسفل">↓</button> <button class="secondary" data-edit-cat="${c.id}">✏️</button> <button class="danger" data-delete-cat="${c.id}">🗑️ حذف</button></span>`).join('')}</div></div><div class="panel"><h2>إضافة صنف</h2><div class="form-grid"><label>الاسم<input id="pName"></label><label>القسم<select id="pCat">${sortedActiveCategories().map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label><label>سعر البيع<input id="pPrice" type="number"></label><label>التكلفة<input id="pCost" type="number"></label><label>باركود<input id="pBarcode"></label><label>مكونات يمكن حذفها<input id="pRemovals" placeholder="بصل، مخلل، صوص"></label></div><div class="toggle-row"><label><input id="pExtras" type="checkbox" checked> يسمح بإضافات</label><label><input id="pRemove" type="checkbox" checked> يسمح بحذف مكونات</label><label><input id="pNotes" type="checkbox" checked> يسمح بملاحظة</label></div><button id="addProduct" class="primary">إضافة الصنف</button></div>
+ $('#page').innerHTML=`<div class="panel"><h2>التصنيفات</h2><div class="toolbar"><input id="newCategory" placeholder="اسم التصنيف"><button id="addCategory" class="primary">إضافة تصنيف</button></div><div class="chips">${sortedActiveCategories().map((c,i,a)=>`<span class="chip sort-chip"><b>${esc(c.name)}</b> <button class="secondary sort-arrow" data-cat-up="${c.id}" ${i===0?'disabled':''} title="تحريك لأعلى">↑</button> <button class="secondary sort-arrow" data-cat-down="${c.id}" ${i===a.length-1?'disabled':''} title="تحريك لأسفل">↓</button> <button class="secondary" data-edit-cat="${c.id}">✏️</button> <button class="danger" data-delete-cat="${c.id}">🗑️ حذف</button></span>`).join('')}</div></div>
+ <div class="panel"><h2>إضافة صنف</h2><div class="form-grid"><label>الاسم<input id="pName"></label><label>القسم<select id="pCat">${sortedActiveCategories().map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label><label>سعر البيع الأساسي<input id="pPrice" type="number"></label><label>التكلفة<input id="pCost" type="number"></label><label>باركود<input id="pBarcode"></label><label>مكونات يمكن حذفها<input id="pRemovals" placeholder="بصل، مخلل، صوص"></label></div>
+ <div class="toggle-row"><label><input id="pHasVariants" type="checkbox"> للصنف اختيارات / أحجام</label><label><input id="pExtras" type="checkbox" checked> يسمح بإضافات</label><label><input id="pRemove" type="checkbox" checked> يسمح بحذف مكونات</label><label><input id="pNotes" type="checkbox" checked> يسمح بملاحظة</label></div>
+ <div id="pVariantsBox" class="variant-builder hidden"><div class="variant-builder-head"><div><h3>اختيارات الصنف</h3><p class="muted">أضف أي اختيارات تريدها: سينجل، دبل، تريبل أو أي اسم آخر.</p></div><button type="button" id="addNewVariant" class="secondary">+ إضافة اختيار</button></div>${variantBuilderHTML()}</div>
+ <button id="addProduct" class="primary">إضافة الصنف</button></div>
  <div class="panel"><h2>الإضافات (Extras)</h2><div class="form-grid"><label>اسم الإضافة<input id="mName" placeholder="Extra Cheese"></label><label>السعر<input id="mPrice" type="number" value="0"></label></div><button id="addModifier" class="primary">إضافة</button><div class="chips">${state.modifiers.map(m=>`<span class="chip">${m.name} • ${money(m.price)}</span>`).join('')||'لا توجد إضافات'}</div></div>
- <div class="panel"><h2>الأصناف</h2><div class="table-wrap"><table><thead><tr><th>ترتيب</th><th>الصورة</th><th>الصنف</th><th>السعر</th><th>الأحجام</th><th>الإضافات المتاحة</th><th>إجراء</th></tr></thead><tbody>${sortedActiveCategories().flatMap(c=>sortedActiveProducts(c.id)).map((p,idx,all)=>{const same=all.filter(x=>String(x.category_id)===String(p.category_id));const pos=same.findIndex(x=>String(x.id)===String(p.id));return `<tr><td class="sort-cell"><button class="secondary sort-arrow" data-product-up="${p.id}" ${pos===0?'disabled':''}>↑</button><button class="secondary sort-arrow" data-product-down="${p.id}" ${pos===same.length-1?'disabled':''}>↓</button></td><td>${p.image_url?`<img class="admin-product-img" src="${esc(p.image_url)}">`:'🍔'}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${productVariantList(p).map(x=>`${x.name} ${money(x.price)}`).join('، ')||'-'}</td><td>${productModifierList(p).map(x=>x.name).join('، ')||'-'}</td><td><button class="secondary" data-image-product="${p.id}">🖼️ صورة</button> <button class="secondary" data-edit-product="${p.id}">✏️ تعديل</button> <button class="secondary" data-config="${p.id}">خيارات</button> <button class="danger" data-delete-product="${p.id}">🗑️ حذف</button></td></tr>`}).join('')}</tbody></table></div></div>`;
- $('#addProduct').onclick=async()=>{if(!$('#pName').value)return toast('اكتب اسم الصنف');const removable=$('#pRemovals').value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);await rest('products','',{method:'POST',body:JSON.stringify([{name:$('#pName').value,category_id:Number($('#pCat').value),price:Number($('#pPrice').value||0),cost:Number($('#pCost').value||0),barcode:$('#pBarcode').value||null,active:true,website_sort_order:(sortedActiveProducts(Number($('#pCat').value)).length+1)*10,allow_extras:$('#pExtras').checked,allow_removals:$('#pRemove').checked,allow_item_notes:$('#pNotes').checked,removable_components:removable}])});toast('تمت إضافة الصنف');renderProducts()};
+ <div class="panel"><h2>الأصناف</h2><div class="table-wrap"><table><thead><tr><th>ترتيب</th><th>الصورة</th><th>الصنف</th><th>السعر</th><th>الاختيارات / الأحجام</th><th>الإضافات المتاحة</th><th>إجراء</th></tr></thead><tbody>${sortedActiveCategories().flatMap(c=>sortedActiveProducts(c.id)).map((p,idx,all)=>{const same=all.filter(x=>String(x.category_id)===String(p.category_id));const pos=same.findIndex(x=>String(x.id)===String(p.id));return `<tr><td class="sort-cell"><button class="secondary sort-arrow" data-product-up="${p.id}" ${pos===0?'disabled':''}>↑</button><button class="secondary sort-arrow" data-product-down="${p.id}" ${pos===same.length-1?'disabled':''}>↓</button></td><td>${p.image_url?`<img class="admin-product-img" src="${esc(p.image_url)}">`:'🍔'}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${productVariantList(p).map(x=>`${esc(x.name)} ${money(x.price)}`).join('، ')||'-'}</td><td>${productModifierList(p).map(x=>x.name).join('، ')||'-'}</td><td><button class="secondary" data-image-product="${p.id}">🖼️ صورة</button> <button class="secondary" data-edit-product="${p.id}">✏️ تعديل</button> <button class="secondary" data-config="${p.id}">خيارات</button> <button class="danger" data-delete-product="${p.id}">🗑️ حذف</button></td></tr>`}).join('')}</tbody></table></div></div>`;
+ bindVariantBuilder($('#page'),'#pHasVariants','#pVariantsBox','#addNewVariant');
+ $('#addProduct').onclick=async()=>{
+  if(!$('#pName').value.trim())return toast('اكتب اسم الصنف');
+  const removable=$('#pRemovals').value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);
+  let variants=[];try{if($('#pHasVariants').checked){variants=collectVariantRows($('#page'),'#pVariantsBox');if(!variants.length)return toast('أضف اختيار واحد على الأقل')}}catch(err){return toast(err.message)}
+  let basePrice=Number($('#pPrice').value||0);if(variants.length)basePrice=variants[0].price;
+  const body={name:$('#pName').value.trim(),category_id:Number($('#pCat').value),price:basePrice,cost:Number($('#pCost').value||0),barcode:$('#pBarcode').value||null,active:true,website_visible:true,website_sort_order:(sortedActiveProducts(Number($('#pCat').value)).length+1)*10,allow_extras:$('#pExtras').checked,allow_removals:$('#pRemove').checked,allow_item_notes:$('#pNotes').checked,removable_components:removable};
+  try{
+   const created=await rest('products','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([body])});const pid=created?.[0]?.id;if(!pid)throw new Error('تعذر الحصول على رقم الصنف');
+   if(variants.length)await rest('product_variants','',{method:'POST',body:JSON.stringify(variants.map(v=>({product_id:pid,name:v.name,price:v.price,sort_order:v.sort_order,active:true})))});
+   // إتاحة الصنف تلقائيًا في كل الفروع الحالية، مع تجاهل أي تكرار قائم
+   for(const b of state.branches){try{await rest('branch_products','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:b.id,product_id:pid,active:true}])})}catch(e){}}
+   toast('تمت إضافة الصنف');renderProducts();
+  }catch(err){toast(err.message||'تعذر إضافة الصنف')}
+ };
  $('#addModifier').onclick=async()=>{if(!$('#mName').value)return toast('اكتب اسم الإضافة');await rest('modifiers','',{method:'POST',body:JSON.stringify([{name:$('#mName').value,price:Number($('#mPrice').value||0),active:true}])});toast('تمت إضافة الإضافة');renderProducts()};
- $('#addCategory').onclick=async()=>{const name=$('#newCategory').value.trim();if(!name)return toast('اكتب اسم التصنيف');await rest('categories','',{method:'POST',body:JSON.stringify([{name,active:true,sort_order:(sortedActiveCategories().length+1)*10,website_sort_order:(sortedActiveCategories().length+1)*10}])});toast('تمت إضافة التصنيف');await reloadCatalog();renderProducts()};
+ $('#addCategory').onclick=async()=>{const name=$('#newCategory').value.trim();if(!name)return toast('اكتب اسم التصنيف');await rest('categories','',{method:'POST',body:JSON.stringify([{name,active:true,website_visible:true,sort_order:(sortedActiveCategories().length+1)*10,website_sort_order:(sortedActiveCategories().length+1)*10}])});toast('تمت إضافة التصنيف');await reloadCatalog();renderProducts()};
  $('#page').onclick=async e=>{const cu=e.target.closest('[data-cat-up]');if(cu)return moveCategoryOrder(cu.dataset.catUp,-1);const cd=e.target.closest('[data-cat-down]');if(cd)return moveCategoryOrder(cd.dataset.catDown,1);const pu=e.target.closest('[data-product-up]');if(pu)return moveProductOrder(pu.dataset.productUp,-1);const pd=e.target.closest('[data-product-down]');if(pd)return moveProductOrder(pd.dataset.productDown,1);const ip=e.target.closest('[data-image-product]');if(ip){const p=state.products.find(x=>String(x.id)===ip.dataset.imageProduct);if(p)return openProductImage(p)}const cfg=e.target.closest('[data-config]');if(cfg)return openProductConfig(state.products.find(p=>String(p.id)===String(cfg.dataset.config)));const ep=e.target.closest('[data-edit-product]');if(ep){const p=state.products.find(x=>String(x.id)===ep.dataset.editProduct);if(p)return openEditProductModal(p)}const tp=e.target.closest('[data-delete-product]');if(tp){const p=state.products.find(x=>String(x.id)===tp.dataset.deleteProduct);if(!p)return;if(!await uiConfirm(`حذف الصنف ${p.name}؟\nسيختفي من الكاشير والإدارة مع الاحتفاظ به داخل الفواتير القديمة.`))return;await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});toast('تم حذف الصنف');return renderProducts()}const ec=e.target.closest('[data-edit-cat]');if(ec){const c=state.categories.find(x=>String(x.id)===ec.dataset.editCat);const name=await uiPrompt('اسم التصنيف',c.name);if(name===null)return;await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim()})});await reloadCatalog();return renderProducts()}const tc=e.target.closest('[data-delete-cat]');if(tc){const c=state.categories.find(x=>String(x.id)===tc.dataset.deleteCat);if(!c)return;const linked=state.products.filter(p=>p.active!==false&&String(p.category_id)===String(c.id));const extra=linked.length?`\nوسيتم حذف ${linked.length} صنف تابع له من القوائم الحالية.`:'';if(!await uiConfirm(`حذف التصنيف ${c.name}؟${extra}\nالفواتير القديمة ستظل محفوظة.`))return;if(linked.length)await rest('products',`category_id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await reloadCatalog();toast('تم حذف التصنيف');return renderProducts()}};
 }
+
 async function uploadProductImage(product,file){
  if(!file)return; if(!/^image\//.test(file.type))return toast('اختر ملف صورة'); if(file.size>5*1024*1024)return toast('الصورة أكبر من 5MB');
  const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();const path=`products/${product.id}-${Date.now()}.${ext}`;
@@ -526,47 +571,39 @@ function openProductImage(p){const m=document.createElement('div');m.className='
 
 function openEditProductModal(p){
  const variants=productVariantList(p).slice().sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
- const hasVariants=variants.length>0;
  const m=document.createElement('div');m.className='modal';
  m.innerHTML=`<div class="modal-card product-edit-modal"><h2>✏️ تعديل ${esc(p.name)}</h2>
   <div class="form-grid">
    <label>اسم الصنف<input id="editProductName" value="${esc(p.name)}"></label>
-   <label>التصنيف<select id="editProductCat">${state.categories.map(c=>`<option value="${c.id}" ${String(c.id)===String(p.category_id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
+   <label>التصنيف<select id="editProductCat">${sortedActiveCategories().map(c=>`<option value="${c.id}" ${String(c.id)===String(p.category_id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
    <label>التكلفة<input id="editProductCost" type="number" min="0" step="0.01" value="${Number(p.cost||0)}"></label>
-   ${hasVariants?'':`<label>سعر البيع<input id="editProductPrice" type="number" min="0" step="0.01" value="${Number(p.price||0)}"></label>`}
+   <label>سعر البيع الأساسي<input id="editProductPrice" type="number" min="0" step="0.01" value="${Number(p.price||0)}"></label>
   </div>
-  ${hasVariants?`<div class="variant-price-editor"><h3>أسعار الأحجام</h3><p class="muted">عدّل سعر كل اختيار. السعر الظاهر للصنف سيتزامن تلقائيًا مع أول اختيار.</p><div class="variant-price-grid">${variants.map(v=>`<label>${esc(v.name)}<input type="number" min="0" step="0.01" data-edit-variant="${v.id}" value="${Number(v.price||0)}"></label>`).join('')}</div></div>`:''}
+  <div class="toggle-row"><label><input id="editHasVariants" type="checkbox" ${variants.length?'checked':''}> للصنف اختيارات / أحجام</label></div>
+  <div id="editVariantsBox" class="variant-builder ${variants.length?'':'hidden'}"><div class="variant-builder-head"><div><h3>الاختيارات / الأحجام</h3><p class="muted">غيّر الاسم أو السعر، أضف اختيار جديد أو احذفه.</p></div><button type="button" id="editAddVariant" class="secondary">+ إضافة اختيار</button></div>${variantBuilderHTML(variants)}</div>
   <div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-product>حفظ التعديلات</button></div>
  </div>`;
- document.body.appendChild(m);
+ document.body.appendChild(m);bindVariantBuilder(m,'#editHasVariants','#editVariantsBox','#editAddVariant');
  const close=()=>m.remove();
  m.onclick=async e=>{
   if(e.target===m||e.target.closest('[data-close]'))return close();
   if(!e.target.closest('[data-save-product]'))return;
-  const name=m.querySelector('#editProductName').value.trim();
-  const cost=Number(m.querySelector('#editProductCost').value||0);
-  const category_id=Number(m.querySelector('#editProductCat').value);
-  if(!name)return toast('اكتب اسم الصنف');
-  if(!Number.isFinite(cost)||cost<0)return toast('التكلفة غير صحيحة');
-  let basePrice=Number(p.price||0);
-  const variantUpdates=[];
-  if(hasVariants){
-   for(const input of m.querySelectorAll('[data-edit-variant]')){
-    const price=Number(input.value);
-    if(!Number.isFinite(price)||price<0)return toast('راجع أسعار الأحجام');
-    variantUpdates.push({id:Number(input.dataset.editVariant),price});
-   }
-   if(variantUpdates.length)basePrice=variantUpdates[0].price;
-  }else{
-   basePrice=Number(m.querySelector('#editProductPrice').value);
-   if(!Number.isFinite(basePrice)||basePrice<0)return toast('سعر البيع غير صحيح');
-  }
+  const name=m.querySelector('#editProductName').value.trim();const cost=Number(m.querySelector('#editProductCost').value||0);const category_id=Number(m.querySelector('#editProductCat').value);if(!name)return toast('اكتب اسم الصنف');if(!Number.isFinite(cost)||cost<0)return toast('التكلفة غير صحيحة');
+  const hasVariants=m.querySelector('#editHasVariants').checked;let desired=[];try{if(hasVariants){desired=collectVariantRows(m,'#editVariantsBox');if(!desired.length)return toast('أضف اختيار واحد على الأقل')}}catch(err){return toast(err.message)}
+  let basePrice=Number(m.querySelector('#editProductPrice').value||0);if(!Number.isFinite(basePrice)||basePrice<0)return toast('سعر البيع غير صحيح');if(desired.length)basePrice=desired[0].price;
   const saveBtn=m.querySelector('[data-save-product]');saveBtn.disabled=true;saveBtn.textContent='جاري الحفظ...';
   try{
    await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({name,category_id,price:basePrice,cost})});
-   for(const v of variantUpdates)await rest('product_variants',`id=eq.${v.id}`,{method:'PATCH',body:JSON.stringify({price:v.price})});
-   await audit('edit_product','product',p.id,{name,category_id,price:basePrice,cost,variants:variantUpdates});
-   close();toast('تم حفظ الصنف والأسعار');await renderProducts();
+   const keepIds=new Set();
+   if(hasVariants){
+    for(const v of desired){
+     if(v.id){await rest('product_variants',`id=eq.${v.id}&product_id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({name:v.name,price:v.price,sort_order:v.sort_order,active:true})});keepIds.add(Number(v.id));}
+     else{const created=await rest('product_variants','select=id',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{product_id:p.id,name:v.name,price:v.price,sort_order:v.sort_order,active:true}])});if(created?.[0]?.id)keepIds.add(Number(created[0].id));}
+    }
+   }
+   for(const old of variants){if(!keepIds.has(Number(old.id)))await rest('product_variants',`id=eq.${old.id}&product_id=eq.${p.id}`,{method:'DELETE'})}
+   await audit('edit_product','product',p.id,{name,category_id,price:basePrice,cost,variants:desired.map(v=>({name:v.name,price:v.price}))});
+   close();toast('تم حفظ الصنف والاختيارات');await renderProducts();
   }catch(err){saveBtn.disabled=false;saveBtn.textContent='حفظ التعديلات';toast(err.message||'تعذر حفظ التعديلات')}
  };
 }
