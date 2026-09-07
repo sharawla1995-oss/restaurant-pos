@@ -1137,18 +1137,59 @@ async function renderReports(){
 async function renderUsers(){const rows=await rest('employees','select=id,name,username,role,branch_id,active&order=id');$('#page').innerHTML=`<div class="panel"><h2>المستخدمون</h2><p>إنشاء حسابات تسجيل الدخول الجديدة يتم حاليًا من Supabase Authentication ثم ربطها بجدول employees.</p><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>الفرع</th><th>الحالة</th></tr></thead><tbody>${rows.map(u=>`<tr><td>${u.name}</td><td>${u.username||''}</td><td>${u.role}</td><td>${branchName(u.branch_id)}</td><td>${u.active?'فعال':'موقوف'}</td></tr>`).join('')}</tbody></table></div></div>`}
 
 const BACKUP_GROUPS={
- orders:{label:'الطلبات وحركات البيع والمرتجعات',tables:['return_payments','return_items','returns','order_item_modifiers','order_payments','order_items','orders']},
- shifts:{label:'الورديات',tables:['shifts']},expenses:{label:'المصروفات',tables:['expenses']},
- customers:{label:'العملاء والعناوين',tables:['customer_addresses','customers']},
- delivery:{label:'الدليفري والمندوبين والمناطق',tables:['driver_settlements','delivery_drivers','delivery_zones']},
- catalog:{label:'الأصناف والتصنيفات والإضافات',tables:['product_modifiers','branch_products','modifiers','products','categories']},
+ orders:{label:'الطلبات وحركات البيع والمرتجعات',tables:['returns','return_items','return_payments','orders','order_items','order_payments','order_item_modifiers','promo_redemptions']},
+ shifts:{label:'الورديات',tables:['shifts']},
+ expenses:{label:'المصروفات',tables:['expenses']},
+ customers:{label:'العملاء والعناوين',tables:['customers','customer_addresses']},
+ delivery:{label:'الدليفري والمندوبين والمناطق',tables:['delivery_zones','delivery_drivers','driver_settlements']},
+ catalog:{label:'الأصناف والتصنيفات والإضافات',tables:['categories','products','product_variants','modifiers','branch_products','product_modifiers']},
+ promos:{label:'البرومو كود وقواعده',tables:['promo_codes','promo_code_branches','promo_code_categories','promo_code_products']},
  permissions:{label:'صلاحيات المستخدمين والفروع',tables:['employee_permissions','employee_branches']},
- settings:{label:'إعدادات البرنامج وهوية النشاط',tables:['app_settings','business_settings','branch_print_settings','payment_methods','branch_payment_methods','branch_financial_settings']}
+ settings:{label:'إعدادات البرنامج والموقع وهوية النشاط',tables:['app_settings','business_settings','website_settings','branch_website_settings','branch_print_settings','payment_methods','branch_payment_methods','branch_financial_settings']},
+ audit:{label:'سجل العمليات (Audit Log)',tables:['audit_logs']}
 };
+const BACKUP_RESTORE_ORDER=[
+ 'categories','products','product_variants','modifiers','branch_products','product_modifiers',
+ 'promo_codes','promo_code_branches','promo_code_categories','promo_code_products',
+ 'customers','customer_addresses','shifts',
+ 'orders','order_items','order_payments','order_item_modifiers',
+ 'returns','return_items','return_payments','promo_redemptions',
+ 'expenses','delivery_zones','delivery_drivers','driver_settlements',
+ 'employee_branches','employee_permissions',
+ 'app_settings','business_settings','website_settings','branch_website_settings','branch_print_settings',
+ 'payment_methods','branch_payment_methods','branch_financial_settings','audit_logs'
+];
 function selectedBackupGroups(root){return [...root.querySelectorAll('[data-backup-group]:checked')].map(x=>x.dataset.backupGroup)}
-async function exportBackup(groups){const data={format:'topburger-pos-backup',version:'8.9',created_at:new Date().toISOString(),groups:{}};for(const g of groups){data.groups[g]={};for(const t of BACKUP_GROUPS[g].tables){try{data.groups[g][t]=await rest(t,'select=*')}catch(e){data.groups[g][t]=[]}}}const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`top-burger-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+async function exportBackup(groups){
+ const data={format:'topburger-pos-backup',version:'9.7.2',created_at:new Date().toISOString(),groups:{}};
+ const errors=[];
+ for(const g of groups){
+  data.groups[g]={};
+  for(const t of BACKUP_GROUPS[g].tables){
+   try{data.groups[g][t]=await rest(t,'select=*')}
+   catch(e){errors.push(`${t}: ${e?.message||e}`)}
+  }
+ }
+ if(errors.length)throw new Error('تعذر إنشاء Backup كامل:\n'+errors.join('\n'));
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`top-burger-backup-v9.7.2-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
 async function resetGroups(groups){return req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})})}
-async function restoreBackup(file,groups){const text=await file.text();let b;try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}if(b?.format!=='topburger-pos-backup')throw new Error('هذا ليس ملف Backup للبرنامج');const order=['categories','products','modifiers','branch_products','product_modifiers','customers','customer_addresses','shifts','orders','order_items','order_payments','order_item_modifiers','returns','return_items','return_payments','expenses','delivery_zones','delivery_drivers','driver_settlements','employee_branches','employee_permissions','app_settings','business_settings','branch_print_settings','payment_methods','branch_payment_methods','branch_financial_settings'];const wanted=new Set(groups.flatMap(g=>BACKUP_GROUPS[g].tables));for(const t of order){if(!wanted.has(t))continue;let rows=null;for(const g of Object.values(b.groups||{})){if(g&&Array.isArray(g[t])){rows=g[t];break}}if(!rows?.length)continue;const r=await fetch(`${cfg.url}/rest/v1/${t}`,{method:'POST',headers:{...headers(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(`${t}: ${d.message||r.status}`)}}await reloadCatalog();}
+async function restoreBackup(file,groups){
+ const text=await file.text();let b;
+ try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}
+ if(b?.format!=='topburger-pos-backup')throw new Error('هذا ليس ملف Backup للبرنامج');
+ const wanted=new Set(groups.flatMap(g=>BACKUP_GROUPS[g]?.tables||[]));
+ for(const t of BACKUP_RESTORE_ORDER){
+  if(!wanted.has(t))continue;
+  let rows=null;
+  for(const g of Object.values(b.groups||{})){if(g&&Array.isArray(g[t])){rows=g[t];break}}
+  if(!rows?.length)continue;
+  const r=await fetch(`${cfg.url}/rest/v1/${t}`,{method:'POST',headers:{...headers(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)});
+  if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(`${t}: ${d.message||r.status}`)}
+ }
+ await reloadCatalog();
+}
 function businessSettingsPayload(logoOverride){
  const currentLogo=(logoOverride!==undefined?logoOverride:($('#bizLogoUrl')?.value||state.business?.logo_url||''));
  return {p_business_name:$('#bizName').value.trim(),p_tagline:$('#bizTagline').value.trim()||null,p_phone:$('#bizPhone')?.value.trim()||null,p_address:$('#bizAddress')?.value.trim()||null,p_logo_url:currentLogo||null,p_currency_symbol:$('#bizCurrency').value.trim()||'ج.م',p_receipt_footer:$('#bizFooter').value.trim()||'شكرًا لزيارتكم',p_primary_color:$('#bizPrimary').value,p_accent_color:$('#bizAccent').value};
