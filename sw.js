@@ -1,4 +1,4 @@
-const CACHE='top-burger-pos-v9-2-3';
+const CACHE='top-burger-pos-v9-2-4';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(
   caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())
