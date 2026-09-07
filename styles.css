@@ -210,3 +210,6 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
  .product-edit-modal{width:94vw;max-height:88vh;overflow:auto}
  .variant-price-grid{grid-template-columns:1fr 1fr}
 }
+
+/* V9.1.7 sorting controls */
+.sort-chip{display:inline-flex;align-items:center;gap:5px}.sort-arrow{min-width:36px;padding:6px 9px;font-size:18px;font-weight:900;line-height:1}.sort-arrow:disabled{opacity:.25;cursor:not-allowed}.sort-cell{white-space:nowrap}.sort-cell .sort-arrow{margin:2px}@media(max-width:700px){.sort-chip{width:100%;justify-content:flex-start;flex-wrap:wrap}.sort-chip b{min-width:110px}.sort-cell{min-width:92px}.sort-arrow{min-width:40px;min-height:36px}}
