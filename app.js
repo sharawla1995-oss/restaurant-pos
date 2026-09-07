@@ -335,7 +335,26 @@ async function lookupCustomerByPhone(){
  }catch(e){console.error('customer lookup',e);$('#customerHint').textContent='تعذر تحميل بيانات العميل';}
 }
 
-function drawProducts(){const q=($('#productSearch')?.value||'').trim().toLowerCase();const list=state.products.filter(p=>(state.cat==='all'||String(p.category_id)===String(state.cat))&&(!q||String(p.name).toLowerCase().includes(q)));$('#productsGrid').innerHTML=list.map(p=>`<button class="product" data-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">🍔</div>`}<b>${esc(p.name)}</b><span>${money(p.price)}</span></button>`).join('')||'<div class="empty">أضف أصناف من صفحة الأصناف</div>';$('#productsGrid').onclick=e=>{const b=e.target.closest('.product');if(b){const p=state.products.find(x=>String(x.id)===String(b.dataset.id));addProductToCart(p)}}}
+function drawProducts(){
+ const q=($('#productSearch')?.value||'').trim().toLowerCase();
+ const grid=$('#productsGrid'); if(!grid)return;
+ // شاشة «الكل» = التصنيفات الرئيسية. البحث فقط يعرض الأصناف المطابقة مباشرة.
+ if(state.cat==='all'&&!q){
+   const cats=state.categories.filter(c=>c.active!==false).sort((a,b)=>Number(a.website_sort_order||a.sort_order||0)-Number(b.website_sort_order||b.sort_order||0)||Number(a.id)-Number(b.id));
+   grid.classList.add('category-grid');
+   grid.innerHTML=cats.map(c=>{
+     const count=state.products.filter(p=>p.active!==false&&String(p.category_id)===String(c.id)).length;
+     const first=state.products.find(p=>p.active!==false&&String(p.category_id)===String(c.id)&&p.image_url);
+     return `<button class="category-card" data-open-cat="${c.id}">${first?.image_url?`<img class="category-card-img" src="${esc(first.image_url)}" alt="${esc(c.name)}" loading="lazy">`:`<div class="category-card-img category-placeholder">🍔</div>`}<span class="category-card-copy"><b>${esc(c.name)}</b><small>${count} صنف</small></span><span class="category-arrow">‹</span></button>`;
+   }).join('')||'<div class="empty">لا توجد تصنيفات</div>';
+   grid.onclick=e=>{const b=e.target.closest('[data-open-cat]');if(!b)return;state.cat=b.dataset.openCat;const tab=$(`#catTabs button[data-cat="${state.cat}"]`);$$('#catTabs button').forEach(x=>x.classList.toggle('active',x===tab));drawProducts()};
+   return;
+ }
+ grid.classList.remove('category-grid');
+ const list=state.products.filter(p=>p.active!==false&&(state.cat==='all'||String(p.category_id)===String(state.cat))&&(!q||String(p.name).toLowerCase().includes(q)));
+ grid.innerHTML=list.map(p=>`<button class="product" data-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">🍔</div>`}<b>${esc(p.name)}</b><span>${money(p.price)}</span></button>`).join('')||'<div class="empty">لا توجد أصناف في هذا التصنيف</div>';
+ grid.onclick=e=>{const b=e.target.closest('.product');if(!b)return;$('.sidebar')?.classList.remove('open');const p=state.products.find(x=>String(x.id)===String(b.dataset.id));if(p)addProductToCart(p)};
+}
 function productModifierList(p){const ids=state.productModifiers.filter(x=>String(x.product_id)===String(p.id)).map(x=>String(x.modifier_id));return state.modifiers.filter(m=>ids.includes(String(m.id)))}
 function productVariantList(p){return (state.productVariants||[]).filter(x=>String(x.product_id)===String(p.id)&&x.active!==false).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id))}
 function isOfferProduct(p){return ['عرض السنجل','عرض الدبل','عرض الملوك'].includes(String(p.name||'').trim())}
