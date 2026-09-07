@@ -238,3 +238,21 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .website-global-alert{position:fixed;z-index:99999;top:18px;left:50%;transform:translate(-50%,-22px);opacity:0;width:min(620px,calc(100% - 24px));display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;background:#142337;color:#fff;border:1px solid #3c5876;border-right:5px solid #35a7ff;border-radius:16px;padding:12px 13px;box-shadow:0 18px 50px rgba(0,0,0,.38);transition:.2s ease}
 .website-global-alert.show{transform:translate(-50%,0);opacity:1}.website-alert-icon{font-size:27px}.website-alert-copy{display:grid;gap:3px;min-width:0}.website-alert-copy b{font-size:16px}.website-alert-copy span{font-size:12px;color:#c5d3e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.website-alert-open{background:#0f9d83;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:800;white-space:nowrap}.website-alert-close{width:34px;height:34px;border:0;border-radius:50%;background:#26394f;color:#fff;font-size:22px;line-height:1}
 @media(max-width:700px){.website-global-alert{top:10px;grid-template-columns:auto 1fr auto;padding:10px}.website-alert-open{grid-column:2/4;width:100%}.website-alert-close{grid-column:3;grid-row:1}.website-alert-copy b{font-size:14px}.website-alert-copy span{font-size:11px}.website-pending{grid-template-columns:1fr auto!important}.website-pending>span:last-child{grid-column:1/-1!important;display:flex!important;gap:8px}.website-pending>span:last-child button{flex:1}}
+
+/* V9.2.7 — compact mobile website availability + timed pauses */
+.availability-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.availability-actions button{margin:0;min-height:46px}.availability-btn.warning{background:#8a5b13!important;border-color:#b97a18!important;color:#fff!important}
+@media(max-width:700px){
+ .website-availability-panel{padding:10px!important}
+ .website-availability-panel .section-head{margin-bottom:8px!important}
+ .website-availability-panel .section-head h2{font-size:20px!important;margin-bottom:5px!important}
+ .website-availability-panel .section-head p{font-size:12px!important;line-height:1.55!important;margin:0!important}
+ .website-availability-wrap{overflow-x:auto!important;margin:0!important}
+ .website-availability-table{width:100%!important;min-width:0!important;table-layout:fixed!important;font-size:13px!important}
+ .website-availability-table th,.website-availability-table td{padding:8px 6px!important;vertical-align:middle!important}
+ .website-availability-table th:first-child,.website-availability-table td:first-child{width:46%!important}
+ .website-availability-table td:first-child b{font-size:13px!important;line-height:1.35!important;display:block!important;overflow-wrap:anywhere!important}
+ .website-availability-table th:not(:first-child),.website-availability-table td:not(:first-child){text-align:center!important}
+ .website-availability-table .availability-btn{width:100%!important;min-width:0!important;padding:8px 5px!important;font-size:11.5px!important;line-height:1.25!important;border-radius:10px!important;white-space:normal!important;margin:0!important}
+ .availability-modal{max-width:420px!important}.availability-actions{grid-template-columns:1fr 1fr!important;gap:7px!important}.availability-actions button{padding:10px 7px!important;font-size:12.5px!important;min-height:42px!important}
+}
+@media(max-width:390px){.website-availability-table th:first-child,.website-availability-table td:first-child{width:43%!important}.website-availability-table .availability-btn{font-size:10.8px!important;padding:7px 4px!important}}

@@ -647,15 +647,33 @@ async function renderWebsiteManagement(){
  $('#page').onclick=e=>{if(e.target.closest('[data-site-tool="availability"]'))showPage('branchProductAvailability')};
 }
 
+function availabilityState(bp){
+ if(!bp)return {on:true,temp:false,label:'✅ متاح'};
+ if(bp.active===false)return {on:false,temp:false,label:'❌ موقوف'};
+ const until=bp.website_paused_until?new Date(bp.website_paused_until):null;
+ if(until&&!Number.isNaN(until.getTime())&&until.getTime()>Date.now()){
+   const t=until.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+   return {on:false,temp:true,label:`⏱️ حتى ${t}`};
+ }
+ return {on:true,temp:false,label:'✅ متاح'};
+}
+function chooseAvailabilityAction(productName,branchName,current){return new Promise(resolve=>{
+ const m=document.createElement('div');m.className='modal';
+ m.innerHTML=`<div class="modal-card availability-modal"><h2>🌐 ${esc(productName)}</h2><p class="muted">${esc(branchName)} — اختر حالة الصنف على الموقع</p><div class="availability-actions"><button class="primary" data-av-action="on">✅ تشغيل الآن</button><button class="secondary" data-av-action="30">⏱️ إيقاف 30 دقيقة</button><button class="secondary" data-av-action="60">⏱️ إيقاف ساعة</button><button class="secondary" data-av-action="120">⏱️ إيقاف ساعتين</button><button class="secondary" data-av-action="custom">🕒 لوقت محدد</button><button class="danger" data-av-action="off">⛔ إيقاف يدوي</button></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button></div></div>`;
+ document.body.appendChild(m);
+ const finish=v=>{m.remove();resolve(v)};
+ m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return finish(null);const b=e.target.closest('[data-av-action]');if(!b)return;const a=b.dataset.avAction;if(a==='custom'){const v=await uiPrompt('حدد وقت رجوع الصنف تلقائيًا','',{title:'إيقاف لوقت محدد',type:'datetime-local',okText:'تأكيد',icon:'🕒'});if(!v)return;const d=new Date(v);if(Number.isNaN(d.getTime())||d.getTime()<=Date.now())return toast('اختار وقت بعد الوقت الحالي');return finish({type:'temp',until:d.toISOString()})}if(a==='on')return finish({type:'on'});if(a==='off')return finish({type:'off'});const mins=Number(a);return finish({type:'temp',until:new Date(Date.now()+mins*60000).toISOString()})};
+ })}
+
 async function renderWebsiteAvailability(){
  if(!hasFeaturePermission('branchProductAvailability')){toast('ليس لديك صلاحية إدارة توافر أصناف الموقع');return showPage('home')}
  state.products=await rest('products','select=*&order=id');
  state.branchProducts=await rest('branch_products','select=*');
  const products=sortedActiveCategories().flatMap(c=>sortedActiveProducts(c.id));
  const branches=allowedBranches();
- const rows=products.map(p=>`<tr><td><b>${esc(p.name)}</b></td>${branches.map(b=>{const bp=(state.branchProducts||[]).find(x=>String(x.product_id)===String(p.id)&&String(x.branch_id)===String(b.id));const on=bp?bp.active!==false:true;return `<td><button class="${on?'primary':'secondary'}" data-av-product="${p.id}" data-av-branch="${b.id}">${on?'✅ متاح':'❌ موقوف'}</button></td>`}).join('')}</tr>`).join('');
- $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🌐 توافر أصناف الموقع</h2><p class="muted">إيقاف الصنف هنا يؤثر على الموقع في الفرع المحدد فقط، ولا يمنع بيعه من الكاشير.</p></div></div><div class="table-wrap"><table><thead><tr><th>الصنف</th>${branches.map(b=>`<th>${esc(b.name)}</th>`).join('')}</tr></thead><tbody>${rows||'<tr><td colspan="99">لا توجد أصناف</td></tr>'}</tbody></table></div></div>`;
- $('#page').onclick=async e=>{const bt=e.target.closest('[data-av-product]');if(!bt)return;const productId=Number(bt.dataset.avProduct),branchId=Number(bt.dataset.avBranch);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const current=(state.branchProducts||[]).find(x=>Number(x.product_id)===productId&&Number(x.branch_id)===branchId);const next=current?current.active===false:false;bt.disabled=true;try{if(current){await rest('branch_products',`branch_id=eq.${branchId}&product_id=eq.${productId}`,{method:'PATCH',body:JSON.stringify({active:next})})}else{await rest('branch_products','',{method:'POST',body:JSON.stringify([{branch_id:branchId,product_id:productId,active:next}])})}state.branchProducts=await rest('branch_products','select=*');bt.className=next?'primary':'secondary';bt.textContent=next?'✅ متاح':'❌ موقوف';toast(next?'تم تشغيل الصنف على الموقع لهذا الفرع':'تم إيقاف الصنف على الموقع لهذا الفرع')}catch(err){toast(err.message||'تعذر تحديث التوافر')}finally{bt.disabled=false}};
+ const rows=products.map(p=>`<tr><td><b>${esc(p.name)}</b></td>${branches.map(b=>{const bp=(state.branchProducts||[]).find(x=>String(x.product_id)===String(p.id)&&String(x.branch_id)===String(b.id));const st=availabilityState(bp);return `<td><button class="availability-btn ${st.on?'primary':st.temp?'warning':'secondary'}" data-av-product="${p.id}" data-av-branch="${b.id}">${st.label}</button></td>`}).join('')}</tr>`).join('');
+ $('#page').innerHTML=`<div class="panel website-availability-panel"><div class="section-head"><div><h2>🌐 توافر أصناف الموقع</h2><p class="muted">اضغط على حالة الصنف لتشغيله أو إيقافه مؤقتًا أو يدويًا. التأثير على الموقع فقط وفي الفرع المحدد.</p></div></div><div class="table-wrap website-availability-wrap"><table class="website-availability-table"><thead><tr><th>الصنف</th>${branches.map(b=>`<th>${esc(b.name)}</th>`).join('')}</tr></thead><tbody>${rows||'<tr><td colspan="99">لا توجد أصناف</td></tr>'}</tbody></table></div></div>`;
+ $('#page').onclick=async e=>{const bt=e.target.closest('[data-av-product]');if(!bt)return;const productId=Number(bt.dataset.avProduct),branchId=Number(bt.dataset.avBranch);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const p=state.products.find(x=>Number(x.id)===productId);const b=state.branches.find(x=>Number(x.id)===branchId);const current=(state.branchProducts||[]).find(x=>Number(x.product_id)===productId&&Number(x.branch_id)===branchId);const action=await chooseAvailabilityAction(p?.name||'الصنف',b?.name||'الفرع',current);if(!action)return;bt.disabled=true;try{let payload;if(action.type==='on')payload={active:true,website_paused_until:null};else if(action.type==='off')payload={active:false,website_paused_until:null};else payload={active:true,website_paused_until:action.until};if(current){await rest('branch_products',`branch_id=eq.${branchId}&product_id=eq.${productId}`,{method:'PATCH',body:JSON.stringify(payload)})}else{await rest('branch_products','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,product_id:productId,...payload}])})}toast(action.type==='on'?'تم تشغيل الصنف':action.type==='off'?'تم إيقاف الصنف يدويًا':'تم إيقاف الصنف مؤقتًا');return renderWebsiteAvailability()}catch(err){toast(err.message||'تعذر تحديث التوافر')}finally{bt.disabled=false}};
 }
 
 async function uploadProductImage(product,file){
