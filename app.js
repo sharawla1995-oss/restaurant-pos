@@ -74,6 +74,27 @@ async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+
+// ===== V9.8 Offline Core =====
+const OFFLINE_DB='topburger-pos-offline-v98', OFFLINE_STORE='kv';
+function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(OFFLINE_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(OFFLINE_STORE))r.result.createObjectStore(OFFLINE_STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function odbGet(k){const d=await odb();return new Promise((res,rej)=>{const t=d.transaction(OFFLINE_STORE,'readonly'),r=t.objectStore(OFFLINE_STORE).get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function odbSet(k,v){const d=await odb();return new Promise((res,rej)=>{const t=d.transaction(OFFLINE_STORE,'readwrite');t.objectStore(OFFLINE_STORE).put(v,k);t.oncomplete=()=>res(v);t.onerror=()=>rej(t.error)})}
+async function offlineQueue(){return (await odbGet('queue'))||[]}
+async function setOfflineQueue(q){return odbSet('queue',q)}
+function uuid(){return (crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`)}
+function offlineOrderNo(){return Number(localStorage.getItem('offlineOrderNo')||0)+1}
+function setOfflineOrderNo(n){localStorage.setItem('offlineOrderNo',String(n))}
+function isNetError(e){const m=String(e?.message||e||'').toLowerCase();return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')}
+async function cacheBootstrap(){try{await odbSet('bootstrap',{employee:state.employee,homeBranchId:state.homeBranchId,branches:state.branches,categories:state.categories,products:state.products,modifiers:state.modifiers,productModifiers:state.productModifiers,productVariants:state.productVariants,deliveryZones:state.deliveryZones,drivers:state.drivers,branchPrintSettings:state.branchPrintSettings,paymentMethods:state.paymentMethods,branchPaymentMethods:state.branchPaymentMethods,branchFinancialSettings:state.branchFinancialSettings,employeeBranches:state.employeeBranches,userPermissions:state.userPermissions,settings:state.settings,business:state.business,websiteSettings:state.websiteSettings,activeBranchId:state.activeBranchId,at:new Date().toISOString()})}catch(e){console.warn('offline cache',e)}}
+async function loadOfflineBootstrap(){const c=await odbGet('bootstrap');if(!c?.employee)throw new Error('لا توجد بيانات محفوظة للعمل بدون إنترنت على هذا الجهاز');Object.assign(state,c);applyBusinessBranding();$('#who').textContent=`${state.employee.name} • ${state.employee.role}`;refreshBranchChrome();applyRoleNavigation();show('appView');showOfflineStatus();if(state.activeBranchId)showPage('pos');else renderBranchPicker()}
+function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'✓ متصل';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
+async function cachedOpenShift(){return await odbGet(`openShift:${state.employee?.id}:${currentBranchId()}`)}
+async function rememberOpenShift(sh){if(sh)await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,sh);return sh}
+async function saveOfflineSale(orderPayload,itemPayload,payRows){const q=await offlineQueue(),n=offlineOrderNo(),clientTx=uuid(),created=new Date().toISOString();setOfflineOrderNo(n);const localId=`offline-${clientTx}`;const localOrder={...orderPayload,id:localId,client_tx_id:clientTx,invoice_number:`OFF-${n}`,bon_number:`OFF-${n}`,created_at:created,payment_status:'confirmed',_offline:true};const localItems=itemPayload.map((x,i)=>({...x,id:`${localId}-i${i+1}`,order_id:localId}));q.push({type:'sale',client_tx_id:clientTx,created_at:created,p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows,local_order:localOrder,local_items:localItems});await setOfflineQueue(q);return {order:localOrder,items:localItems}}
+async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});q=q.filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);done++}catch(e){console.warn('sync stopped',e);break}}if(done)toast(`تمت مزامنة ${done} حركة أوفلاين`)}
+window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);
+
 async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
 async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
 function businessName(){return state.business?.business_name||'Top Burger'}
@@ -276,7 +297,7 @@ function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&l
 function localDateInput(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function rangeISO(from,to){return {from:new Date(`${from}T00:00:00`).toISOString(),to:new Date(`${to}T23:59:59.999`).toISOString()}}
 async function fetchAll(table,query='',pageSize=1000){let out=[],offset=0;while(true){const join=query?`${query}&`:'';const rows=await rest(table,`${join}limit=${pageSize}&offset=${offset}`);out.push(...(rows||[]));if(!rows||rows.length<pageSize)break;offset+=pageSize}return out}
-async function getOpenShift(employeeId=state.employee.id,branchId=currentBranchId()){const rows=await rest('shifts',`select=*&employee_id=eq.${employeeId}&branch_id=eq.${branchId}&status=eq.open&closed_at=is.null&order=opened_at.desc&limit=1`);return rows?.[0]||null}
+async function getOpenShift(employeeId=state.employee.id,branchId=currentBranchId()){try{const rows=await rest('shifts',`select=*&employee_id=eq.${employeeId}&branch_id=eq.${branchId}&status=eq.open&closed_at=is.null&order=opened_at.desc&limit=1`);const sh=rows?.[0]||null;if(sh)await rememberOpenShift(sh);return sh}catch(e){if(isNetError(e))return cachedOpenShift();throw e}}
 async function audit(action,entityType,entityId,details={}){try{await rest('audit_logs','',{method:'POST',body:JSON.stringify([{employee_id:state.employee.id,branch_id:currentBranchId(),action,entity_type:entityType,entity_id:entityId||null,details}])})}catch(e){}}
 
 async function bootstrap(){
@@ -310,6 +331,7 @@ async function bootstrap(){
   refreshBranchChrome();
   applyRoleNavigation();
   show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
+  await cacheBootstrap();showOfflineStatus();syncOfflineQueue();
 }
 
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
@@ -602,7 +624,7 @@ async function checkout(payment,payments=null){
     modifiers:(i.modifiers||[]).map(md=>({id:md.id,name:md.name,price:Number(md.price||0)}))
   }));
   const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({method:x.method,amount:Number(x.amount)}));
-  const result=await rpc('create_pos_order_atomic',{p_order:orderPayload,p_items:itemPayload,p_payments:payRows});
+  let result;try{result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:uuid()},p_items:itemPayload,p_payments:payRows})}catch(err){if(!isNetError(err))throw err;if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=await saveOfflineSale(orderPayload,itemPayload,payRows);toast('تم حفظ الفاتورة أوفلاين وستتزامن عند رجوع النت')}
   const o=result?.order, savedItems=result?.items||[];
   if(!o?.id)throw new Error('تمت العملية لكن تعذر قراءة الفاتورة');
   state.cart=[];state.selectedCustomer=null;state.activePromo=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
