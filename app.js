@@ -530,16 +530,30 @@ function collectVariantRows(root,scope){
  return out;
 }
 
+function activeModifiers(){return state.modifiers.filter(x=>x.active!==false)}
+function modifierPickerHTML(prefix,selectedIds=[],defaultAll=false){
+ const mods=activeModifiers();const selected=new Set(selectedIds.map(String));const all=mods.length>0&&(defaultAll||mods.every(x=>selected.has(String(x.id))));
+ return `<div class="extras-picker" data-extras-picker="${prefix}"><label class="setting-switch extras-all"><span>كل الإضافات</span><input id="${prefix}AllExtras" type="checkbox" ${all?'checked':''}></label><div class="option-list extras-admin-list">${mods.map(x=>`<label><input type="checkbox" data-extra-choice="${x.id}" ${(all||selected.has(String(x.id)))?'checked':''} ${all?'disabled':''}> ${esc(x.name)} (+${money(x.price)})</label>`).join('')||'<span class="muted">أضف إضافات أولًا</span>'}</div></div>`;
+}
+function bindModifierPicker(root,allowSelector,boxSelector,prefix){
+ const allow=root.querySelector(allowSelector),box=root.querySelector(boxSelector),all=box?.querySelector(`#${prefix}AllExtras`);if(!allow||!box)return;
+ const syncAllow=()=>box.classList.toggle('hidden',!allow.checked);allow.addEventListener('change',syncAllow);syncAllow();
+ if(all){all.addEventListener('change',()=>{const checks=[...box.querySelectorAll('[data-extra-choice]')];if(all.checked){checks.forEach(c=>{c.checked=true;c.disabled=true})}else checks.forEach(c=>c.disabled=false)})}
+}
+function collectModifierChoices(root,boxSelector){return [...root.querySelectorAll(`${boxSelector} [data-extra-choice]:checked`)].map(x=>Number(x.dataset.extraChoice)).filter(Number.isFinite)}
+
 async function renderProducts(){
  state.products=await rest('products','select=*&order=id'); state.modifiers=await rest('modifiers','select=*&order=id'); state.productModifiers=await rest('product_modifiers','select=*'); state.productVariants=await rest('product_variants','select=*&order=sort_order,id');
  $('#page').innerHTML=`<div class="panel"><h2>التصنيفات</h2><div class="toolbar"><input id="newCategory" placeholder="اسم التصنيف"><button id="addCategory" class="primary">إضافة تصنيف</button></div><div class="chips">${sortedActiveCategories().map((c,i,a)=>`<span class="chip sort-chip"><b>${esc(c.name)}</b> <button class="secondary sort-arrow" data-cat-up="${c.id}" ${i===0?'disabled':''} title="تحريك لأعلى">↑</button> <button class="secondary sort-arrow" data-cat-down="${c.id}" ${i===a.length-1?'disabled':''} title="تحريك لأسفل">↓</button> <button class="secondary" data-edit-cat="${c.id}">✏️</button> <button class="danger" data-delete-cat="${c.id}">🗑️ حذف</button></span>`).join('')}</div></div>
  <div class="panel"><h2>إضافة صنف</h2><div class="form-grid"><label>الاسم<input id="pName"></label><label>القسم<select id="pCat">${sortedActiveCategories().map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label><label>سعر البيع الأساسي<input id="pPrice" type="number"></label><label>التكلفة<input id="pCost" type="number"></label><label>باركود<input id="pBarcode"></label><label>مكونات يمكن حذفها<input id="pRemovals" placeholder="بصل، مخلل، صوص"></label></div>
  <div class="toggle-row"><label><input id="pHasVariants" type="checkbox"> للصنف اختيارات / أحجام</label><label><input id="pExtras" type="checkbox" checked> يسمح بإضافات</label><label><input id="pRemove" type="checkbox" checked> يسمح بحذف مكونات</label><label><input id="pNotes" type="checkbox" checked> يسمح بملاحظة</label></div>
+ <div id="pExtrasBox"><h3>الإضافات المتاحة لهذا الصنف</h3><p class="muted">اختر كل الإضافات أو حدد الإضافات التي تريد ظهورها مع الصنف.</p>${modifierPickerHTML('p',[],true)}</div>
  <div id="pVariantsBox" class="variant-builder hidden"><div class="variant-builder-head"><div><h3>اختيارات الصنف</h3><p class="muted">أضف أي اختيارات تريدها: سينجل، دبل، تريبل أو أي اسم آخر.</p></div><button type="button" id="addNewVariant" class="secondary">+ إضافة اختيار</button></div>${variantBuilderHTML()}</div>
  <button id="addProduct" class="primary">إضافة الصنف</button></div>
  <div class="panel"><h2>الإضافات (Extras)</h2><div class="form-grid"><label>اسم الإضافة<input id="mName" placeholder="Extra Cheese"></label><label>السعر<input id="mPrice" type="number" value="0"></label></div><button id="addModifier" class="primary">إضافة</button><div class="chips">${state.modifiers.map(m=>`<span class="chip">${m.name} • ${money(m.price)}</span>`).join('')||'لا توجد إضافات'}</div></div>
  <div class="panel"><h2>الأصناف</h2><div class="table-wrap"><table><thead><tr><th>ترتيب</th><th>الصورة</th><th>الصنف</th><th>السعر</th><th>الاختيارات / الأحجام</th><th>الإضافات المتاحة</th><th>إجراء</th></tr></thead><tbody>${sortedActiveCategories().flatMap(c=>sortedActiveProducts(c.id)).map((p,idx,all)=>{const same=all.filter(x=>String(x.category_id)===String(p.category_id));const pos=same.findIndex(x=>String(x.id)===String(p.id));return `<tr><td class="sort-cell"><button class="secondary sort-arrow" data-product-up="${p.id}" ${pos===0?'disabled':''}>↑</button><button class="secondary sort-arrow" data-product-down="${p.id}" ${pos===same.length-1?'disabled':''}>↓</button></td><td>${p.image_url?`<img class="admin-product-img" src="${esc(p.image_url)}">`:'🍔'}</td><td>${p.name}</td><td>${money(p.price)}</td><td>${productVariantList(p).map(x=>`${esc(x.name)} ${money(x.price)}`).join('، ')||'-'}</td><td>${productModifierList(p).map(x=>x.name).join('، ')||'-'}</td><td><button class="secondary" data-image-product="${p.id}">🖼️ صورة</button> <button class="secondary" data-edit-product="${p.id}">✏️ تعديل</button> <button class="secondary" data-config="${p.id}">خيارات</button> <button class="danger" data-delete-product="${p.id}">🗑️ حذف</button></td></tr>`}).join('')}</tbody></table></div></div>`;
  bindVariantBuilder($('#page'),'#pHasVariants','#pVariantsBox','#addNewVariant');
+ bindModifierPicker($('#page'),'#pExtras','#pExtrasBox','p');
  $('#addProduct').onclick=async()=>{
   if(!$('#pName').value.trim())return toast('اكتب اسم الصنف');
   const removable=$('#pRemovals').value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);
@@ -549,6 +563,7 @@ async function renderProducts(){
   try{
    const created=await rest('products','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([body])});const pid=created?.[0]?.id;if(!pid)throw new Error('تعذر الحصول على رقم الصنف');
    if(variants.length)await rest('product_variants','',{method:'POST',body:JSON.stringify(variants.map(v=>({product_id:pid,name:v.name,price:v.price,sort_order:v.sort_order,active:true})))});
+   if($('#pExtras').checked){const modifierIds=collectModifierChoices($('#page'),'#pExtrasBox');if(modifierIds.length)await rest('product_modifiers','',{method:'POST',body:JSON.stringify(modifierIds.map(id=>({product_id:pid,modifier_id:id})))})}
    // إتاحة الصنف تلقائيًا في كل الفروع الحالية، مع تجاهل أي تكرار قائم
    for(const b of state.branches){try{await rest('branch_products','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:b.id,product_id:pid,active:true}])})}catch(e){}}
    toast('تمت إضافة الصنف');renderProducts();
@@ -571,6 +586,8 @@ function openProductImage(p){const m=document.createElement('div');m.className='
 
 function openEditProductModal(p){
  const variants=productVariantList(p).slice().sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
+ const currentModifierIds=state.productModifiers.filter(x=>String(x.product_id)===String(p.id)).map(x=>Number(x.modifier_id));
+ const defaultAllExtras=p.allow_extras!==false&&currentModifierIds.length===0&&activeModifiers().length>0;
  const m=document.createElement('div');m.className='modal';
  m.innerHTML=`<div class="modal-card product-edit-modal"><h2>✏️ تعديل ${esc(p.name)}</h2>
   <div class="form-grid">
@@ -578,12 +595,14 @@ function openEditProductModal(p){
    <label>التصنيف<select id="editProductCat">${sortedActiveCategories().map(c=>`<option value="${c.id}" ${String(c.id)===String(p.category_id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>
    <label>التكلفة<input id="editProductCost" type="number" min="0" step="0.01" value="${Number(p.cost||0)}"></label>
    <label>سعر البيع الأساسي<input id="editProductPrice" type="number" min="0" step="0.01" value="${Number(p.price||0)}"></label>
+   <label>مكونات يمكن حذفها<input id="editProductRemovals" value="${esc((p.removable_components||[]).join('، '))}" placeholder="بصل، مخلل، صوص"></label>
   </div>
-  <div class="toggle-row"><label><input id="editHasVariants" type="checkbox" ${variants.length?'checked':''}> للصنف اختيارات / أحجام</label></div>
+  <div class="toggle-row"><label><input id="editHasVariants" type="checkbox" ${variants.length?'checked':''}> للصنف اختيارات / أحجام</label><label><input id="editExtras" type="checkbox" ${p.allow_extras!==false?'checked':''}> يسمح بإضافات</label><label><input id="editRemove" type="checkbox" ${p.allow_removals!==false?'checked':''}> يسمح بحذف مكونات</label><label><input id="editNotes" type="checkbox" ${p.allow_item_notes!==false?'checked':''}> يسمح بملاحظة</label></div>
+  <div id="editExtrasBox"><h3>الإضافات المتاحة لهذا الصنف</h3><p class="muted">اختر كل الإضافات أو حدد إضافات معينة.</p>${modifierPickerHTML('edit',currentModifierIds,defaultAllExtras)}</div>
   <div id="editVariantsBox" class="variant-builder ${variants.length?'':'hidden'}"><div class="variant-builder-head"><div><h3>الاختيارات / الأحجام</h3><p class="muted">غيّر الاسم أو السعر، أضف اختيار جديد أو احذفه.</p></div><button type="button" id="editAddVariant" class="secondary">+ إضافة اختيار</button></div>${variantBuilderHTML(variants)}</div>
   <div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-product>حفظ التعديلات</button></div>
  </div>`;
- document.body.appendChild(m);bindVariantBuilder(m,'#editHasVariants','#editVariantsBox','#editAddVariant');
+ document.body.appendChild(m);bindVariantBuilder(m,'#editHasVariants','#editVariantsBox','#editAddVariant');bindModifierPicker(m,'#editExtras','#editExtrasBox','edit');
  const close=()=>m.remove();
  m.onclick=async e=>{
   if(e.target===m||e.target.closest('[data-close]'))return close();
@@ -591,9 +610,10 @@ function openEditProductModal(p){
   const name=m.querySelector('#editProductName').value.trim();const cost=Number(m.querySelector('#editProductCost').value||0);const category_id=Number(m.querySelector('#editProductCat').value);if(!name)return toast('اكتب اسم الصنف');if(!Number.isFinite(cost)||cost<0)return toast('التكلفة غير صحيحة');
   const hasVariants=m.querySelector('#editHasVariants').checked;let desired=[];try{if(hasVariants){desired=collectVariantRows(m,'#editVariantsBox');if(!desired.length)return toast('أضف اختيار واحد على الأقل')}}catch(err){return toast(err.message)}
   let basePrice=Number(m.querySelector('#editProductPrice').value||0);if(!Number.isFinite(basePrice)||basePrice<0)return toast('سعر البيع غير صحيح');if(desired.length)basePrice=desired[0].price;
+  const allow_extras=m.querySelector('#editExtras').checked,allow_removals=m.querySelector('#editRemove').checked,allow_item_notes=m.querySelector('#editNotes').checked;const removable_components=m.querySelector('#editProductRemovals').value.split(/[،,]/).map(x=>x.trim()).filter(Boolean);const modifierIds=allow_extras?collectModifierChoices(m,'#editExtrasBox'):[];
   const saveBtn=m.querySelector('[data-save-product]');saveBtn.disabled=true;saveBtn.textContent='جاري الحفظ...';
   try{
-   await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({name,category_id,price:basePrice,cost})});
+   await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({name,category_id,price:basePrice,cost,allow_extras,allow_removals,allow_item_notes,removable_components})});
    const keepIds=new Set();
    if(hasVariants){
     for(const v of desired){
@@ -602,8 +622,9 @@ function openEditProductModal(p){
     }
    }
    for(const old of variants){if(!keepIds.has(Number(old.id)))await rest('product_variants',`id=eq.${old.id}&product_id=eq.${p.id}`,{method:'DELETE'})}
-   await audit('edit_product','product',p.id,{name,category_id,price:basePrice,cost,variants:desired.map(v=>({name:v.name,price:v.price}))});
-   close();toast('تم حفظ الصنف والاختيارات');await renderProducts();
+   await rest('product_modifiers',`product_id=eq.${p.id}`,{method:'DELETE'});if(modifierIds.length)await rest('product_modifiers','',{method:'POST',body:JSON.stringify(modifierIds.map(id=>({product_id:p.id,modifier_id:id})))});
+   await audit('edit_product','product',p.id,{name,category_id,price:basePrice,cost,variants:desired.map(v=>({name:v.name,price:v.price})),allow_extras,modifier_ids:modifierIds});
+   close();toast('تم حفظ الصنف والاختيارات والإضافات');await renderProducts();
   }catch(err){saveBtn.disabled=false;saveBtn.textContent='حفظ التعديلات';toast(err.message||'تعذر حفظ التعديلات')}
  };
 }

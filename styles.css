@@ -219,3 +219,11 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .variant-builder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.variant-builder-head h3{margin:0 0 3px}.variant-builder-head p{margin:0}
 .variant-builder-list{display:grid;gap:8px}.variant-builder-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(110px,.55fr) 44px;gap:8px;align-items:center}.variant-builder-row input{width:100%;min-width:0}.variant-remove{height:42px;padding:0;font-size:22px;line-height:1}
 @media(max-width:700px){.variant-builder-head{align-items:flex-start;flex-direction:column}.variant-builder-row{grid-template-columns:minmax(0,1fr) 100px 40px}.product-edit-modal{max-height:92vh;overflow:auto}}
+
+/* V9.1.9 extras selector in add/edit product */
+.extras-picker{margin:10px 0 16px;padding:12px;border:1px solid var(--line,#334155);border-radius:14px;background:rgba(255,255,255,.025)}
+.extras-picker.hidden,#pExtrasBox.hidden,#editExtrasBox.hidden{display:none!important}
+.extras-all{margin-bottom:10px}
+.extras-admin-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.extras-admin-list label{margin:0}
+@media(max-width:640px){.extras-admin-list{grid-template-columns:1fr}.product-edit-modal{max-height:92vh;overflow:auto}}
