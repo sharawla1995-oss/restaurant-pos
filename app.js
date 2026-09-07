@@ -92,7 +92,8 @@ const PERMISSION_DEFS=[
   ['pos','الكاشير'],['orders','الطلبات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],
   ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['deliverySettings','إعدادات الدليفري'],
   ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
-  ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع']
+  ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
+  ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز']
 ];
 function effectivePermissionSet(){
   if(isAdmin())return new Set(ALL_PAGES);
@@ -110,7 +111,8 @@ function hasFeaturePermission(key){
 }
 function canAccessPage(page){
   const allowed=effectivePermissionSet();
-  if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability');
+  if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings');
+  if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
   if(!allowed.has(page))return false;
   if(page==='deliveryOrders'||page==='delivery')return !!state.settings.enable_delivery;
   if(page==='kitchen')return !!state.settings.enable_kitchen;
@@ -188,9 +190,9 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
+const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -643,8 +645,34 @@ async function renderProducts(){
 
 async function renderWebsiteManagement(){
  const canAvailability=hasFeaturePermission('branchProductAvailability');
- $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🌐 إدارة الموقع</h2><p class="muted">كل أدوات تشغيل الموقع هتكون مجمعة هنا بشكل منظم.</p></div></div><div class="home-grid">${canAvailability?`<button class="home-card tone-green" data-site-tool="availability"><span class="home-icon">🍔</span><span class="home-copy"><b>توافر أصناف الموقع</b><small>تشغيل وإيقاف الأصناف لكل فرع</small></span><span class="home-arrow">‹</span></button>`:''}</div></div>`;
- $('#page').onclick=e=>{if(e.target.closest('[data-site-tool="availability"]'))showPage('branchProductAvailability')};
+ const canBranchSettings=hasFeaturePermission('websiteBranchSettings');
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🌐 إدارة الموقع</h2><p class="muted">أدوات تشغيل الموقع مجمعة هنا من غير ما نزحم الصفحة الرئيسية.</p></div></div><div class="home-grid">${canAvailability?`<button class="home-card tone-green" data-site-tool="availability"><span class="home-icon">🍔</span><span class="home-copy"><b>توافر أصناف الموقع</b><small>تشغيل وإيقاف الأصناف لكل فرع</small></span><span class="home-arrow">‹</span></button>`:''}${canBranchSettings?`<button class="home-card tone-amber" data-site-tool="branch-settings"><span class="home-icon">🔥</span><span class="home-copy"><b>استقبال الطلبات ومدة التجهيز</b><small>فتح أو إيقاف طلبات الموقع وتحديد وقت التجهيز لكل فرع</small></span><span class="home-arrow">‹</span></button>`:''}</div></div>`;
+ $('#page').onclick=e=>{if(e.target.closest('[data-site-tool="availability"]'))return showPage('branchProductAvailability');if(e.target.closest('[data-site-tool="branch-settings"]'))return showPage('websiteBranchSettings')};
+}
+
+function websiteBranchState(row){
+ const until=row?.orders_paused_until?new Date(row.orders_paused_until):null;
+ if(row?.orders_open===false)return {open:false,temp:false,label:'🔴 موقوف يدويًا'};
+ if(until&&!Number.isNaN(until.getTime())&&until.getTime()>Date.now()){
+   const t=until.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+   return {open:false,temp:true,label:`🟠 موقوف حتى ${t}`};
+ }
+ return {open:true,temp:false,label:'🟢 استقبال مفتوح'};
+}
+function chooseBranchOrderAction(branchName){return new Promise(resolve=>{
+ const m=document.createElement('div');m.className='modal';
+ m.innerHTML=`<div class="modal-card availability-modal"><h2>🔥 ${esc(branchName)}</h2><p class="muted">اختر حالة استقبال طلبات الموقع للفرع.</p><div class="availability-actions"><button class="primary" data-bo-action="on">🟢 فتح الآن</button><button class="secondary" data-bo-action="30">⏱️ إيقاف 30 دقيقة</button><button class="secondary" data-bo-action="60">⏱️ إيقاف ساعة</button><button class="secondary" data-bo-action="120">⏱️ إيقاف ساعتين</button><button class="secondary" data-bo-action="custom">🕒 لوقت محدد</button><button class="danger" data-bo-action="off">🔴 إيقاف يدوي</button></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button></div></div>`;
+ document.body.appendChild(m);const finish=v=>{m.remove();resolve(v)};
+ m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return finish(null);const b=e.target.closest('[data-bo-action]');if(!b)return;const a=b.dataset.boAction;if(a==='custom'){const v=await uiPrompt('حدد وقت فتح الطلبات تلقائيًا','',{title:'إيقاف الطلبات لوقت محدد',type:'datetime-local',okText:'تأكيد',icon:'🕒'});if(!v)return;const d=new Date(v);if(Number.isNaN(d.getTime())||d.getTime()<=Date.now())return toast('اختار وقت بعد الوقت الحالي');return finish({type:'temp',until:d.toISOString()})}if(a==='on')return finish({type:'on'});if(a==='off')return finish({type:'off'});return finish({type:'temp',until:new Date(Date.now()+Number(a)*60000).toISOString()})};
+ })}
+
+async function renderWebsiteBranchSettings(){
+ if(!hasFeaturePermission('websiteBranchSettings')){toast('ليس لديك صلاحية إدارة استقبال طلبات الموقع');return showPage('home')}
+ let rows=[];try{rows=await rest('branch_website_settings','select=*')}catch(e){throw new Error('شغّل SQL الخاص بـ V9.2.8 أولًا')}
+ const branches=allowedBranches();
+ const cards=branches.map(b=>{const r=rows.find(x=>Number(x.branch_id)===Number(b.id))||{branch_id:b.id,orders_open:true,prep_min:30,prep_max:45};const st=websiteBranchState(r);return `<div class="branch-web-card" data-branch-settings="${b.id}"><div class="branch-web-head"><div><h3>📍 ${esc(b.name)}</h3><span class="branch-web-status ${st.open?'is-open':st.temp?'is-temp':'is-closed'}">${st.label}</span></div><button class="secondary compact" data-order-state="${b.id}">تغيير الحالة</button></div><div class="prep-settings"><label>من <input type="number" min="5" max="240" step="5" data-prep-min="${b.id}" value="${Number(r.prep_min||30)}"> دقيقة</label><label>إلى <input type="number" min="5" max="240" step="5" data-prep-max="${b.id}" value="${Number(r.prep_max||45)}"> دقيقة</label><button class="primary compact" data-save-prep="${b.id}">💾 حفظ مدة التجهيز</button></div></div>`}).join('');
+ $('#page').innerHTML=`<div class="panel branch-website-panel"><div class="section-head"><div><h2>🔥 استقبال طلبات الموقع ومدة التجهيز</h2><p class="muted">كل فرع مستقل. الإيقاف المؤقت يرجع يفتح تلقائيًا، ومدة التجهيز تظهر للعميل على الموقع.</p></div></div><div class="branch-web-list">${cards||'<div class="empty">لا توجد فروع متاحة</div>'}</div></div>`;
+ $('#page').onclick=async e=>{const sb=e.target.closest('[data-order-state]');if(sb){const branchId=Number(sb.dataset.orderState);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const b=state.branches.find(x=>Number(x.id)===branchId);const action=await chooseBranchOrderAction(b?.name||'الفرع');if(!action)return;let payload;if(action.type==='on')payload={orders_open:true,orders_paused_until:null,updated_at:new Date().toISOString()};else if(action.type==='off')payload={orders_open:false,orders_paused_until:null,updated_at:new Date().toISOString()};else payload={orders_open:true,orders_paused_until:action.until,updated_at:new Date().toISOString()};try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,...payload}])});toast(action.type==='on'?'تم فتح استقبال الطلبات':action.type==='off'?'تم إيقاف الطلبات يدويًا':'تم إيقاف الطلبات مؤقتًا');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر تحديث حالة الفرع')}}const sp=e.target.closest('[data-save-prep]');if(sp){const branchId=Number(sp.dataset.savePrep);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const mn=Number($(`[data-prep-min="${branchId}"]`)?.value||0),mx=Number($(`[data-prep-max="${branchId}"]`)?.value||0);if(mn<5||mx<5||mn>240||mx>240||mx<mn)return toast('راجع مدة التجهيز: من 5 إلى 240 دقيقة، والنهاية أكبر من البداية');try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,prep_min:mn,prep_max:mx,updated_at:new Date().toISOString()}])});toast('تم حفظ مدة التجهيز');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر حفظ مدة التجهيز')}}};
 }
 
 function availabilityState(bp){
