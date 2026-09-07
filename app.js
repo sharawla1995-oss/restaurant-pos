@@ -9,6 +9,43 @@ settings:{
   enable_delivery_drivers:true,enable_mixed_payment:true
 },
 modifiers:[],productModifiers:[],productVariants:[],deliveryZones:[],drivers:[],employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[]};
+let websiteOrderWatchTimer=null;
+let knownWebsiteOrderIds=new Set();
+let websiteOrderWatchPrimed=false;
+let websiteAudioCtx=null;
+function websiteOrderBeep(){
+  try{
+    websiteAudioCtx=websiteAudioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    if(websiteAudioCtx.state==='suspended') websiteAudioCtx.resume();
+    const o=websiteAudioCtx.createOscillator(),g=websiteAudioCtx.createGain();
+    o.type='sine';o.frequency.value=880;g.gain.value=.0001;o.connect(g);g.connect(websiteAudioCtx.destination);
+    const t=websiteAudioCtx.currentTime;g.gain.exponentialRampToValueAtTime(.18,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.45);o.start(t);o.stop(t+.48);
+    setTimeout(()=>{try{const o2=websiteAudioCtx.createOscillator(),g2=websiteAudioCtx.createGain();o2.frequency.value=1040;g2.gain.value=.0001;o2.connect(g2);g2.connect(websiteAudioCtx.destination);const x=websiteAudioCtx.currentTime;g2.gain.exponentialRampToValueAtTime(.16,x+.02);g2.gain.exponentialRampToValueAtTime(.0001,x+.38);o2.start(x);o2.stop(x+.4)}catch{}},180);
+  }catch{}
+}
+function showWebsiteOrderAlert(w){
+  document.querySelectorAll('.website-global-alert').forEach(x=>x.remove());
+  const el=document.createElement('div');el.className='website-global-alert';
+  el.innerHTML=`<div class="website-alert-icon">🌐</div><div class="website-alert-copy"><b>طلب جديد من الموقع</b><span>WEB-${String(w.id).padStart(5,'0')} • ${esc(w.customer_name||'عميل')} • ${money(w.total)}</span></div><button class="website-alert-open" type="button">عرض الطلب</button><button class="website-alert-close" type="button" aria-label="إغلاق">×</button>`;
+  document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));websiteOrderBeep();
+  el.querySelector('.website-alert-open').onclick=()=>{el.remove();showPage('deliveryOrders')};
+  el.querySelector('.website-alert-close').onclick=()=>el.remove();
+}
+async function checkWebsiteOrders(){
+  if(!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('deliveryOrders'))return;
+  try{
+    const rows=await rest('website_orders',`select=id,customer_name,total,created_at&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`);
+    const ids=new Set((rows||[]).map(x=>String(x.id)));
+    if(!websiteOrderWatchPrimed){knownWebsiteOrderIds=ids;websiteOrderWatchPrimed=true;return;}
+    const fresh=(rows||[]).filter(x=>!knownWebsiteOrderIds.has(String(x.id)));
+    knownWebsiteOrderIds=ids;
+    if(fresh.length)showWebsiteOrderAlert(fresh[fresh.length-1]);
+  }catch(e){}
+}
+function startWebsiteOrderWatch(){
+  clearInterval(websiteOrderWatchTimer);websiteOrderWatchPrimed=false;knownWebsiteOrderIds=new Set();
+  checkWebsiteOrders();websiteOrderWatchTimer=setInterval(checkWebsiteOrders,10000);
+}
 const money=n=>`${Number(n||0).toFixed(2)} ج.م`;
 const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
@@ -21,7 +58,7 @@ async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
-async function logout(){try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
+async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
 function branchName(id){return state.branches.find(b=>String(b.id)===String(id))?.name||''}
 function driverName(id){return state.drivers.find(d=>String(d.id)===String(id))?.name||''}
 function zoneName(id){return state.deliveryZones.find(z=>String(z.id)===String(id))?.name||''}
@@ -75,6 +112,7 @@ function selectBranch(id){
   if(!allowedBranchIds().includes(bid)) return toast('ليس لديك صلاحية لهذا الفرع');
   state.activeBranchId=bid;
   refreshBranchChrome();
+  startWebsiteOrderWatch();
   showPage('home');
 }
 function renderBranchPicker(){
@@ -116,7 +154,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
-  show('appView');if(state.activeBranchId)showPage('home');else renderBranchPicker();
+  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
 }
 
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
