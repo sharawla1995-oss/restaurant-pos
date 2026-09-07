@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Top Burger POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=9.2.8">
+  <link rel="stylesheet" href="styles.css?v=9.2.9">
 </head>
 <body>
 <div id="toast"></div>
@@ -41,7 +41,7 @@
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><span>Top Burger <small class="version-badge">V9.2.8 BRANCH ORDERS</small></span></div>
+    <div class="brand"><b>POS</b><span>Top Burger <small class="version-badge">V9.2.9 BRANCH MANAGEMENT</small></span></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
@@ -63,11 +63,11 @@
     <div class="sidebar-foot"><span id="who"></span></div>
   </aside>
   <main class="main">
-    <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button><div id="clock"></div></header>
+    <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><div class="branch-top-actions"><button id="addBranchBtn" class="add-branch-btn hidden" type="button">➕ إضافة فرع</button><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button></div><div id="clock"></div></header>
     <div id="page" class="page"></div>
   </main>
 </section>
 
-<script src="app.js?v=9.2.8"></script>
+<script src="app.js?v=9.2.9"></script>
 </body>
 </html>

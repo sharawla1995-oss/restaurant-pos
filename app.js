@@ -93,7 +93,8 @@ const PERMISSION_DEFS=[
   ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['deliverySettings','إعدادات الدليفري'],
   ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
   ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
-  ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز']
+  ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],
+  ['branchManagement','🏪 إدارة الفروع']
 ];
 function effectivePermissionSet(){
   if(isAdmin())return new Set(ALL_PAGES);
@@ -133,6 +134,8 @@ function refreshBranchChrome(){
   if($('#branchName')) $('#branchName').textContent=id?`فرع ${branchName(id)}`:'اختر الفرع';
   const btn=$('#changeBranchBtn');
   if(btn){const multi=allowedBranches().length>1;btn.classList.toggle('hidden',!multi||!id);btn.textContent=id?`تغيير الفرع • ${branchName(id)}`:'تغيير الفرع';}
+  const add=$('#addBranchBtn');
+  if(add)add.classList.toggle('hidden',!hasFeaturePermission('branchManagement'));
 }
 function selectBranch(id){
   const bid=Number(id);
@@ -151,6 +154,54 @@ function renderBranchPicker(){
   $('#page').innerHTML=`<section class="branch-picker"><div class="branch-picker-head"><span>TOP BURGER • POS</span><h1>اختار الفرع</h1><p>كل الطلبات والورديات والمصروفات والتقارير بعد الاختيار هتكون للفرع ده فقط.</p></div><div class="branch-picker-grid">${allowedBranches().map((b,i)=>`<button class="branch-pick-card ${i%2?'alt':''}" data-branch-pick="${b.id}"><span class="branch-pick-icon">🏪</span><div><b>${esc(b.name)}</b><small>الدخول إلى نظام الفرع</small></div><span>‹</span></button>`).join('')}</div></section>`;
   $('#page').onclick=e=>{const b=e.target.closest('[data-branch-pick]');if(b)selectBranch(b.dataset.branchPick)};
 }
+
+async function openCreateBranch(){
+  if(!hasFeaturePermission('branchManagement'))return toast('ليس لديك صلاحية إدارة الفروع');
+  const templates=state.branches.filter(b=>b.active!==false);
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<div class="modal-card branch-create-modal"><div class="section-head"><div><h2>🏪 إضافة فرع جديد</h2><p class="muted">الفرع الجديد يتجهز تلقائيًا بنفس بنية النظام الحالية.</p></div></div>
+  <form id="createBranchForm">
+    <div class="form-grid">
+      <label>اسم الفرع<input id="newBranchName" required placeholder="مثال: مدينة نصر"></label>
+      <label>رقم الهاتف<input id="newBranchPhone" inputmode="tel" placeholder="اختياري"></label>
+      <label>العنوان<input id="newBranchAddress" placeholder="اختياري"></label>
+    </div>
+    <label>استخدم فرع كنموذج
+      <select id="newBranchTemplate"><option value="">الأسعار الأساسية + كل الأصناف متاحة</option>${templates.map(b=>`<option value="${b.id}" ${Number(b.id)===currentBranchId()?'selected':''}>نسخ إعدادات فرع ${esc(b.name)}</option>`).join('')}</select>
+    </label>
+    <div class="branch-create-summary">
+      <b>سيتم تلقائيًا:</b>
+      <span>✓ إضافة كل الأصناف للفرع</span>
+      <span>✓ نسخ أسعار الفرع النموذج وحالات التوافر</span>
+      <span>✓ إنشاء إعدادات الموقع ومدة التجهيز</span>
+      <span>✓ إظهاره في اختيار الفروع والموقع</span>
+      <small>الإيقافات المؤقتة الحالية لا تُنسخ للفرع الجديد، ومناطق الدليفري والموظفون يضافوا للفرع بعد الإنشاء لأنهم بيانات خاصة بالموقع الجديد.</small>
+    </div>
+    <label class="inline-check"><input id="newBranchWebsite" type="checkbox" checked> يظهر على الموقع</label>
+    <div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">➕ إنشاء الفرع كاملًا</button></div>
+  </form></div>`;
+  document.body.appendChild(m);
+  m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove()};
+  m.querySelector('#createBranchForm').onsubmit=async e=>{
+    e.preventDefault();
+    const name=m.querySelector('#newBranchName').value.trim();if(!name)return toast('اكتب اسم الفرع');
+    const submit=e.submitter; if(submit)submit.disabled=true;
+    try{
+      const id=Number(await rpc('create_branch_full',{
+        p_name:name,
+        p_phone:m.querySelector('#newBranchPhone').value.trim()||null,
+        p_address:m.querySelector('#newBranchAddress').value.trim()||null,
+        p_source_branch_id:m.querySelector('#newBranchTemplate').value?Number(m.querySelector('#newBranchTemplate').value):null,
+        p_website_visible:m.querySelector('#newBranchWebsite').checked
+      }));
+      const fresh=await rest('branches','select=*&active=eq.true&order=sort_order,id');
+      state.branches=fresh||state.branches;
+      try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(_){ }
+      m.remove();toast(`تم إنشاء فرع ${name} وتجهيزه بالكامل`);refreshBranchChrome();
+      if(allowedBranchIds().includes(id))selectBranch(id);else renderBranchPicker();
+    }catch(err){toast(err.message||'تعذر إنشاء الفرع')}finally{if(submit)submit.disabled=false}
+  };
+}
 function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
 function localDateInput(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function rangeISO(from,to){return {from:new Date(`${from}T00:00:00`).toISOString(),to:new Date(`${to}T23:59:59.999`).toISOString()}}
@@ -161,7 +212,7 @@ async function audit(action,entityType,entityId,details={}){try{await rest('audi
 async function bootstrap(){
   const [emps,branches,cats,products,settingsRows,modifiers,productModifiers,productVariants,zones,drivers]=await Promise.all([
     rest('employees','select=*&auth_user_id=eq.'+session.user.id+'&active=eq.true'),
-    rest('branches','select=*&active=eq.true&order=id'),
+    rest('branches','select=*&active=eq.true&order=sort_order,id'),
     rest('categories','select=*&active=eq.true&order=sort_order'),
     rest('products','select=*&active=eq.true&order=id'),
     rest('app_settings','select=key,value'),
@@ -187,7 +238,7 @@ async function bootstrap(){
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);await bootstrap()}catch(err){toast(err.message)}});
-if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();
+if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
