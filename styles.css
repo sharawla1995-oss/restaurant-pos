@@ -263,3 +263,23 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 /* V9.2.9 Branch Management */
 .branch-top-actions{display:flex;align-items:center;gap:8px;margin-inline-start:auto}.branch-top-actions .branch-switch{margin-inline-start:0}.add-branch-btn{border:1px solid #3d8f67;background:#15362a;color:#83e6b4;border-radius:999px;padding:8px 12px;font-weight:850;white-space:nowrap}.branch-create-summary{display:grid;gap:7px;background:#0d1724;border:1px solid #2a3c50;border-radius:12px;padding:12px;margin:12px 0}.branch-create-summary span{font-size:13px}.branch-create-summary small{color:#9aa8bb;line-height:1.7}.inline-check{display:flex;grid-template-columns:auto 1fr;align-items:center;gap:8px}.inline-check input{width:auto}.branch-create-modal .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:650px){.topbar{gap:8px}.branch-top-actions{gap:5px}.add-branch-btn{font-size:11px;padding:7px 9px}.branch-create-modal .form-grid{grid-template-columns:1fr}.branch-top-actions .branch-switch{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+/* V9.2.10 Branch Admin + clean permissions */
+.manage-branch-btn{border-color:#536d8d;background:#18283a;color:#bcd6f4}
+.branch-manage-modal{width:min(980px,96vw)}
+.branch-admin-list{display:grid;gap:10px;max-height:68vh;overflow:auto;padding-inline-end:2px}
+.branch-admin-card{border:1px solid #2a3c50;background:#0e1928;border-radius:14px;padding:13px;display:grid;gap:11px}
+.branch-admin-card.is-disabled{opacity:.65}
+.branch-admin-main{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.branch-admin-main>div{display:grid;gap:3px}.branch-admin-main small{color:#93a3b8}
+.branch-admin-actions{display:flex;gap:7px;flex-wrap:wrap}.branch-admin-actions button{padding:8px 10px;font-size:12px}
+.branch-edit-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.permission-group{border:1px solid #2b3b4f;border-radius:13px;background:#0d1724;overflow:hidden;margin:10px 0}
+.permission-group h4{margin:0;padding:10px 12px;background:#142236;border-bottom:1px solid #2b3b4f;font-size:14px}
+.permission-list{display:grid}
+.permission-row{display:flex!important;grid-template-columns:none!important;align-items:center;justify-content:space-between;gap:14px;padding:10px 12px;border-bottom:1px solid #223247;margin:0!important;min-height:46px}
+.permission-row:last-child{border-bottom:0}.permission-row span{line-height:1.5}
+.permission-toggle{appearance:none;-webkit-appearance:none;width:42px!important;height:24px!important;border-radius:999px;background:#314154;border:1px solid #43556c;position:relative;flex:0 0 auto;cursor:pointer;margin:0!important}
+.permission-toggle:after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#d6deea;transition:.18s}
+.permission-toggle:checked{background:#159b7e;border-color:#20b99a}.permission-toggle:checked:after{left:20px;background:white}
+@media(max-width:650px){.branch-top-actions{flex-wrap:wrap;justify-content:flex-end}.manage-branch-btn,.add-branch-btn{font-size:10px;padding:6px 8px}.branch-admin-main{align-items:flex-start}.branch-admin-actions{display:grid;grid-template-columns:1fr 1fr}.branch-admin-actions button{width:100%}.branch-edit-modal .form-grid{grid-template-columns:1fr}.permission-row{padding:9px 11px;min-height:44px}.permission-group h4{font-size:13px}}

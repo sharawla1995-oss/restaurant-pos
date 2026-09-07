@@ -96,6 +96,13 @@ const PERMISSION_DEFS=[
   ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],
   ['branchManagement','🏪 إدارة الفروع']
 ];
+const PERMISSION_GROUPS=[
+  ['🧾 المبيعات',['pos','orders','customers','deliveryOrders','shifts']],
+  ['📊 الإدارة',['expenses','reports','products','settings']],
+  ['🚚 التشغيل',['deliverySettings','kitchen','inventory']],
+  ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings']],
+  ['🏪 الفروع',['branchManagement']]
+];
 function effectivePermissionSet(){
   if(isAdmin())return new Set(ALL_PAGES);
   if(Array.isArray(state.userPermissions)&&state.userPermissions.length){
@@ -136,6 +143,8 @@ function refreshBranchChrome(){
   if(btn){const multi=allowedBranches().length>1;btn.classList.toggle('hidden',!multi||!id);btn.textContent=id?`تغيير الفرع • ${branchName(id)}`:'تغيير الفرع';}
   const add=$('#addBranchBtn');
   if(add)add.classList.toggle('hidden',!hasFeaturePermission('branchManagement'));
+  const manage=$('#manageBranchesBtn');
+  if(manage)manage.classList.toggle('hidden',!hasFeaturePermission('branchManagement'));
 }
 function selectBranch(id){
   const bid=Number(id);
@@ -202,6 +211,47 @@ async function openCreateBranch(){
     }catch(err){toast(err.message||'تعذر إنشاء الفرع')}finally{if(submit)submit.disabled=false}
   };
 }
+
+async function reloadBranches(){
+  const fresh=await rest('branches','select=*&active=eq.true&order=sort_order,id');
+  state.branches=fresh||[];
+  try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(_){ }
+  refreshBranchChrome();
+}
+async function openManageBranches(){
+  if(!hasFeaturePermission('branchManagement'))return toast('ليس لديك صلاحية إدارة الفروع');
+  let all=[];
+  try{all=await rest('branches','select=*&order=sort_order,id')}catch(e){return toast(e.message)}
+  const m=document.createElement('div');m.className='modal';
+  const render=()=>{
+    m.innerHTML=`<div class="modal-card branch-manage-modal"><div class="section-head"><div><h2>⚙️ إدارة الفروع</h2><p class="muted">تعديل بيانات الفرع أو ترتيبه أو إخفاؤه أو تعطيله بأمان.</p></div><button class="secondary" data-close>إغلاق</button></div>
+    <div class="branch-admin-list">${all.map(b=>`<div class="branch-admin-card ${b.active===false?'is-disabled':''}">
+      <div class="branch-admin-main"><div><b>${esc(b.name)}</b><small>${esc(b.phone||'بدون هاتف')} • ${b.active===false?'معطل':'فعال'} • ${b.website_visible===false?'مخفي من الموقع':'ظاهر بالموقع'}</small></div><span class="tag">ترتيب ${Number(b.sort_order||b.id)}</span></div>
+      <div class="branch-admin-actions">
+        <button class="secondary" data-edit-branch="${b.id}">✏️ تعديل</button>
+        <button class="secondary" data-copy-branch="${b.id}">📋 نسخ إعدادات</button>
+        <button class="secondary" data-toggle-site="${b.id}">${b.website_visible===false?'🌐 إظهار بالموقع':'🙈 إخفاء من الموقع'}</button>
+        <button class="secondary" data-toggle-branch="${b.id}">${b.active===false?'♻️ إعادة تفعيل':'⛔ تعطيل'}</button>
+        <button class="danger" data-delete-branch="${b.id}">🗑️ حذف آمن</button>
+      </div>
+    </div>`).join('')||'<div class="empty">لا توجد فروع</div>'}</div></div>`;
+  };
+  render();document.body.appendChild(m);
+  const find=id=>all.find(x=>String(x.id)===String(id));
+  m.onclick=async e=>{
+    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
+    const edit=e.target.closest('[data-edit-branch]');
+    if(edit){const b=find(edit.dataset.editBranch);if(!b)return;const f=document.createElement('div');f.className='modal';f.innerHTML=`<form class="modal-card branch-edit-modal" id="branchEditForm"><h2>✏️ تعديل فرع ${esc(b.name)}</h2><div class="form-grid"><label>اسم الفرع<input id="beName" required value="${esc(b.name)}"></label><label>الهاتف<input id="bePhone" value="${esc(b.phone||'')}"></label><label>العنوان<input id="beAddress" value="${esc(b.address||'')}"></label><label>ترتيب الظهور<input id="beSort" type="number" min="1" value="${Number(b.sort_order||b.id)}"></label></div><label class="inline-check"><input id="beWebsite" type="checkbox" ${b.website_visible===false?'':'checked'}> يظهر على الموقع</label><div class="modal-actions"><button type="button" class="secondary" data-close-edit>إلغاء</button><button class="primary" type="submit">حفظ</button></div></form>`;document.body.appendChild(f);f.onclick=x=>{if(x.target.closest('[data-close-edit]')||x.target===f)f.remove()};f.querySelector('#branchEditForm').onsubmit=async x=>{x.preventDefault();try{await rpc('update_branch_full',{p_branch_id:Number(b.id),p_name:f.querySelector('#beName').value.trim(),p_phone:f.querySelector('#bePhone').value.trim()||null,p_address:f.querySelector('#beAddress').value.trim()||null,p_website_visible:f.querySelector('#beWebsite').checked,p_sort_order:Number(f.querySelector('#beSort').value||b.sort_order||b.id)});all=await rest('branches','select=*&order=sort_order,id');f.remove();render();await reloadBranches();toast('تم تعديل الفرع')}catch(err){toast(err.message)}};return}
+    const site=e.target.closest('[data-toggle-site]');
+    if(site){const b=find(site.dataset.toggleSite);if(!b)return;try{await rpc('update_branch_full',{p_branch_id:Number(b.id),p_name:b.name,p_phone:b.phone||null,p_address:b.address||null,p_website_visible:b.website_visible===false,p_sort_order:Number(b.sort_order||b.id)});all=await rest('branches','select=*&order=sort_order,id');render();await reloadBranches();toast('تم تحديث ظهور الفرع على الموقع')}catch(err){toast(err.message)}return}
+    const tog=e.target.closest('[data-toggle-branch]');
+    if(tog){const b=find(tog.dataset.toggleBranch);if(!b)return;if(Number(b.id)===currentBranchId()&&b.active!==false)return toast('غيّر للفرع الآخر قبل تعطيل الفرع الحالي');if(!await uiConfirm(`${b.active===false?'إعادة تفعيل':'تعطيل'} فرع ${b.name}؟`))return;try{await rpc('set_branch_active',{p_branch_id:Number(b.id),p_active:b.active===false});all=await rest('branches','select=*&order=sort_order,id');render();await reloadBranches();toast('تم تحديث حالة الفرع')}catch(err){toast(err.message)}return}
+    const copy=e.target.closest('[data-copy-branch]');
+    if(copy){const target=find(copy.dataset.copyBranch);if(!target)return;const sources=all.filter(x=>x.active!==false&&String(x.id)!==String(target.id));if(!sources.length)return toast('لا يوجد فرع آخر للنسخ منه');const src=await uiPrompt(`اكتب رقم الفرع الذي تريد النسخ منه إلى ${target.name}:\n${sources.map(x=>`${x.id} = ${x.name}`).join(' | ')}`);if(src===null)return;const source=sources.find(x=>String(x.id)===String(src.trim()));if(!source)return toast('رقم الفرع غير صحيح');if(!await uiConfirm(`نسخ الأسعار + التوافر + إعدادات الموقع من ${source.name} إلى ${target.name}؟`))return;try{await rpc('copy_branch_configuration',{p_source_branch_id:Number(source.id),p_target_branch_id:Number(target.id)});toast('تم نسخ إعدادات الفرع')}catch(err){toast(err.message)}return}
+    const del=e.target.closest('[data-delete-branch]');
+    if(del){const b=find(del.dataset.deleteBranch);if(!b)return;if(Number(b.id)===currentBranchId())return toast('لا يمكن حذف الفرع المفتوح حاليًا');if(!await uiConfirm(`حذف فرع ${b.name} نهائيًا؟\nلن يسمح النظام بالحذف إذا كان عليه أي حركة.`))return;try{await rpc('delete_branch_if_empty',{p_branch_id:Number(b.id)});all=await rest('branches','select=*&order=sort_order,id');render();await reloadBranches();toast('تم حذف الفرع الفارغ بأمان')}catch(err){toast(err.message)}return}
+  };
+}
 function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]))}
 function localDateInput(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function rangeISO(from,to){return {from:new Date(`${from}T00:00:00`).toISOString(),to:new Date(`${to}T23:59:59.999`).toISOString()}}
@@ -238,7 +288,7 @@ async function bootstrap(){
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);await bootstrap()}catch(err){toast(err.message)}});
-if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;
+if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
@@ -1084,7 +1134,7 @@ async function renderUsers(){
  const roleLabel=r=>({admin:'مدير',cashier:'كاشير',callcenter:'كول سنتر'}[r]||r);
  const branchChecks=(selected=[],admin=false)=>admin?'<span class="tag">كل الفروع</span>':state.branches.map(b=>`<label><input type="checkbox" class="user-branch" value="${b.id}" ${selected.map(String).includes(String(b.id))?'checked':''}> ${esc(b.name)}</label>`).join('');
  const defaultPermissions=role=>[...(ROLE_PAGES[role]||ROLE_PAGES.cashier)].filter(x=>x!=='home'&&x!=='delivery'&&x!=='users');
- const permissionChecks=(selected=[],admin=false)=>admin?'<div class="empty">المدير لديه كل الصلاحيات تلقائيًا.</div>':PERMISSION_DEFS.map(([k,l])=>`<label><input type="checkbox" class="user-permission" value="${k}" ${selected.includes(k)?'checked':''}> ${l}</label>`).join('');
+ const permissionChecks=(selected=[],admin=false)=>admin?'<div class="empty">المدير لديه كل الصلاحيات تلقائيًا.</div>':PERMISSION_GROUPS.map(([title,keys])=>`<section class="permission-group"><h4>${title}</h4><div class="permission-list">${keys.map(k=>{const d=PERMISSION_DEFS.find(x=>x[0]===k);if(!d)return '';return `<label class="permission-row"><span>${d[1]}</span><input type="checkbox" class="user-permission permission-toggle" value="${k}" ${selected.includes(k)?'checked':''}></label>`}).join('')}</div></section>`).join('');
  $('#page').innerHTML=`<div class="panel users-admin-head"><div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>حدد لكل مستخدم الفروع والشاشات المسموح له بها.</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div></div><div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}"><div class="user-main"><b>${esc(u.name)}</b><small>${esc(u.email||u.username||'بدون بريد')} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الصلاحيات</span>':((u.permissions_configured?u.permissions:defaultPermissions(u.role)).map(k=>`<span class="tag">${esc(PERMISSION_DEFS.find(x=>x[0]===k)?.[1]||k)}</span>`).join(''))}</div><div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div></div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
  const savePermissions=async(employeeId,keys)=>{await rest('employee_permissions',`employee_id=eq.${employeeId}`,{method:'DELETE'});const rows=PERMISSION_DEFS.map(([k])=>({employee_id:employeeId,permission_key:k,allowed:keys.includes(k)}));if(rows.length)await rest('employee_permissions','',{method:'POST',body:JSON.stringify(rows)})};
  const openForm=(u=null)=>{const editing=!!u,role=u?.role||'cashier',ids=u?.branch_ids||[currentBranchId()],initialPerms=u?.permissions_configured?u.permissions:defaultPermissions(role);const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card user-edit-modal" id="userForm"><h2>${editing?'تعديل المستخدم':'إضافة مستخدم جديد'}</h2><div class="form-grid"><label>الاسم<input id="uName" value="${esc(u?.name||'')}" required></label><label>البريد الإلكتروني<input id="uEmail" type="email" value="${esc(u?.email||'')}" ${editing?'readonly':''} required></label>${editing?'':`<label>كلمة المرور<input id="uPassword" type="password" minlength="6" required></label>`}<label>الدور<select id="uRole"><option value="cashier" ${role==='cashier'?'selected':''}>كاشير</option><option value="callcenter" ${role==='callcenter'?'selected':''}>كول سنتر</option><option value="admin" ${role==='admin'?'selected':''}>مدير</option></select></label><label>الفرع الأساسي<select id="uHomeBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(u?.branch_id||currentBranchId())?'selected':''}>${esc(b.name)}</option>`).join('')}</select></label><label class="check-line"><input id="uActive" type="checkbox" ${u?.active===false?'':'checked'}> المستخدم فعال</label></div><div class="user-branches-box"><b>الفروع المسموح بها</b><div id="uBranchChecks" class="branch-checks">${branchChecks(ids,role==='admin')}</div><small id="uBranchHint">${role==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'}</small></div><div class="user-branches-box"><b>الصلاحيات</b><div id="uPermissionChecks" class="branch-checks">${permissionChecks(initialPerms,role==='admin')}</div><small>الدور يضع قالبًا افتراضيًا، وبعدها تقدر تزود أو تشيل أي صلاحية.</small></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ</button></div></form>`;document.body.appendChild(m);
