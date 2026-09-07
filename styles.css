@@ -196,3 +196,17 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
   .products-grid:not(.category-grid){grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .product-img{height:80px!important}
 }
+
+
+/* V9.1.5 product price editor */
+.product-edit-modal{max-width:680px;width:min(94vw,680px)}
+.variant-price-editor{margin-top:16px;padding-top:12px;border-top:1px solid var(--line,#26364a)}
+.variant-price-editor h3{margin:0 0 6px}
+.variant-price-editor .muted{opacity:.72;margin:0 0 12px;font-size:.9rem}
+.variant-price-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.variant-price-grid label{display:flex;flex-direction:column;gap:6px;font-weight:700}
+.variant-price-grid input{width:100%}
+@media(max-width:640px){
+ .product-edit-modal{width:94vw;max-height:88vh;overflow:auto}
+ .variant-price-grid{grid-template-columns:1fr 1fr}
+}
