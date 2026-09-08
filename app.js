@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=null;
 
-// ===== Sharawla Cloud device licensing V10.4.14 =====
+// ===== Sharawla Cloud device licensing V10.4.15 =====
 const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
 const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
@@ -13,8 +13,27 @@ async function cloudRpc(name,payload={}){
   if(!r.ok)throw new Error(d?.message||d?.hint||`Sharawla Cloud ${r.status}`);
   return Array.isArray(d)?d[0]:d;
 }
-async function loadLicenseState(){try{return await odbGet(LICENSE_STATE_KEY)}catch{return null}}
-async function saveLicenseState(v){await odbSet(LICENSE_STATE_KEY,v);return v}
+async function loadLicenseState(){
+  try{
+    if(window.topBurgerDesktop?.licenseState?.get){
+      const fileState=await window.topBurgerDesktop.licenseState.get();
+      if(fileState?.device_id)return fileState;
+      const legacy=await odbGet(LICENSE_STATE_KEY);
+      if(legacy?.device_id){await window.topBurgerDesktop.licenseState.set(legacy);return legacy}
+      return legacy||null;
+    }
+    return await odbGet(LICENSE_STATE_KEY);
+  }catch{return null}
+}
+async function saveLicenseState(v){
+  if(window.topBurgerDesktop?.licenseState?.set)await window.topBurgerDesktop.licenseState.set(v);
+  await odbSet(LICENSE_STATE_KEY,v);
+  return v;
+}
+async function clearLicenseState(){
+  if(window.topBurgerDesktop?.licenseState?.clear)await window.topBurgerDesktop.licenseState.clear();
+  await odbSet(LICENSE_STATE_KEY,null);
+}
 function licenseGraceValid(st){if(!st?.last_verified_at)return false;const days=Math.max(0,Number(st.offline_grace_days||0));return Date.now()-new Date(st.last_verified_at).getTime() <= days*86400000}
 let licenseRetryBusy=false,licenseRetryTimer=null;
 async function setActivationMode(){
@@ -476,7 +495,7 @@ async function bootstrap(){
 if($('#retryLicenseBtn'))$('#retryLicenseBtn').addEventListener('click',()=>retryExistingSharawlaLicense());
 if($('#changeLicenseBtn'))$('#changeLicenseBtn').addEventListener('click',async()=>{
   if(!confirm('سيتم فك الربط المحلي على هذا الجهاز فقط وإظهار خانة كود الترخيص. متابعة؟'))return;
-  await saveLicenseState(null);stopLicenseRetry();await showActivation('أدخل كود الترخيص الجديد الخاص بهذا الجهاز.');
+  await clearLicenseState();stopLicenseRetry();await showActivation('أدخل كود الترخيص الجديد الخاص بهذا الجهاز.');
 });
 
 if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>{
@@ -495,11 +514,16 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
-if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
+if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
+function syncSidebarRestoreButton(){const sb=$('.sidebar'),btn=$('#sidebarRestoreBtn');if(!sb||!btn)return;btn.classList.toggle('hidden',sb.classList.contains('open'))}
+function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.toggle('open',!!open);syncSidebarRestoreButton()}
+if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
+if($('#sidebarRestoreBtn'))$('#sidebarRestoreBtn').onclick=()=>setSidebarOpen(true);
+$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',websitePayments:'طرق الدفع على الموقع',websiteAppearance:'تصميم وقائمة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
-function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
+function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
 async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
@@ -739,7 +763,7 @@ function drawProducts(){
  grid.classList.remove('category-grid');
  const list=state.products.filter(p=>p.active!==false&&productAvailableAtBranch(p)&&(state.cat==='all'||String(p.category_id)===String(state.cat))&&(!q||String(p.name).toLowerCase().includes(q))).slice().sort((a,b)=>{const ca=state.categories.find(c=>String(c.id)===String(a.category_id)),cb=state.categories.find(c=>String(c.id)===String(b.category_id));return catalogOrderValue(ca)-catalogOrderValue(cb)||catalogOrderValue(a)-catalogOrderValue(b)||Number(a.id)-Number(b.id)});
  grid.innerHTML=list.map(p=>`<button class="product" data-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">🍔</div>`}<b>${esc(p.name)}</b><span>${money(effectiveProductPrice(p))}</span></button>`).join('')||'<div class="empty">لا توجد أصناف في هذا التصنيف</div>';
- grid.onclick=e=>{const b=e.target.closest('.product');if(!b)return;$('.sidebar')?.classList.remove('open');const p=state.products.find(x=>String(x.id)===String(b.dataset.id));if(p)addProductToCart({...p,price:effectiveProductPrice(p)})};
+ grid.onclick=e=>{const b=e.target.closest('.product');if(!b)return;setSidebarOpen(false);const p=state.products.find(x=>String(x.id)===String(b.dataset.id));if(p)addProductToCart({...p,price:effectiveProductPrice(p)})};
 }
 function productModifierList(p){const ids=state.productModifiers.filter(x=>String(x.product_id)===String(p.id)).map(x=>String(x.modifier_id));return state.modifiers.filter(m=>ids.includes(String(m.id)))}
 function productVariantList(p){return (state.productVariants||[]).filter(x=>String(x.product_id)===String(p.id)&&x.active!==false).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id))}
@@ -1618,10 +1642,10 @@ async function renderSettings(){
  if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
+async function init(){syncSidebarRestoreButton();if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.14',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.15',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

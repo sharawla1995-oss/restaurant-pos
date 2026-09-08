@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.14",
-  "description": "Sharawla POS V10.4.14 - Sharawla Cloud license suspend/resume fix, preserving Top Burger POS behavior",
+  "version": "10.4.15",
+  "description": "Sharawla POS V10.4.15 - durable device license suspend/resume + sidebar restore control, preserving Top Burger POS behavior",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

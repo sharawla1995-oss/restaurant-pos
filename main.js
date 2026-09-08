@@ -10,6 +10,16 @@ function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSyn
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
 function backupDir(){const d=path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
+
+function licenseStatePath(){return path.join(dataDir(),'sharawla-license-state.json')}
+function readLicenseStateFile(){
+  try{const p=licenseStatePath();if(!fs.existsSync(p))return null;const v=JSON.parse(fs.readFileSync(p,'utf8'));return v&&typeof v==='object'?v:null}catch{return null}
+}
+function writeLicenseStateFile(v){
+  const p=licenseStatePath();
+  if(v==null){try{if(fs.existsSync(p))fs.unlinkSync(p)}catch{};return true}
+  const tmp=p+'.tmp';fs.writeFileSync(tmp,JSON.stringify(v),'utf8');try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{};return true
+}
 function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
@@ -147,6 +157,9 @@ function deviceInfo(){return {fingerprint:stableDeviceFingerprint(),name:os.host
 function registerIpc(){
  ipcMain.handle('db:get',(_e,k)=>{const r=one('select value from kv where key=?',[String(k)]);return r?JSON.parse(r.value):undefined});
  ipcMain.handle('db:set',(_e,k,v)=>run(`insert into kv(key,value,updated_at) values(?,?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=datetime('now')`,[String(k),JSON.stringify(v)]));
+ ipcMain.handle('license-state:get',()=>readLicenseStateFile());
+ ipcMain.handle('license-state:set',(_e,v)=>writeLicenseStateFile(v));
+ ipcMain.handle('license-state:clear',()=>writeLicenseStateFile(null));
  ipcMain.handle('ops:put',(_e,op)=>run(`insert into local_operations(client_tx_id,type,payload,status,updated_at) values(?,?,?,'pending',datetime('now')) on conflict(client_tx_id) do update set payload=excluded.payload,updated_at=datetime('now')`,[String(op.client_tx_id),String(op.type),JSON.stringify(op)]));
  ipcMain.handle('ops:list',(_e,status='pending')=>all('select * from local_operations where status=? order by id',[status]).map(r=>({...r,payload:JSON.parse(r.payload)})));
  ipcMain.handle('ops:status',(_e,id,status,error=null)=>run(`update local_operations set status=?,attempts=attempts+1,last_error=?,updated_at=datetime('now') where client_tx_id=?`,[status,error,String(id)]));

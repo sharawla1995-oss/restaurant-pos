@@ -344,3 +344,10 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 
 /* V10.4.13 Sharawla Cloud licensing */
 #activationView .login-card{border-top:4px solid #f5c542}#activationView #deviceHint{display:block;word-break:break-all;margin-top:10px;opacity:.8}
+
+
+/* V10.4.15: explicit sidebar restore control */
+.sidebar-restore{position:fixed;right:10px;top:78px;z-index:520;border:1px solid #f4b323;background:#f4b323;color:#111;border-radius:12px;padding:9px 12px;font-weight:900;box-shadow:0 8px 24px #0006;display:flex;align-items:center;gap:6px}
+.sidebar-restore:hover{filter:brightness(1.05)}
+.sidebar.open~.sidebar-restore{display:none!important}
+@media(max-width:900px){.sidebar-restore{right:8px;top:74px;padding:9px 10px}.sidebar-restore span{display:none}}
