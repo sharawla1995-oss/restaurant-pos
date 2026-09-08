@@ -1,7 +1,7 @@
 {
   "name": "top-burger-pos-windows",
-  "version": "10.4.3",
-  "description": "Top Burger POS V10.4.3 - Unified source for GitHub/PWA and Windows 7 x64",
+  "version": "10.4.4",
+  "description": "Top Burger POS V10.4.4 - Direct print, compact 80mm receipts, reprint copy marking",
   "main": "main.js",
   "author": "Top Burger",
   "license": "UNLICENSED",
