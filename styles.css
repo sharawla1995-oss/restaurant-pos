@@ -332,3 +332,12 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
  .item-options-modal h2{font-size:17px!important}.item-options-modal h3{margin:6px 0 3px!important}
  .item-options-modal .option-list{gap:3px!important}.item-options-modal .option-list label{padding:5px 8px!important;font-size:12px!important;min-height:28px!important}
 }
+
+
+/* V10.4.11 — Windows updater progress */
+.desktop-update-progress{position:fixed;left:16px;bottom:16px;width:min(390px,calc(100vw - 32px));z-index:99999;background:#111827;color:#fff;border-radius:14px;padding:11px 13px;box-shadow:0 10px 30px rgba(0,0,0,.28);direction:rtl}
+.desktop-update-progress.hidden{display:none}
+.desktop-update-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:800;margin-bottom:8px}
+.desktop-update-progress-track{height:8px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden}
+.desktop-update-progress-track i{display:block;height:100%;width:0;background:#fff;border-radius:999px;transition:width .18s ease}
+.desktop-update-progress.is-error{background:#991b1b}.desktop-update-progress.is-done{background:#166534}

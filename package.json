@@ -1,9 +1,9 @@
 {
-  "name": "top-burger-pos-windows",
-  "version": "10.4.10",
-  "description": "Top Burger POS V10.4.10 - website order flow + phone tracking/cancel integration",
+  "name": "sharawla-pos-windows",
+  "version": "10.4.12",
+  "description": "Sharawla POS V10.4.12 - forced login on every launch, configurable business identity, protected production packaging",
   "main": "main.js",
-  "author": "Top Burger",
+  "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
     "check": "node scripts/check-version.js",
@@ -19,12 +19,17 @@
   },
   "build": {
     "appId": "com.topburger.pos",
-    "productName": "Top Burger POS",
+    "productName": "Sharawla POS",
     "asar": true,
     "files": [
       "**/*",
       "!dist/**",
-      "!node_modules/.cache/**"
+      "!node_modules/.cache/**",
+      "!README*",
+      "!legacy-sql/**",
+      "!*.sql",
+      "!.github/**",
+      "!scripts/**"
     ],
     "directories": {
       "output": "dist"
@@ -44,7 +49,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Top Burger POS"
+      "shortcutName": "Sharawla POS"
     }
   }
 }

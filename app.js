@@ -1,6 +1,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
-let session=JSON.parse(localStorage.getItem('sbSession')||'null');
+let session=null;
+let resumeSession=JSON.parse(localStorage.getItem('sbResumeSession')||'null');
 let state={employee:null,branches:[],categories:[],products:[],cart:[],cat:'all',
 business:{business_name:'Top Burger',tagline:'🔥 طعم يستاهل التجربة',phone:'',address:'',logo_url:'',currency_symbol:'ج.م',receipt_footer:'شكرًا لزيارتكم',primary_color:'#b51f2b',accent_color:'#f0643d'},
 settings:{
@@ -130,18 +131,40 @@ async function refreshSessionIfNeeded(force=false){
   const exp=jwtExp(session.access_token),soon=!exp||(exp*1000-Date.now()<120000);
   if(!force&&!soon)return session;
   const d=await req('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:JSON.stringify({refresh_token:session.refresh_token})});
-  session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d
+  session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));return d
 }
 async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
 window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
-async function signIn(email,password){const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});session=d;localStorage.setItem('sbSession',JSON.stringify(d));return d}
-async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;localStorage.removeItem('sbSession');show('loginView')}
+function bytesHex(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function offlinePasswordHash(password,saltHex){
+  const salt=new Uint8Array((saltHex.match(/.{1,2}/g)||[]).map(x=>parseInt(x,16)));
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
+  return bytesHex(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},key,256));
+}
+async function rememberOfflineLogin(email,password){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),saltHex=bytesHex(salt);
+  const hash=await offlinePasswordHash(password,saltHex);
+  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),salt:saltHex,hash}));
+}
+async function signIn(email,password){
+  email=String(email||'').trim().toLowerCase();
+  if(navigator.onLine){
+    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+    session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+    await rememberOfflineLogin(email,password);return d;
+  }
+  const v=JSON.parse(localStorage.getItem('offlineLoginVerifier')||'null');
+  if(!v||v.email!==email||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
+  if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
+  session=resumeSession;return session;
+}
+async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
 function businessName(){return state.business?.business_name||'Top Burger'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
-  document.title=`${businessName()} POS`;
-  const n=$('#appBrandName');if(n)n.textContent=businessName();
+  document.title='Sharawla POS';
+  const n=$('#appBrandName');if(n)n.textContent='Sharawla POS';
   const logo=$('#appBrandLogo');if(logo){const u=state.business?.logo_url||'';logo.src=u;logo.classList.toggle('hidden',!u)}
   const root=document.documentElement;
   if(state.business?.primary_color)root.style.setProperty('--business-primary',state.business.primary_color);
@@ -377,7 +400,7 @@ async function bootstrap(){
 
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);await bootstrap()}catch(err){toast(err.message)}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
@@ -703,13 +726,13 @@ function setLocalAutoPrint(branchId,type,value){try{localStorage.setItem(desktop
 function printCountKey(o,type){return `tb_print_count_${type}_${String(o?.id||o?.client_tx_id||o?.invoice_number||o?.bon_number||'unknown')}`}
 function getPrintCount(o,type){try{return Math.max(0,Number(localStorage.getItem(printCountKey(o,type))||0))}catch{return 0}}
 function setPrintCount(o,type,n){try{localStorage.setItem(printCountKey(o,type),String(Math.max(0,Number(n)||0)))}catch{}}
-async function printIsolated(html,paper='80',copies=1,opts={}){const old=document.getElementById('receiptPrintFrame');if(old)old.remove();const f=document.createElement('iframe');f.id='receiptPrintFrame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);const width=paper==='58'?'54mm':'78mm',page=paper==='58'?'58mm':'80mm';const n=Math.max(1,Math.min(5,Number(copies)||1));const body=Array.from({length:n},()=>`<div class="print-copy">${html}</div>`).join('');const doc=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>@page{size:${page} auto;margin:1mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;color:#000;direction:rtl}.print-copy{width:${width}}.print-copy:not(:last-child){page-break-after:always}.receipt{width:${width};font-size:13px;line-height:1.28}.receipt-copy-mark{text-align:center;font-size:18px;font-weight:900;border:2px solid #000;padding:2px 5px;margin:0 auto 4px;max-width:30mm}.receipt-logo{display:block;max-width:30mm;max-height:18mm;object-fit:contain;margin:1mm auto}.receipt h2{text-align:center;font-size:20px;margin:2px 0}.receipt h1{text-align:center;font-size:25px;line-height:1.1;margin:3px 0}.receipt h3,.receipt p{margin:2px 0}.receipt hr{border:0;border-top:1px dashed #000;margin:4px 0}.r-meta,.r-footer{text-align:center}.r-customer{line-height:1.35}.r-items>div,.r-totals>div{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin:3px 0}.r-items>div>span{flex:1;min-width:0}.r-items small{display:block;font-size:11px;line-height:1.2;margin-top:1px}.prep-item>span>b{font-size:15px}.prep-note{font-weight:700}.grand-print{font-size:17px;font-weight:900;border-top:1px dashed #000;padding-top:4px}.r-footer{font-size:11px;line-height:1.25}.shift-print{width:${width};font-size:11px}.shift-print h2,.shift-print h3{text-align:center;margin:4px 0}.shift-report-table{width:100%;border-collapse:collapse;font-size:10px}.shift-report-table th,.shift-report-table td{border-bottom:1px dashed #777;padding:3px 2px;text-align:right}.shift-report-table th:nth-child(n+2),.shift-report-table td:nth-child(n+2){text-align:left}.shift-report-table small{display:block;font-size:8px}</style></head><body>${body}</body></html>`;if(window.topBurgerDesktop?.print?.html){try{const r=await window.topBurgerDesktop.print.html(doc,{silent:true,deviceName:opts.deviceName||''});f.remove();if(!r?.ok){if(r?.error)toast('تعذر الطباعة: '+r.error);return false}return true}catch(e){f.remove();toast('تعذر الطباعة: '+e.message);return false}}const d=f.contentDocument;d.open();d.write(doc);d.close();setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}finally{setTimeout(()=>f.remove(),1200)}},150);return true}
+async function printIsolated(html,paper='80',copies=1,opts={}){const old=document.getElementById('receiptPrintFrame');if(old)old.remove();const f=document.createElement('iframe');f.id='receiptPrintFrame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);const width=paper==='58'?'54mm':'78mm',page=paper==='58'?'58mm':'80mm';const n=Math.max(1,Math.min(5,Number(copies)||1));const body=Array.from({length:n},()=>`<div class="print-copy">${html}</div>`).join('');const doc=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>@page{size:${page} auto;margin:1mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;color:#000;direction:rtl;font-weight:700}small,td,th,p,span,div{font-weight:inherit}.receipt h1,.receipt h2,.receipt h3,.grand-print,.receipt-copy-mark,strong,b{font-weight:900}.print-copy{width:${width}}.print-copy:not(:last-child){page-break-after:always}.receipt{width:${width};font-size:13px;line-height:1.28}.receipt-copy-mark{text-align:center;font-size:18px;font-weight:900;border:2px solid #000;padding:2px 5px;margin:0 auto 4px;max-width:30mm}.receipt-logo{display:block;max-width:30mm;max-height:18mm;object-fit:contain;margin:1mm auto}.receipt h2{text-align:center;font-size:20px;margin:2px 0}.receipt h1{text-align:center;font-size:25px;line-height:1.1;margin:3px 0}.receipt h3,.receipt p{margin:2px 0}.receipt hr{border:0;border-top:1px dashed #000;margin:4px 0}.r-meta,.r-footer{text-align:center}.r-customer{line-height:1.35}.r-items>div,.r-totals>div{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin:3px 0}.r-items>div>span{flex:1;min-width:0}.r-items small{display:block;font-size:11px;line-height:1.2;margin-top:1px}.prep-item>span>b{font-size:15px}.prep-note{font-weight:700}.grand-print{font-size:17px;font-weight:900;border-top:1px dashed #000;padding-top:4px}.r-footer{font-size:11px;line-height:1.25}.shift-print{width:${width};font-size:11px}.shift-print h2,.shift-print h3{text-align:center;margin:4px 0}.shift-report-table{width:100%;border-collapse:collapse;font-size:10px}.shift-report-table th,.shift-report-table td{border-bottom:1px dashed #777;padding:3px 2px;text-align:right}.shift-report-table th:nth-child(n+2),.shift-report-table td:nth-child(n+2){text-align:left}.shift-report-table small{display:block;font-size:8px}</style></head><body>${body}</body></html>`;if(window.topBurgerDesktop?.print?.html){try{const r=await window.topBurgerDesktop.print.html(doc,{silent:true,deviceName:opts.deviceName||''});f.remove();if(!r?.ok){if(r?.error)toast('تعذر الطباعة: '+r.error);return false}return true}catch(e){f.remove();toast('تعذر الطباعة: '+e.message);return false}}const d=f.contentDocument;d.open();d.write(doc);d.close();setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}finally{setTimeout(()=>f.remove(),1200)}},150);return true}
 async function recordSuccessfulPrint(o,type,wasCopy){const prev=getPrintCount(o,type);setPrintCount(o,type,prev+1);if(wasCopy){await audit('reprint_order_receipt','order',o?.id||null,{print_type:type,print_count:prev+1,invoice_number:o?.invoice_number||null,bon_number:o?.bon_number||null})}}
 async function printReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'customer')>0;const ok=await printIsolated(receiptHTML(o,items,isCopy),c.paper_size,c.customer_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'customer')});if(ok)await recordSuccessfulPrint(o,'customer',isCopy);return ok}
 function prepReceiptHTML(o,items,isCopy=false){const c=printCfg(o.branch_id);return `<div class="receipt">${receiptCopyMark(isCopy)}<div class="receipt-head"><h2>ريسيت التحضير</h2><h1>بون ${esc(bonDisplay(o))}</h1><p>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</p><p>${orderTypeLabel(o.order_type)}</p></div><hr>${customerInfoHTML(o)}<div class="r-items">${items.map(i=>`<div class="prep-item"><span><b>${i.quantity} × ${esc(i.product_name)}</b>${i.notes?`<small class="prep-note">📝 ${esc(i.notes)}</small>`:''}</span><b>${money(i.total)}</b></div>`).join('')}</div><hr><div class="r-totals"><div><span>إجمالي الأصناف</span><b>${money(o.subtotal)}</b></div></div></div>`}
 async function printPrepReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'prep')>0;const ok=await printIsolated(prepReceiptHTML(o,items,isCopy),c.paper_size,c.prep_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'prep')});if(ok)await recordSuccessfulPrint(o,'prep',isCopy);return ok}
 function autoPrintOrder(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer);if(autoPrep&&state.settings.enable_prep_receipt)setTimeout(()=>printPrepReceipt(o,items),250);if(autoCustomer&&state.settings.enable_receipt_print)setTimeout(()=>printReceipt(o,items),900)}
-function showReceipt(o,items){const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>تم حفظ بون ${esc(bonDisplay(o))}</h2>${receiptHTML(o,items)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${state.settings.enable_prep_receipt?'<button class="secondary" data-prep>ريسيت التحضير</button>':''}${state.settings.enable_receipt_print?'<button class="primary" data-print>فاتورة العميل</button>':''}</div></div>`;document.body.appendChild(m);autoPrintOrder(o,items);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print]'))printReceipt(o,items);if(e.target.closest('[data-prep]'))printPrepReceipt(o,items)}}
+function showReceipt(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer),didAuto=(autoCustomer&&state.settings.enable_receipt_print)||(autoPrep&&state.settings.enable_prep_receipt);autoPrintOrder(o,items);if(didAuto)return;const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>تم حفظ بون ${esc(bonDisplay(o))}</h2>${receiptHTML(o,items)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${state.settings.enable_prep_receipt?'<button class="secondary" data-prep>ريسيت التحضير</button>':''}${state.settings.enable_receipt_print?'<button class="primary" data-print>فاتورة العميل</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print]'))printReceipt(o,items);if(e.target.closest('[data-prep]'))printPrepReceipt(o,items)}}
 async function openReturnForOrder(o,items){
  if(!canAccessPage('returns'))return toast('ليس لديك صلاحية المرتجعات');
  const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل عمل المرتجع');
@@ -1501,14 +1524,24 @@ async function renderSettings(){
  if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
-async function init(){if(!cfg.url||!cfg.key)return show('setupView');if(!session?.access_token)return show('loginView');try{if(navigator.onLine)await refreshSessionIfNeeded();await bootstrap()}catch(e){if(isNetError(e)||!navigator.onLine){try{await loadOfflineBootstrap();refreshPendingSyncBadge();return}catch(_){}}localStorage.removeItem('sbSession');session=null;show('loginView');toast(e.message)}}
+async function init(){if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.10',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.12',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
 }
+
+// V10.4.12 — visible Windows update download progress.
+function bindDesktopUpdateProgress(){
+  if(!window.topBurgerDesktop?.update?.onProgress)return;
+  let hideTimer=null;
+  const ensure=()=>{let el=document.getElementById('desktopUpdateProgress');if(!el){el=document.createElement('div');el.id='desktopUpdateProgress';el.className='desktop-update-progress hidden';el.innerHTML='<div class="desktop-update-progress-head"><b id="desktopUpdateProgressText">جاري تنزيل التحديث…</b><span id="desktopUpdateProgressPct"></span></div><div class="desktop-update-progress-track"><i id="desktopUpdateProgressBar"></i></div>';document.body.appendChild(el)}return el};
+  window.topBurgerDesktop.update.onProgress(data=>{const el=ensure(),text=el.querySelector('#desktopUpdateProgressText'),pct=el.querySelector('#desktopUpdateProgressPct'),bar=el.querySelector('#desktopUpdateProgressBar');clearTimeout(hideTimer);if(data?.state==='idle'){el.classList.add('hidden');return}el.classList.remove('hidden','is-error','is-done');if(data?.state==='error')el.classList.add('is-error');if(data?.state==='done'||data?.state==='installing')el.classList.add('is-done');const p=data?.percent!==null&&data?.percent!==undefined&&Number.isFinite(Number(data.percent))?Math.max(0,Math.min(100,Number(data.percent))):null;text.textContent=data?.message||'جاري تنزيل التحديث…';pct.textContent=p===null?'':`${Math.round(p)}%`;bar.style.width=p===null?'18%':`${p}%`;if(data?.state==='done')hideTimer=setTimeout(()=>el.classList.add('hidden'),3500);});
+}
+
+bindDesktopUpdateProgress();
 init();
 
 
@@ -1526,7 +1559,7 @@ function paymentStatusLabel(v){return ({unpaid:'💰 غير مدفوع',proof_su
 function paymentStatusHTML(v){const x=v||'unpaid';return `<span class="payment-status-chip payment-status-${esc(x)}">${paymentStatusLabel(x)}</span>`}
 async function openPaymentReceipt(path){if(!path)return toast('لا يوجد إيصال مرفوع');try{const r=await fetch(`${cfg.url}/storage/v1/object/authenticated/website-payment-receipts/${encodeURI(path)}`,{headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`}});if(!r.ok)throw new Error('تعذر تحميل الإيصال');const blob=await r.blob(),url=URL.createObjectURL(blob);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>🧾 إيصال الدفع</h2><img class="receipt-preview" src="${url}" alt="إيصال الدفع"><div class="modal-actions"><button class="secondary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){URL.revokeObjectURL(url);m.remove()}}}catch(e){toast(e.message)}}
 async function renderDeliveryOrders(){
-  $('#page').innerHTML='<div class="panel"><h2>🛵 طلبات الدليفري</h2><div class="empty">جاري التحميل...</div></div>';
+  $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
   const [orders,drivers,webOrders]=await Promise.all([
     rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,source.eq.website)&order=created_at.desc&limit=300`),
     rest('delivery_drivers','select=*&active=eq.true&order=name'),

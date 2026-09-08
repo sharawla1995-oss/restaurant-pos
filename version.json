@@ -1,6 +1,6 @@
 {
-  "product": "Top Burger POS",
-  "version": "10.4.10",
+  "product": "Sharawla POS",
+  "version": "10.4.12",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Website order status workflow integration, customer cancellation boundary at preparing, and clearer pickup handoff wording."
+  "notes": "Print UX cleanup, bold 80mm output, visible Windows update progress, and website pickup SQL safety."
 }

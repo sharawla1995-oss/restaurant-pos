@@ -47,7 +47,7 @@ function isNewerVersion(remote,local){
 }
 function githubJson(url){
   return new Promise((resolve,reject)=>{
-    const req=https.get(url,{headers:{'User-Agent':'Top-Burger-POS-Updater','Accept':'application/vnd.github+json'}},res=>{
+    const req=https.get(url,{headers:{'User-Agent':'Sharawla-POS-Updater','Accept':'application/vnd.github+json'}},res=>{
       if(res.statusCode>=300&&res.statusCode<400&&res.headers.location){res.resume();return githubJson(res.headers.location).then(resolve,reject)}
       let body='';res.setEncoding('utf8');res.on('data',c=>body+=c);res.on('end',()=>{
         if(res.statusCode!==200)return reject(new Error('GitHub HTTP '+res.statusCode));
@@ -56,16 +56,29 @@ function githubJson(url){
     });req.on('error',reject);req.setTimeout(15000,()=>req.destroy(new Error('Update check timeout')))
   })
 }
-function downloadFile(url,target){
+function sendUpdateProgress(payload){
+  try{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('update:progress',payload)}catch{}
+  try{if(mainWindow&&!mainWindow.isDestroyed()&&payload&&payload.state==='progress'&&Number.isFinite(payload.percent))mainWindow.setProgressBar(Math.max(0,Math.min(1,payload.percent/100)))}catch{}
+  if(payload&&['done','error','idle'].includes(payload.state)){try{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1)}catch{}}
+}
+function downloadFile(url,target,onProgress){
   return new Promise((resolve,reject)=>{
+    let finished=false;
+    const fail=e=>{if(finished)return;finished=true;reject(e)};
     const go=u=>{
-      const req=https.get(u,{headers:{'User-Agent':'Top-Burger-POS-Updater','Accept':'application/octet-stream'}},res=>{
+      const req=https.get(u,{headers:{'User-Agent':'Sharawla-POS-Updater','Accept':'application/octet-stream'}},res=>{
         if(res.statusCode>=300&&res.statusCode<400&&res.headers.location){res.resume();return go(res.headers.location)}
-        if(res.statusCode!==200){res.resume();return reject(new Error('Download HTTP '+res.statusCode))}
-        const tmp=target+'.part';const file=fs.createWriteStream(tmp);
-        res.pipe(file);file.on('finish',()=>file.close(()=>{try{if(fs.existsSync(target))fs.unlinkSync(target);fs.renameSync(tmp,target);resolve(target)}catch(e){reject(e)}}));
-        file.on('error',e=>{try{file.close();fs.unlinkSync(tmp)}catch{}reject(e)})
-      });req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Update download timeout')))
+        if(res.statusCode!==200){res.resume();return fail(new Error('Download HTTP '+res.statusCode))}
+        const tmp=target+'.part';try{if(fs.existsSync(tmp))fs.unlinkSync(tmp)}catch{}
+        const total=Math.max(0,Number(res.headers['content-length']||0));let received=0,lastPercent=-1;
+        const file=fs.createWriteStream(tmp);
+        res.on('data',chunk=>{received+=chunk.length;const percent=total?Math.min(100,Math.floor((received/total)*100)):null;if(percent!==lastPercent){lastPercent=percent;try{onProgress&&onProgress({received,total,percent})}catch{}}});
+        res.pipe(file);
+        file.on('finish',()=>file.close(()=>{if(finished)return;try{if(fs.existsSync(target))fs.unlinkSync(target);fs.renameSync(tmp,target);finished=true;resolve(target)}catch(e){fail(e)}}));
+        file.on('error',e=>{try{file.close();if(fs.existsSync(tmp))fs.unlinkSync(tmp)}catch{}fail(e)});
+        res.on('error',fail);
+      });
+      req.on('error',fail);req.setTimeout(120000,()=>req.destroy(new Error('Update download timeout')))
     };go(url)
   })
 }
@@ -73,30 +86,34 @@ async function checkForWindowsUpdate({interactive=false}={}){
   if(updateCheckBusy||!app.isPackaged)return null;
   const cfg=readUpdateConfig();
   if(!cfg.enabled||!cfg.owner||!cfg.repo)return null;
-  updateCheckBusy=true;
+  updateCheckBusy=true;let userAcceptedUpdate=false;
   try{
     const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
     const rel=await githubJson(api);const remote=String(rel.tag_name||'').replace(/^v/i,'');const local=app.getVersion();
     if(!isNewerVersion(remote,local)){
-      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Top Burger POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Sharawla POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
       return {available:false,local,remote};
     }
     const assets=Array.isArray(rel.assets)?rel.assets:[];
     const asset=assets.find(a=>/\.exe$/i.test(a.name||'')&&/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||assets.find(a=>/\.exe$/i.test(a.name||''));
     if(!asset?.browser_download_url)throw new Error('No Windows installer asset found in latest release');
-    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Top Burger POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
+    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
     if(ask.response!==0)return {available:true,skipped:true,remote};
+    userAcceptedUpdate=true;
     const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
-    const target=path.join(dir,asset.name||`Top-Burger-POS-${remote}.exe`);
-    await downloadFile(asset.browser_download_url,target);
-    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويثبت التحديث تلقائيًا ثم يمكنك فتحه مرة أخرى.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
+    const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
+    sendUpdateProgress({state:'start',version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
+    await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
+    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
+    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة. بيانات الكاشير المحلية والنسخ الاحتياطية لن تُحذف.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
     if(ready.response===0){
-      try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),400)}catch(e){throw e}
-    }
+      sendUpdateProgress({state:'installing',version:remote,percent:100,message:'جاري بدء التثبيت…'});
+      try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),600)}catch(e){throw e}
+    }else sendUpdateProgress({state:'idle'});
     return {available:true,downloaded:true,remote};
   }catch(e){
-    console.warn('auto update',e);
-    if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Top Burger POS',message:'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
+    console.warn('auto update',e);sendUpdateProgress({state:'error',message:'فشل تنزيل أو تثبيت التحديث',error:String(e&&e.message||e)});
+    if((interactive||userAcceptedUpdate)&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Sharawla POS',message:userAcceptedUpdate?'تعذر تنزيل أو بدء تثبيت التحديث.':'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
     return {error:String(e&&e.message||e)};
   }finally{updateCheckBusy=false}
 }
