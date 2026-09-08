@@ -5,12 +5,14 @@ const initSqlJs = require('sql.js');
 let db, SQL, mainWindow;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
+function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
 function backupDir(){const d=path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
-function persistDb(){if(!db)return;const bytes=db.export();fs.writeFileSync(dbPath(),Buffer.from(bytes))}
+function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
   const p=dbPath();
-  if(fs.existsSync(p)){try{db=new SQL.Database(fs.readFileSync(p))}catch{db=new SQL.Database()}}
+  if(fs.existsSync(p)){try{db=new SQL.Database(fs.readFileSync(p))}catch{try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}}
+  else if(fs.existsSync(lastGoodDbPath())){try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}
   else db=new SQL.Database();
   db.run(`
 create table if not exists kv(key text primary key,value text not null,updated_at text not null default(datetime('now')));
@@ -26,6 +28,8 @@ function run(sql,params=[]){db.run(sql,params);persistDb();return true}
 function stamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
 function createBackup(reason='manual'){if(!db)return null;persistDb();const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.sqlite`);fs.copyFileSync(dbPath(),target);return target}
 function pruneBackups(max=30){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).map(n=>({n,p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
+function saveJsonBackup(json,reason='full'){const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.json`);fs.writeFileSync(target,String(json||''),'utf8');pruneJsonBackups(15);return target}
+function pruneJsonBackups(max=15){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.json')).map(n=>({p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
 
 
 // ===== V10.4.5 GitHub Windows Auto Update =====
@@ -109,7 +113,8 @@ function registerIpc(){
  ipcMain.handle('ops:put',(_e,op)=>run(`insert into local_operations(client_tx_id,type,payload,status,updated_at) values(?,?,?,'pending',datetime('now')) on conflict(client_tx_id) do update set payload=excluded.payload,updated_at=datetime('now')`,[String(op.client_tx_id),String(op.type),JSON.stringify(op)]));
  ipcMain.handle('ops:list',(_e,status='pending')=>all('select * from local_operations where status=? order by id',[status]).map(r=>({...r,payload:JSON.parse(r.payload)})));
  ipcMain.handle('ops:status',(_e,id,status,error=null)=>run(`update local_operations set status=?,attempts=attempts+1,last_error=?,updated_at=datetime('now') where client_tx_id=?`,[status,error,String(id)]));
- ipcMain.handle('backup:create',()=>createBackup('manual'));
+ ipcMain.handle('backup:create',(_e,reason='manual')=>createBackup(String(reason||'manual').replace(/[^a-z0-9_-]/gi,'-')));
+ ipcMain.handle('backup:saveJson',(_e,json,reason='full')=>saveJsonBackup(json,String(reason||'full').replace(/[^a-z0-9_-]/gi,'-')));
  ipcMain.handle('backup:list',()=>fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).sort().reverse());
  ipcMain.handle('desktop:paths',()=>({data:dataDir(),backups:backupDir(),database:dbPath()}));
  ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));

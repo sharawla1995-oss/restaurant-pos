@@ -312,7 +312,7 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .offline-status{position:fixed;z-index:99999;left:12px;bottom:12px;padding:9px 13px;border-radius:12px;font-weight:800;box-shadow:0 4px 18px #0003}.offline-status.offline{background:#7f1d1d;color:#fff}.offline-status.online{background:#14532d;color:#fff}.offline-status.fade{opacity:0;transition:opacity .5s}
 
 /* V10.2 Windows local-first sync badge */
-.pending-sync-badge{position:fixed;left:16px;bottom:16px;z-index:9998;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 3px 14px #0002;background:#fff;border:1px solid #ddd}.pending-sync-badge.has-pending{background:#fff4d6;border-color:#e1b64a}.pending-sync-badge.all-synced{background:#edf9f0;border-color:#9ac8a4}
+.pending-sync-badge{position:fixed;left:16px;bottom:16px;z-index:9998;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800;box-shadow:0 3px 14px #0005;background:#142337;color:#fff;border:1px solid #49617d;transition:opacity .25s,transform .25s}.pending-sync-badge.has-pending{background:#4b3513;color:#ffe29a;border-color:#9f772e}.pending-sync-badge.all-synced{background:#123b31;color:#b8ffdf;border-color:#2e725e}.pending-sync-badge.is-hidden{opacity:0;transform:translateY(8px);pointer-events:none}.offline-status{bottom:54px}
 
 
 /* V10.4.6 final: compact cashier item-options dialog; layout/logic unchanged */

@@ -1,7 +1,7 @@
 {
   "name": "top-burger-pos-windows",
-  "version": "10.4.8",
-  "description": "Top Burger POS V10.4.8 - reports runtime fix + expanded branch reports + stability",
+  "version": "10.4.10",
+  "description": "Top Burger POS V10.4.10 - website order flow + phone tracking/cancel integration",
   "main": "main.js",
   "author": "Top Burger",
   "license": "UNLICENSED",
