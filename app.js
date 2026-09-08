@@ -1647,7 +1647,7 @@ async function renderSettings(){
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.16',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.17',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

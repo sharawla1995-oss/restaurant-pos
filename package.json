@@ -1,14 +1,14 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.16",
-  "description": "Sharawla POS V10.4.16 - audited stable build with Windows x64 + ia32 installers",
+  "version": "10.4.17",
+  "description": "Sharawla POS V10.4.17 - clean dual-architecture rebuild of V10.4.16 stable functionality",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
     "check": "node scripts/check-version.js",
     "start": "npm run check && electron .",
-    "dist": "npm run check && electron-builder --win nsis --x64 --ia32"
+    "dist": "npm run check && electron-builder --win nsis"
   },
   "dependencies": {
     "sql.js": "1.8.0"
