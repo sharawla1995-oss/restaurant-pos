@@ -1,6 +1,46 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=null;
+
+// ===== Sharawla Cloud device licensing V10.4.13 =====
+const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
+const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
+const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
+let sharawlaDeviceInfo=null;
+async function cloudRpc(name,payload={}){
+  const r=await fetch(`${SHARAWLA_CLOUD_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SHARAWLA_CLOUD_KEY},body:JSON.stringify(payload)});
+  let d=null;try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error(d?.message||d?.hint||`Sharawla Cloud ${r.status}`);
+  return Array.isArray(d)?d[0]:d;
+}
+async function loadLicenseState(){try{return await odbGet(LICENSE_STATE_KEY)}catch{return null}}
+async function saveLicenseState(v){await odbSet(LICENSE_STATE_KEY,v);return v}
+function licenseGraceValid(st){if(!st?.last_verified_at)return false;const days=Math.max(0,Number(st.offline_grace_days||0));return Date.now()-new Date(st.last_verified_at).getTime() <= days*86400000}
+async function showActivation(message='أدخل كود الترخيص الخاص بهذا الجهاز.'){
+  show('activationView');const m=$('#activationMessage');if(m)m.textContent=message;
+  if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info){try{sharawlaDeviceInfo=await window.topBurgerDesktop.device.info()}catch{}}
+  if($('#deviceHint')&&sharawlaDeviceInfo)$('#deviceHint').textContent=`الجهاز: ${sharawlaDeviceInfo.name} • ${String(sharawlaDeviceInfo.fingerprint||'').slice(0,12)}…`;
+}
+async function ensureSharawlaLicense(){
+  if(!window.topBurgerDesktop?.isDesktop)return true;
+  try{sharawlaDeviceInfo=await window.topBurgerDesktop.device.info()}catch{return showActivation('تعذر قراءة بصمة الجهاز. أعد تشغيل البرنامج.'),false}
+  const st=await loadLicenseState();
+  if(!st?.device_id)return showActivation(),false;
+  if(!navigator.onLine){
+    if(licenseGraceValid(st))return true;
+    return showActivation('انتهت فترة السماح بدون إنترنت. وصّل الجهاز بالإنترنت للتحقق من الترخيص.'),false;
+  }
+  try{
+    const d=await cloudRpc('verify_sharawla_device',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_app_version:sharawlaDeviceInfo.version});
+    if(!d?.ok)return showActivation(d?.message||'الترخيص غير ساري.'),false;
+    await saveLicenseState({...st,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    return true;
+  }catch(e){
+    if(licenseGraceValid(st))return true;
+    return showActivation('تعذر الاتصال بـ Sharawla Cloud وفترة السماح غير متاحة. وصّل الإنترنت ثم أعد المحاولة.'),false;
+  }
+}
+
 let resumeSession=JSON.parse(localStorage.getItem('sbResumeSession')||'null');
 let state={employee:null,branches:[],categories:[],products:[],cart:[],cat:'all',
 business:{business_name:'Top Burger',tagline:'🔥 طعم يستاهل التجربة',phone:'',address:'',logo_url:'',currency_symbol:'ج.م',receipt_footer:'شكرًا لزيارتكم',primary_color:'#b51f2b',accent_color:'#f0643d'},
@@ -69,7 +109,7 @@ const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
 function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const type=opts.type||'text';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||'✏️'}</div><h2>${esc(opts.title||'إدخال البيانات')}</h2><p class="dialog-message">${esc(message)}</p><input class="dialog-input" type="${esc(type)}" value="${esc(defaultValue)}" ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''} autocomplete="off"><div class="modal-actions"><button class="secondary" data-dialog-cancel>إلغاء</button><button class="primary" data-dialog-ok>${esc(opts.okText||'حفظ')}</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('.dialog-input');setTimeout(()=>{input.focus();if(type!=='password')input.select()},30);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-cancel]'))finish(null);if(e.target.closest('[data-dialog-ok]'))finish(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter')finish(input.value);if(e.key==='Escape')finish(null)})})}
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
-function show(id){['setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
+function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
@@ -398,6 +438,19 @@ async function bootstrap(){
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
 
+if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>{
+  e.preventDefault();const btn=$('#activateBtn');
+  try{
+    btn.disabled=true;
+    if(!navigator.onLine)throw new Error('أول تفعيل يحتاج اتصال بالإنترنت');
+    if(!sharawlaDeviceInfo)sharawlaDeviceInfo=await window.topBurgerDesktop.device.info();
+    const key=$('#licenseKey').value.trim().toUpperCase();
+    const d=await cloudRpc('activate_sharawla_device',{p_license_key:key,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_device_name:sharawlaDeviceInfo.name,p_app_version:sharawlaDeviceInfo.version,p_operating_system:sharawlaDeviceInfo.os});
+    if(!d?.ok)throw new Error(d?.message||'فشل التفعيل');
+    await saveLicenseState({device_id:d.device_id,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    toast('تم تفعيل الجهاز بنجاح');setTimeout(()=>location.reload(),500);
+  }catch(err){toast(err.message)}finally{btn.disabled=false}
+});
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
@@ -1524,10 +1577,10 @@ async function renderSettings(){
  if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
-async function init(){if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.12',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.13',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

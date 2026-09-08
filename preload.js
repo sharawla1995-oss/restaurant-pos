@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  backup:{create:r=>ipcRenderer.invoke('backup:create',r),saveJson:(j,r)=>ipcRenderer.invoke('backup:saveJson',j,r),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
  update:{check:()=>ipcRenderer.invoke('update:check'),onProgress:cb=>{const fn=(_e,data)=>{try{cb(data)}catch{}};ipcRenderer.on('update:progress',fn);return()=>ipcRenderer.removeListener('update:progress',fn)}},
- paths:()=>ipcRenderer.invoke('desktop:paths')
+ paths:()=>ipcRenderer.invoke('desktop:paths'),
+ device:{info:()=>ipcRenderer.invoke('device:info')}
 });

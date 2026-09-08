@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.12",
-  "description": "Sharawla POS V10.4.12 - forced login on every launch, configurable business identity, protected production packaging",
+  "version": "10.4.13",
+  "description": "Sharawla POS V10.4.13 - device licensing via Sharawla Cloud, preserving Top Burger POS behavior",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

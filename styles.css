@@ -341,3 +341,6 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .desktop-update-progress-track{height:8px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden}
 .desktop-update-progress-track i{display:block;height:100%;width:0;background:#fff;border-radius:999px;transition:width .18s ease}
 .desktop-update-progress.is-error{background:#991b1b}.desktop-update-progress.is-done{background:#166534}
+
+/* V10.4.13 Sharawla Cloud licensing */
+#activationView .login-card{border-top:4px solid #f5c542}#activationView #deviceHint{display:block;word-break:break-all;margin-top:10px;opacity:.8}

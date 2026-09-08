@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.12",
+  "version": "10.4.13",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Print UX cleanup, bold 80mm output, visible Windows update progress, and website pickup SQL safety."
+  "notes": "Sharawla Cloud device activation and offline grace licensing added without changing Top Burger sales workflow."
 }

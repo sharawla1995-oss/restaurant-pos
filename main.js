@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
 let db, SQL, mainWindow;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
@@ -124,6 +127,23 @@ function startUpdateWatch(){
   setInterval(()=>checkForWindowsUpdate().catch(()=>{}),h*60*60*1000);
 }
 
+
+function stableDeviceFingerprint(){
+  let seed='';
+  try{
+    if(process.platform==='win32'){
+      const out=execFileSync('reg',['query','HKLM\\SOFTWARE\\Microsoft\\Cryptography','/v','MachineGuid'],{encoding:'utf8',windowsHide:true,timeout:4000});
+      const m=String(out||'').match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/i);
+      if(m)seed='win:'+m[1].trim();
+    }
+  }catch{}
+  if(!seed){
+    try{seed=[process.platform,os.hostname(),os.arch(),app.getPath('userData')].join('|')}catch{seed=[process.platform,os.hostname(),os.arch()].join('|')}
+  }
+  return crypto.createHash('sha256').update(seed).digest('hex');
+}
+function deviceInfo(){return {fingerprint:stableDeviceFingerprint(),name:os.hostname(),os:`${os.type()} ${os.release()} ${os.arch()}`,version:app.getVersion()}}
+
 function registerIpc(){
  ipcMain.handle('db:get',(_e,k)=>{const r=one('select value from kv where key=?',[String(k)]);return r?JSON.parse(r.value):undefined});
  ipcMain.handle('db:set',(_e,k,v)=>run(`insert into kv(key,value,updated_at) values(?,?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=datetime('now')`,[String(k),JSON.stringify(v)]));
@@ -134,6 +154,7 @@ function registerIpc(){
  ipcMain.handle('backup:saveJson',(_e,json,reason='full')=>saveJsonBackup(json,String(reason||'full').replace(/[^a-z0-9_-]/gi,'-')));
  ipcMain.handle('backup:list',()=>fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).sort().reverse());
  ipcMain.handle('desktop:paths',()=>({data:dataDir(),backups:backupDir(),database:dbPath()}));
+ ipcMain.handle('device:info',()=>deviceInfo());
  ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));
  ipcMain.handle('print:list',async()=>mainWindow?await mainWindow.webContents.getPrintersAsync():[]);
  ipcMain.handle('print:current',async(_e,opts={})=>new Promise(resolve=>{if(!mainWindow)return resolve({ok:false,error:'window unavailable'});mainWindow.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true},(ok,reason)=>resolve({ok,error:reason||null}))}));
