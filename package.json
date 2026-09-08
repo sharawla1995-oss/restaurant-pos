@@ -1,7 +1,7 @@
 {
   "name": "top-burger-pos-windows",
-  "version": "10.4.6",
-  "description": "Top Burger POS V10.4.6 - direct printing fix + order details restore + phone/web compatibility",
+  "version": "10.4.7",
+  "description": "Top Burger POS V10.4.7 - reports runtime fix + expanded branch reports + stability",
   "main": "main.js",
   "author": "Top Burger",
   "license": "UNLICENSED",

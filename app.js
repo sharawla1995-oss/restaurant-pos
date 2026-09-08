@@ -1071,63 +1071,253 @@ async function renderInventory(){if(!state.settings.enable_inventory){$('#page')
 
 function downloadCSV(name,rows){const csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 async function renderReports(){
-  const today=localDateInput(),reportPaymentMethods=branchPaymentList();
+  const today=localDateInput();
+  const branchId=currentBranchId();
+  const reportPaymentMethods=branchPaymentList(branchId);
   $('#page').innerHTML=`
-    <div class="panel report-filters"><h2>📊 تقارير ${esc(branchName(currentBranchId()))}</h2><p>كل الأرقام المعروضة تخص الفرع الحالي فقط.</p><div class="toolbar">
+    <div class="panel report-filters"><h2>📊 تقارير ${esc(branchName(branchId))}</h2><p>كل الأرقام المعروضة تخص الفرع الحالي فقط.</p><div class="toolbar">
       <label>من<input id="repFrom" type="date" value="${today}"></label><label>إلى<input id="repTo" type="date" value="${today}"></label>
       <label>نوع الطلب<select id="repType"><option value="all">كل الأنواع</option><option value="takeaway">تيك أواي</option><option value="pickup">استلام من الفرع</option><option value="delivery">دليفري</option><option value="dinein">صالة</option></select></label>
-      <label>الدفع<select id="repPay"><option value="all">كل طرق الدفع</option>${reportPaymentMethods.map(m=>`<option value="${esc(m.code)}">${esc(m.name)}</option>`).join('')}</select></label>
+      <label>الدفع<select id="repPay"><option value="all">كل طرق الدفع</option>${reportPaymentMethods.map(method=>`<option value="${esc(method.code)}">${esc(method.name)}</option>`).join('')}</select></label>
       <label>الموظف<select id="repEmployee"><option value="all">كل الموظفين</option></select></label><label>رقم الوردية<select id="repShift"><option value="all">كل الورديات</option></select></label>
       <button id="runReport" class="primary">عرض التقرير</button><button id="exportReport" class="secondary">تصدير CSV</button>
     </div></div><div id="reportBody"><div class="empty">اختار الفترة والفلاتر واضغط «عرض التقرير»</div></div>`;
-  let employees=[],lastExport=[],lastShifts=[];
-  try{employees=(await rest('employees',`select=id,name,branch_id,role&branch_id=eq.${currentBranchId()}&order=name`))||[];const sel=$('#repEmployee');if(sel)sel.innerHTML='<option value="all">كل الموظفين</option>'+employees.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}catch(e){console.warn('report employees',e)}
-  const safeFetch=async(table,query)=>{try{return await fetchAll(table,query)}catch(e){console.warn('report '+table,e);return []}};
-  const fetchByIds=async(table,select,key,ids)=>{const out=[];for(let i=0;i<ids.length;i+=100){const part=ids.slice(i,i+100).join(',');if(part)out.push(...await safeFetch(table,`${select}&${key}=in.(${part})`))}return out};
-  const collected=o=>{if(String(o.source||'').toLowerCase()!=='website')return true;if(String(o.payment_status||'').toLowerCase()==='confirmed')return true;return String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase())};
-  const run=async()=>{const body=$('#reportBody');if(!body)return;body.innerHTML='<div class="empty">جاري حساب التقرير...</div>';await new Promise(r=>setTimeout(r,20));try{
-    const from=$('#repFrom')?.value||today,to=$('#repTo')?.value||today,r=rangeISO(from,to);
-    const [orders,expenses,shifts,allReturns,zones,drivers]=await Promise.all([
-      safeFetch('orders',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`),
-      safeFetch('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`),
-      safeFetch('shifts',`select=*&branch_id=eq.${currentBranchId()}&opened_at=lte.${encodeURIComponent(r.to)}&order=opened_at.desc`),
-      safeFetch('returns',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(r.from)}&created_at=lte.${encodeURIComponent(r.to)}&order=created_at.desc`),
-      safeFetch('delivery_zones',`select=id,name,branch_id&branch_id=eq.${currentBranchId()}`),safeFetch('delivery_drivers',`select=id,name,branch_id&branch_id=eq.${currentBranchId()}`)]);
-    lastShifts=shifts||[];const shiftSel=$('#repShift');if(shiftSel){const cur=shiftSel.value;shiftSel.innerHTML='<option value="all">كل الورديات</option>'+lastShifts.map(sh=>`<option value="${sh.id}">#${sh.id} — ${fmtDate(sh.opened_at)}</option>`).join('');if([...shiftSel.options].some(o=>o.value===cur))shiftSel.value=cur}
-    const tf=$('#repType')?.value||'all',pf=$('#repPay')?.value||'all',ef=$('#repEmployee')?.value||'all',sf=$('#repShift')?.value||'all';
-    let ord=(orders||[]).filter(o=>(tf==='all'||String(o.order_type)===tf)&&(ef==='all'||String(o.employee_id)===ef)&&(sf==='all'||String(o.shift_id)===sf));
-    const payments=await fetchByIds('order_payments','select=order_id,method,amount','order_id',ord.map(o=>o.id).filter(Boolean));
-    if(pf!=='all'){const bm=new Map();for(const p of payments){const k=String(p.order_id);if(!bm.has(k))bm.set(k,new Set());bm.get(k).add(String(p.method||'').toLowerCase())}ord=ord.filter(o=>bm.get(String(o.id))?.has(pf)||(!bm.has(String(o.id))&&String(o.payment_method||'').toLowerCase()===pf))}
-    const operational=ord.filter(o=>String(o.status||'').toLowerCase()!=='cancelled'),cancelled=ord.filter(o=>String(o.status||'').toLowerCase()==='cancelled'),valid=operational.filter(collected),uncollected=operational.filter(o=>!collected(o));
-    const ex=(expenses||[]).filter(x=>(ef==='all'||String(x.employee_id)===ef)&&(sf==='all'||String(x.shift_id)===sf));
-    let returns=(allReturns||[]).filter(x=>(ef==='all'||String(x.employee_id)===ef)&&(sf==='all'||String(x.shift_id)===sf));
-    const rpAll=await fetchByIds('return_payments','select=return_id,method,amount','return_id',returns.map(x=>x.id).filter(Boolean));if(pf!=='all'){const rr=new Set(rpAll.filter(x=>String(x.method||'').toLowerCase()===pf).map(x=>String(x.return_id)));returns=returns.filter(x=>rr.has(String(x.id)))}
-    const returnIds=returns.map(x=>x.id).filter(Boolean),returnSet=new Set(returnIds.map(String)),returnPayments=rpAll.filter(x=>returnSet.has(String(x.return_id))),returnItems=await fetchByIds('return_items','select=return_id,product_name,quantity,total,reason','return_id',returnIds);
-    const grossSales=valid.reduce((a,o)=>a+Number(o.total||0),0),returnTotal=returns.reduce((a,x)=>a+Number(x.total||0),0),netSales=grossSales-returnTotal,expTotal=ex.reduce((a,x)=>a+Number(x.amount||0),0),avg=valid.length?grossSales/valid.length:0;
-    const discounts=valid.reduce((a,o)=>a+Number(o.discount||0),0),promoDiscounts=valid.reduce((a,o)=>a+Number(o.promo_discount||0),0),manualDiscounts=Math.max(0,discounts-promoDiscounts),deliveryFees=valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0);
-    const paymentTotals={};for(const m of reportPaymentMethods)paymentTotals[String(m.code).toLowerCase()]=0;const validIds=new Set(valid.map(o=>String(o.id))),paid=new Set();for(const p of payments){if(!validIds.has(String(p.order_id)))continue;const m=String(p.method||'').toLowerCase();paymentTotals[m]=(paymentTotals[m]||0)+Number(p.amount||0);paid.add(String(p.order_id))}for(const o of valid){if(paid.has(String(o.id)))continue;const m=String(o.payment_method||'').toLowerCase();if(m&&m!=='mixed')paymentTotals[m]=(paymentTotals[m]||0)+Number(o.total||0)}for(const p of returnPayments){const m=String(p.method||'').toLowerCase();paymentTotals[m]=(paymentTotals[m]||0)-Number(p.amount||0)}
-    const items=await fetchByIds('order_items','select=*','order_id',valid.map(o=>o.id).filter(Boolean)),prod={};for(const it of items){const n=it.product_name||it.name||'صنف',q=Number(it.quantity||1);if(!prod[n])prod[n]={name:n,qty:0,total:0};prod[n].qty+=q;prod[n].total+=Number(it.total??it.line_total??0)}for(const it of returnItems){const n=it.product_name||'صنف';if(!prod[n])prod[n]={name:n,qty:0,total:0};prod[n].qty-=Number(it.quantity||0);prod[n].total-=Number(it.total||0)}const products=Object.values(prod).filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
-    const channel={};for(const o of valid){const k=String(o.order_type||'unknown');if(!channel[k])channel[k]={count:0,total:0};channel[k].count++;channel[k].total+=Number(o.total||0)}
-    const hours=Array.from({length:24},(_,h)=>({h,count:0,total:0}));for(const o of valid){const h=new Date(o.created_at).getHours();if(hours[h]){hours[h].count++;hours[h].total+=Number(o.total||0)}}const busy=hours.filter(x=>x.count).sort((a,b)=>b.count-a.count);
-    const zoneMap=Object.fromEntries((zones||[]).map(z=>[String(z.id),z.name])),driverMap=Object.fromEntries((drivers||[]).map(d=>[String(d.id),d.name])),delivery={};for(const o of valid.filter(x=>x.order_type==='delivery')){const z=o.delivery_area||zoneMap[String(o.delivery_zone_id)]||'غير محدد',k=z;if(!delivery[k])delivery[k]={name:z,count:0,sales:0,fees:0};delivery[k].count++;delivery[k].sales+=Number(o.total||0);delivery[k].fees+=Number(o.delivery_fee||0)}
-    const driverStats={};for(const o of valid.filter(x=>x.order_type==='delivery'&&x.driver_id)){const k=String(o.driver_id),n=driverMap[k]||driverName(o.driver_id)||'مندوب';if(!driverStats[k])driverStats[k]={name:n,count:0,total:0};driverStats[k].count++;driverStats[k].total+=Number(o.total||0)}
-    const promos={};for(const o of valid.filter(x=>o.promo_code)){const k=o.promo_code;if(!promos[k])promos[k]={code:k,count:0,discount:0,sales:0};promos[k].count++;promos[k].discount+=Number(o.promo_discount||o.discount||0);promos[k].sales+=Number(o.total||0)}
-    const reasons={};for(const x of returns){const k=x.reason||'غير محدد';if(!reasons[k])reasons[k]={reason:k,count:0,total:0};reasons[k].count++;reasons[k].total+=Number(x.total||0)}
-    const shiftRows=(shifts||[]).filter(sh=>(ef==='all'||String(sh.employee_id)===ef)&&(sf==='all'||String(sh.id)===sf));
-    const payCards=reportPaymentMethods.map(m=>`<div class="card kpi"><small>${esc(m.name)}</small><strong>${money(paymentTotals[String(m.code).toLowerCase()]||0)}</strong></div>`).join('');
-    body.innerHTML=`<div class="grid report-kpis"><div class="card kpi"><small>إجمالي المبيعات المحصلة</small><strong>${money(grossSales)}</strong></div><div class="card kpi"><small>المرتجعات</small><strong>${money(returnTotal)}</strong></div><div class="card kpi"><small>صافي المبيعات</small><strong>${money(netSales)}</strong></div><div class="card kpi"><small>المصروفات</small><strong>${money(expTotal)}</strong></div><div class="card kpi"><small>نتيجة بعد المصروفات</small><strong>${money(netSales-expTotal)}</strong></div><div class="card kpi"><small>الأوردرات المحصلة</small><strong>${valid.length}</strong></div><div class="card kpi"><small>متوسط الفاتورة</small><strong>${money(avg)}</strong></div>${payCards}<div class="card kpi"><small>الخصومات</small><strong>${money(discounts)}</strong></div><div class="card kpi"><small>رسوم الدليفري</small><strong>${money(deliveryFees)}</strong></div><div class="card kpi"><small>طلبات موقع غير محصلة</small><strong>${uncollected.length}</strong></div><div class="card kpi"><small>الإلغاءات</small><strong>${cancelled.length}</strong></div></div>
-    <div class="panel"><h2>🧾 قنوات البيع</h2><div class="table-wrap"><table><thead><tr><th>القناة</th><th>الأوردرات</th><th>المبيعات</th><th>متوسط الأوردر</th></tr></thead><tbody>${Object.entries(channel).map(([k,x])=>`<tr><td>${esc(orderTypeLabel(k))}</td><td>${x.count}</td><td>${money(x.total)}</td><td>${money(x.count?x.total/x.count:0)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
-    <div class="panel"><h2>🍔 الأصناف بعد المرتجعات</h2><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الكمية</th><th>صافي المبيعات</th></tr></thead><tbody>${products.slice(0,50).map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
-    <div class="panel"><h2>⏰ ساعات الذروة</h2><div class="table-wrap"><table><thead><tr><th>الساعة</th><th>الأوردرات</th><th>المبيعات</th></tr></thead><tbody>${busy.map(x=>`<tr><td>${String(x.h).padStart(2,'0')}:00 - ${String((x.h+1)%24).padStart(2,'0')}:00</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
-    <div class="panel"><h2>🛵 الدليفري</h2><div class="table-wrap"><table><thead><tr><th>المنطقة</th><th>الأوردرات</th><th>المبيعات</th><th>رسوم التوصيل</th></tr></thead><tbody>${Object.values(delivery).sort((a,b)=>b.count-a.count).map(x=>`<tr><td>${esc(x.name)}</td><td>${x.count}</td><td>${money(x.sales)}</td><td>${money(x.fees)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد طلبات دليفري</td></tr>'}</tbody></table></div>${Object.values(driverStats).length?`<h3>المناديب</h3><div class="table-wrap"><table><thead><tr><th>المندوب</th><th>الأوردرات</th><th>قيمة الطلبات</th></tr></thead><tbody>${Object.values(driverStats).sort((a,b)=>b.count-a.count).map(x=>`<tr><td>${esc(x.name)}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')}</tbody></table></div>`:''}</div>
-    <div class="panel"><h2>🎟️ الخصومات والبرومو</h2><div class="report-summary-list"><div>خصم يدوي <b>${money(manualDiscounts)}</b></div><div>خصم برومو <b>${money(promoDiscounts)}</b></div><div>إجمالي الخصومات <b>${money(discounts)}</b></div></div><div class="table-wrap"><table><thead><tr><th>الكود</th><th>الاستخدام</th><th>الخصم</th><th>مبيعات الطلبات</th></tr></thead><tbody>${Object.values(promos).map(x=>`<tr><td>${esc(x.code)}</td><td>${x.count}</td><td>${money(x.discount)}</td><td>${money(x.sales)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد استخدامات برومو</td></tr>'}</tbody></table></div></div>
-    <div class="panel"><h2>↩️ المرتجعات</h2><div class="table-wrap"><table><thead><tr><th>السبب</th><th>العدد</th><th>القيمة</th></tr></thead><tbody>${Object.values(reasons).map(x=>`<tr><td>${esc(x.reason)}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مرتجعات</td></tr>'}</tbody></table></div></div>
-    <div class="panel"><h2>🕒 الورديات بالأرقام</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>المصروفات</th><th>العجز/الزيادة</th><th></th></tr></thead><tbody>${shiftRows.map(x=>`<tr><td><b>#${x.id}</b></td><td>${esc(employeeName(x.employee_id,employees)||'موظف')}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'مفتوحة الآن'}</td><td>${money(x.sales_total||0)}</td><td>${money(x.expenses_total||0)}</td><td>${x.closed_at?money(x.cash_difference||0):'-'}</td><td><button class="secondary" data-report-shift="${x.id}">تقرير الوردية</button></td></tr>`).join('')||'<tr><td colspan="8">لا توجد ورديات</td></tr>'}</tbody></table></div></div>`;
-    lastExport=[['الفرع',branchName(currentBranchId())],['الفترة',from+' إلى '+to],['إجمالي المبيعات المحصلة',grossSales],['المرتجعات',returnTotal],['صافي المبيعات',netSales],['المصروفات',expTotal],['نتيجة بعد المصروفات',netSales-expTotal],['عدد الأوردرات المحصلة',valid.length],['طلبات موقع غير محصلة',uncollected.length],['الخصومات',discounts],['رسوم الدليفري',deliveryFees],[],['الصنف','الكمية','صافي المبيعات'],...products.map(x=>[x.name,x.qty,x.total])];
-  }catch(e){console.error('report error',e);body.innerHTML=`<div class="panel"><h2>تعذر تحميل التقرير</h2><p>${esc(e?.message||String(e)||'خطأ غير معروف')}</p><button id="retryReport" class="primary">إعادة المحاولة</button></div>`;$('#retryReport')?.addEventListener('click',run)}};
-  $('#runReport').onclick=run;$('#exportReport').onclick=()=>{if(!lastExport.length)return toast('اعرض التقرير الأول');downloadCSV(`report-${currentBranchId()}-${$('#repFrom').value}-${$('#repTo').value}.csv`,lastExport)};
-  $('#reportBody').onclick=e=>{const b=e.target.closest('[data-report-shift]');if(!b)return;const sh=lastShifts.find(x=>String(x.id)===String(b.dataset.reportShift));if(sh)openShiftReport(sh,employees)};
+
+  let employees=[];
+  let lastExport=[];
+  let lastShifts=[];
+  try{
+    employees=(await rest('employees',`select=id,name,branch_id,role&branch_id=eq.${branchId}&order=name`))||[];
+    const employeeSelect=$('#repEmployee');
+    if(employeeSelect)employeeSelect.innerHTML='<option value="all">كل الموظفين</option>'+employees.map(employee=>`<option value="${employee.id}">${esc(employee.name)}</option>`).join('');
+  }catch(error){console.warn('report employees',error)}
+
+  const safeFetch=async(table,query)=>{try{return (await fetchAll(table,query))||[]}catch(error){console.warn('report '+table,error);return []}};
+  const fetchByIds=async(table,select,key,ids)=>{
+    const clean=[...new Set((ids||[]).filter(value=>value!==null&&value!==undefined&&value!==''))];
+    const output=[];
+    for(let index=0;index<clean.length;index+=100){
+      const part=clean.slice(index,index+100).join(',');
+      if(part)output.push(...await safeFetch(table,`${select}&${key}=in.(${part})`));
+    }
+    return output;
+  };
+  const isCollected=order=>{
+    if(String(order.source||'').toLowerCase()!=='website')return true;
+    if(String(order.payment_status||'').toLowerCase()==='confirmed')return true;
+    return String(order.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(order.status||'').toLowerCase());
+  };
+  const employeeLabel=id=>employeeName(id,employees)||'موظف';
+
+  const runReport=async()=>{
+    const body=$('#reportBody');
+    if(!body)return;
+    body.innerHTML='<div class="empty">جاري حساب التقرير...</div>';
+    await new Promise(resolve=>setTimeout(resolve,20));
+    try{
+      const from=$('#repFrom')?.value||today;
+      const to=$('#repTo')?.value||today;
+      if(from>to)throw new Error('تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية');
+      const period=rangeISO(from,to);
+
+      const results=await Promise.all([
+        safeFetch('orders',`select=*&branch_id=eq.${branchId}&created_at=gte.${encodeURIComponent(period.from)}&created_at=lte.${encodeURIComponent(period.to)}&order=created_at.desc`),
+        safeFetch('expenses',`select=*&branch_id=eq.${branchId}&created_at=gte.${encodeURIComponent(period.from)}&created_at=lte.${encodeURIComponent(period.to)}&order=created_at.desc`),
+        safeFetch('shifts',`select=*&branch_id=eq.${branchId}&opened_at=lte.${encodeURIComponent(period.to)}&order=opened_at.desc`),
+        safeFetch('returns',`select=*&branch_id=eq.${branchId}&created_at=gte.${encodeURIComponent(period.from)}&created_at=lte.${encodeURIComponent(period.to)}&order=created_at.desc`),
+        safeFetch('delivery_zones',`select=id,name,branch_id&branch_id=eq.${branchId}`),
+        safeFetch('delivery_drivers',`select=id,name,branch_id&branch_id=eq.${branchId}`),
+        safeFetch('website_orders',`select=id,branch_id,status,order_type,total,subtotal,delivery_fee,promo_discount,payment_method_code,payment_status,created_at,accepted_at&branch_id=eq.${branchId}&created_at=gte.${encodeURIComponent(period.from)}&created_at=lte.${encodeURIComponent(period.to)}&order=created_at.desc`)
+      ]);
+      const orders=results[0],expenses=results[1],shifts=results[2],allReturns=results[3],zones=results[4],drivers=results[5],websiteOrders=results[6];
+
+      lastShifts=(shifts||[]).filter(shift=>new Date(shift.opened_at)<=new Date(period.to)&&(shift.closed_at?new Date(shift.closed_at)>=new Date(period.from):true));
+      const shiftSelect=$('#repShift');
+      if(shiftSelect){
+        const selectedShift=shiftSelect.value;
+        shiftSelect.innerHTML='<option value="all">كل الورديات</option>'+lastShifts.map(shift=>`<option value="${shift.id}">#${shift.id} — ${fmtDate(shift.opened_at)}</option>`).join('');
+        if([...shiftSelect.options].some(option=>option.value===selectedShift))shiftSelect.value=selectedShift;
+      }
+
+      const typeFilter=$('#repType')?.value||'all';
+      const paymentFilter=String($('#repPay')?.value||'all').toLowerCase();
+      const employeeFilter=$('#repEmployee')?.value||'all';
+      const shiftFilter=$('#repShift')?.value||'all';
+
+      let filteredOrders=(orders||[]).filter(order=>(typeFilter==='all'||String(order.order_type)===typeFilter)&&(employeeFilter==='all'||String(order.employee_id)===employeeFilter)&&(shiftFilter==='all'||String(order.shift_id)===shiftFilter));
+      let orderPayments=await fetchByIds('order_payments','select=order_id,method,amount','order_id',filteredOrders.map(order=>order.id));
+      if(paymentFilter!=='all'){
+        const methodsByOrder=new Map();
+        for(const payment of orderPayments){
+          const key=String(payment.order_id);
+          if(!methodsByOrder.has(key))methodsByOrder.set(key,new Set());
+          methodsByOrder.get(key).add(String(payment.method||'').toLowerCase());
+        }
+        filteredOrders=filteredOrders.filter(order=>methodsByOrder.get(String(order.id))?.has(paymentFilter)||(!methodsByOrder.has(String(order.id))&&String(order.payment_method||'').toLowerCase()===paymentFilter));
+      }
+
+      const operationalOrders=filteredOrders.filter(order=>String(order.status||'').toLowerCase()!=='cancelled');
+      const cancelledOrders=filteredOrders.filter(order=>String(order.status||'').toLowerCase()==='cancelled');
+      const collectedOrders=operationalOrders.filter(isCollected);
+      const uncollectedOrders=operationalOrders.filter(order=>!isCollected(order));
+      const collectedOrderIds=new Set(collectedOrders.map(order=>String(order.id)));
+
+      const filteredExpenses=(expenses||[]).filter(expense=>(employeeFilter==='all'||String(expense.employee_id)===employeeFilter)&&(shiftFilter==='all'||String(expense.shift_id)===shiftFilter));
+      let returns=(allReturns||[]).filter(returnRow=>(employeeFilter==='all'||String(returnRow.employee_id)===employeeFilter)&&(shiftFilter==='all'||String(returnRow.shift_id)===shiftFilter));
+      const allReturnPayments=await fetchByIds('return_payments','select=return_id,method,amount','return_id',returns.map(returnRow=>returnRow.id));
+      if(paymentFilter!=='all'){
+        const allowedReturnIds=new Set(allReturnPayments.filter(payment=>String(payment.method||'').toLowerCase()===paymentFilter).map(payment=>String(payment.return_id)));
+        returns=returns.filter(returnRow=>allowedReturnIds.has(String(returnRow.id)));
+      }
+      const returnIdSet=new Set(returns.map(returnRow=>String(returnRow.id)));
+      const returnPayments=allReturnPayments.filter(payment=>returnIdSet.has(String(payment.return_id)));
+      const returnItems=await fetchByIds('return_items','select=return_id,product_name,quantity,total','return_id',returns.map(returnRow=>returnRow.id));
+
+      const grossSales=collectedOrders.reduce((sum,order)=>sum+Number(order.total||0),0);
+      const returnTotal=returns.reduce((sum,returnRow)=>sum+Number(returnRow.total||0),0);
+      const netSales=grossSales-returnTotal;
+      const expenseTotal=filteredExpenses.reduce((sum,expense)=>sum+Number(expense.amount||0),0);
+      const averageOrder=collectedOrders.length?grossSales/collectedOrders.length:0;
+      const totalDiscounts=collectedOrders.reduce((sum,order)=>sum+Number(order.discount||0),0);
+      const promoDiscounts=collectedOrders.reduce((sum,order)=>sum+Number(order.promo_discount||0),0);
+      const manualDiscounts=Math.max(0,totalDiscounts-promoDiscounts);
+      const deliveryFees=collectedOrders.reduce((sum,order)=>sum+Number(order.delivery_fee||0),0);
+
+      const paymentTotals={};
+      for(const method of reportPaymentMethods)paymentTotals[String(method.code).toLowerCase()]=0;
+      const ordersWithDetailedPayments=new Set();
+      for(const payment of orderPayments){
+        if(!collectedOrderIds.has(String(payment.order_id)))continue;
+        const method=String(payment.method||'').toLowerCase();
+        paymentTotals[method]=(paymentTotals[method]||0)+Number(payment.amount||0);
+        ordersWithDetailedPayments.add(String(payment.order_id));
+      }
+      for(const order of collectedOrders){
+        if(ordersWithDetailedPayments.has(String(order.id)))continue;
+        const method=String(order.payment_method||'').toLowerCase();
+        if(method&&method!=='mixed')paymentTotals[method]=(paymentTotals[method]||0)+Number(order.total||0);
+      }
+      for(const payment of returnPayments){
+        const method=String(payment.method||'').toLowerCase();
+        paymentTotals[method]=(paymentTotals[method]||0)-Number(payment.amount||0);
+      }
+
+      const orderItems=await fetchByIds('order_items','select=order_id,product_id,product_name,quantity,total','order_id',collectedOrders.map(order=>order.id));
+      const productStats={};
+      for(const item of orderItems){
+        const name=item.product_name||'صنف';
+        if(!productStats[name])productStats[name]={name,qty:0,total:0};
+        productStats[name].qty+=Number(item.quantity||0);
+        productStats[name].total+=Number(item.total||0);
+      }
+      for(const item of returnItems){
+        const name=item.product_name||'صنف';
+        if(!productStats[name])productStats[name]={name,qty:0,total:0};
+        productStats[name].qty-=Number(item.quantity||0);
+        productStats[name].total-=Number(item.total||0);
+      }
+      const products=Object.values(productStats).filter(item=>Math.abs(item.qty)>0.0001||Math.abs(item.total)>0.005).sort((left,right)=>right.qty-left.qty);
+
+      const channelStats={};
+      for(const order of collectedOrders){
+        const key=String(order.order_type||'unknown');
+        if(!channelStats[key])channelStats[key]={count:0,total:0};
+        channelStats[key].count++;
+        channelStats[key].total+=Number(order.total||0);
+      }
+
+      const hourlyStats=Array.from({length:24},(_,hour)=>({hour,count:0,total:0}));
+      for(const order of collectedOrders){
+        const hour=new Date(order.created_at).getHours();
+        if(hourlyStats[hour]){hourlyStats[hour].count++;hourlyStats[hour].total+=Number(order.total||0)}
+      }
+      const busyHours=hourlyStats.filter(row=>row.count).sort((left,right)=>right.count-left.count);
+
+      const zoneNames=Object.fromEntries((zones||[]).map(zone=>[String(zone.id),zone.name]));
+      const driverNames=Object.fromEntries((drivers||[]).map(driver=>[String(driver.id),driver.name]));
+      const deliveryStats={};
+      const driverStats={};
+      for(const order of collectedOrders.filter(order=>order.order_type==='delivery')){
+        const zoneName=order.delivery_area||zoneNames[String(order.delivery_zone_id)]||'غير محدد';
+        if(!deliveryStats[zoneName])deliveryStats[zoneName]={name:zoneName,count:0,sales:0,fees:0};
+        deliveryStats[zoneName].count++;
+        deliveryStats[zoneName].sales+=Number(order.total||0);
+        deliveryStats[zoneName].fees+=Number(order.delivery_fee||0);
+        if(order.driver_id){
+          const key=String(order.driver_id),name=driverNames[key]||driverName(order.driver_id)||'مندوب';
+          if(!driverStats[key])driverStats[key]={name,count:0,total:0};
+          driverStats[key].count++;
+          driverStats[key].total+=Number(order.total||0);
+        }
+      }
+
+      const promoStats={};
+      for(const order of collectedOrders.filter(order=>order.promo_code)){
+        const code=String(order.promo_code);
+        if(!promoStats[code])promoStats[code]={code,count:0,discount:0,sales:0};
+        promoStats[code].count++;
+        promoStats[code].discount+=Number(order.promo_discount||0);
+        promoStats[code].sales+=Number(order.total||0);
+      }
+      const returnReasons={};
+      for(const returnRow of returns){
+        const reason=returnRow.reason||'غير محدد';
+        if(!returnReasons[reason])returnReasons[reason]={reason,count:0,total:0};
+        returnReasons[reason].count++;
+        returnReasons[reason].total+=Number(returnRow.total||0);
+      }
+
+      const employeeStats={};
+      for(const employee of employees)employeeStats[String(employee.id)]={name:employee.name,count:0,sales:0,discounts:0,returns:0,expenses:0};
+      for(const order of collectedOrders){
+        const key=String(order.employee_id||'');
+        if(!employeeStats[key])employeeStats[key]={name:employeeLabel(order.employee_id),count:0,sales:0,discounts:0,returns:0,expenses:0};
+        employeeStats[key].count++;
+        employeeStats[key].sales+=Number(order.total||0);
+        employeeStats[key].discounts+=Number(order.discount||0);
+      }
+      for(const returnRow of returns){const key=String(returnRow.employee_id||'');if(!employeeStats[key])employeeStats[key]={name:employeeLabel(returnRow.employee_id),count:0,sales:0,discounts:0,returns:0,expenses:0};employeeStats[key].returns+=Number(returnRow.total||0)}
+      for(const expense of filteredExpenses){const key=String(expense.employee_id||'');if(!employeeStats[key])employeeStats[key]={name:employeeLabel(expense.employee_id),count:0,sales:0,discounts:0,returns:0,expenses:0};employeeStats[key].expenses+=Number(expense.amount||0)}
+      const visibleEmployeeStats=Object.values(employeeStats).filter(row=>row.count||row.sales||row.returns||row.expenses||row.discounts);
+
+      const websiteStatusStats={};
+      for(const websiteOrder of websiteOrders){
+        const status=String(websiteOrder.status||'pending');
+        if(!websiteStatusStats[status])websiteStatusStats[status]={status,count:0,total:0};
+        websiteStatusStats[status].count++;
+        websiteStatusStats[status].total+=Number(websiteOrder.total||0);
+      }
+      const websitePickup=(websiteOrders||[]).filter(row=>row.order_type==='pickup');
+      const websiteDelivery=(websiteOrders||[]).filter(row=>row.order_type==='delivery');
+
+      const shiftRows=lastShifts.filter(shift=>(employeeFilter==='all'||String(shift.employee_id)===employeeFilter)&&(shiftFilter==='all'||String(shift.id)===shiftFilter));
+      const paymentCards=reportPaymentMethods.map(method=>`<div class="card kpi"><small>${esc(method.name)}</small><strong>${money(paymentTotals[String(method.code).toLowerCase()]||0)}</strong></div>`).join('');
+
+      body.innerHTML=`<div class="grid report-kpis"><div class="card kpi"><small>إجمالي المبيعات المحصلة</small><strong>${money(grossSales)}</strong></div><div class="card kpi"><small>المرتجعات</small><strong>${money(returnTotal)}</strong></div><div class="card kpi"><small>صافي المبيعات</small><strong>${money(netSales)}</strong></div><div class="card kpi"><small>المصروفات</small><strong>${money(expenseTotal)}</strong></div><div class="card kpi"><small>نتيجة بعد المصروفات</small><strong>${money(netSales-expenseTotal)}</strong></div><div class="card kpi"><small>الأوردرات المحصلة</small><strong>${collectedOrders.length}</strong></div><div class="card kpi"><small>متوسط الفاتورة</small><strong>${money(averageOrder)}</strong></div>${paymentCards}<div class="card kpi"><small>الخصومات</small><strong>${money(totalDiscounts)}</strong></div><div class="card kpi"><small>رسوم الدليفري</small><strong>${money(deliveryFees)}</strong></div><div class="card kpi"><small>طلبات موقع غير محصلة داخل POS</small><strong>${uncollectedOrders.length}</strong></div><div class="card kpi"><small>أوردرات POS ملغية</small><strong>${cancelledOrders.length}</strong></div></div>
+      <div class="panel"><h2>🧾 قنوات البيع</h2><div class="table-wrap"><table><thead><tr><th>القناة</th><th>الأوردرات</th><th>المبيعات</th><th>متوسط الأوردر</th></tr></thead><tbody>${Object.entries(channelStats).map(([key,row])=>`<tr><td>${esc(orderTypeLabel(key))}</td><td>${row.count}</td><td>${money(row.total)}</td><td>${money(row.count?row.total/row.count:0)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>🌐 طلبات الموقع</h2><div class="report-summary-list"><div>إجمالي طلبات الموقع <b>${websiteOrders.length}</b></div><div>استلام فرع <b>${websitePickup.length}</b></div><div>دليفري <b>${websiteDelivery.length}</b></div></div><div class="table-wrap"><table><thead><tr><th>الحالة</th><th>العدد</th><th>القيمة</th></tr></thead><tbody>${Object.values(websiteStatusStats).map(row=>`<tr><td>${esc(statusLabel(row.status))}</td><td>${row.count}</td><td>${money(row.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد طلبات موقع</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>🍔 الأصناف بعد المرتجعات</h2><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الكمية</th><th>صافي المبيعات</th></tr></thead><tbody>${products.slice(0,100).map(row=>`<tr><td>${esc(row.name)}</td><td>${row.qty}</td><td>${money(row.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>⏰ ساعات الذروة</h2><div class="table-wrap"><table><thead><tr><th>الساعة</th><th>الأوردرات</th><th>المبيعات</th></tr></thead><tbody>${busyHours.map(row=>`<tr><td>${String(row.hour).padStart(2,'0')}:00 - ${String((row.hour+1)%24).padStart(2,'0')}:00</td><td>${row.count}</td><td>${money(row.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>🛵 الدليفري</h2><div class="table-wrap"><table><thead><tr><th>المنطقة</th><th>الأوردرات</th><th>المبيعات</th><th>رسوم التوصيل</th></tr></thead><tbody>${Object.values(deliveryStats).sort((left,right)=>right.count-left.count).map(row=>`<tr><td>${esc(row.name)}</td><td>${row.count}</td><td>${money(row.sales)}</td><td>${money(row.fees)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد طلبات دليفري</td></tr>'}</tbody></table></div>${Object.values(driverStats).length?`<h3>المناديب</h3><div class="table-wrap"><table><thead><tr><th>المندوب</th><th>الأوردرات</th><th>قيمة الطلبات</th></tr></thead><tbody>${Object.values(driverStats).sort((left,right)=>right.count-left.count).map(row=>`<tr><td>${esc(row.name)}</td><td>${row.count}</td><td>${money(row.total)}</td></tr>`).join('')}</tbody></table></div>`:''}</div>
+      <div class="panel"><h2>🎟️ الخصومات والبرومو</h2><div class="report-summary-list"><div>خصم يدوي <b>${money(manualDiscounts)}</b></div><div>خصم برومو <b>${money(promoDiscounts)}</b></div><div>إجمالي الخصومات <b>${money(totalDiscounts)}</b></div></div><div class="table-wrap"><table><thead><tr><th>الكود</th><th>الاستخدام</th><th>الخصم</th><th>مبيعات الطلبات</th></tr></thead><tbody>${Object.values(promoStats).map(row=>`<tr><td>${esc(row.code)}</td><td>${row.count}</td><td>${money(row.discount)}</td><td>${money(row.sales)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد استخدامات برومو</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>↩️ المرتجعات</h2><div class="table-wrap"><table><thead><tr><th>السبب</th><th>العدد</th><th>القيمة</th></tr></thead><tbody>${Object.values(returnReasons).map(row=>`<tr><td>${esc(row.reason)}</td><td>${row.count}</td><td>${money(row.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مرتجعات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>👤 الموظفين</h2><div class="table-wrap"><table><thead><tr><th>الموظف</th><th>الأوردرات</th><th>المبيعات</th><th>متوسط الفاتورة</th><th>الخصومات</th><th>المرتجعات</th><th>المصروفات</th></tr></thead><tbody>${visibleEmployeeStats.map(row=>`<tr><td>${esc(row.name)}</td><td>${row.count}</td><td>${money(row.sales)}</td><td>${money(row.count?row.sales/row.count:0)}</td><td>${money(row.discounts)}</td><td>${money(row.returns)}</td><td>${money(row.expenses)}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد بيانات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>💸 المصروفات</h2><div class="report-summary-list"><div>عدد المصروفات <b>${filteredExpenses.length}</b></div><div>إجمالي المصروفات <b>${money(expenseTotal)}</b></div></div><div class="table-wrap"><table><thead><tr><th>البيان</th><th>الموظف</th><th>القيمة</th><th>التاريخ</th></tr></thead><tbody>${filteredExpenses.slice(0,100).map(expense=>`<tr><td>${esc(expense.description||expense.title||'مصروف')}</td><td>${esc(employeeLabel(expense.employee_id))}</td><td>${money(expense.amount)}</td><td>${fmtDate(expense.created_at)}</td></tr>`).join('')||'<tr><td colspan="4">لا توجد مصروفات</td></tr>'}</tbody></table></div></div>
+      <div class="panel"><h2>🕒 الورديات بالأرقام</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>المصروفات</th><th>العجز/الزيادة</th><th></th></tr></thead><tbody>${shiftRows.map(shift=>`<tr><td><b>#${shift.id}</b></td><td>${esc(employeeLabel(shift.employee_id))}</td><td>${fmtDate(shift.opened_at)}</td><td>${shift.closed_at?fmtDate(shift.closed_at):'مفتوحة الآن'}</td><td>${money(shift.sales_total||0)}</td><td>${money(shift.expenses_total||0)}</td><td>${shift.closed_at?money(shift.cash_difference||0):'-'}</td><td><button class="secondary" data-report-shift="${shift.id}">تقرير الوردية</button></td></tr>`).join('')||'<tr><td colspan="8">لا توجد ورديات</td></tr>'}</tbody></table></div></div>`;
+
+      lastExport=[['الفرع',branchName(branchId)],['الفترة',from+' إلى '+to],['إجمالي المبيعات المحصلة',grossSales],['المرتجعات',returnTotal],['صافي المبيعات',netSales],['المصروفات',expenseTotal],['نتيجة بعد المصروفات',netSales-expenseTotal],['عدد الأوردرات المحصلة',collectedOrders.length],['طلبات موقع غير محصلة داخل POS',uncollectedOrders.length],['الخصومات',totalDiscounts],['رسوم الدليفري',deliveryFees],[],['الصنف','الكمية','صافي المبيعات'],...products.map(row=>[row.name,row.qty,row.total])];
+    }catch(error){
+      console.error('report error',error);
+      body.innerHTML=`<div class="panel"><h2>تعذر تحميل التقرير</h2><p>${esc(error?.message||String(error)||'خطأ غير معروف')}</p><button id="retryReport" class="primary">إعادة المحاولة</button></div>`;
+      $('#retryReport')?.addEventListener('click',runReport);
+    }
+  };
+
+  $('#runReport').onclick=runReport;
+  $('#exportReport').onclick=()=>{if(!lastExport.length)return toast('اعرض التقرير الأول');downloadCSV(`report-${branchId}-${$('#repFrom').value}-${$('#repTo').value}.csv`,lastExport)};
+  $('#reportBody').onclick=event=>{const button=event.target.closest('[data-report-shift]');if(!button)return;const shift=lastShifts.find(row=>String(row.id)===String(button.dataset.reportShift));if(shift)openShiftReport(shift,employees)};
 }
+
 
 const BACKUP_GROUPS={
  orders:{label:'الطلبات وحركات البيع والمرتجعات',tables:['returns','return_items','return_payments','orders','order_items','order_payments','order_item_modifiers','promo_redemptions']},
@@ -1246,8 +1436,11 @@ async function renderSettings(){
 
 async function init(){if(!cfg.url||!cfg.key)return show('setupView');if(!session?.access_token)return show('loginView');try{await bootstrap()}catch(e){localStorage.removeItem('sbSession');session=null;show('loginView');toast(e.message)}}
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
-  caches?.keys?.().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{});
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js?v=10.4.7',{updateViaCache:'none'})
+      .then(reg=>reg.update().catch(()=>{}))
+      .catch(()=>{});
+  });
 }
 init();
 
