@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Sharawla POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=10.4.15">
+  <link rel="stylesheet" href="styles.css?v=10.4.16">
 </head>
 <body>
 <div id="toast"></div>
@@ -57,7 +57,7 @@
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.15</small></span></div>
+    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.16</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
@@ -80,13 +80,12 @@
     </nav>
     <div class="sidebar-foot"><span id="who"></span></div>
   </aside>
-  <button id="sidebarRestoreBtn" class="sidebar-restore hidden" type="button" aria-label="إظهار القائمة">☰ <span>القائمة</span></button>
   <main class="main">
     <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><div class="branch-top-actions"><button id="manageBranchesBtn" class="add-branch-btn manage-branch-btn hidden" type="button">⚙️ إدارة الفروع</button><button id="addBranchBtn" class="add-branch-btn hidden" type="button">➕ إضافة فرع</button><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button></div><div id="clock"></div></header>
     <div id="page" class="page"></div>
   </main>
 </section>
 
-<script src="app.js?v=10.4.15"></script>
+<script src="app.js?v=10.4.16"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.15",
+  "version": "10.4.16",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Durable Sharawla Cloud device activation survives temporary stop/restart; only explicit local license change clears it. Added an explicit button to restore the right sidebar after hiding it."
+  "notes": "Audited stability release: restored manual delivery fee, fixed delivery cart layout and sidebar close control, hardened returns/expenses/shifts/promo validations, preserving V10.4.15 licensing."
 }

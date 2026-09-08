@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.15",
-  "description": "Sharawla POS V10.4.15 - durable device license suspend/resume + sidebar restore control, preserving Top Burger POS behavior",
+  "version": "10.4.16",
+  "description": "Sharawla POS V10.4.16 - fully audited cashier UI, delivery fee/layout, validation and sidebar close fixes, preserving V10.4.15 licensing",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
