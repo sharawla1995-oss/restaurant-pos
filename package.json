@@ -1,14 +1,14 @@
 {
   "name": "sharawla-pos-windows",
   "version": "10.4.16",
-  "description": "Sharawla POS V10.4.16 - fully audited cashier UI, delivery fee/layout, validation and sidebar close fixes, preserving V10.4.15 licensing",
+  "description": "Sharawla POS V10.4.16 - audited stable build with Windows x64 + ia32 installers",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
     "check": "node scripts/check-version.js",
     "start": "npm run check && electron .",
-    "dist": "npm run check && electron-builder --win nsis"
+    "dist": "npm run check && electron-builder --win nsis --x64 --ia32"
   },
   "dependencies": {
     "sql.js": "1.8.0"
@@ -39,7 +39,8 @@
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "ia32"
           ]
         }
       ]
@@ -50,6 +51,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Sharawla POS"
-    }
+    },
+    "artifactName": "Sharawla-POS-Setup-${version}-${arch}.${ext}"
   }
 }

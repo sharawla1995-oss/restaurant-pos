@@ -108,8 +108,13 @@ async function checkForWindowsUpdate({interactive=false}={}){
       return {available:false,local,remote};
     }
     const assets=Array.isArray(rel.assets)?rel.assets:[];
-    const asset=assets.find(a=>/\.exe$/i.test(a.name||'')&&/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||assets.find(a=>/\.exe$/i.test(a.name||''));
-    if(!asset?.browser_download_url)throw new Error('No Windows installer asset found in latest release');
+    const exeAssets=assets.filter(a=>/\.exe$/i.test(a.name||''));
+    const wantedArch=process.arch==='ia32'?'ia32':'x64';
+    const archPattern=wantedArch==='ia32'?/(?:^|[._-])(?:ia32|x86|win32)(?:[._-]|$)/i:/(?:^|[._-])(?:x64|amd64|win64)(?:[._-]|$)/i;
+    let asset=exeAssets.find(a=>archPattern.test(String(a.name||'')));
+    // Backward compatibility for old x64-only releases that used a generic EXE name.
+    if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
+    if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in latest release`);
     const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
     if(ask.response!==0)return {available:true,skipped:true,remote};
     userAcceptedUpdate=true;
