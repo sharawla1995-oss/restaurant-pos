@@ -310,3 +310,6 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .promo-pos-box{margin:8px 0}.promo-pos-entry{display:flex;gap:8px}.promo-pos-entry input{flex:1;min-width:0}.promo-pos-result{margin-top:7px;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(30,170,90,.12);font-size:13px}.link-btn{border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer;font-weight:800}.promo-admin-modal{max-width:900px}.promo-product-checks{max-height:220px;overflow:auto;align-items:flex-start}
 
 .offline-status{position:fixed;z-index:99999;left:12px;bottom:12px;padding:9px 13px;border-radius:12px;font-weight:800;box-shadow:0 4px 18px #0003}.offline-status.offline{background:#7f1d1d;color:#fff}.offline-status.online{background:#14532d;color:#fff}.offline-status.fade{opacity:0;transition:opacity .5s}
+
+/* V10.2 Windows local-first sync badge */
+.pending-sync-badge{position:fixed;left:16px;bottom:16px;z-index:9998;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 3px 14px #0002;background:#fff;border:1px solid #ddd}.pending-sync-badge.has-pending{background:#fff4d6;border-color:#e1b64a}.pending-sync-badge.all-synced{background:#edf9f0;border-color:#9ac8a4}

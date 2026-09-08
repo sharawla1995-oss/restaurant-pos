@@ -1,0 +1,50 @@
+{
+  "name": "top-burger-pos-windows",
+  "version": "10.4.3",
+  "description": "Top Burger POS V10.4.3 - Unified source for GitHub/PWA and Windows 7 x64",
+  "main": "main.js",
+  "author": "Top Burger",
+  "license": "UNLICENSED",
+  "scripts": {
+    "check": "node scripts/check-version.js",
+    "start": "npm run check && electron .",
+    "dist": "npm run check && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "sql.js": "1.8.0"
+  },
+  "devDependencies": {
+    "electron": "22.3.27",
+    "electron-builder": "22.10.5"
+  },
+  "build": {
+    "appId": "com.topburger.pos",
+    "productName": "Top Burger POS",
+    "asar": true,
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!node_modules/.cache/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Top Burger POS"
+    }
+  }
+}

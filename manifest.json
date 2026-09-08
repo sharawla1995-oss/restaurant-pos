@@ -1,17 +1,10 @@
 {
-  "name": "Top Burger POS",
-  "short_name": "Top Burger",
-  "description": "Top Burger POS Mobile",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "any",
-  "background_color": "#111827",
-  "theme_color": "#111827",
-  "lang": "ar",
-  "dir": "rtl",
-  "icons": [
-    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
-    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
-  ]
+  "name":"Restaurant POS Cloud",
+  "short_name":"POS",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#f4f6f8",
+  "theme_color":"#111827",
+  "lang":"ar",
+  "dir":"rtl"
 }

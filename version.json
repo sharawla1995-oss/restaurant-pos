@@ -1,0 +1,12 @@
+{
+  "product": "Top Burger POS",
+  "version": "10.4.3",
+  "channel": "stable",
+  "source": "github",
+  "windows": {
+    "supported": "Windows 7 x64",
+    "electron": "22.3.27",
+    "electronBuilder": "22.10.5"
+  },
+  "notes": "Unified source: the same app.js/index.html/styles.css are used by GitHub/PWA and Windows."
+}
