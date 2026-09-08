@@ -1,7 +1,7 @@
 {
   "name": "top-burger-pos-windows",
-  "version": "10.4.4",
-  "description": "Top Burger POS V10.4.4 - Direct print, compact 80mm receipts, reprint copy marking",
+  "version": "10.4.5",
+  "description": "Top Burger POS V10.4.5 - GitHub automatic Windows updates + V10.4.4 printing update",
   "main": "main.js",
   "author": "Top Burger",
   "license": "UNLICENSED",

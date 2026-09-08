@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  operations:{put:o=>ipcRenderer.invoke('ops:put',o),list:s=>ipcRenderer.invoke('ops:list',s),status:(id,s,e)=>ipcRenderer.invoke('ops:status',id,s,e)},
  backup:{create:()=>ipcRenderer.invoke('backup:create'),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
+ update:{check:()=>ipcRenderer.invoke('update:check')},
  paths:()=>ipcRenderer.invoke('desktop:paths')
 });

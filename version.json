@@ -1,6 +1,6 @@
 {
   "product": "Top Burger POS",
-  "version": "10.4.4",
+  "version": "10.4.5",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Printing update: Windows direct silent print, customer/prep printer selection, compact 80mm layout, prep prices without delivery fee, and reprints marked نسخة."
+  "notes": "Automatic Windows updates from GitHub Releases added. Keeps V10.4.4 direct printing, compact 80mm receipts and copy marking."
 }

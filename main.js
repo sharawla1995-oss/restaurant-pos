@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
@@ -26,6 +26,83 @@ function run(sql,params=[]){db.run(sql,params);persistDb();return true}
 function stamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
 function createBackup(reason='manual'){if(!db)return null;persistDb();const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.sqlite`);fs.copyFileSync(dbPath(),target);return target}
 function pruneBackups(max=30){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).map(n=>({n,p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
+
+
+// ===== V10.4.5 GitHub Windows Auto Update =====
+const https = require('https');
+const { spawn } = require('child_process');
+let updateCheckBusy = false;
+function readUpdateConfig(){
+  try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
+}
+function semverParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
+function isNewerVersion(remote,local){
+  const a=semverParts(remote), b=semverParts(local), n=Math.max(a.length,b.length);
+  for(let i=0;i<n;i++){const x=a[i]||0,y=b[i]||0;if(x>y)return true;if(x<y)return false}
+  return false;
+}
+function githubJson(url){
+  return new Promise((resolve,reject)=>{
+    const req=https.get(url,{headers:{'User-Agent':'Top-Burger-POS-Updater','Accept':'application/vnd.github+json'}},res=>{
+      if(res.statusCode>=300&&res.statusCode<400&&res.headers.location){res.resume();return githubJson(res.headers.location).then(resolve,reject)}
+      let body='';res.setEncoding('utf8');res.on('data',c=>body+=c);res.on('end',()=>{
+        if(res.statusCode!==200)return reject(new Error('GitHub HTTP '+res.statusCode));
+        try{resolve(JSON.parse(body))}catch(e){reject(e)}
+      })
+    });req.on('error',reject);req.setTimeout(15000,()=>req.destroy(new Error('Update check timeout')))
+  })
+}
+function downloadFile(url,target){
+  return new Promise((resolve,reject)=>{
+    const go=u=>{
+      const req=https.get(u,{headers:{'User-Agent':'Top-Burger-POS-Updater','Accept':'application/octet-stream'}},res=>{
+        if(res.statusCode>=300&&res.statusCode<400&&res.headers.location){res.resume();return go(res.headers.location)}
+        if(res.statusCode!==200){res.resume();return reject(new Error('Download HTTP '+res.statusCode))}
+        const tmp=target+'.part';const file=fs.createWriteStream(tmp);
+        res.pipe(file);file.on('finish',()=>file.close(()=>{try{if(fs.existsSync(target))fs.unlinkSync(target);fs.renameSync(tmp,target);resolve(target)}catch(e){reject(e)}}));
+        file.on('error',e=>{try{file.close();fs.unlinkSync(tmp)}catch{}reject(e)})
+      });req.on('error',reject);req.setTimeout(60000,()=>req.destroy(new Error('Update download timeout')))
+    };go(url)
+  })
+}
+async function checkForWindowsUpdate({interactive=false}={}){
+  if(updateCheckBusy||!app.isPackaged)return null;
+  const cfg=readUpdateConfig();
+  if(!cfg.enabled||!cfg.owner||!cfg.repo)return null;
+  updateCheckBusy=true;
+  try{
+    const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
+    const rel=await githubJson(api);const remote=String(rel.tag_name||'').replace(/^v/i,'');const local=app.getVersion();
+    if(!isNewerVersion(remote,local)){
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Top Burger POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
+      return {available:false,local,remote};
+    }
+    const assets=Array.isArray(rel.assets)?rel.assets:[];
+    const asset=assets.find(a=>/\.exe$/i.test(a.name||'')&&/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||assets.find(a=>/\.exe$/i.test(a.name||''));
+    if(!asset?.browser_download_url)throw new Error('No Windows installer asset found in latest release');
+    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Top Burger POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
+    if(ask.response!==0)return {available:true,skipped:true,remote};
+    const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
+    const target=path.join(dir,asset.name||`Top-Burger-POS-${remote}.exe`);
+    await downloadFile(asset.browser_download_url,target);
+    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويثبت التحديث تلقائيًا ثم يمكنك فتحه مرة أخرى.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
+    if(ready.response===0){
+      try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),400)}catch(e){throw e}
+    }
+    return {available:true,downloaded:true,remote};
+  }catch(e){
+    console.warn('auto update',e);
+    if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Top Burger POS',message:'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
+    return {error:String(e&&e.message||e)};
+  }finally{updateCheckBusy=false}
+}
+function startUpdateWatch(){
+  const cfg=readUpdateConfig();if(!cfg.enabled)return;
+  setTimeout(()=>checkForWindowsUpdate().catch(()=>{}),15000);
+  const h=Math.max(1,Number(cfg.checkEveryHours||6));
+  setInterval(()=>checkForWindowsUpdate().catch(()=>{}),h*60*60*1000);
+}
+
 function registerIpc(){
  ipcMain.handle('db:get',(_e,k)=>{const r=one('select value from kv where key=?',[String(k)]);return r?JSON.parse(r.value):undefined});
  ipcMain.handle('db:set',(_e,k,v)=>run(`insert into kv(key,value,updated_at) values(?,?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=datetime('now')`,[String(k),JSON.stringify(v)]));
@@ -35,11 +112,12 @@ function registerIpc(){
  ipcMain.handle('backup:create',()=>createBackup('manual'));
  ipcMain.handle('backup:list',()=>fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).sort().reverse());
  ipcMain.handle('desktop:paths',()=>({data:dataDir(),backups:backupDir(),database:dbPath()}));
+ ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));
  ipcMain.handle('print:list',async()=>mainWindow?await mainWindow.webContents.getPrintersAsync():[]);
  ipcMain.handle('print:current',async(_e,opts={})=>new Promise(resolve=>{if(!mainWindow)return resolve({ok:false,error:'window unavailable'});mainWindow.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true},(ok,reason)=>resolve({ok,error:reason||null}))}));
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(resolve=>{const w=new BrowserWindow({show:false,webPreferences:{sandbox:true}});const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));w.loadURL(data).then(()=>{w.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null})})}).catch(err=>{try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})})}));
 }
 function createWindow(){mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:700,autoHideMenuBar:true,backgroundColor:'#fff',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:false}});mainWindow.loadFile('index.html')}
-app.whenReady().then(async()=>{await openDb();registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
+app.whenReady().then(async()=>{await openDb();registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
 app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
