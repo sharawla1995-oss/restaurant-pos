@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.13",
+  "version": "10.4.14",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Sharawla Cloud device activation and offline grace licensing added without changing Top Burger sales workflow."
+  "notes": "Sharawla Cloud device suspend/resume fix: temporary stop no longer requires re-entering the license key."
 }

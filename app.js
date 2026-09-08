@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=null;
 
-// ===== Sharawla Cloud device licensing V10.4.13 =====
+// ===== Sharawla Cloud device licensing V10.4.14 =====
 const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
 const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
@@ -16,10 +16,45 @@ async function cloudRpc(name,payload={}){
 async function loadLicenseState(){try{return await odbGet(LICENSE_STATE_KEY)}catch{return null}}
 async function saveLicenseState(v){await odbSet(LICENSE_STATE_KEY,v);return v}
 function licenseGraceValid(st){if(!st?.last_verified_at)return false;const days=Math.max(0,Number(st.offline_grace_days||0));return Date.now()-new Date(st.last_verified_at).getTime() <= days*86400000}
+let licenseRetryBusy=false,licenseRetryTimer=null;
+async function setActivationMode(){
+  const st=await loadLicenseState();
+  const linked=!!st?.device_id;
+  if($('#licenseKeyLabel'))$('#licenseKeyLabel').classList.toggle('hidden',linked);
+  if($('#activateBtn'))$('#activateBtn').classList.toggle('hidden',linked);
+  if($('#retryLicenseBtn'))$('#retryLicenseBtn').classList.toggle('hidden',!linked);
+  if($('#changeLicenseBtn'))$('#changeLicenseBtn').classList.toggle('hidden',!linked);
+  if($('#licenseKey'))$('#licenseKey').required=!linked;
+  return linked;
+}
+function stopLicenseRetry(){if(licenseRetryTimer){clearInterval(licenseRetryTimer);licenseRetryTimer=null}}
+async function retryExistingSharawlaLicense({quiet=false}={}){
+  if(licenseRetryBusy)return false;
+  const st=await loadLicenseState();
+  if(!st?.device_id)return false;
+  if(!navigator.onLine){if(!quiet)toast('الجهاز غير متصل بالإنترنت');return false}
+  licenseRetryBusy=true;
+  try{
+    if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info)sharawlaDeviceInfo=await window.topBurgerDesktop.device.info();
+    const d=await cloudRpc('verify_sharawla_device',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_app_version:sharawlaDeviceInfo.version});
+    if(!d?.ok){if(!quiet&&d?.message)toast(d.message);return false}
+    await saveLicenseState({...st,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    stopLicenseRetry();
+    if(!quiet)toast('تم التحقق من الجهاز');
+    setTimeout(()=>location.reload(),250);
+    return true;
+  }catch(e){if(!quiet)toast(e.message||'تعذر التحقق من الترخيص');return false}
+  finally{licenseRetryBusy=false}
+}
 async function showActivation(message='أدخل كود الترخيص الخاص بهذا الجهاز.'){
   show('activationView');const m=$('#activationMessage');if(m)m.textContent=message;
   if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info){try{sharawlaDeviceInfo=await window.topBurgerDesktop.device.info()}catch{}}
   if($('#deviceHint')&&sharawlaDeviceInfo)$('#deviceHint').textContent=`الجهاز: ${sharawlaDeviceInfo.name} • ${String(sharawlaDeviceInfo.fingerprint||'').slice(0,12)}…`;
+  const linked=await setActivationMode();
+  if(linked){
+    if(m && (!message||message==='أدخل كود الترخيص الخاص بهذا الجهاز.'))m.textContent='الجهاز مربوط بالفعل. سيتم إعادة التحقق تلقائيًا عند إعادة تشغيله من Sharawla Admin.';
+    if(!licenseRetryTimer)licenseRetryTimer=setInterval(()=>{if(!$('#activationView')?.classList.contains('hidden'))retryExistingSharawlaLicense({quiet:true})},5000);
+  }else stopLicenseRetry();
 }
 async function ensureSharawlaLicense(){
   if(!window.topBurgerDesktop?.isDesktop)return true;
@@ -437,6 +472,12 @@ async function bootstrap(){
   show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
+
+if($('#retryLicenseBtn'))$('#retryLicenseBtn').addEventListener('click',()=>retryExistingSharawlaLicense());
+if($('#changeLicenseBtn'))$('#changeLicenseBtn').addEventListener('click',async()=>{
+  if(!confirm('سيتم فك الربط المحلي على هذا الجهاز فقط وإظهار خانة كود الترخيص. متابعة؟'))return;
+  await saveLicenseState(null);stopLicenseRetry();await showActivation('أدخل كود الترخيص الجديد الخاص بهذا الجهاز.');
+});
 
 if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>{
   e.preventDefault();const btn=$('#activateBtn');
@@ -1580,7 +1621,7 @@ async function renderSettings(){
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.13',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.14',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

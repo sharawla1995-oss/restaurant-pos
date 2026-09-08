@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Sharawla POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=10.4.13">
+  <link rel="stylesheet" href="styles.css?v=10.4.14">
 </head>
 <body>
 <div id="toast"></div>
@@ -17,10 +17,12 @@
     <div class="brand-mark">POS</div>
     <h1>تفعيل Sharawla POS</h1>
     <p id="activationMessage">أدخل كود الترخيص الخاص بهذا الجهاز.</p>
-    <label>License Key
+    <label id="licenseKeyLabel">License Key
       <input id="licenseKey" placeholder="SHR-XXXX-XXXX-XXXX-XXXX" autocomplete="off" required>
     </label>
     <button id="activateBtn" class="primary" type="submit">تفعيل الجهاز</button>
+    <button id="retryLicenseBtn" class="primary hidden" type="button">إعادة التحقق</button>
+    <button id="changeLicenseBtn" class="hidden" type="button">إدخال كود ترخيص جديد</button>
     <small id="deviceHint">سيتم ربط الترخيص بهذا الجهاز فقط.</small>
   </form>
 </section>
@@ -55,7 +57,7 @@
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.13</small></span></div>
+    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.14</small></span></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
@@ -84,6 +86,6 @@
   </main>
 </section>
 
-<script src="app.js?v=10.4.13"></script>
+<script src="app.js?v=10.4.14"></script>
 </body>
 </html>
