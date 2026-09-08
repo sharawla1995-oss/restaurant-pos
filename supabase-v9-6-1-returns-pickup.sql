@@ -91,13 +91,15 @@ revoke all on function public.accept_website_order(bigint) from public; grant ex
 
 -- Harden returns: optional old-shift return, always posts to CURRENT open shift.
 create or replace function public.create_order_return(p_order_id bigint,p_reason text,p_notes text,p_items jsonb,p_payments jsonb) returns bigint language plpgsql security definer set search_path=public as $$
-declare v_order public.orders%rowtype; v_emp bigint; v_shift bigint; v_allow_closed boolean:=false; v_return_id bigint; v_return_no bigint; v_item jsonb; v_oi public.order_items%rowtype; v_qty numeric(12,3); v_prev numeric(12,3); v_line numeric(12,2); v_sub numeric(12,2):=0; v_ratio numeric(18,8):=0; v_discount numeric(12,2):=0; v_tax numeric(12,2):=0; v_service numeric(12,2):=0; v_total numeric(12,2):=0; v_pay jsonb; v_pay_total numeric(12,2):=0; v_method text; v_amount numeric(12,2);
+declare v_order public.orders%rowtype; v_emp bigint; v_shift bigint; v_allow_closed boolean:=false; v_return_id bigint; v_return_no bigint; v_item jsonb; v_oi public.order_items%rowtype; v_qty numeric(12,3); v_prev numeric(12,3); v_line numeric(12,2); v_sub numeric(12,2):=0; v_ratio numeric(18,8):=0; v_discount numeric(12,2):=0; v_tax numeric(12,2):=0; v_service numeric(12,2):=0; v_total numeric(12,2):=0; v_prices_include_tax boolean:=true; v_pay jsonb; v_pay_total numeric(12,2):=0; v_method text; v_amount numeric(12,2);
 begin
  if not (public.is_admin() or public.has_permission('returns')) then raise exception 'ليس لديك صلاحية عمل مرتجع'; end if;
  v_emp:=public.current_employee_id(); if v_emp is null then raise exception 'المستخدم غير مربوط بموظف'; end if;
  select * into v_order from public.orders where id=p_order_id for update; if not found then raise exception 'الفاتورة غير موجودة'; end if;
  if not public.has_branch_access(v_order.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع'; end if; if v_order.status='cancelled' then raise exception 'لا يمكن عمل مرتجع لفاتورة ملغية'; end if;
  select coalesce(value,'false')::boolean into v_allow_closed from public.app_settings where key='returns_allow_closed_shifts';
+ select coalesce(bfs.prices_include_tax,true) into v_prices_include_tax from public.branch_financial_settings bfs where bfs.branch_id=v_order.branch_id;
+ if not found then v_prices_include_tax:=true; end if;
  select id into v_shift from public.shifts where branch_id=v_order.branch_id and employee_id=v_emp and status='open' and closed_at is null order by opened_at desc limit 1; if v_shift is null then raise exception 'افتح وردية أولًا قبل عمل المرتجع'; end if;
  if not v_allow_closed and v_order.shift_id is distinct from v_shift then raise exception 'المرتجع مسموح لفواتير الوردية الحالية فقط'; end if;
  if nullif(trim(coalesce(p_reason,'')),'') is null then raise exception 'سبب المرتجع مطلوب'; end if; if p_items is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)=0 then raise exception 'اختر صنفًا واحدًا على الأقل'; end if;
@@ -109,7 +111,7 @@ begin
   v_line:=round((coalesce(v_oi.total,0)/nullif(v_oi.quantity,0))*v_qty,2); v_sub:=v_sub+v_line;
  end loop;
  if coalesce(v_order.subtotal,0)>0 then v_ratio:=least(1,v_sub/v_order.subtotal); end if;
- v_discount:=round(coalesce(v_order.discount,0)*v_ratio,2); v_tax:=round(coalesce(v_order.tax_amount,0)*v_ratio,2); v_service:=round(coalesce(v_order.service_amount,0)*v_ratio,2); v_total:=greatest(0,round(v_sub-v_discount+v_tax+v_service,2));
+ v_discount:=round(coalesce(v_order.discount,0)*v_ratio,2); v_tax:=round(coalesce(v_order.tax_amount,0)*v_ratio,2); v_service:=round(coalesce(v_order.service_amount,0)*v_ratio,2); v_total:=greatest(0,round(v_sub-v_discount+(case when v_prices_include_tax then 0 else v_tax end)+v_service,2));
  if p_payments is null or jsonb_typeof(p_payments)<>'array' or jsonb_array_length(p_payments)=0 then raise exception 'حدد طريقة رد المبلغ'; end if;
  for v_pay in select * from jsonb_array_elements(p_payments) loop v_method:=nullif(trim(v_pay->>'method'),''); v_amount:=coalesce((v_pay->>'amount')::numeric,0); if v_method is null or v_amount<=0 then raise exception 'بيانات رد المبلغ غير صحيحة'; end if; v_pay_total:=v_pay_total+v_amount; end loop;
  if abs(v_pay_total-v_total)>0.01 then raise exception 'إجمالي رد المبلغ يجب أن يساوي %',v_total; end if;

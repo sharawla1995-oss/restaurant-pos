@@ -313,3 +313,22 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 
 /* V10.2 Windows local-first sync badge */
 .pending-sync-badge{position:fixed;left:16px;bottom:16px;z-index:9998;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 3px 14px #0002;background:#fff;border:1px solid #ddd}.pending-sync-badge.has-pending{background:#fff4d6;border-color:#e1b64a}.pending-sync-badge.all-synced{background:#edf9f0;border-color:#9ac8a4}
+
+
+/* V10.4.6 final: compact cashier item-options dialog; layout/logic unchanged */
+.item-options-modal{padding:12px 14px!important;max-height:calc(100vh - 18px)!important}
+.item-options-modal h2{margin:0 0 5px!important;font-size:18px!important}
+.item-options-modal h3{margin:7px 0 4px!important;font-size:13px!important;line-height:1.2!important}
+.item-options-modal .option-list{gap:4px!important}
+.item-options-modal .option-list label{margin:0!important;padding:6px 9px!important;min-height:30px!important;font-size:12.5px!important;line-height:1.25!important;border-radius:8px!important}
+.item-options-modal .variant-list label{padding:7px 9px!important}
+.item-options-modal .item-qty-picker{margin:2px 0 3px!important;gap:7px!important}
+.item-options-modal .item-qty-picker button{width:30px!important;height:30px!important;padding:0!important}
+.item-options-modal .item-qty-picker input{height:30px!important;width:62px!important;padding:3px 6px!important}
+.item-options-modal textarea{min-height:48px!important;height:48px!important;padding:7px 9px!important}
+.item-options-modal .modal-actions{margin-top:8px!important}
+@media(max-width:700px){
+ .item-options-modal{padding:10px 12px!important;max-height:calc(100dvh - 12px)!important}
+ .item-options-modal h2{font-size:17px!important}.item-options-modal h3{margin:6px 0 3px!important}
+ .item-options-modal .option-list{gap:3px!important}.item-options-modal .option-list label{padding:5px 8px!important;font-size:12px!important;min-height:28px!important}
+}

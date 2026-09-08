@@ -1,7 +1,7 @@
 {
   "name": "top-burger-pos-windows",
-  "version": "10.4.5",
-  "description": "Top Burger POS V10.4.5 - GitHub automatic Windows updates + V10.4.4 printing update",
+  "version": "10.4.6",
+  "description": "Top Burger POS V10.4.6 - direct printing fix + order details restore + phone/web compatibility",
   "main": "main.js",
   "author": "Top Burger",
   "license": "UNLICENSED",

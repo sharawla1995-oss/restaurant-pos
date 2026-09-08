@@ -1,6 +1,6 @@
 {
   "product": "Top Burger POS",
-  "version": "10.4.5",
+  "version": "10.4.6",
   "channel": "stable",
   "source": "github",
   "windows": {
