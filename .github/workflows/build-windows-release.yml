@@ -1,1 +1,61 @@
+name: Build Windows Release
 
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{
+            enabled = $true
+            owner = "${{ github.repository_owner }}"
+            repo = "${{ github.event.repository.name }}"
+            channel = "stable"
+            checkEveryHours = 6
+          }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify version
+        run: npm run check
+
+      - name: Build Windows x64
+        run: npm run dist
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { throw "Windows installer not found" }
+          gh release create "${{ steps.ver.outputs.tag }}" "$($exe.FullName)" --title "Top Burger POS V${{ steps.ver.outputs.version }}" --notes "Top Burger POS Windows automatic release"
