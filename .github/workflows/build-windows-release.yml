@@ -40,6 +40,7 @@ jobs:
             channel = "stable"
             checkEveryHours = 6
           }
+
           $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
 
       - name: Install dependencies
@@ -49,13 +50,59 @@ jobs:
         run: npm run check
 
       - name: Build Windows x64
-        run: npm run dist -- --publish never
+        shell: pwsh
+        run: |
+          npm run dist -- --win --x64 --publish never
 
-      - name: Create GitHub Release
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe |
+            Where-Object { $_.Name -notmatch "ia32|x86" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $exe) {
+            throw "x64 installer not found"
+          }
+
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: |
+          npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+          if (-not $exe) {
+            throw "ia32 installer not found"
+          }
+
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+
+      - name: Create or update GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $exe = Get-ChildItem dist -Filter *.exe | Select-Object -First 1
-          if (-not $exe) { throw "Windows installer not found" }
-          gh release create "${{ steps.ver.outputs.tag }}" "$($exe.FullName)" --title "Top Burger POS ${{ steps.ver.outputs.tag }}" --notes "Top Burger POS Windows automatic release"
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+
+          gh release view $tag *> $null
+
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --title "Sharawla POS $version" `
+              --notes "Sharawla POS Windows automatic release"
+          }
+
+          gh release upload $tag `
+            "Sharawla-POS-Setup-$version-x64.exe" `
+            "Sharawla-POS-Setup-$version-ia32.exe" `
+            --clobber
