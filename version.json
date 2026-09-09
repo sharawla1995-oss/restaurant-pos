@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.17",
+  "version": "10.4.18",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Clean dual-architecture packaging release; application functionality remains the audited V10.4.16 stable behavior."
+  "notes": "Automatic business connection bootstrap plus weekly website opening hours management; core POS behavior remains based on V10.4.17."
 }

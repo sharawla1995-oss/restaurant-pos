@@ -1,17 +1,69 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
+let cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=null;
 
 // ===== Sharawla Cloud device licensing V10.4.15 =====
 const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
 const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
+const BUSINESS_CONNECTION_CACHE_KEY='sharawlaBusinessConnectionV1';
 let sharawlaDeviceInfo=null;
+function clearLegacyBusinessConfig(){
+  if(!window.topBurgerDesktop?.isDesktop)return;
+  localStorage.removeItem('sbUrl');
+  localStorage.removeItem('sbKey');
+}
+function loadBusinessConnectionCache(businessId){
+  try{
+    const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null');
+    if(!c||String(c.business_id)!==String(businessId||''))return null;
+    if(!/^https:\/\/[a-zA-Z0-9-]+\.supabase\.co$/.test(String(c.url||'').replace(/\/$/,'')))return null;
+    if(!String(c.key||'').startsWith('sb_publishable_'))return null;
+    return c;
+  }catch{return null}
+}
+function saveBusinessConnectionCache(c){
+  const row={business_id:String(c.business_id),business_name:c.business_name||'',url:String(c.supabase_url||c.url||'').replace(/\/$/,''),key:String(c.supabase_publishable_key||c.key||''),updated_at:new Date().toISOString()};
+  localStorage.setItem(BUSINESS_CONNECTION_CACHE_KEY,JSON.stringify(row));
+  return row;
+}
+async function ensureSharawlaBusinessConnection(){
+  if(!window.topBurgerDesktop?.isDesktop)return true;
+  clearLegacyBusinessConfig();
+  const st=await loadLicenseState();
+  if(!st?.device_id||!st?.business_id)return showActivation('بيانات ربط الجهاز بالنشاط غير مكتملة. أعد التحقق من الترخيص.'),false;
+  if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info){try{sharawlaDeviceInfo=await window.topBurgerDesktop.device.info()}catch{}}
+  if(navigator.onLine){
+    try{
+      const d=await cloudRpc('get_sharawla_business_connection',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo?.fingerprint||''});
+      if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعدادات اتصال النشاط.'),false;
+      if(String(d.business_id)!==String(st.business_id))return showActivation('بيانات اتصال النشاط غير متطابقة مع ترخيص الجهاز.'),false;
+      const c=saveBusinessConnectionCache(d);
+      cfg={url:c.url,key:c.key};
+      return true;
+    }catch(e){
+      const cached=loadBusinessConnectionCache(st.business_id);
+      if(cached&&licenseGraceValid(st)){cfg={url:cached.url,key:cached.key};return true}
+      return showActivation('تعذر تحميل إعدادات النشاط من Sharawla Cloud. وصّل الإنترنت واضغط إعادة التحقق.'),false;
+    }
+  }
+  const cached=loadBusinessConnectionCache(st.business_id);
+  if(cached&&licenseGraceValid(st)){cfg={url:cached.url,key:cached.key};return true}
+  return showActivation('لا توجد إعدادات اتصال محفوظة لهذا النشاط. وصّل الجهاز بالإنترنت للتحقق مرة واحدة.'),false;
+}
+
 async function cloudRpc(name,payload={}){
-  const r=await fetch(`${SHARAWLA_CLOUD_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SHARAWLA_CLOUD_KEY},body:JSON.stringify(payload)});
-  let d=null;try{d=await r.json()}catch{}
-  if(!r.ok)throw new Error(d?.message||d?.hint||`Sharawla Cloud ${r.status}`);
-  return Array.isArray(d)?d[0]:d;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  try{
+    const r=await fetch(`${SHARAWLA_CLOUD_URL}/rest/v1/rpc/${name}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SHARAWLA_CLOUD_KEY},body:JSON.stringify(payload),signal:controller.signal});
+    let d=null;try{d=await r.json()}catch{}
+    if(!r.ok)throw new Error(d?.message||d?.hint||`Sharawla Cloud ${r.status}`);
+    return Array.isArray(d)?d[0]:d;
+  }catch(e){
+    if(e?.name==='AbortError')throw new Error('انتهت مهلة الاتصال بـ Sharawla Cloud. تحقق من الإنترنت وحاول مرة أخرى.');
+    throw e;
+  }finally{clearTimeout(timeout)}
 }
 async function loadLicenseState(){
   try{
@@ -33,6 +85,19 @@ async function saveLicenseState(v){
 async function clearLicenseState(){
   if(window.topBurgerDesktop?.licenseState?.clear)await window.topBurgerDesktop.licenseState.clear();
   await odbSet(LICENSE_STATE_KEY,null);
+}
+async function clearBusinessLocalStateForLicenseChange(){
+  session=null;resumeSession=null;
+  localStorage.removeItem(BUSINESS_CONNECTION_CACHE_KEY);
+  localStorage.removeItem('sbResumeSession');
+  localStorage.removeItem('offlineLoginVerifier');
+  localStorage.removeItem('sbUrl');
+  localStorage.removeItem('sbKey');
+  localStorage.removeItem('offlineOrderNo');
+  for(const k of ['bootstrap','customersCache','customerAddressesCache','customersCacheAt','cachedOrders','lastFullBackupAt']){
+    try{await odbSet(k,null)}catch(e){console.warn('clear business cache',k,e)}
+  }
+  state.employee=null;state.selectedCustomer=null;state.customerAddresses=[];state.cart=[];state.activeBranchId=null;
 }
 function licenseGraceValid(st){if(!st?.last_verified_at)return false;const days=Math.max(0,Number(st.offline_grace_days||0));return Date.now()-new Date(st.last_verified_at).getTime() <= days*86400000}
 let licenseRetryBusy=false,licenseRetryTimer=null;
@@ -494,8 +559,13 @@ async function bootstrap(){
 
 if($('#retryLicenseBtn'))$('#retryLicenseBtn').addEventListener('click',()=>retryExistingSharawlaLicense());
 if($('#changeLicenseBtn'))$('#changeLicenseBtn').addEventListener('click',async()=>{
-  if(!confirm('سيتم فك الربط المحلي على هذا الجهاز فقط وإظهار خانة كود الترخيص. متابعة؟'))return;
-  await clearLicenseState();stopLicenseRetry();await showActivation('أدخل كود الترخيص الجديد الخاص بهذا الجهاز.');
+  const pending=await offlineQueue();
+  if(pending.length)return toast(`لا يمكن تغيير الترخيص الآن: يوجد ${pending.length} حركة أوفلاين في انتظار المزامنة. وصّل الإنترنت وانتظر اكتمال المزامنة أولًا.`);
+  if(!confirm('سيتم فك الربط المحلي وتنظيف بيانات النشاط المحفوظة على هذا الجهاز ثم إظهار خانة كود الترخيص. النسخ الاحتياطية لن تُحذف. متابعة؟'))return;
+  await clearBusinessLocalStateForLicenseChange();
+  await clearLicenseState();
+  stopLicenseRetry();
+  await showActivation('أدخل كود الترخيص الجديد الخاص بهذا الجهاز.');
 });
 
 if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>{
@@ -1154,14 +1224,35 @@ async function renderWebsiteAppearance(){
  $('#saveWebsiteAppearance').onclick=async()=>{try{const row={id:1,theme_name:theme,page_background:$('#siteBg').value,surface_color:$('#siteSurface').value,text_color:$('#siteText').value,card_radius:Number($('#siteRadius').value||22),show_contact:$('#siteContact').checked,show_locations:$('#siteLocations').checked,show_track_order:$('#siteTrack').checked,show_cancel_order:$('#siteCancel').checked,allow_customer_cancel:$('#siteCancelAllowed').checked,show_whatsapp:$('#siteWhatsOn').checked,whatsapp_url:$('#siteWhats').value.trim()||null,show_facebook:$('#siteFacebookOn').checked,facebook_url:$('#siteFacebook').value.trim()||null,show_instagram:$('#siteInstagramOn').checked,instagram_url:$('#siteInstagram').value.trim()||null,show_payment_reference:$('#sitePaymentRef').checked,show_payment_receipt_upload:$('#sitePaymentReceipt').checked,show_payment_status:$('#sitePaymentStatus').checked,updated_at:new Date().toISOString()};await rest('website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([row])});state.websiteSettings=row;toast('تم حفظ تصميم وقائمة الموقع')}catch(e){toast(e.message)}};
 }
 
-function websiteBranchState(row){
+const WEBSITE_WEEK_DAYS=[
+ {id:0,name:'الأحد'},{id:1,name:'الاثنين'},{id:2,name:'الثلاثاء'},{id:3,name:'الأربعاء'},{id:4,name:'الخميس'},{id:5,name:'الجمعة'},{id:6,name:'السبت'}
+];
+function hhmm(v,fallback){const x=String(v||fallback||'').slice(0,5);return /^\d{2}:\d{2}$/.test(x)?x:(fallback||'12:00')}
+function timeMinutes(v){const [h,m]=hhmm(v,'00:00').split(':').map(Number);return h*60+m}
+function scheduleClock(timeZone='Africa/Cairo'){
+ try{
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date());
+  const get=t=>parts.find(x=>x.type===t)?.value;const map={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  return {dow:map[get('weekday')]??new Date().getDay(),minutes:Number(get('hour')||0)*60+Number(get('minute')||0)};
+ }catch{return {dow:new Date().getDay(),minutes:new Date().getHours()*60+new Date().getMinutes()}}
+}
+function branchScheduleOpen(row,hours=[]){
+ if(!row?.schedule_enabled)return true;
+ const now=scheduleClock(row.schedule_timezone||'Africa/Cairo'),today=hours.find(x=>Number(x.day_of_week)===now.dow),prev=hours.find(x=>Number(x.day_of_week)===(now.dow+6)%7);
+ const inToday=()=>{if(!today?.enabled)return false;const a=timeMinutes(today.open_time),b=timeMinutes(today.close_time);if(a===b)return true;if(a<b)return now.minutes>=a&&now.minutes<b;return now.minutes>=a};
+ if(inToday())return true;
+ if(prev?.enabled){const a=timeMinutes(prev.open_time),b=timeMinutes(prev.close_time);if(a>b&&now.minutes<b)return true}
+ return false;
+}
+function websiteBranchState(row,hours=[]){
  const until=row?.orders_paused_until?new Date(row.orders_paused_until):null;
  if(row?.orders_open===false)return {open:false,temp:false,label:'🔴 موقوف يدويًا'};
  if(until&&!Number.isNaN(until.getTime())&&until.getTime()>Date.now()){
    const t=until.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
    return {open:false,temp:true,label:`🟠 موقوف حتى ${t}`};
  }
- return {open:true,temp:false,label:'🟢 استقبال مفتوح'};
+ if(row?.schedule_enabled&&!branchScheduleOpen(row,hours))return {open:false,temp:false,schedule:true,label:'🔵 مغلق حسب المواعيد'};
+ return {open:true,temp:false,label:row?.schedule_enabled?'🟢 مفتوح حسب المواعيد':'🟢 استقبال مفتوح'};
 }
 function chooseBranchOrderAction(branchName){return new Promise(resolve=>{
  const m=document.createElement('div');m.className='modal';
@@ -1169,14 +1260,22 @@ function chooseBranchOrderAction(branchName){return new Promise(resolve=>{
  document.body.appendChild(m);const finish=v=>{m.remove();resolve(v)};
  m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return finish(null);const b=e.target.closest('[data-bo-action]');if(!b)return;const a=b.dataset.boAction;if(a==='custom'){const v=await uiPrompt('حدد وقت فتح الطلبات تلقائيًا','',{title:'إيقاف الطلبات لوقت محدد',type:'datetime-local',okText:'تأكيد',icon:'🕒'});if(!v)return;const d=new Date(v);if(Number.isNaN(d.getTime())||d.getTime()<=Date.now())return toast('اختار وقت بعد الوقت الحالي');return finish({type:'temp',until:d.toISOString()})}if(a==='on')return finish({type:'on'});if(a==='off')return finish({type:'off'});return finish({type:'temp',until:new Date(Date.now()+Number(a)*60000).toISOString()})};
  })}
-
+function openWebsiteHoursModal(branch,row,hours){
+ const current=new Map((hours||[]).map(x=>[Number(x.day_of_week),x]));
+ const m=document.createElement('div');m.className='modal';
+ const lines=WEBSITE_WEEK_DAYS.map(d=>{const h=current.get(d.id)||{enabled:true,open_time:'12:00',close_time:'03:00'};const allDay=hhmm(h.open_time)===hhmm(h.close_time);return `<div class="schedule-day-row" data-schedule-day="${d.id}"><label class="inline-check"><input type="checkbox" data-day-enabled ${h.enabled===false?'':'checked'}> ${d.name}</label><label class="inline-check"><input type="checkbox" data-day-24h ${allDay?'checked':''}> 24 ساعة</label><label>فتح <input type="time" data-day-open value="${hhmm(h.open_time,'12:00')}" ${allDay?'disabled':''}></label><label>قفل <input type="time" data-day-close value="${hhmm(h.close_time,'03:00')}" ${allDay?'disabled':''}></label></div>`}).join('');
+ m.innerHTML=`<form class="modal-card website-hours-modal"><h2>🕒 مواعيد ${esc(branch.name)}</h2><p class="muted">اختار 24 ساعة لأي يوم، أو حدد وقت الفتح والقفل. لو وقت القفل أقل من وقت الفتح، النظام يعتبر القفل في اليوم التالي.</p><label class="setting-switch"><span>تفعيل الفتح والقفل التلقائي حسب المواعيد</span><input id="scheduleEnabled" type="checkbox" ${row?.schedule_enabled?'checked':''}></label><div class="schedule-days">${lines}</div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">💾 حفظ المواعيد</button></div></form>`;
+ document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove()};
+ m.querySelectorAll('[data-day-24h]').forEach(cb=>cb.addEventListener('change',()=>{const el=cb.closest('[data-schedule-day]'),on=cb.checked,open=el.querySelector('[data-day-open]'),close=el.querySelector('[data-day-close]');open.disabled=on;close.disabled=on;if(on){const v=open.value||'00:00';open.value=v;close.value=v}}));
+ m.querySelector('form').onsubmit=async e=>{e.preventDefault();const enabled=m.querySelector('#scheduleEnabled').checked;const rows=[...m.querySelectorAll('[data-schedule-day]')].map(el=>{const allDay=el.querySelector('[data-day-24h]').checked;let open=el.querySelector('[data-day-open]').value||'12:00',close=el.querySelector('[data-day-close]').value||'03:00';if(allDay)close=open;return {branch_id:Number(branch.id),day_of_week:Number(el.dataset.scheduleDay),enabled:el.querySelector('[data-day-enabled]').checked,open_time:open,close_time:close,updated_at:new Date().toISOString()}});try{await rest('branch_website_hours','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify(rows)});await rest('branch_website_settings',`branch_id=eq.${Number(branch.id)}`,{method:'PATCH',body:JSON.stringify({schedule_enabled:enabled,schedule_timezone:'Africa/Cairo',updated_at:new Date().toISOString()})});m.remove();toast(enabled?'تم حفظ وتفعيل المواعيد التلقائية':'تم حفظ المواعيد بدون تفعيل التشغيل التلقائي');renderWebsiteBranchSettings()}catch(err){toast(err.message||'تعذر حفظ المواعيد')}};
+}
 async function renderWebsiteBranchSettings(){
  if(!hasFeaturePermission('websiteBranchSettings')){toast('ليس لديك صلاحية إدارة استقبال طلبات الموقع');return showPage('home')}
- let rows=[];try{rows=await rest('branch_website_settings','select=*')}catch(e){throw new Error('شغّل SQL الخاص بـ V9.2.8 أولًا')}
+ let rows=[],hours=[];try{[rows,hours]=await Promise.all([rest('branch_website_settings','select=*'),rest('branch_website_hours','select=*&order=branch_id,day_of_week')])}catch(e){throw new Error('شغّل SQL الخاص بمواعيد الموقع أولًا')}
  const branches=allowedBranches();
- const cards=branches.map(b=>{const r=rows.find(x=>Number(x.branch_id)===Number(b.id))||{branch_id:b.id,orders_open:true,prep_min:30,prep_max:45};const st=websiteBranchState(r);return `<div class="branch-web-card" data-branch-settings="${b.id}"><div class="branch-web-head"><div><h3>📍 ${esc(b.name)}</h3><span class="branch-web-status ${st.open?'is-open':st.temp?'is-temp':'is-closed'}">${st.label}</span></div><button class="secondary compact" data-order-state="${b.id}">تغيير الحالة</button></div><div class="prep-settings"><label>من <input type="number" min="5" max="240" step="5" data-prep-min="${b.id}" value="${Number(r.prep_min||30)}"> دقيقة</label><label>إلى <input type="number" min="5" max="240" step="5" data-prep-max="${b.id}" value="${Number(r.prep_max||45)}"> دقيقة</label><button class="primary compact" data-save-prep="${b.id}">💾 حفظ مدة التجهيز</button></div></div>`}).join('');
- $('#page').innerHTML=`<div class="panel branch-website-panel"><div class="section-head"><div><h2>🔥 استقبال طلبات الموقع ومدة التجهيز</h2><p class="muted">كل فرع مستقل. الإيقاف المؤقت يرجع يفتح تلقائيًا، ومدة التجهيز تظهر للعميل على الموقع.</p></div></div><div class="branch-web-list">${cards||'<div class="empty">لا توجد فروع متاحة</div>'}</div></div>`;
- $('#page').onclick=async e=>{const sb=e.target.closest('[data-order-state]');if(sb){const branchId=Number(sb.dataset.orderState);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const b=state.branches.find(x=>Number(x.id)===branchId);const action=await chooseBranchOrderAction(b?.name||'الفرع');if(!action)return;let payload;if(action.type==='on')payload={orders_open:true,orders_paused_until:null,updated_at:new Date().toISOString()};else if(action.type==='off')payload={orders_open:false,orders_paused_until:null,updated_at:new Date().toISOString()};else payload={orders_open:true,orders_paused_until:action.until,updated_at:new Date().toISOString()};try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,...payload}])});toast(action.type==='on'?'تم فتح استقبال الطلبات':action.type==='off'?'تم إيقاف الطلبات يدويًا':'تم إيقاف الطلبات مؤقتًا');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر تحديث حالة الفرع')}}const sp=e.target.closest('[data-save-prep]');if(sp){const branchId=Number(sp.dataset.savePrep);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const mn=Number($(`[data-prep-min="${branchId}"]`)?.value||0),mx=Number($(`[data-prep-max="${branchId}"]`)?.value||0);if(mn<5||mx<5||mn>240||mx>240||mx<mn)return toast('راجع مدة التجهيز: من 5 إلى 240 دقيقة، والنهاية أكبر من البداية');try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,prep_min:mn,prep_max:mx,updated_at:new Date().toISOString()}])});toast('تم حفظ مدة التجهيز');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر حفظ مدة التجهيز')}}};
+ const cards=branches.map(b=>{const r=rows.find(x=>Number(x.branch_id)===Number(b.id))||{branch_id:b.id,orders_open:true,prep_min:30,prep_max:45,schedule_enabled:false,schedule_timezone:'Africa/Cairo'};const bh=hours.filter(x=>Number(x.branch_id)===Number(b.id));const st=websiteBranchState(r,bh);return `<div class="branch-web-card" data-branch-settings="${b.id}"><div class="branch-web-head"><div><h3>📍 ${esc(b.name)}</h3><span class="branch-web-status ${st.open?'is-open':st.temp?'is-temp':'is-closed'}">${st.label}</span><small>${r.schedule_enabled?'🕒 المواعيد التلقائية مفعلة':'🕒 المواعيد التلقائية غير مفعلة'}</small></div><div class="toolbar"><button class="secondary compact" data-order-state="${b.id}">تغيير الحالة</button><button class="secondary compact" data-hours="${b.id}">🕒 مواعيد الأسبوع</button></div></div><div class="prep-settings"><label>من <input type="number" min="5" max="240" step="5" data-prep-min="${b.id}" value="${Number(r.prep_min||30)}"> دقيقة</label><label>إلى <input type="number" min="5" max="240" step="5" data-prep-max="${b.id}" value="${Number(r.prep_max||45)}"> دقيقة</label><button class="primary compact" data-save-prep="${b.id}">💾 حفظ مدة التجهيز</button></div></div>`}).join('');
+ $('#page').innerHTML=`<div class="panel branch-website-panel"><div class="section-head"><div><h2>🔥 استقبال طلبات الموقع ومدة التجهيز</h2><p class="muted">كل فرع مستقل. تقدر توقف يدويًا أو مؤقتًا، وكمان تحدد مواعيد أسبوعية تفتح وتقفل الموقع تلقائيًا.</p></div></div><div class="branch-web-list">${cards||'<div class="empty">لا توجد فروع متاحة</div>'}</div></div>`;
+ $('#page').onclick=async e=>{const hb=e.target.closest('[data-hours]');if(hb){const branchId=Number(hb.dataset.hours);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const b=state.branches.find(x=>Number(x.id)===branchId),r=rows.find(x=>Number(x.branch_id)===branchId)||{branch_id:branchId,schedule_enabled:false};return openWebsiteHoursModal(b,r,hours.filter(x=>Number(x.branch_id)===branchId))}const sb=e.target.closest('[data-order-state]');if(sb){const branchId=Number(sb.dataset.orderState);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const b=state.branches.find(x=>Number(x.id)===branchId);const action=await chooseBranchOrderAction(b?.name||'الفرع');if(!action)return;let payload;if(action.type==='on')payload={orders_open:true,orders_paused_until:null,updated_at:new Date().toISOString()};else if(action.type==='off')payload={orders_open:false,orders_paused_until:null,updated_at:new Date().toISOString()};else payload={orders_open:true,orders_paused_until:action.until,updated_at:new Date().toISOString()};try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,...payload}])});toast(action.type==='on'?'تم فتح استقبال الطلبات':action.type==='off'?'تم إيقاف الطلبات يدويًا':'تم إيقاف الطلبات مؤقتًا');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر تحديث حالة الفرع')}}const sp=e.target.closest('[data-save-prep]');if(sp){const branchId=Number(sp.dataset.savePrep);if(!allowedBranchIds().includes(branchId))return toast('ليس لديك صلاحية لهذا الفرع');const mn=Number($(`[data-prep-min="${branchId}"]`)?.value||0),mx=Number($(`[data-prep-max="${branchId}"]`)?.value||0);if(mn<5||mx<5||mn>240||mx>240||mx<mn)return toast('راجع مدة التجهيز: من 5 إلى 240 دقيقة، والنهاية أكبر من البداية');try{await rest('branch_website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:branchId,prep_min:mn,prep_max:mx,updated_at:new Date().toISOString()}])});toast('تم حفظ مدة التجهيز');return renderWebsiteBranchSettings()}catch(err){return toast(err.message||'تعذر حفظ مدة التجهيز')}}};
 }
 
 function availabilityState(bp){
@@ -1644,10 +1743,10 @@ async function renderSettings(){
  if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.17',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.18',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

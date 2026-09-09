@@ -361,3 +361,5 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 @media(max-width:900px){.delivery-fields{grid-template-columns:1fr}.delivery-fields>*{grid-column:auto!important}.sidebar-close{display:grid}}
 .delivery-fields>#deliveryAddress{grid-column:1/-1}
 @media(max-width:900px){.delivery-fields>#deliveryAddress{grid-column:auto}}
+/* V10.4.18 weekly website opening hours */
+.website-hours-modal{max-width:820px}.schedule-days{display:grid;gap:10px;margin:14px 0}.schedule-day-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(95px,.7fr) minmax(130px,1fr) minmax(130px,1fr);gap:10px;align-items:end;padding:10px;border:1px solid #e5e7eb;border-radius:12px}.schedule-day-row label{margin:0}.schedule-day-row input:disabled{opacity:.55;cursor:not-allowed}.branch-web-head small{display:block;margin-top:6px;color:#6b7280}@media(max-width:700px){.schedule-day-row{grid-template-columns:1fr 1fr}.schedule-day-row .inline-check{grid-column:auto}.schedule-day-row .inline-check:first-child{grid-column:1/-1}}
