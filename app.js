@@ -1743,10 +1743,21 @@ async function renderSettings(){
  if($('#resetSelected'))$('#resetSelected').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد ما تريد إعادة ضبطه');const code=await uiPrompt('اكتب RESET بالحروف الكبيرة لتأكيد مسح البيانات المحددة فقط','',{title:'تأكيد إعادة الضبط',icon:'⚠️',danger:true,placeholder:'RESET',okText:'إعادة الضبط'});if(code!=='RESET')return toast('تم إلغاء إعادة الضبط');try{await resetGroups(g);toast('تمت إعادة ضبط البيانات المحددة');setTimeout(()=>location.reload(),900)}catch(e){toast(e.message)}};
 }
 
+function initDeveloperContact(){
+ const btn=$('#developerContactBtn'),m=$('#developerContactModal'),close=$('#developerContactClose'),wa=$('#developerWhatsappBtn');
+ if(!btn||!m)return;
+ const hide=()=>m.classList.add('hidden');
+ btn.onclick=()=>m.classList.remove('hidden');
+ if(close)close.onclick=hide;
+ m.onclick=e=>{if(e.target===m)hide()};
+ if(wa)wa.onclick=async()=>{const url='https://wa.me/201140642734';try{if(window.topBurgerDesktop?.external?.open)await window.topBurgerDesktop.external.open(url);else window.open(url,'_blank','noopener,noreferrer')}catch{toast('تعذر فتح واتساب على هذا الجهاز')}};
+}
+initDeveloperContact();
+
 async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.18',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.19',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -17,8 +17,30 @@ function readLicenseStateFile(){
 }
 function writeLicenseStateFile(v){
   const p=licenseStatePath();
-  if(v==null){try{if(fs.existsSync(p))fs.unlinkSync(p)}catch{};return true}
-  const tmp=p+'.tmp';fs.writeFileSync(tmp,JSON.stringify(v),'utf8');try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{};return true
+  if(v==null){
+    try{if(fs.existsSync(p)){try{fs.chmodSync(p,0o600)}catch{}fs.unlinkSync(p)}}catch{}
+    // Clean up only stale license temp files; never touch POS database temp files.
+    try{for(const n of fs.readdirSync(dataDir()))if(/^sharawla-license-state\.json\.tmp(?:-|$)/.test(n)){try{fs.unlinkSync(path.join(dataDir(),n))}catch{}}}catch{}
+    return true;
+  }
+  const json=JSON.stringify(v);
+  // A unique temp name avoids Windows 7 EPERM caused by a stale/locked fixed .tmp file.
+  const tmp=`${p}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  let wroteTmp=false;
+  try{
+    fs.writeFileSync(tmp,json,{encoding:'utf8',flag:'wx'});wroteTmp=true;
+    try{const fd=fs.openSync(tmp,'r');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}
+    try{fs.copyFileSync(tmp,p)}catch(copyErr){
+      // Fallback for Windows file replacement edge cases. The state is still tied to device fingerprint in Cloud.
+      try{if(fs.existsSync(p)){try{fs.chmodSync(p,0o600)}catch{}fs.unlinkSync(p)}}catch{}
+      try{fs.renameSync(tmp,p);wroteTmp=false}catch(renameErr){
+        try{fs.writeFileSync(p,json,'utf8')}catch{throw copyErr}
+      }
+    }
+    return true;
+  }finally{
+    if(wroteTmp)try{fs.unlinkSync(tmp)}catch{}
+  }
 }
 function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
 async function openDb(){
@@ -173,6 +195,7 @@ function registerIpc(){
  ipcMain.handle('backup:list',()=>fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).sort().reverse());
  ipcMain.handle('desktop:paths',()=>({data:dataDir(),backups:backupDir(),database:dbPath()}));
  ipcMain.handle('device:info',()=>deviceInfo());
+ ipcMain.handle('external:open',async(_e,url)=>{const u=String(url||'');if(!/^https:\/\//i.test(u))throw new Error('invalid external URL');await shell.openExternal(u);return true});
  ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));
  ipcMain.handle('print:list',async()=>mainWindow?await mainWindow.webContents.getPrintersAsync():[]);
  ipcMain.handle('print:current',async(_e,opts={})=>new Promise(resolve=>{if(!mainWindow)return resolve({ok:false,error:'window unavailable'});mainWindow.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true},(ok,reason)=>resolve({ok,error:reason||null}))}));
