@@ -35,7 +35,9 @@ async function ensureSharawlaBusinessConnection(){
   if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info){try{sharawlaDeviceInfo=await window.topBurgerDesktop.device.info()}catch{}}
   if(navigator.onLine){
     try{
-      const d=await cloudRpc('get_sharawla_business_connection',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo?.fingerprint||''});
+      const canonical=String(st.device_fingerprint||'').trim();
+      if(!canonical)return showActivation('بصمة الجهاز الثابتة غير مثبتة بعد. اضغط إعادة التحقق أثناء الاتصال بالإنترنت.'),false;
+      const d=await cloudRpc('get_sharawla_business_connection',{p_device_id:st.device_id,p_device_fingerprint:canonical});
       if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعدادات اتصال النشاط.'),false;
       if(String(d.business_id)!==String(st.business_id))return showActivation('بيانات اتصال النشاط غير متطابقة مع ترخيص الجهاز.'),false;
       const c=saveBusinessConnectionCache(d);
@@ -100,6 +102,34 @@ async function clearBusinessLocalStateForLicenseChange(){
   state.employee=null;state.selectedCustomer=null;state.customerAddresses=[];state.cart=[];state.activeBranchId=null;
 }
 function licenseGraceValid(st){if(!st?.last_verified_at)return false;const days=Math.max(0,Number(st.offline_grace_days||0));return Date.now()-new Date(st.last_verified_at).getTime() <= days*86400000}
+function licenseFingerprintCandidates(st){
+ // V10.4.20 FINAL: once a canonical fingerprint is pinned locally it is the
+ // only identity allowed for this device. Never replace it automatically.
+ const canonical=String(st?.device_fingerprint||'').trim();
+ if(canonical)return [canonical];
+ // Legacy migration only: old states have a device_id but no canonical
+ // fingerprint. Try historical fingerprints to recover the identity already
+ // registered in Sharawla Cloud; the first successful one is pinned forever.
+ const vals=[...(sharawlaDeviceInfo?.fingerprint_candidates||[]),sharawlaDeviceInfo?.fingerprint]
+  .map(x=>String(x||'').trim()).filter(Boolean);
+ return [...new Set(vals)];
+}
+async function verifySharawlaDeviceState(st){
+ const canonical=String(st?.device_fingerprint||'').trim();
+ const candidates=licenseFingerprintCandidates(st);
+ let last=null;
+ for(const fp of candidates){
+  const d=await cloudRpc('verify_sharawla_device',{p_device_id:st.device_id,p_device_fingerprint:fp,p_app_version:sharawlaDeviceInfo.version});
+  last=d;
+  if(d?.ok)return {data:d,fingerprint:fp,migrated:!canonical};
+  // Canonical identity is immutable: any Cloud rejection is authoritative.
+  // Only a legacy state with NO canonical fingerprint may try another
+  // historical candidate when the current candidate is reported unknown.
+  if(canonical)break;
+  if(!/غير معروف|unknown/i.test(String(d?.message||'')))break;
+ }
+ return {data:last,fingerprint:null,migrated:false};
+}
 let licenseRetryBusy=false,licenseRetryTimer=null;
 async function setActivationMode(){
   const st=await loadLicenseState();
@@ -120,9 +150,9 @@ async function retryExistingSharawlaLicense({quiet=false}={}){
   licenseRetryBusy=true;
   try{
     if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info)sharawlaDeviceInfo=await window.topBurgerDesktop.device.info();
-    const d=await cloudRpc('verify_sharawla_device',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_app_version:sharawlaDeviceInfo.version});
+    const vr=await verifySharawlaDeviceState(st),d=vr.data;
     if(!d?.ok){if(!quiet&&d?.message)toast(d.message);return false}
-    await saveLicenseState({...st,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    await saveLicenseState({...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
     stopLicenseRetry();
     if(!quiet)toast('تم التحقق من الجهاز');
     setTimeout(()=>location.reload(),250);
@@ -150,9 +180,9 @@ async function ensureSharawlaLicense(){
     return showActivation('انتهت فترة السماح بدون إنترنت. وصّل الجهاز بالإنترنت للتحقق من الترخيص.'),false;
   }
   try{
-    const d=await cloudRpc('verify_sharawla_device',{p_device_id:st.device_id,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_app_version:sharawlaDeviceInfo.version});
+    const vr=await verifySharawlaDeviceState(st),d=vr.data;
     if(!d?.ok)return showActivation(d?.message||'الترخيص غير ساري.'),false;
-    await saveLicenseState({...st,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    await saveLicenseState({...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
     return true;
   }catch(e){
     if(licenseGraceValid(st))return true;
@@ -577,7 +607,7 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
     const key=$('#licenseKey').value.trim().toUpperCase();
     const d=await cloudRpc('activate_sharawla_device',{p_license_key:key,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_device_name:sharawlaDeviceInfo.name,p_app_version:sharawlaDeviceInfo.version,p_operating_system:sharawlaDeviceInfo.os});
     if(!d?.ok)throw new Error(d?.message||'فشل التفعيل');
-    await saveLicenseState({device_id:d.device_id,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    await saveLicenseState({device_id:d.device_id,device_fingerprint:sharawlaDeviceInfo.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
     toast('تم تفعيل الجهاز بنجاح');setTimeout(()=>location.reload(),500);
   }catch(err){toast(err.message)}finally{btn.disabled=false}
 });
@@ -1757,7 +1787,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.19',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.20',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
@@ -1788,6 +1818,29 @@ function openDriverPicker(orderId, drivers, onDone){
 function paymentStatusLabel(v){return ({unpaid:'💰 غير مدفوع',proof_submitted:'🧾 إيصال للمراجعة',confirmed:'✅ الدفع مؤكد',rejected:'❌ إثبات مرفوض'}[v]||'💰 غير مدفوع')}
 function paymentStatusHTML(v){const x=v||'unpaid';return `<span class="payment-status-chip payment-status-${esc(x)}">${paymentStatusLabel(x)}</span>`}
 async function openPaymentReceipt(path){if(!path)return toast('لا يوجد إيصال مرفوع');try{const r=await fetch(`${cfg.url}/storage/v1/object/authenticated/website-payment-receipts/${encodeURI(path)}`,{headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`}});if(!r.ok)throw new Error('تعذر تحميل الإيصال');const blob=await r.blob(),url=URL.createObjectURL(blob);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>🧾 إيصال الدفع</h2><img class="receipt-preview" src="${url}" alt="إيصال الدفع"><div class="modal-actions"><button class="secondary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){URL.revokeObjectURL(url);m.remove()}}}catch(e){toast(e.message)}}
+async function getWebsiteOrderDetails(id){
+ const [orders,items,zones]=await Promise.all([
+  rest('website_orders',`select=*&id=eq.${Number(id)}&limit=1`),
+  rest('website_order_items',`select=*&website_order_id=eq.${Number(id)}&order=id`),
+  rest('delivery_zones',`select=id,name,delivery_fee&branch_id=eq.${currentBranchId()}`).catch(()=>[])
+ ]);
+ const order=orders?.[0];if(!order)throw new Error('تعذر تحميل طلب الموقع');
+ const ids=(items||[]).map(x=>x.id);
+ let modifiers=[];if(ids.length)modifiers=await rest('website_order_item_modifiers',`select=*&website_order_item_id=in.(${ids.join(',')})&order=id`).catch(()=>[]);
+ const zone=(zones||[]).find(z=>String(z.id)===String(order.delivery_zone_id));
+ return {order,items:items||[],modifiers,zone};
+}
+function websiteOrderDetailsHTML(d){
+ const w=d.order,addr=w.order_type==='pickup'?'استلام من الفرع':(w.customer_address||w.delivery_address||'العنوان غير مسجل');
+ const itemRows=d.items.map(i=>{const mods=d.modifiers.filter(m=>String(m.website_order_item_id)===String(i.id));return `<div class="web-detail-item"><div><b>${Number(i.quantity||1)} × ${esc(i.product_name||'صنف')}</b>${i.variant_name?`<small>${esc(i.variant_name)}</small>`:''}${mods.length?`<small>إضافات: ${mods.map(m=>esc(m.modifier_name)).join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${esc(i.notes)}</small>`:''}</div><strong>${money(i.line_total)}</strong></div>`}).join('');
+ return `<div class="web-order-review"><div class="web-review-address"><b>📍 ${w.order_type==='pickup'?'طريقة الاستلام':'عنوان التوصيل'}</b><span>${esc(addr)}</span>${w.order_type==='delivery'?`<small>المنطقة: ${esc(d.zone?.name||'غير محددة')} • توصيل ${money(w.delivery_fee||d.zone?.delivery_fee||0)}</small>`:''}</div><div class="web-review-customer"><b>👤 ${esc(w.customer_name)}</b><span dir="ltr">${esc(w.customer_phone)}</span></div>${w.customer_notes?`<div class="web-review-note"><b>📝 ملاحظات العميل</b><span>${esc(w.customer_notes)}</span></div>`:''}<div class="web-detail-items">${itemRows||'<div class="empty">لا توجد أصناف</div>'}</div><div class="web-review-total"><span>الإجمالي</span><b>${money(w.total)}</b></div></div>`;
+}
+async function openWebsiteOrderReview(id,action=null){
+ try{
+  const d=await getWebsiteOrderDetails(id),w=d.order;
+  return await new Promise(resolve=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card website-order-review-modal"><h2>🌐 WEB-${String(w.id).padStart(5,'0')} • مراجعة الطلب</h2><p class="web-review-warning">راجع العنوان والمنطقة والأصناف قبل ${action==='accept'?'الاستلام':action==='reject'?'الرفض':'اتخاذ القرار'}.</p>${websiteOrderDetailsHTML(d)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${action==='reject'?'<button class="danger" data-confirm>رفض الطلب</button>':action==='accept'?'<button class="primary" data-confirm>✅ استلام الطلب</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){m.remove();resolve(false);return}if(e.target.closest('[data-confirm]')){m.remove();resolve(true)}}});
+ }catch(e){toast(e.message);return false}
+}
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
   const [orders,drivers,webOrders]=await Promise.all([
@@ -1799,7 +1852,7 @@ async function renderDeliveryOrders(){
   const all=(orders||[]).filter(o=>o.status!=='cancelled'&&(o.order_type==='delivery'||(o.source==='website'&&o.order_type==='pickup')));
   const active=all.filter(o=>['new','preparing','ready','out_for_delivery'].includes(o.status));
   const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
-  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 طلبات الموقع الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}${w.order_type==='pickup'?' • استلام من الفرع':` • ${esc(w.delivery_address||'')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span>${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-web-accept="${w.id}">✅ استلام</button> <button class="danger" data-web-reject="${w.id}">رفض</button></span></div>`).join('')}</div></div>`:'';
+  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 طلبات الموقع الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-web-accept="${w.id}">✅ استلام</button> <button class="danger" data-web-reject="${w.id}">رفض</button></span></div>`).join('')}</div></div>`:'';
   $('#page').innerHTML=`${websitePanel}<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
   <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">تم الاستلام</button><button data-filter="preparing">جاري التجهيز</button><button data-filter="ready">جاهز</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
   let filter='active';
@@ -1815,9 +1868,10 @@ async function renderDeliveryOrders(){
   $('#deliverySearch').oninput=draw;
   $('#deliveryFilter').onclick=e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;$$('#deliveryFilter button').forEach(x=>x.classList.toggle('active',x===b));draw()};
   $('#page').onclick=async e=>{
+    const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
     const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
-    const acc=e.target.closest('[data-web-accept]');if(acc){const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل استلام طلب الموقع');if(!await uiConfirm('استلام طلب الموقع وإضافته للنظام؟',{title:'استلام طلب الموقع',okText:'استلام'}))return;try{const orderId=Number(await rpc('accept_website_order',{p_website_order_id:Number(acc.dataset.webAccept)}));const [orders,items]=await Promise.all([rest('orders',`select=*&id=eq.${orderId}`),rest('order_items',`select=*&order_id=eq.${orderId}&order=id`)]);const o=orders?.[0];if(!o)throw new Error('تم استلام الطلب لكن تعذر تحميله للطباعة');toast(`تم استلام بون ${bonDisplay(o)}`);await renderDeliveryOrders();showReceipt(o,items||[]);return}catch(err){return toast(err.message)}}
-    const rej=e.target.closest('[data-web-reject]');if(rej){if(!await uiConfirm('رفض طلب الموقع؟',{title:'رفض الطلب',danger:true,okText:'رفض'}))return;try{await rpc('reject_website_order',{p_website_order_id:Number(rej.dataset.webReject)});toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
+    const acc=e.target.closest('[data-web-accept]');if(acc){const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل استلام طلب الموقع');if(!await openWebsiteOrderReview(Number(acc.dataset.webAccept),'accept'))return;try{const orderId=Number(await rpc('accept_website_order',{p_website_order_id:Number(acc.dataset.webAccept)}));const [orders,items]=await Promise.all([rest('orders',`select=*&id=eq.${orderId}`),rest('order_items',`select=*&order_id=eq.${orderId}&order=id`)]);const o=orders?.[0];if(!o)throw new Error('تم استلام الطلب لكن تعذر تحميله للطباعة');toast(`تم استلام بون ${bonDisplay(o)}`);await renderDeliveryOrders();showReceipt(o,items||[]);return}catch(err){return toast(err.message)}}
+    const rej=e.target.closest('[data-web-reject]');if(rej){if(!await openWebsiteOrderReview(Number(rej.dataset.webReject),'reject'))return;try{await rpc('reject_website_order',{p_website_order_id:Number(rej.dataset.webReject)});toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
     const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
   };
   draw();

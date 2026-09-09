@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Sharawla POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=10.4.19">
+  <link rel="stylesheet" href="styles.css?v=10.4.20">
 </head>
 <body>
 <div id="toast"></div>
@@ -51,13 +51,13 @@
     <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
     <button class="primary" type="submit">تسجيل الدخول</button>
-    
+    <button id="developerContactBtn" class="developer-contact-login-btn" type="button"><span class="developer-contact-icon">💬</span><span><b>تواصل مع المطور</b><small>الدعم الفني لـ Sharawla POS</small></span></button>
   </form>
 </section>
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.19</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
+    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.4.20</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
@@ -78,7 +78,7 @@
       <button data-page="settings">⚙️ الإعدادات</button>
       <button id="logoutMenuBtn" type="button">🚪 تسجيل الخروج</button>
     </nav>
-    <div class="sidebar-foot"><span id="who"></span><button id="developerContactBtn" class="developer-contact-btn" type="button"><span class="developer-contact-icon">💬</span><span><b>تواصل مع المطور</b><small>دعم Sharawla POS</small></span><span class="developer-contact-arrow">‹</span></button></div>
+    <div class="sidebar-foot"><span id="who"></span></div>
   </aside>
   <main class="main">
     <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><div class="branch-top-actions"><button id="manageBranchesBtn" class="add-branch-btn manage-branch-btn hidden" type="button">⚙️ إدارة الفروع</button><button id="addBranchBtn" class="add-branch-btn hidden" type="button">➕ إضافة فرع</button><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button></div><div id="clock"></div></header>
@@ -100,6 +100,6 @@
   </div>
 </div>
 
-<script src="app.js?v=10.4.19"></script>
+<script src="app.js?v=10.4.20"></script>
 </body>
 </html>

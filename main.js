@@ -165,21 +165,24 @@ function startUpdateWatch(){
 }
 
 
-function stableDeviceFingerprint(){
-  let seed='';
-  try{
-    if(process.platform==='win32'){
+function fingerprintHash(seed){return crypto.createHash('sha256').update(String(seed||'')).digest('hex')}
+function deviceFingerprintCandidates(){
+  const seeds=[];
+  if(process.platform==='win32'){
+    try{
       const out=execFileSync('reg',['query','HKLM\\SOFTWARE\\Microsoft\\Cryptography','/v','MachineGuid'],{encoding:'utf8',windowsHide:true,timeout:4000});
       const m=String(out||'').match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/i);
-      if(m)seed='win:'+m[1].trim();
-    }
-  }catch{}
-  if(!seed){
-    try{seed=[process.platform,os.hostname(),os.arch(),app.getPath('userData')].join('|')}catch{seed=[process.platform,os.hostname(),os.arch()].join('|')}
+      if(m&&m[1].trim())seeds.push('win:'+m[1].trim());
+    }catch{}
   }
-  return crypto.createHash('sha256').update(seed).digest('hex');
+  // Legacy fallback is kept as a migration candidate only. Once a fingerprint is
+  // accepted by Sharawla Cloud, app.js pins that exact value in license state.
+  try{seeds.push([process.platform,os.hostname(),os.arch(),app.getPath('userData')].join('|'))}
+  catch{seeds.push([process.platform,os.hostname(),os.arch()].join('|'))}
+  return [...new Set(seeds.map(fingerprintHash).filter(Boolean))];
 }
-function deviceInfo(){return {fingerprint:stableDeviceFingerprint(),name:os.hostname(),os:`${os.type()} ${os.release()} ${os.arch()}`,version:app.getVersion()}}
+function stableDeviceFingerprint(){return deviceFingerprintCandidates()[0]||fingerprintHash([process.platform,os.hostname(),os.arch()].join('|'))}
+function deviceInfo(){const candidates=deviceFingerprintCandidates();return {fingerprint:candidates[0]||stableDeviceFingerprint(),fingerprint_candidates:candidates,name:os.hostname(),os:`${os.type()} ${os.release()} ${os.arch()}`,version:app.getVersion()}}
 
 function registerIpc(){
  ipcMain.handle('db:get',(_e,k)=>{const r=one('select value from kv where key=?',[String(k)]);return r?JSON.parse(r.value):undefined});

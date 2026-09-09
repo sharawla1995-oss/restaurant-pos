@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.19",
-  "description": "Sharawla POS V10.4.19 - Windows 7 license-state hotfix and developer contact",
+  "version": "10.4.20",
+  "description": "Sharawla POS V10.4.20 - canonical device fingerprint migration and website order pre-accept review",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
