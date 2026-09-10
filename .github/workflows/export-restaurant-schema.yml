@@ -1,0 +1,43 @@
+name: Export Restaurant Schema Only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-schema:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Export public schema from restaurant backend
+        shell: bash
+        env:
+          SOURCE_DB_URL: ${{ secrets.RESTAURANT_SOURCE_DB_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SOURCE_DB_URL:-}" ]; then
+            echo "Missing repository secret: RESTAURANT_SOURCE_DB_URL"
+            exit 1
+          fi
+
+          docker run --rm postgres:17             pg_dump "$SOURCE_DB_URL"               --schema-only               --schema=public               --no-owner               --no-privileges               --file=/dev/stdout             > restaurant-public-schema.sql
+
+          test -s restaurant-public-schema.sql
+
+          echo "Schema export created successfully."
+          echo "Lines: $(wc -l < restaurant-public-schema.sql)"
+          echo "Bytes: $(wc -c < restaurant-public-schema.sql)"
+
+      - name: Upload schema artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-public-schema
+          path: restaurant-public-schema.sql
+          if-no-files-found: error
+          retention-days: 7
