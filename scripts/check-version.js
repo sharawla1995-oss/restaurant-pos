@@ -15,7 +15,7 @@ const index = read('index.html');
 const sw = read('sw.js');
 const app = read('app.js');
 if (!/id="appVersionBadge">V—<\/small>/.test(index)) throw new Error('Version badge must be runtime-driven and contain no hardcoded app version.');
-for (const asset of ['styles.css','version-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
+for (const asset of ['styles.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
   if (!index.includes(`${asset}?v=${packageVersion}`)) throw new Error(`index.html cache reference mismatch for ${asset}`);
   if (!sw.includes(`./${asset}?v=${packageVersion}`)) throw new Error(`sw.js cache reference mismatch for ${asset}`);
 }
