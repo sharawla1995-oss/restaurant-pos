@@ -15,7 +15,7 @@ const index = read('index.html');
 const sw = read('sw.js');
 const app = read('app.js');
 if (!/id="appVersionBadge">V—<\/small>/.test(index)) throw new Error('Version badge must be runtime-driven and contain no hardcoded app version.');
-for (const asset of ['styles.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
   if (!index.includes(`${asset}?v=${packageVersion}`)) throw new Error(`index.html cache reference mismatch for ${asset}`);
   if (!sw.includes(`./${asset}?v=${packageVersion}`)) throw new Error(`sw.js cache reference mismatch for ${asset}`);
 }
@@ -83,5 +83,34 @@ if (loginStart < 0 || appStart < 0 || updateEntry < 0 || !(loginStart < updateEn
 if ((index.match(/id="updateCenterMenuBtn"/g)||[]).length !== 1) throw new Error('Update Center entry must exist exactly once.');
 if (!app.includes("data?.state==='idle'||data?.state==='up-to-date'")) throw new Error('Bottom desktop update widget must stay hidden for up-to-date state.');
 
+
+
+
+// V10.5.4-beta.10 FINAL MERGED Update Safety invariants.
+const indicators = read('update-indicators.css');
+for (const forbidden of ['.cart{','.cart-items{','.cart-foot{','.delivery-fields{','.pay-actions{']) {
+  if (indicators.includes(forbidden)) throw new Error(`Compact indicator CSS must not change POS layout: ${forbidden}`);
+}
+for (const token of ['async function verifyInstallerIntegrity(file,asset)','st.size!==expectedSize','expectedAssetSha256(asset)',"crypto.createHash('sha256')","state:'verifying-integrity'","state:'integrity-error'","reason:'integrity-failed'"]) {
+  if (!main.includes(token)) throw new Error(`Merged integrity safety missing: ${token}`);
+}
+const downloadAwait = main.indexOf('await downloadFile(asset.browser_download_url,target', updaterStart);
+const integrityAwait = main.indexOf('installerIntegrity=await verifyInstallerIntegrity(target,asset);', downloadAwait);
+const gateBRead = main.indexOf('const beforeInstall=updateOfflineQueueState();', integrityAwait);
+if (!(downloadAwait >= 0 && integrityAwait > downloadAwait && gateBRead > integrityAwait)) throw new Error('Integrity must run after download and before Gate B.');
+for (const token of ['function runLocalHealthChecks(expectedVersion=null,pending=null)','pragma integrity_check',"['kv','local_operations']",'function runPostUpdateHealthCheck()','async function applyRendererHealthReport(report={})',"reason:'core-health-not-passed'",'function markCurrentVersionLastKnownGood','async function rollbackToLastKnownGood({confirmFirst=true}={})',"mode:'rollback'",'function logUpdateEvent(stage,data={})',"update-log.jsonl"]) {
+  if (!main.includes(token)) throw new Error(`Merged Update Safety missing: ${token}`);
+}
+if (!preload.includes("health:r=>ipcRenderer.invoke('update:health',r)")) throw new Error('Renderer health bridge missing.');
+if (!preload.includes("rollback:()=>ipcRenderer.invoke('update:rollback')")) throw new Error('Rollback bridge missing.');
+if (!app.includes("reportDesktopUpdateHealth(true,'renderer-ready'")) throw new Error('Renderer health success report missing.');
+if (!app.includes("session=null;")) throw new Error('Manual login invariant missing.');
+for (const id of ['updateIntegrityValue','updateHealthValue','updateLastGoodValue','rollbackLastGoodBtn']) {
+  if (!index.includes(`id="${id}"`)) throw new Error(`Update Center missing ${id}.`);
+}
+const backupReadyForSpawn = main.indexOf("state:'backup-ready'", updaterStart);
+const rollbackPrep = main.indexOf("prepareRollbackCandidate({local,remote,backup:preUpdateBackup,installerPath:target,integrity:installerIntegrity,mode:'update'})", backupReadyForSpawn);
+const spawnAfterPrep = main.indexOf("spawn(target,['/S']", rollbackPrep);
+if (!(backupReadyForSpawn >= 0 && rollbackPrep > backupReadyForSpawn && spawnAfterPrep > rollbackPrep)) throw new Error('Pending update state must be committed after backup and before spawn.');
 
 console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
