@@ -66,6 +66,84 @@ function pruneBackups(max=30){try{const a=fs.readdirSync(backupDir()).filter(x=>
 function saveJsonBackup(json,reason='full'){const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.json`);fs.writeFileSync(target,String(json||''),'utf8');pruneJsonBackups(15);return target}
 function pruneJsonBackups(max=15){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.json')).map(n=>({p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
 
+// ===== V10.5.4 Part 3 — Update Safety: Offline Queue Guard + Pre-Update Backup =====
+function safeFileToken(value){return String(value||'unknown').replace(/[^0-9A-Za-z._-]/g,'-')}
+function readDesktopQueueSnapshot(){
+  const result={ok:true,queue:[],error:null};
+  try{
+    const row=one('select value from kv where key=?',['queue']);
+    if(!row)return result;
+    const parsed=JSON.parse(row.value);
+    if(parsed==null)return result;
+    if(!Array.isArray(parsed))throw new Error('Offline queue snapshot is not an array');
+    result.queue=parsed;
+  }catch(e){result.ok=false;result.error=String(e&&e.message||e)}
+  return result;
+}
+function updateOfflineQueueState(){
+  if(!db)return {ok:false,clear:false,pendingCount:null,queueCount:null,operationsCount:null,types:[],error:'Local database is not ready'};
+  const snapshot=readDesktopQueueSnapshot();
+  let rows=[];
+  let operationsError=null;
+  try{rows=all(`select client_tx_id,type,status,created_at,updated_at from local_operations where status='pending' order by id`)}
+  catch(e){operationsError=String(e&&e.message||e)}
+  const ids=new Set(),types=new Set();
+  for(let i=0;i<snapshot.queue.length;i++){
+    const op=snapshot.queue[i]||{};
+    ids.add(String(op.client_tx_id||`queue-${i}`));
+    if(op.type)types.add(String(op.type));
+  }
+  for(const row of rows){
+    ids.add(String(row.client_tx_id||`operation-${ids.size}`));
+    if(row.type)types.add(String(row.type));
+  }
+  const error=snapshot.error||operationsError||null;
+  const pendingCount=ids.size;
+  return {
+    ok:!error,
+    clear:!error&&pendingCount===0,
+    pendingCount,
+    queueCount:snapshot.queue.length,
+    operationsCount:rows.length,
+    types:[...types],
+    error
+  };
+}
+function latestPreUpdateBackup(){
+  try{
+    const rows=fs.readdirSync(backupDir())
+      .filter(n=>/^topburger-pos-pre-update-.*\.sqlite$/i.test(n))
+      .map(n=>{const p=path.join(backupDir(),n),st=fs.statSync(p);return {name:n,path:p,size:st.size,createdAt:new Date(st.mtimeMs).toISOString(),time:st.mtimeMs}})
+      .sort((a,b)=>b.time-a.time);
+    if(!rows.length)return null;
+    const {time,...latest}=rows[0];
+    return latest;
+  }catch{return null}
+}
+function createPreUpdateBackup(remoteVersion){
+  const local=safeFileToken(app.getVersion());
+  const remote=safeFileToken(remoteVersion);
+  const target=createBackup(`pre-update-${local}-to-${remote}`);
+  if(!target||!fs.existsSync(target))throw new Error('Pre-update backup was not created');
+  const st=fs.statSync(target);
+  if(!st.isFile()||st.size<=0)throw new Error('Pre-update backup is empty');
+  pruneBackups(30);
+  return {name:path.basename(target),path:target,size:st.size,createdAt:new Date(st.mtimeMs).toISOString()};
+}
+function updateSafetyInfo(){
+  const queue=updateOfflineQueueState();
+  return {
+    queue,
+    lastPreUpdateBackup:latestPreUpdateBackup(),
+    backupDirectory:backupDir()
+  };
+}
+function updateQueueGuardMessage(queue){
+  if(!queue||queue.ok===false)return `تعذر التحقق من الحركات المحلية قبل التحديث${queue?.error?`: ${queue.error}`:''}. تم منع التحديث احتياطيًا.`;
+  const n=Number(queue.pendingCount||0);
+  return n?`يوجد ${n} حركة أوفلاين في انتظار المزامنة. تم منع التحديث لحماية البيانات. وصّل الإنترنت وانتظر اكتمال المزامنة ثم أعد المحاولة.`:'كل الحركات المحلية متزامنة.';
+}
+
 
 // ===== V10.4.5 GitHub Windows Auto Update =====
 const https = require('https');
@@ -169,7 +247,7 @@ function downloadFile(url,target,onProgress){
     };go(url)
   })
 }
-async function checkForWindowsUpdate({interactive=false}={}){
+async function checkForWindowsUpdate({interactive=false,checkOnly=false}={}){
   const cfg=readUpdateConfig();
   const local=app.getVersion();
   const channel=readDeviceUpdateChannel(cfg);
@@ -199,10 +277,13 @@ async function checkForWindowsUpdate({interactive=false}={}){
     if(!isNewerVersion(remote,local)){
       sendUpdateProgress({state:'up-to-date',local,remote,channel,message:`أنت على أحدث إصدار V${local}`});
       if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Sharawla POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
-      return {available:false,local,remote,channel};
+      return {available:false,local,remote,channel,checkOnly:!!checkOnly};
     }
 
-    sendUpdateProgress({state:'available',local,remote,channel,message:`متاح تحديث V${remote}`});
+    sendUpdateProgress({state:'available',local,remote,channel,message:checkOnly?`متاح تحديث V${remote} — فحص فقط`:`متاح تحديث V${remote}`});
+
+    // Manual Check must never download or install. It only reports availability.
+    if(checkOnly)return {available:true,checkOnly:true,local,remote,channel};
 
     const assets=Array.isArray(rel.assets)?rel.assets:[];
     const exeAssets=assets.filter(a=>/\.exe$/i.test(a.name||''));
@@ -214,40 +295,81 @@ async function checkForWindowsUpdate({interactive=false}={}){
     if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
     if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in selected ${channel} release`);
 
-    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
+    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'قبل التنزيل والتثبيت سيتأكد Sharawla POS أن كل الحركات الأوفلاين متزامنة. وقبل التثبيت سيتم إنشاء Backup محلي تلقائي.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
     if(ask.response!==0){
       sendUpdateProgress({state:'available',local,remote,channel,skipped:true,message:`التحديث V${remote} متاح — تم التأجيل`});
       return {available:true,skipped:true,local,remote,channel};
     }
 
     userAcceptedUpdate=true;
+
+    // Gate A: do not even start the update while any offline operation is pending.
+    const beforeDownload=updateOfflineQueueState();
+    if(!beforeDownload.clear){
+      const message=updateQueueGuardMessage(beforeDownload);
+      sendUpdateProgress({state:'blocked-offline',local,remote,channel,pendingCount:beforeDownload.pendingCount,message});
+      if(mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تم منع التحديث لحماية البيانات',message:'لا يمكن تحديث Sharawla POS الآن.',detail:message,buttons:['تمام']});
+      return {available:true,blocked:true,reason:'offline-queue',pendingCount:beforeDownload.pendingCount,local,remote,channel};
+    }
+
     const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
     const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
 
-    sendUpdateProgress({state:'downloading',local,remote,channel,version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
-    await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',local,remote,channel,version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
+    sendUpdateProgress({state:'downloading',local,remote,channel,version:remote,percent:0,pendingCount:0,message:`جاري تنزيل التحديث V${remote}`});
+    await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',local,remote,channel,version:remote,percent:p.percent,received:p.received,total:p.total,pendingCount:0,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
 
     sendUpdateProgress({state:'downloaded',local,remote,channel,version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
 
-    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة. بيانات الكاشير المحلية والنسخ الاحتياطية لن تُحذف.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
+    // Gate B: queue may have changed while the installer was downloading. Check again.
+    const beforeInstall=updateOfflineQueueState();
+    if(!beforeInstall.clear){
+      const message=updateQueueGuardMessage(beforeInstall);
+      sendUpdateProgress({state:'blocked-offline',local,remote,channel,version:remote,percent:100,pendingCount:beforeInstall.pendingCount,message});
+      if(mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تم منع التثبيت لحماية البيانات',message:'تم تنزيل التحديث لكن لن يتم تثبيته الآن.',detail:message,buttons:['تمام']});
+      return {available:true,downloaded:true,blocked:true,reason:'offline-queue',pendingCount:beforeInstall.pendingCount,local,remote,channel};
+    }
+
+    // Backup is fail-closed: if it cannot be created and verified, installation is blocked.
+    sendUpdateProgress({state:'backing-up',local,remote,channel,version:remote,percent:100,pendingCount:0,message:'جاري إنشاء Backup آمن قبل التحديث…'});
+    let preUpdateBackup;
+    try{preUpdateBackup=createPreUpdateBackup(remote)}
+    catch(e){
+      const message=`تعذر إنشاء Backup قبل التحديث: ${String(e&&e.message||e)}`;
+      sendUpdateProgress({state:'backup-error',local,remote,channel,version:remote,percent:100,pendingCount:0,message,error:String(e&&e.message||e)});
+      if(mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تم منع التثبيت لحماية البيانات',message:'لن يتم تثبيت التحديث لأن النسخة الاحتياطية لم تكتمل.',detail:message,buttons:['تمام']});
+      return {available:true,downloaded:true,blocked:true,reason:'backup-failed',local,remote,channel,error:String(e&&e.message||e)};
+    }
+
+    sendUpdateProgress({state:'backup-ready',local,remote,channel,version:remote,percent:100,pendingCount:0,backupName:preUpdateBackup.name,message:'تم إنشاء Backup قبل التحديث بنجاح'});
+
+    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote} وتجهيز Backup آمن`,detail:`Backup: ${preUpdateBackup.name}\n\nاضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة.`,buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
     if(ready.response===0){
-      sendUpdateProgress({state:'installing',local,remote,channel,version:remote,percent:100,message:'جاري بدء التثبيت…'});
+      // Gate C: final instant guard after explicit Install Now and immediately before launching the installer.
+      const finalBeforeSpawn=updateOfflineQueueState();
+      if(!finalBeforeSpawn.clear){
+        const message=updateQueueGuardMessage(finalBeforeSpawn);
+        sendUpdateProgress({state:'blocked-offline',local,remote,channel,version:remote,percent:100,pendingCount:finalBeforeSpawn.pendingCount,backupName:preUpdateBackup.name,message});
+        if(mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تم منع التثبيت في آخر فحص أمان',message:'لن يتم تشغيل برنامج التثبيت الآن.',detail:message,buttons:['تمام']});
+        return {available:true,downloaded:true,backup:preUpdateBackup,blocked:true,reason:'offline-queue',stage:'final-before-spawn',pendingCount:finalBeforeSpawn.pendingCount,local,remote,channel};
+      }
+
+      sendUpdateProgress({state:'installing',local,remote,channel,version:remote,percent:100,pendingCount:0,backupName:preUpdateBackup.name,message:'جاري بدء التثبيت…'});
       try{
         spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();
         setTimeout(()=>{
-          sendUpdateProgress({state:'restarting',local,remote,channel,version:remote,percent:100,message:'سيتم إغلاق البرنامج لإكمال التثبيت…'});
+          sendUpdateProgress({state:'restarting',local,remote,channel,version:remote,percent:100,pendingCount:0,backupName:preUpdateBackup.name,message:'سيتم إغلاق البرنامج لإكمال التثبيت…'});
           app.quit();
         },600);
       }catch(e){throw e}
     }else{
-      sendUpdateProgress({state:'available',local,remote,channel,version:remote,skipped:true,message:`تم تنزيل V${remote} — التثبيت مؤجل`});
+      sendUpdateProgress({state:'available',local,remote,channel,version:remote,skipped:true,pendingCount:0,backupName:preUpdateBackup.name,message:`تم تنزيل V${remote} وإنشاء Backup — التثبيت مؤجل`});
     }
 
-    return {available:true,downloaded:true,local,remote,channel};
+    return {available:true,downloaded:true,backup:preUpdateBackup,local,remote,channel};
   }catch(e){
     console.warn('auto update',e);
-    sendUpdateProgress({state:'error',local,channel,message:'فشل تنزيل أو تثبيت التحديث',error:String(e&&e.message||e)});
-    if((interactive||userAcceptedUpdate)&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Sharawla POS',message:userAcceptedUpdate?'تعذر تنزيل أو بدء تثبيت التحديث.':'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
+    sendUpdateProgress({state:'error',local,channel,message:'فشل تنزيل أو تجهيز أو تثبيت التحديث',error:String(e&&e.message||e)});
+    if((interactive||userAcceptedUpdate)&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Sharawla POS',message:userAcceptedUpdate?'تعذر تنزيل أو تجهيز أو بدء تثبيت التحديث.':'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
     return {error:String(e&&e.message||e),local,channel};
   }finally{updateCheckBusy=false}
 }
@@ -293,8 +415,9 @@ function registerIpc(){
  ipcMain.handle('desktop:paths',()=>({data:dataDir(),backups:backupDir(),database:dbPath()}));
  ipcMain.handle('device:info',()=>deviceInfo());
  ipcMain.handle('external:open',async(_e,url)=>{const u=String(url||'');if(!/^https:\/\//i.test(u))throw new Error('invalid external URL');await shell.openExternal(u);return true});
- ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));
+ ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true,checkOnly:true}));
  ipcMain.handle('update:info',()=>{const cfg=readUpdateConfig();return {version:app.getVersion(),channel:readDeviceUpdateChannel(cfg),enabled:!!cfg.enabled,arch:process.arch};});
+ ipcMain.handle('update:safety',()=>updateSafetyInfo());
  ipcMain.handle('update:setChannel',(_e,value)=>writeDeviceUpdateChannel(value));
  ipcMain.handle('app:info',()=>{const cfg=readUpdateConfig();return {product:'Sharawla POS',version:app.getVersion(),channel:readDeviceUpdateChannel(cfg),arch:process.arch};});
  ipcMain.handle('print:list',async()=>mainWindow?await mainWindow.webContents.getPrintersAsync():[]);

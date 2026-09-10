@@ -1,4 +1,4 @@
-// Sharawla POS V10.5.4 Part 2 — Update Center UI.
+// Sharawla POS V10.5.4 Part 3 — Update Center UI + Update Safety visibility.
 // Windows-only UI over the existing updater exposed by preload.js.
 (()=>{
   const $=s=>document.querySelector(s);
@@ -13,6 +13,10 @@
     installing:'جاري التثبيت',
     restarting:'إعادة التشغيل',
     'up-to-date':'أحدث إصدار',
+    'blocked-offline':'متوقف — حركات أوفلاين',
+    'backing-up':'جاري النسخ الاحتياطي',
+    'backup-ready':'Backup جاهز',
+    'backup-error':'فشل Backup',
     error:'فشل'
   };
 
@@ -31,6 +35,8 @@
     if(payload.remote)setText('updateAvailableVersion',`V${payload.remote}`);
     if(payload.local)setText('updateCurrentVersion',`V${payload.local}`);
     if(payload.channel)setText('updateChannelValue',String(payload.channel).toUpperCase());
+    if(payload.pendingCount!=null)setText('updateOfflineQueueValue',Number(payload.pendingCount)>0?`${Number(payload.pendingCount)} معلقة`:'متزامنة ✓');
+    if(payload.backupName)setText('updateBackupValue',payload.backupName);
 
     const message=document.getElementById('updateStatusMessage');
     if(message)message.textContent=payload.message||'';
@@ -43,7 +49,23 @@
     }
 
     const btn=document.getElementById('checkUpdatesNowBtn');
-    if(btn)btn.disabled=['checking','downloading','progress','installing','restarting'].includes(state);
+    if(btn)btn.disabled=['checking','downloading','progress','backing-up','installing','restarting'].includes(state);
+  }
+
+  async function refreshSafety(){
+    if(!window.topBurgerDesktop?.update?.safety)return null;
+    try{
+      const info=await window.topBurgerDesktop.update.safety();
+      const q=info?.queue;
+      if(q?.ok===false)setText('updateOfflineQueueValue','تعذر الفحص');
+      else if(Number(q?.pendingCount||0)>0)setText('updateOfflineQueueValue',`${Number(q.pendingCount)} معلقة`);
+      else setText('updateOfflineQueueValue','متزامنة ✓');
+      setText('updateBackupValue',info?.lastPreUpdateBackup?.name||'لم يُنشأ بعد');
+      return info;
+    }catch(err){
+      setText('updateOfflineQueueValue','تعذر الفحص');
+      return null;
+    }
   }
 
   async function refreshInfo(){
@@ -56,11 +78,13 @@
       setText('updateArchitectureValue',String(info.arch||'—'));
       setText('updateAvailableVersion',lastRemote==='—'?'—':`V${lastRemote}`);
     }
+    await refreshSafety().catch(()=>{});
     return info;
   }
 
   async function manualCheck(){
     if(!window.topBurgerDesktop?.update?.check)return;
+    await refreshSafety().catch(()=>{});
     setStatus({
       state:'checking',
       local:lastInfo?.version,
@@ -84,7 +108,7 @@
           local:result.local,
           remote:result.remote,
           channel:result.channel,
-          message:result.skipped?'التحديث متاح وتم تأجيله':'التحديث متاح'
+          message:result.checkOnly?'التحديث متاح — فحص فقط، لن يبدأ التنزيل من الزر اليدوي':(result.skipped?'التحديث متاح وتم تأجيله':'التحديث متاح')
         });
       }else if(result&&result.available===false){
         setStatus({
@@ -98,6 +122,7 @@
     }catch(err){
       setStatus({state:'error',message:String(err?.message||err||'تعذر فحص التحديث')});
     }finally{
+      await refreshSafety().catch(()=>{});
       const btn=document.getElementById('checkUpdatesNowBtn');
       if(btn)btn.disabled=false;
     }

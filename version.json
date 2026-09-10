@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.2",
+  "version": "10.5.4-beta.3",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Update Infrastructure Part 2: manual Check for Updates, clear updater status, Current/Available Version and Stable/Beta channel display. No Runtime Core, Restaurant Engine, licensing, fingerprint, Business Connection, printing or modules logic changes."
+  "notes": "Update Infrastructure Part 3: fail-closed pre-update local backup, offline queue guard before download and again before install, Update Center safety visibility, and carry-forward manual Check Only enforcement. No Restaurant Engine, Runtime Core business logic, licensing, fingerprint, Business Connection, printing or modules changes."
 }
