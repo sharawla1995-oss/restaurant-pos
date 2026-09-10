@@ -1,0 +1,19 @@
+V10.5.4-beta.15 validation target
+
+Static gates:
+[ ] npm run check PASS
+[ ] node --check app.js PASS
+[ ] node --check retail-engine.js PASS
+[ ] protected update/licensing runtime files byte-identical to beta.14
+[ ] no nested ZIP/dist/node_modules in clean source
+
+Runtime gates on SH-0007 after Beta SQL migration:
+[ ] Retail Inventory page loads
+[ ] Opening stock supports 3 decimals
+[ ] Sale decrements stock atomically
+[ ] Insufficient stock blocks when negative-stock policy is OFF
+[ ] Negative stock can be enabled by admin policy
+[ ] Return restocks the exact returned decimal quantity
+[ ] Waste and manual adjustment create ledger entries
+[ ] Offline Retail sale remains queued and deducts inventory once at sync
+[ ] Restaurant Production remains untouched

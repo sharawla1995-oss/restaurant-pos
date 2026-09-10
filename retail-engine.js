@@ -4,11 +4,10 @@
   const core=global.SharawlaRuntimeCore;
   if(!core)throw new Error('SharawlaRuntimeCore must load before Retail Engine.');
 
-  // Retail Phase 1 is intentionally a shell/capability engine only.
-  // It does NOT reuse Restaurant delivery/kitchen/table rules and it does NOT
-  // introduce Retail checkout or inventory transaction semantics yet.
+  // Retail engine remains isolated from Restaurant delivery/kitchen/table rules.
+  // Beta.15 adds Retail inventory foundation and generic returns integration.
   const LEGACY_MODULES=Object.freeze([
-    'customers','expenses','inventory','reports','pos','barcode'
+    'customers','expenses','inventory','reports','returns','pos','barcode'
   ]);
 
   const PAGE_MODULE=Object.freeze({
@@ -16,6 +15,7 @@
     inventory:'inventory',
     expenses:'expenses',
     reports:'reports',
+    returns:'returns',
     products:'pos',
     pos:'pos'
   });
@@ -26,6 +26,7 @@
     customers:'العملاء',
     shifts:'الورديات',
     inventory:'المخزون',
+    returns:'المرتجعات',
     expenses:'المصروفات',
     products:'الأصناف',
     reports:'التقارير',
@@ -33,15 +34,15 @@
     settings:'الإعدادات'
   });
 
-  // Retail Phase 2 enables the dedicated retail checkout page. Restaurant-only
-  // order/delivery/kitchen semantics remain excluded from the Retail engine.
+  // Retail checkout + inventory + returns are enabled. Restaurant-only
+  // delivery/kitchen/table/website semantics remain excluded from Retail.
   const ALL_PAGES=Object.freeze([
-    'home','pos','customers','shifts','inventory','expenses','products','reports','users','settings'
+    'home','pos','customers','shifts','inventory','returns','expenses','products','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
     admin:ALL_PAGES,
-    cashier:Object.freeze(['home','pos','customers','shifts','products']),
+    cashier:Object.freeze(['home','pos','customers','shifts','products','returns']),
     callcenter:Object.freeze(['home','customers','products']),
     delivery:Object.freeze(['home'])
   });
@@ -51,6 +52,7 @@
     ['customers','العملاء'],
     ['shifts','الورديات'],
     ['inventory','المخزون'],
+    ['returns','المرتجعات'],
     ['expenses','المصروفات'],
     ['products','الأصناف'],
     ['reports','التقارير'],
@@ -63,7 +65,7 @@
 
   const PERMISSION_GROUPS=Object.freeze([
     ['🧾 نقطة البيع',['pos']],
-    ['📦 Retail',['customers','shifts','inventory','products']],
+    ['📦 Retail',['customers','shifts','inventory','products','returns']],
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
@@ -72,7 +74,7 @@
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
-    phase:'checkout-barcode-mvp',
+    phase:'inventory-foundation',
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];

@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.14",
-  "description": "Sharawla POS V10.5.4 Beta 14 - Retail Checkout + Barcode MVP",
+  "version": "10.5.4-beta.15",
+  "description": "Sharawla POS V10.5.4 Beta 15 - Retail Inventory Foundation",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
