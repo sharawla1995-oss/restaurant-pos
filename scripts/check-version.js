@@ -15,7 +15,7 @@ const index = read('index.html');
 const sw = read('sw.js');
 const app = read('app.js');
 if (!/id="appVersionBadge">V—<\/small>/.test(index)) throw new Error('Version badge must be runtime-driven and contain no hardcoded app version.');
-for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js']) {
   if (!index.includes(`${asset}?v=${packageVersion}`)) throw new Error(`index.html cache reference mismatch for ${asset}`);
   if (!sw.includes(`./${asset}?v=${packageVersion}`)) throw new Error(`sw.js cache reference mismatch for ${asset}`);
 }
@@ -133,6 +133,24 @@ const rollbackTargetUse = main.indexOf('const lkg=rollbackTargetForState(state,c
 const rollbackDownload = main.indexOf("releases/tags/${encodeURIComponent('v'+lkg.version)}", rollbackFnStart);
 if (!(rollbackFnStart >= 0 && rollbackTargetUse > rollbackFnStart && rollbackDownload > rollbackTargetUse)) {
   throw new Error('Rollback must resolve Previous/Current LKG target before downloading the installer.');
+}
+
+
+// V10.5.4-beta.13 Retail Engine Foundation invariants.
+const runtimeCore = read('sharawla-runtime-core.js');
+const restaurantEngine = read('restaurant-engine.js');
+const retailEngine = read('retail-engine.js');
+if (!runtimeCore.includes('bootstrapDefault===true')) throw new Error('Runtime Core must support an explicit bootstrap default engine.');
+if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restaurant must remain the bootstrap compatibility default.');
+for (const token of ["code:'retail'","phase:'foundation-shell'","'home','customers','shifts','inventory','expenses','products','reports','users','settings'"]) {
+  if (!retailEngine.includes(token)) throw new Error(`Retail foundation missing: ${token}`);
+}
+for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'websiteManagement'","'pos','orders'","'returns'"]) {
+  if (retailEngine.includes(forbidden)) throw new Error(`Retail Phase 1 must not expose Restaurant/unfinished transaction page: ${forbidden}`);
+}
+if (!index.includes(`retail-engine.js?v=${packageVersion}`)) throw new Error('Retail Engine must load before app.js.');
+if (!(index.indexOf(`restaurant-engine.js?v=${packageVersion}`) < index.indexOf(`retail-engine.js?v=${packageVersion}`) && index.indexOf(`retail-engine.js?v=${packageVersion}`) < index.indexOf(`app.js?v=${packageVersion}`))) {
+  throw new Error('Engine script order must be Runtime Core -> Restaurant -> Retail -> app.js.');
 }
 
 console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
