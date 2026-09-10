@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.3",
-  "description": "Sharawla POS V10.5.4 Beta 3 - Update Infrastructure Part 3: pre-update backup and offline queue guard",
+  "version": "10.5.4-beta.4",
+  "description": "Sharawla POS V10.5.4 Beta 4 - Part 3 runtime test target + Login Update Center UI",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
