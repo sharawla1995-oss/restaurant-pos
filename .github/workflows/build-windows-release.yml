@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $isBeta = [bool]($pkg.version -match '-beta(?:\\.|$)')
+          $isBeta = [bool]($pkg.version -match '-beta(?:\.|$)')
 
           "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
           "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
