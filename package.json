@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.12",
-  "description": "Sharawla POS V10.5.4 Beta 12 FINAL MASTER CANDIDATE - Update Safety Bundle + Previous LKG history + explicit safe rollback target",
+  "version": "10.5.4-beta.13",
+  "description": "Sharawla POS V10.5.4 Beta 13 - Retail Engine Foundation Shell (Multi-Industry)",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.12",
+  "version": "10.5.4-beta.13",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "FINAL MASTER CANDIDATE for 10.5.4 Update Infrastructure. Built from beta.11 with only LKG history/rollback-target hardening: Current LKG + Previous LKG are preserved; rollback selects the last healthy version different from the currently running version; Update Center shows both current and previous LKG. Gate A/B/C, exact installer size + SHA-256, hardened pre-update backup, two-phase health, Update Log, manual login, compact indicators and explicit user-confirmed rollback remain unchanged. No cashier, delivery, payment, printing, licensing, Canonical Fingerprint, Restaurant Engine or Runtime Core business-logic changes."
+  "notes": "Retail Engine Foundation only: registers an independent retail profile engine, adds explicit bootstrap-default engine selection while preserving Restaurant as compatibility default, and gates Retail navigation/permissions to a safe non-transaction shell. No Retail checkout/orders/returns semantics yet. Update Safety, licensing, Canonical Fingerprint, Business Connection, offline/update infrastructure and Restaurant operational logic remain unchanged."
 }
