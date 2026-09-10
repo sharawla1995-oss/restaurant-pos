@@ -148,7 +148,41 @@ jobs:
               -f make_latest=true | Out-Null
           }
 
-          # Fail the workflow if GitHub did not keep the expected classification.
+          # Normalize ALL existing Beta releases on every build.
+          # This prevents an older beta tag from remaining Latest/Stable by mistake.
+          $betaRows = gh api `
+            --paginate `
+            "repos/${{ github.repository }}/releases?per_page=100" `
+            --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta"))) | "\(.id)|\(.tag_name)"'
+
+          foreach ($row in $betaRows) {
+            if (-not $row) { continue }
+
+            $parts = $row -split '\|', 2
+            $betaId = $parts[0]
+            $betaTag = $parts[1]
+
+            gh api `
+              --method PATCH `
+              "repos/${{ github.repository }}/releases/$betaId" `
+              -F prerelease=true `
+              -f make_latest=false | Out-Null
+
+            Write-Host "Normalized beta release: $betaTag => prerelease=true, make_latest=false"
+          }
+
+          # Fail if ANY beta release is still not a Pre-release.
+          $badBetas = gh api `
+            --paginate `
+            "repos/${{ github.repository }}/releases?per_page=100" `
+            --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta")) and (.prerelease != true)) | .tag_name'
+
+          if ($badBetas) {
+            throw "Beta release classification enforcement failed. Still non-prerelease: $($badBetas -join ', ')"
+          }
+
+          # Fail the workflow if GitHub did not keep the expected classification
+          # for the release being built right now.
           $actualPrerelease = gh api `
             "repos/${{ github.repository }}/releases/$releaseId" `
             --jq ".prerelease"
@@ -157,6 +191,19 @@ jobs:
 
           if ($actualPrerelease.ToLower() -ne $expectedPrerelease) {
             throw "Release classification mismatch for $tag. Expected prerelease=$expectedPrerelease, actual=$actualPrerelease"
+          }
+
+          # Stable /releases/latest must never resolve to a beta tag.
+          try {
+            $latestStableTag = gh api `
+              "repos/${{ github.repository }}/releases/latest" `
+              --jq ".tag_name"
+
+            if ($latestStableTag -match '-beta') {
+              throw "Stable latest endpoint is pointing to a beta release: $latestStableTag"
+            }
+          } catch {
+            throw "Could not verify stable /releases/latest after release normalization. $($_.Exception.Message)"
           }
 
           gh release upload $tag `
