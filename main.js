@@ -74,11 +74,61 @@ let updateCheckBusy = false;
 function readUpdateConfig(){
   try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
 }
-function semverParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
-function isNewerVersion(remote,local){
-  const a=semverParts(remote), b=semverParts(local), n=Math.max(a.length,b.length);
-  for(let i=0;i<n;i++){const x=a[i]||0,y=b[i]||0;if(x>y)return true;if(x<y)return false}
-  return false;
+function normalizeUpdateChannel(value){return String(value||'').trim().toLowerCase()==='beta'?'beta':'stable'}
+function updateChannelPath(){return path.join(app.getPath('userData'),'update-channel.json')}
+function initialUpdateChannel(cfg){
+  const version=String(app.getVersion()||'');
+  if(/-(?:alpha|beta|rc|preview)(?:[.-]|$)/i.test(version))return 'beta';
+  return normalizeUpdateChannel(cfg&&cfg.channel);
+}
+function readDeviceUpdateChannel(cfg=readUpdateConfig()){
+  try{
+    const p=updateChannelPath();
+    if(fs.existsSync(p)){const row=JSON.parse(fs.readFileSync(p,'utf8'));return normalizeUpdateChannel(row&&row.channel)}
+    const channel=initialUpdateChannel(cfg);
+    fs.writeFileSync(p,JSON.stringify({channel},null,2),'utf8');
+    return channel;
+  }catch{return initialUpdateChannel(cfg)}
+}
+function writeDeviceUpdateChannel(value){
+  const channel=normalizeUpdateChannel(value),p=updateChannelPath(),tmp=p+'.tmp';
+  fs.writeFileSync(tmp,JSON.stringify({channel},null,2),'utf8');
+  fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}
+  return channel;
+}
+function parseSemver(value){
+  const raw=String(value||'').trim().replace(/^v/i,'');
+  const m=raw.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+  if(!m)return null;
+  return {raw,major:Number(m[1]),minor:Number(m[2]),patch:Number(m[3]),pre:m[4]?m[4].split('.'):[]};
+}
+function compareSemver(aValue,bValue){
+  const a=parseSemver(aValue),b=parseSemver(bValue);if(!a||!b)return 0;
+  for(const k of ['major','minor','patch']){if(a[k]>b[k])return 1;if(a[k]<b[k])return -1}
+  if(!a.pre.length&&!b.pre.length)return 0;if(!a.pre.length)return 1;if(!b.pre.length)return -1;
+  const n=Math.max(a.pre.length,b.pre.length);
+  for(let i=0;i<n;i++){
+    if(i>=a.pre.length)return -1;if(i>=b.pre.length)return 1;
+    const x=a.pre[i],y=b.pre[i],xn=/^\d+$/.test(x),yn=/^\d+$/.test(y);
+    if(xn&&yn){const nx=Number(x),ny=Number(y);if(nx>ny)return 1;if(nx<ny)return -1;continue}
+    if(xn&&!yn)return -1;if(!xn&&yn)return 1;if(x>y)return 1;if(x<y)return -1;
+  }
+  return 0;
+}
+function isNewerVersion(remote,local){return compareSemver(remote,local)>0}
+function releaseVersion(rel){return String(rel&&rel.tag_name||'').trim().replace(/^v/i,'')}
+function validRelease(rel){return !!rel&&!rel.draft&&!!parseSemver(releaseVersion(rel))}
+async function getReleaseForChannel(cfg,channel){
+  const base=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}`;
+  if(channel==='stable'){
+    const rel=await githubJson(`${base}/releases/latest`);
+    if(!validRelease(rel)||rel.prerelease)throw new Error('No valid stable release found');
+    return rel;
+  }
+  const rows=await githubJson(`${base}/releases?per_page=50`);
+  const releases=(Array.isArray(rows)?rows:[]).filter(validRelease).sort((a,b)=>compareSemver(releaseVersion(b),releaseVersion(a)));
+  if(!releases.length)throw new Error('No valid beta/stable release found');
+  return releases[0];
 }
 function githubJson(url){
   return new Promise((resolve,reject)=>{
@@ -123,11 +173,11 @@ async function checkForWindowsUpdate({interactive=false}={}){
   if(!cfg.enabled||!cfg.owner||!cfg.repo)return null;
   updateCheckBusy=true;let userAcceptedUpdate=false;
   try{
-    const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
-    const rel=await githubJson(api);const remote=String(rel.tag_name||'').replace(/^v/i,'');const local=app.getVersion();
+    const channel=readDeviceUpdateChannel(cfg);
+    const rel=await getReleaseForChannel(cfg,channel);const remote=releaseVersion(rel);const local=app.getVersion();
     if(!isNewerVersion(remote,local)){
       if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Sharawla POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
-      return {available:false,local,remote};
+      return {available:false,local,remote,channel};
     }
     const assets=Array.isArray(rel.assets)?rel.assets:[];
     const exeAssets=assets.filter(a=>/\.exe$/i.test(a.name||''));
@@ -136,9 +186,9 @@ async function checkForWindowsUpdate({interactive=false}={}){
     let asset=exeAssets.find(a=>archPattern.test(String(a.name||'')));
     // Backward compatibility for old x64-only releases that used a generic EXE name.
     if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
-    if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in latest release`);
+    if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in selected ${channel} release`);
     const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
-    if(ask.response!==0)return {available:true,skipped:true,remote};
+    if(ask.response!==0)return {available:true,skipped:true,remote,channel};
     userAcceptedUpdate=true;
     const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
     const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
@@ -150,7 +200,7 @@ async function checkForWindowsUpdate({interactive=false}={}){
       sendUpdateProgress({state:'installing',version:remote,percent:100,message:'جاري بدء التثبيت…'});
       try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),600)}catch(e){throw e}
     }else sendUpdateProgress({state:'idle'});
-    return {available:true,downloaded:true,remote};
+    return {available:true,downloaded:true,remote,channel};
   }catch(e){
     console.warn('auto update',e);sendUpdateProgress({state:'error',message:'فشل تنزيل أو تثبيت التحديث',error:String(e&&e.message||e)});
     if((interactive||userAcceptedUpdate)&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Sharawla POS',message:userAcceptedUpdate?'تعذر تنزيل أو بدء تثبيت التحديث.':'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
@@ -200,6 +250,9 @@ function registerIpc(){
  ipcMain.handle('device:info',()=>deviceInfo());
  ipcMain.handle('external:open',async(_e,url)=>{const u=String(url||'');if(!/^https:\/\//i.test(u))throw new Error('invalid external URL');await shell.openExternal(u);return true});
  ipcMain.handle('update:check',()=>checkForWindowsUpdate({interactive:true}));
+ ipcMain.handle('update:info',()=>{const cfg=readUpdateConfig();return {version:app.getVersion(),channel:readDeviceUpdateChannel(cfg),enabled:!!cfg.enabled,arch:process.arch};});
+ ipcMain.handle('update:setChannel',(_e,value)=>writeDeviceUpdateChannel(value));
+ ipcMain.handle('app:info',()=>{const cfg=readUpdateConfig();return {product:'Sharawla POS',version:app.getVersion(),channel:readDeviceUpdateChannel(cfg),arch:process.arch};});
  ipcMain.handle('print:list',async()=>mainWindow?await mainWindow.webContents.getPrintersAsync():[]);
  ipcMain.handle('print:current',async(_e,opts={})=>new Promise(resolve=>{if(!mainWindow)return resolve({ok:false,error:'window unavailable'});mainWindow.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true},(ok,reason)=>resolve({ok,error:reason||null}))}));
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(async resolve=>{const w=new BrowserWindow({show:false,width:420,height:900,webPreferences:{sandbox:true}});try{let deviceName=String(opts.deviceName||'');if(deviceName){const ps=await w.webContents.getPrintersAsync();const wanted=deviceName.trim().toLowerCase();const hit=ps.find(p=>String(p.name||'').trim().toLowerCase()===wanted||String(p.displayName||'').trim().toLowerCase()===wanted);if(hit)deviceName=hit.name}const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));await w.loadURL(data);setTimeout(()=>{if(w.isDestroyed())return resolve({ok:false,error:'print window closed'});w.webContents.print({silent:!!opts.silent,deviceName,printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null,deviceName})})},300)}catch(err){try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})}}));

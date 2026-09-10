@@ -1,14 +1,15 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.3",
-  "description": "Sharawla POS V10.5.3 - Runtime Core Load Hotfix; flattened runtime engine files for safe packaging/update",
+  "version": "10.5.4-beta.1",
+  "description": "Sharawla POS V10.5.4 Beta 1 - Update Infrastructure Part 1: unified version source and stable/beta channels",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-version.js",
     "start": "npm run check && electron .",
-    "dist": "npm run check && electron-builder --win nsis"
+    "dist": "npm run check && electron-builder --win nsis",
+    "sync-version": "node scripts/sync-version.js"
   },
   "dependencies": {
     "sql.js": "1.8.0"

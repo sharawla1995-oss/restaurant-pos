@@ -1870,7 +1870,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.1',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
