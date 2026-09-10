@@ -28,6 +28,21 @@ const preload = read('preload.js');
 const updateUi = read('update-ui.js');
 if (!main.includes('function updateOfflineQueueState()')) throw new Error('Part 3 missing Offline Queue Guard state reader.');
 if (!main.includes('function createPreUpdateBackup(remoteVersion)')) throw new Error('Part 3 missing pre-update backup creator.');
+const backupStart = main.indexOf('function createPreUpdateBackup(remoteVersion)');
+const backupEnd = main.indexOf('function updateSafetyInfo()', backupStart);
+const backupBody = backupStart >= 0 && backupEnd > backupStart ? main.slice(backupStart, backupEnd) : '';
+if (!backupBody) throw new Error('Unable to validate pre-update backup implementation.');
+if (backupBody.includes('persistDb()') || backupBody.includes('createBackup(')) throw new Error('Pre-update backup must be independent from persistDb()/createBackup() fixed runtime temp path.');
+for (const token of ['db.export()', 'process.pid', 'Date.now()', 'crypto.randomBytes', "fs.openSync(tmp,'wx')", 'fs.fsyncSync(fd)', 'fs.renameSync(tmp,target)', 'fs.constants.COPYFILE_EXCL', "fs.openSync(target,'r+')", 'fs.fsyncSync(finalFd)', 'let targetCreated=false', 'let success=false', 'targetCreated=true', 'success=true', 'if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}']) {
+  if (!backupBody.includes(token)) throw new Error(`Pre-update backup hardening missing: ${token}`);
+}
+const finalFsync = backupBody.indexOf("fs.openSync(target,'r+')");
+const finalVerify = backupBody.indexOf("if(!st.isFile()||st.size!==bytes.length||st.size<=0)");
+const markSuccess = backupBody.indexOf('success=true;');
+const failedTargetCleanup = backupBody.indexOf('if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}');
+if (!(finalFsync >= 0 && finalVerify > finalFsync && markSuccess > finalVerify && failedTargetCleanup > markSuccess)) {
+  throw new Error('Pre-update backup must fsync/verify the final target before success and clean the target on failure.');
+}
 if ((main.match(/updateOfflineQueueState\(\)/g)||[]).length < 3) throw new Error('Part 3 must check the offline queue before download and again before install.');
 if (!main.includes('async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})')) throw new Error('Updater function must explicitly support checkOnly.');
 if (!main.includes("checkForWindowsUpdate({interactive:true,checkOnly:true})")) throw new Error('Manual update IPC must invoke checkOnly=true.');
