@@ -58,4 +58,15 @@ if (!index.includes('id="updateOfflineQueueValue"')) throw new Error('Part 3 Off
 if (!index.includes('id="updateBackupValue"')) throw new Error('Part 3 pre-update backup status UI is missing.');
 if (!updateUi.includes('refreshSafety')) throw new Error('Part 3 Update Center safety refresh is missing.');
 
+// V10.5.4-beta.4 UI invariants: Update Center lives on Login, not the authenticated sidebar.
+const loginStart = index.indexOf('<section id="loginView"');
+const appStart = index.indexOf('<section id="appView"');
+const updateEntry = index.indexOf('id="updateCenterMenuBtn"');
+if (loginStart < 0 || appStart < 0 || updateEntry < 0 || !(loginStart < updateEntry && updateEntry < appStart)) {
+  throw new Error('Update Center entry must be on the Login screen before appView.');
+}
+if ((index.match(/id="updateCenterMenuBtn"/g)||[]).length !== 1) throw new Error('Update Center entry must exist exactly once.');
+if (!app.includes("data?.state==='idle'||data?.state==='up-to-date'")) throw new Error('Bottom desktop update widget must stay hidden for up-to-date state.');
+
+
 console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
