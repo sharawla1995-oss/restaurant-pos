@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.10",
-  "description": "Sharawla POS V10.5.4 Beta 10 FINAL MERGED - compact indicators, Gate A/B/C, hardened backup, exact size + SHA-256 integrity, two-phase health, Last Known Good, safe rollback, update log",
+  "version": "10.5.4-beta.11",
+  "description": "Sharawla POS V10.5.4 Beta 11 - version-only runtime test target for Update Safety Bundle",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
