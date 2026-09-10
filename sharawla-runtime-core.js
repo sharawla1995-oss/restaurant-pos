@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
 
-  // Sharawla POS V10.5.2 — Multi-Industry Runtime Core.
+  // Sharawla POS V10.5.3 — Multi-Industry Runtime Core.
   // Industry-specific navigation, permissions and operational page rules are
   // supplied by the installed profile engine. The Core stays industry-neutral.
   const engines=new Map();
