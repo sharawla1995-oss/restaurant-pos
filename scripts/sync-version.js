@@ -19,14 +19,14 @@ fs.writeFileSync(versionPath, JSON.stringify(versionJson, null, 2) + '\n', 'utf8
 
 function escapeRe(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 let index = fs.readFileSync(indexPath, 'utf8');
-for (const asset of ['styles.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
   index = index.replace(new RegExp(escapeRe(asset) + '\\?v=[^\"]+', 'g'), `${asset}?v=${version}`);
 }
 fs.writeFileSync(indexPath, index, 'utf8');
 
 let sw = fs.readFileSync(swPath, 'utf8');
 sw = sw.replace(/const CACHE='sharawla-pos-v[^']+';/, `const CACHE='sharawla-pos-v${version}';`);
-for (const asset of ['styles.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','app.js']) {
   sw = sw.replace(new RegExp('\\./' + escapeRe(asset) + '\\?v=[^\']+', 'g'), `./${asset}?v=${version}`);
 }
 fs.writeFileSync(swPath, sw, 'utf8');
