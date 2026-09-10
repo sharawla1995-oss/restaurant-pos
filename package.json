@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.5",
-  "description": "Sharawla POS V10.5.4 Beta 5 - UI hotfix for non-blocking status banners and delivery cart visibility; Part 3 logic unchanged",
+  "version": "10.5.4-beta.6",
+  "description": "Sharawla POS V10.5.4 Beta 6 - Part 3 final pre-update backup EPERM hardening + target cleanup + cashier UI hotfix",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

@@ -1,0 +1,15 @@
+Sharawla POS 10.5.4-beta.6 validation targets
+
+Required static invariants:
+- Manual Check uses checkOnly=true and returns before asset selection/download/install UI.
+- Gate A exists before download.
+- Gate B exists after download.
+- Pre-update backup is independent from persistDb()/createBackup().
+- Backup temp file uses openSync(tmp,'wx'), write to fd, fsync, exact size verification.
+- Final backup is fsynced and verified before success.
+- targetCreated + success cleanup removes the final target if the backup path fails after target creation.
+- Gate C order: Install Now -> final queue read -> blocking guard -> spawn().
+- Build excludes nested ZIP files.
+- Version/channel synchronized to 10.5.4-beta.6 / beta.
+
+Runtime Part 3 is NOT CLOSED until SH-0007 validates the full update path.

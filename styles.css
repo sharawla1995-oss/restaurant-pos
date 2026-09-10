@@ -387,7 +387,7 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar-foot{flex:0 0 auto;margin-top:0}
 
 
-/* V10.5.4-beta.5 — cashier visibility UI hotfix only.
+/* V10.5.4-beta.6 — cashier visibility UI hotfix only.
    Keep system/update indicators away from checkout controls and prevent the
    delivery form from collapsing the cart item area. No updater/runtime logic. */
 .desktop-update-progress{

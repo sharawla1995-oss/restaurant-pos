@@ -121,14 +121,60 @@ function latestPreUpdateBackup(){
   }catch{return null}
 }
 function createPreUpdateBackup(remoteVersion){
+  if(!db)throw new Error('Local database is not ready');
   const local=safeFileToken(app.getVersion());
   const remote=safeFileToken(remoteVersion);
-  const target=createBackup(`pre-update-${local}-to-${remote}`);
-  if(!target||!fs.existsSync(target))throw new Error('Pre-update backup was not created');
-  const st=fs.statSync(target);
-  if(!st.isFile()||st.size<=0)throw new Error('Pre-update backup is empty');
-  pruneBackups(30);
-  return {name:path.basename(target),path:target,size:st.size,createdAt:new Date(st.mtimeMs).toISOString()};
+  const dir=backupDir();
+  const target=path.join(dir,`topburger-pos-pre-update-${local}-to-${remote}-${stamp()}.sqlite`);
+  const tmp=`${target}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  let tempExists=false;
+  let targetCreated=false;
+  let success=false;
+  try{
+    // Export directly from the current in-memory SQLite state using an independent pre-update backup path.
+    const bytes=Buffer.from(db.export());
+    if(!bytes.length)throw new Error('Pre-update database export is empty');
+
+    // Never overwrite an existing finalized backup, even in the unlikely event of a name collision.
+    if(fs.existsSync(target))throw new Error('Pre-update backup target already exists');
+
+    const fd=fs.openSync(tmp,'wx');
+    tempExists=true;
+    try{
+      fs.writeFileSync(fd,bytes);
+      fs.fsyncSync(fd);
+    }finally{fs.closeSync(fd)}
+
+    const tmpStat=fs.statSync(tmp);
+    if(!tmpStat.isFile()||tmpStat.size!==bytes.length||tmpStat.size<=0)throw new Error('Pre-update temporary backup verification failed');
+
+    try{
+      fs.renameSync(tmp,target);
+      tempExists=false;
+      targetCreated=true;
+    }catch(renameErr){
+      // Fallback for Windows filesystem edge cases. COPYFILE_EXCL guarantees the final target is never overwritten.
+      fs.copyFileSync(tmp,target,fs.constants.COPYFILE_EXCL);
+      targetCreated=true;
+      const copied=fs.statSync(target);
+      if(!copied.isFile()||copied.size!==bytes.length||copied.size<=0)throw new Error(`Pre-update copied backup verification failed: ${renameErr.message||renameErr}`);
+      fs.unlinkSync(tmp);
+      tempExists=false;
+    }
+
+    // Flush the finalized backup file too, so both rename and copy-fallback paths are durable before install is allowed.
+    const finalFd=fs.openSync(target,'r+');
+    try{fs.fsyncSync(finalFd)}finally{fs.closeSync(finalFd)}
+
+    const st=fs.statSync(target);
+    if(!st.isFile()||st.size!==bytes.length||st.size<=0)throw new Error('Pre-update backup verification failed');
+    pruneBackups(30);
+    success=true;
+    return {name:path.basename(target),path:target,size:st.size,createdAt:new Date(st.mtimeMs).toISOString()};
+  }finally{
+    if(tempExists)try{fs.unlinkSync(tmp)}catch{}
+    if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}
+  }
 }
 function updateSafetyInfo(){
   const queue=updateOfflineQueueState();

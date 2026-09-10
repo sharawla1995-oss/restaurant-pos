@@ -1,5 +1,5 @@
-const CACHE='sharawla-pos-v10.5.4-beta.5';
-const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.5','./sharawla-runtime-core.js?v=10.5.4-beta.5','./restaurant-engine.js?v=10.5.4-beta.5','./version-ui.js?v=10.5.4-beta.5','./update-ui.js?v=10.5.4-beta.5','./app.js?v=10.5.4-beta.5','./manifest.json','./icon-192.png','./icon-512.png'];
+const CACHE='sharawla-pos-v10.5.4-beta.6';
+const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.6','./sharawla-runtime-core.js?v=10.5.4-beta.6','./restaurant-engine.js?v=10.5.4-beta.6','./version-ui.js?v=10.5.4-beta.6','./update-ui.js?v=10.5.4-beta.6','./app.js?v=10.5.4-beta.6','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{

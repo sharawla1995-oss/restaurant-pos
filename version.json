@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.5",
+  "version": "10.5.4-beta.6",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "UI-only hotfix over beta.4: move fixed updater/offline/pending indicators away from cashier payment area and keep delivery cart item rows visibly usable. Part 2 checkOnly and Part 3 Gate A/B/C + backup runtime logic unchanged."
+  "notes": "Part 3 final backup hardening: pre-update backup is independent from persistDb()/createBackup(), writes db.export() to a unique exclusive temp file, fsyncs temp and finalized target, verifies exact non-zero size, uses atomic rename/copy fallback, and removes a created final target if any later step fails. Includes the cashier UI hotfix. Gate A/B/C and Manual Check checkOnly remain unchanged."
 }
