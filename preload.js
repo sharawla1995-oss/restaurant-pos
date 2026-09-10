@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  backup:{create:r=>ipcRenderer.invoke('backup:create',r),saveJson:(j,r)=>ipcRenderer.invoke('backup:saveJson',j,r),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
  app:{info:()=>ipcRenderer.invoke('app:info')},
- update:{check:()=>ipcRenderer.invoke('update:check'),info:()=>ipcRenderer.invoke('update:info'),safety:()=>ipcRenderer.invoke('update:safety'),setChannel:c=>ipcRenderer.invoke('update:setChannel',c),onProgress:cb=>{const fn=(_e,data)=>{try{cb(data)}catch{}};ipcRenderer.on('update:progress',fn);return()=>ipcRenderer.removeListener('update:progress',fn)}},
+ update:{check:()=>ipcRenderer.invoke('update:check'),info:()=>ipcRenderer.invoke('update:info'),safety:()=>ipcRenderer.invoke('update:safety'),health:r=>ipcRenderer.invoke('update:health',r),rollback:()=>ipcRenderer.invoke('update:rollback'),setChannel:c=>ipcRenderer.invoke('update:setChannel',c),onProgress:cb=>{const fn=(_e,data)=>{try{cb(data)}catch{}};ipcRenderer.on('update:progress',fn);return()=>ipcRenderer.removeListener('update:progress',fn)}},
  paths:()=>ipcRenderer.invoke('desktop:paths'),
  device:{info:()=>ipcRenderer.invoke('device:info')},
  external:{open:url=>ipcRenderer.invoke('external:open',url)},

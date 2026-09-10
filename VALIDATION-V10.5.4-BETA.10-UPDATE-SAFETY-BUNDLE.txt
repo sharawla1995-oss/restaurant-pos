@@ -1,0 +1,11 @@
+Sharawla POS 10.5.4-beta.10 — Static Validation
+
+PASS: npm run check
+PASS: node --check main.js / preload.js / update-ui.js / app.js / restaurant-engine.js / sharawla-runtime-core.js / scripts/check-version.js / scripts/sync-version.js
+PASS: protected POS/runtime files byte-identical to beta.7 Lean baseline: app.js, styles.css, preload.js, restaurant-engine.js, sharawla-runtime-core.js, update-ui.js, version-ui.js, manifest.json, update-config.json.
+PASS: Gate A/B/C + hardened independent pre-update backup static guards retained.
+PASS: SHA-256 verification statically ordered after download and before Gate B/install flow.
+PASS: health check, LKG, rollback preparation (no blind automatic rollback), JSONL update log guards present.
+PASS: compact indicator CSS contains no cart/delivery/payment layout selectors.
+
+Runtime is still required on isolated SH-0007. Planned target: beta.11 VERSION-ONLY, then beta.10 -> beta.11.

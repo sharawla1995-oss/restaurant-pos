@@ -400,7 +400,7 @@ async function offlineQueue(){
   return q
 }
 async function setOfflineQueue(q){await odbSet('queue',q);try{if(window.topBurgerDesktop?.db?.set)await window.topBurgerDesktop.db.set('queueCount',q.length)}catch{}updatePendingSyncBadge(q.length);return q}
-function updatePendingSyncBadge(n){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('div');el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el)}const c=Number(n||0);el.textContent=c?`⟳ ${c} حركة في انتظار المزامنة`:'✓ كل الحركات متزامنة';el.classList.toggle('has-pending',c>0);el.classList.toggle('all-synced',c===0);el.classList.toggle('is-hidden',c===0);if(c===0){clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.add('is-hidden'),900)}else el.classList.remove('is-hidden')}
+function updatePendingSyncBadge(n){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('div');el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el)}const c=Number(n||0);el.textContent=c?`⟳ ${c} معلّقة`:'✓ متزامن';el.title=c?`${c} حركة في انتظار المزامنة`:'كل الحركات متزامنة';el.classList.toggle('has-pending',c>0);el.classList.toggle('all-synced',c===0);el.classList.toggle('is-hidden',c===0);if(c===0){clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.add('is-hidden'),900)}else el.classList.remove('is-hidden')}
 async function refreshPendingSyncBadge(){try{updatePendingSyncBadge((await offlineQueue()).length)}catch{}}
 async function removeQueuedOperation(clientTx){let q=await offlineQueue();q=q.filter(x=>x.client_tx_id!==clientTx);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(clientTx,'synced',null)}catch{}return q}
 function uuid(){return (crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`)}
@@ -409,7 +409,7 @@ function setOfflineOrderNo(n){localStorage.setItem('offlineOrderNo',String(n))}
 function isNetError(e){const m=String(e?.message||e||'').toLowerCase();return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')}
 async function cacheBootstrap(){try{await odbSet('bootstrap',{employee:state.employee,homeBranchId:state.homeBranchId,branches:state.branches,categories:state.categories,products:state.products,modifiers:state.modifiers,productModifiers:state.productModifiers,productVariants:state.productVariants,deliveryZones:state.deliveryZones,drivers:state.drivers,branchPrintSettings:state.branchPrintSettings,paymentMethods:state.paymentMethods,branchPaymentMethods:state.branchPaymentMethods,branchFinancialSettings:state.branchFinancialSettings,employeeBranches:state.employeeBranches,userPermissions:state.userPermissions,settings:state.settings,business:state.business,websiteSettings:state.websiteSettings,activeBranchId:state.activeBranchId,at:new Date().toISOString()})}catch(e){console.warn('offline cache',e)}}
 async function loadOfflineBootstrap(){const c=await odbGet('bootstrap');if(!c?.employee)throw new Error('لا توجد بيانات محفوظة للعمل بدون إنترنت على هذا الجهاز');Object.assign(state,c);applyBusinessBranding();$('#who').textContent=`${state.employee.name} • ${state.employee.role}`;refreshBranchChrome();applyRoleNavigation();show('appView');showOfflineStatus();if(state.activeBranchId)showPage('pos');else renderBranchPicker()}
-function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'✓ متصل';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
+function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ أوفلاين':'✓ متصل';el.title=off?'وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'الجهاز متصل بالإنترنت';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
 async function refreshOfflineCustomerCache(){
   if(!navigator.onLine)return;
   try{const customers=await fetchAll('customers','select=id,name,phone,area,address,updated_at');await odbSet('customersCache',customers);const addresses=await fetchAll('customer_addresses','select=*');await odbSet('customerAddressesCache',addresses);await odbSet('customersCacheAt',new Date().toISOString())}catch(e){console.warn('customer offline cache',e)}
@@ -1867,7 +1867,18 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
+async function reportDesktopUpdateHealth(ok,phase,message,checks={}){try{if(window.topBurgerDesktop?.update?.health)return await window.topBurgerDesktop.update.health({ok:ok===true,phase,message,checks})}catch(e){console.warn('post update health report',e?.message||e)}return null}
+async function init(){
+  if(!(await ensureSharawlaLicense())){await reportDesktopUpdateHealth(false,'license','تعذر اجتياز فحص الترخيص',{license:false});return}
+  if(!(await ensureSharawlaRuntimeConfig())){await reportDesktopUpdateHealth(false,'runtime','تعذر تحميل Runtime Config',{license:true,runtime:false});return}
+  if(window.topBurgerDesktop?.isDesktop){
+    if(!(await ensureSharawlaBusinessConnection())){await reportDesktopUpdateHealth(false,'business-connection','تعذر تحميل Business Connection',{license:true,runtime:true,businessConnection:false});return}
+  }else if(!cfg.url||!cfg.key)return show('setupView');
+  await ensureSharawlaSupportCode();
+  await reportDesktopUpdateHealth(true,'renderer-ready','اكتمل فحص التشغيل الكامل بنجاح',{license:true,runtime:true,businessConnection:true,loginRequired:true});
+  session=null;
+  show('loginView');
+}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
@@ -1881,7 +1892,7 @@ function bindDesktopUpdateProgress(){
   if(!window.topBurgerDesktop?.update?.onProgress)return;
   let hideTimer=null;
   const ensure=()=>{let el=document.getElementById('desktopUpdateProgress');if(!el){el=document.createElement('div');el.id='desktopUpdateProgress';el.className='desktop-update-progress hidden';el.innerHTML='<div class="desktop-update-progress-head"><b id="desktopUpdateProgressText">جاري تنزيل التحديث…</b><span id="desktopUpdateProgressPct"></span></div><div class="desktop-update-progress-track"><i id="desktopUpdateProgressBar"></i></div>';document.body.appendChild(el)}return el};
-  window.topBurgerDesktop.update.onProgress(data=>{const el=ensure(),text=el.querySelector('#desktopUpdateProgressText'),pct=el.querySelector('#desktopUpdateProgressPct'),bar=el.querySelector('#desktopUpdateProgressBar');clearTimeout(hideTimer);if(data?.state==='idle'||data?.state==='up-to-date'){el.classList.add('hidden');return}el.classList.remove('hidden','is-error','is-done');if(data?.state==='error')el.classList.add('is-error');if(data?.state==='done'||data?.state==='installing')el.classList.add('is-done');const p=data?.percent!==null&&data?.percent!==undefined&&Number.isFinite(Number(data.percent))?Math.max(0,Math.min(100,Number(data.percent))):null;text.textContent=data?.message||'جاري تنزيل التحديث…';pct.textContent=p===null?'':`${Math.round(p)}%`;bar.style.width=p===null?'18%':`${p}%`;if(data?.state==='done')hideTimer=setTimeout(()=>el.classList.add('hidden'),3500);});
+  window.topBurgerDesktop.update.onProgress(data=>{const el=ensure(),text=el.querySelector('#desktopUpdateProgressText'),pct=el.querySelector('#desktopUpdateProgressPct'),bar=el.querySelector('#desktopUpdateProgressBar');clearTimeout(hideTimer);if(data?.state==='idle'||data?.state==='up-to-date'){el.classList.add('hidden');return}el.classList.remove('hidden','is-error','is-done');if(data?.state==='error')el.classList.add('is-error');if(data?.state==='done'||data?.state==='installing')el.classList.add('is-done');const p=data?.percent!==null&&data?.percent!==undefined&&Number.isFinite(Number(data.percent))?Math.max(0,Math.min(100,Number(data.percent))):null;const msg=data?.message||'جاري تنزيل التحديث…';text.textContent=msg;el.title=msg;pct.textContent=p===null?'':`${Math.round(p)}%`;bar.style.width=p===null?'18%':`${p}%`;if(['done','downloaded','backup-ready','blocked-offline','integrity-ok'].includes(data?.state))hideTimer=setTimeout(()=>el.classList.add('hidden'),4000);else if(['error','integrity-error','health-failed'].includes(data?.state))hideTimer=setTimeout(()=>el.classList.add('hidden'),6500);});
 }
 
 bindDesktopUpdateProgress();

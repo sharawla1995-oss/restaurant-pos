@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#111827">
   <title>Sharawla POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=10.5.4-beta.8">
-  <link rel="stylesheet" href="update-indicators.css?v=10.5.4-beta.8">
+  <link rel="stylesheet" href="styles.css?v=10.5.4-beta.10">
+  <link rel="stylesheet" href="update-indicators.css?v=10.5.4-beta.10">
 </head>
 <body>
 <div id="toast"></div>
@@ -101,11 +101,15 @@
       <div class="setting-switch"><span>المعمارية</span><b id="updateArchitectureValue" dir="ltr">—</b></div>
       <div class="setting-switch"><span>الحركات الأوفلاين</span><b id="updateOfflineQueueValue">جاري الفحص…</b></div>
       <div class="setting-switch"><span>آخر Backup قبل التحديث</span><b id="updateBackupValue" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>سلامة ملف التحديث</span><b id="updateIntegrityValue" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>فحص ما بعد التحديث</span><b id="updateHealthValue">—</b></div>
+      <div class="setting-switch"><span>آخر نسخة سليمة</span><b id="updateLastGoodValue" dir="ltr">—</b></div>
       <div class="setting-switch"><span>الحالة</span><b id="updateStatusValue">جاهز</b></div>
     </div>
     <progress id="updateProgressBar" class="hidden" max="100" value="0" style="width:100%;margin:12px 0"></progress>
     <p id="updateStatusMessage">اضغط «فحص التحديثات الآن» للبحث عن تحديث جديد.</p>
     <button id="checkUpdatesNowBtn" class="primary" type="button">🔄 فحص التحديثات الآن</button>
+    <button id="rollbackLastGoodBtn" class="secondary hidden" type="button">↩️ الرجوع لآخر نسخة سليمة</button>
   </div>
 </div>
 
@@ -123,10 +127,10 @@
   </div>
 </div>
 
-<script src="version-ui.js?v=10.5.4-beta.8"></script>
-<script src="update-ui.js?v=10.5.4-beta.8"></script>
-<script src="sharawla-runtime-core.js?v=10.5.4-beta.8"></script>
-<script src="restaurant-engine.js?v=10.5.4-beta.8"></script>
-<script src="app.js?v=10.5.4-beta.8"></script>
+<script src="version-ui.js?v=10.5.4-beta.10"></script>
+<script src="update-ui.js?v=10.5.4-beta.10"></script>
+<script src="sharawla-runtime-core.js?v=10.5.4-beta.10"></script>
+<script src="restaurant-engine.js?v=10.5.4-beta.10"></script>
+<script src="app.js?v=10.5.4-beta.10"></script>
 </body>
 </html>

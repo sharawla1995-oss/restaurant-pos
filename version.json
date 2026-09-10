@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.8",
+  "version": "10.5.4-beta.10",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "UI regression fix: restore the cashier/cart/payment/delivery layout to the beta.4/original baseline while keeping only non-blocking system indicator relocation. Part 3 backup EPERM hardening, Gate A/B/C, Login Update Center, and Manual Check checkOnly remain unchanged."
+  "notes": "FINAL MERGED Update Safety Bundle based on the supplied beta.10 source: compact indicators; Gate A/B/C and hardened pre-update backup retained; exact GitHub asset size plus SHA-256 verification; two-phase post-update health (core DB/files/license identity + renderer license/runtime/business connection); Last Known Good only after both phases pass; explicit safe rollback with fresh backup and queue guards; structured update log. No cashier/cart/payment/delivery layout or Restaurant Engine business logic changes."
 }

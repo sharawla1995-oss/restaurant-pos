@@ -17,6 +17,9 @@
     'backing-up':'جاري النسخ الاحتياطي',
     'backup-ready':'Backup جاهز',
     'backup-error':'فشل Backup',
+    'verifying-integrity':'فحص السلامة',
+    'integrity-error':'فشل السلامة',
+    'health-failed':'فشل الفحص',
     error:'فشل'
   };
 
@@ -61,6 +64,12 @@
       else if(Number(q?.pendingCount||0)>0)setText('updateOfflineQueueValue',`${Number(q.pendingCount)} معلقة`);
       else setText('updateOfflineQueueValue','متزامنة ✓');
       setText('updateBackupValue',info?.lastPreUpdateBackup?.name||'لم يُنشأ بعد');
+      const integrity=info?.lastIntegrity;
+      setText('updateIntegrityValue',integrity?.ok===true?`✓ ${String(integrity.actual||integrity.sha256||'').slice(0,10)}…`:(integrity?.ok===false?'✕ فشل':'—'));
+      const health=info?.lastHealth;
+      setText('updateHealthValue',health?.ok===true?'✓ سليم':(health?.ok===false?'✕ فشل':'—'));
+      setText('updateLastGoodValue',info?.lastKnownGood?.version?`V${info.lastKnownGood.version}`:'—');
+      const rb=document.getElementById('rollbackLastGoodBtn');if(rb)rb.classList.toggle('hidden',info?.rollbackAvailable!==true);
       return info;
     }catch(err){
       setText('updateOfflineQueueValue','تعذر الفحص');
@@ -155,6 +164,8 @@
     if(modal)modal.onclick=e=>{if(e.target===modal)closeCenter()};
     const check=$('#checkUpdatesNowBtn');
     if(check)check.onclick=manualCheck;
+    const rollback=$('#rollbackLastGoodBtn');
+    if(rollback)rollback.onclick=async()=>{rollback.disabled=true;try{await window.topBurgerDesktop?.update?.rollback?.()}finally{rollback.disabled=false;await refreshSafety().catch(()=>{})}};
 
     refreshInfo().then(()=>{
       setStatus({

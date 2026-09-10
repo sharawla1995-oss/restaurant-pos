@@ -1,5 +1,9 @@
-/* V10.5.4-beta.7 — system indicator placement only.
-   Do not change cashier/cart/payment/delivery layout here. */
-.desktop-update-progress{top:78px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}
-.offline-status{top:136px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}
-.pending-sync-badge{top:182px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}
+/* V10.5.4-beta.10 FINAL MERGED — compact system indicators only.
+   Never change cashier/cart/payment/delivery layout from this file. */
+.desktop-update-progress{top:72px!important;bottom:auto!important;left:10px!important;width:min(275px,calc(100vw - 20px))!important;padding:7px 9px!important;border-radius:10px!important;pointer-events:none!important;opacity:.96}
+.desktop-update-progress-head{gap:8px!important;font-size:11px!important;margin-bottom:4px!important}
+.desktop-update-progress-head b{min-width:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.desktop-update-progress-track{height:4px!important}
+.offline-status{top:116px!important;bottom:auto!important;left:10px!important;padding:5px 8px!important;max-width:120px!important;border-radius:999px!important;font-size:11px!important;line-height:1.2!important;white-space:nowrap!important;pointer-events:none!important;opacity:.96}
+.pending-sync-badge{top:146px!important;bottom:auto!important;left:10px!important;padding:5px 8px!important;max-width:135px!important;border-radius:999px!important;font-size:11px!important;line-height:1.2!important;white-space:nowrap!important;pointer-events:none!important;opacity:.96}
+@media(max-width:700px){.desktop-update-progress{top:68px!important;width:min(230px,calc(100vw - 16px))!important;left:8px!important}.desktop-update-progress-head b{max-width:175px}.offline-status{top:110px!important;left:8px!important}.pending-sync-badge{top:139px!important;left:8px!important}}
