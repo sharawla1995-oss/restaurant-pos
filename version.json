@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.2",
+  "version": "10.5.3",
   "channel": "candidate",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Core / Restaurant Isolation Phase 2 Step 2. Restaurant page titles, permission metadata, role page defaults and operational page gates now live in the Restaurant Engine. Runtime Config RPC, licensing, Business Connection, Support Code, Canonical Fingerprint, printing, offline behavior and Restaurant business functions remain unchanged."
+  "notes": "Hotfix for V10.5.2 Runtime Core load failure. Runtime Core and Restaurant Engine are loaded from project-root files to avoid nested-folder upload/packaging omissions. No licensing, fingerprint, business data, printing, offline, or Runtime Config contract changes."
 }
