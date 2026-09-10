@@ -17,13 +17,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Required source preflight
+        shell: pwsh
+        run: |
+          $required = @(
+            "package.json",
+            "scripts/sync-version.js",
+            "scripts/check-version.js",
+            ".github/workflows/build-windows-release.yml",
+            "version-ui.js"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Required source file missing: $file" }
+          }
+
       - name: Read version
         id: ver
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $isBeta = [bool]($pkg.version -match '-beta(?:\\.|$)')
+
           "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
           "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "prerelease=$isBeta" >> $env:GITHUB_OUTPUT
+          "channel=$(if ($isBeta) { 'beta' } else { 'stable' })" >> $env:GITHUB_OUTPUT
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,7 +55,7 @@ jobs:
             enabled = $true
             owner = "${{ github.repository_owner }}"
             repo = "${{ github.event.repository.name }}"
-            channel = "stable"
+            channel = "${{ steps.ver.outputs.channel }}"
             checkEveryHours = 6
           }
 
@@ -97,9 +115,48 @@ jobs:
           gh release view $tag *> $null
 
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag `
-              --title "Sharawla POS $version" `
-              --notes "Sharawla POS Windows automatic release"
+            if ("${{ steps.ver.outputs.prerelease }}" -eq "True") {
+              gh release create $tag `
+                --prerelease `
+                --title "Sharawla POS $version" `
+                --notes "Sharawla POS Windows beta release"
+            } else {
+              gh release create $tag `
+                --title "Sharawla POS $version" `
+                --notes "Sharawla POS Windows stable release"
+            }
+          }
+
+          # Always enforce the release classification, even when this tag already existed.
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+
+          if (-not $releaseId) {
+            throw "Could not resolve GitHub Release ID for $tag"
+          }
+
+          if ("${{ steps.ver.outputs.prerelease }}" -eq "True") {
+            gh api `
+              --method PATCH `
+              "repos/${{ github.repository }}/releases/$releaseId" `
+              -F prerelease=true `
+              -f make_latest=false | Out-Null
+          } else {
+            gh api `
+              --method PATCH `
+              "repos/${{ github.repository }}/releases/$releaseId" `
+              -F prerelease=false `
+              -f make_latest=true | Out-Null
+          }
+
+          # Fail the workflow if GitHub did not keep the expected classification.
+          $actualPrerelease = gh api `
+            "repos/${{ github.repository }}/releases/$releaseId" `
+            --jq ".prerelease"
+
+          $expectedPrerelease = "${{ steps.ver.outputs.prerelease }}".ToLower()
+
+          if ($actualPrerelease.ToLower() -ne $expectedPrerelease) {
+            throw "Release classification mismatch for $tag. Expected prerelease=$expectedPrerelease, actual=$actualPrerelease"
           }
 
           gh release upload $tag `
