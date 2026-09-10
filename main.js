@@ -184,9 +184,11 @@ function updateSafetyInfo(){
     lastPreUpdateBackup:latestPreUpdateBackup(),
     backupDirectory:backupDir(),
     lastKnownGood:safety.lastKnownGood||null,
+    previousLastKnownGood:safety.previousLastKnownGood||null,
     pendingUpdate:safety.pendingUpdate||null,
     lastHealth:safety.lastHealth||null,
     lastIntegrity:safety.lastIntegrity||null,
+    rollbackTarget:rollbackTargetForState(safety),
     rollbackAvailable:rollbackAvailability(),
     updateLogPath:updateLogPath()
   };
@@ -203,7 +205,19 @@ function updateQueueGuardMessage(queue){
 function updateSafetyStatePath(){return path.join(app.getPath('userData'),'update-safety-state.json')}
 function updateLogPath(){return path.join(app.getPath('userData'),'update-log.jsonl')}
 function readUpdateSafetyState(){
-  try{return JSON.parse(fs.readFileSync(updateSafetyStatePath(),'utf8'))}catch{return {schema:1,lastKnownGood:null,pendingUpdate:null,lastHealth:null}}
+  try{
+    const raw=JSON.parse(fs.readFileSync(updateSafetyStatePath(),'utf8'));
+    return {
+      schema:Number(raw?.schema||1),
+      lastKnownGood:raw?.lastKnownGood||null,
+      previousLastKnownGood:raw?.previousLastKnownGood||null,
+      pendingUpdate:raw?.pendingUpdate||null,
+      lastHealth:raw?.lastHealth||null,
+      lastIntegrity:raw?.lastIntegrity||null,
+      lastTransaction:raw?.lastTransaction||null,
+      updatedAt:raw?.updatedAt||null
+    };
+  }catch{return {schema:1,lastKnownGood:null,previousLastKnownGood:null,pendingUpdate:null,lastHealth:null,lastIntegrity:null,lastTransaction:null}}
 }
 function writeJsonAtomicUnique(target,value){
   fs.mkdirSync(path.dirname(target),{recursive:true});
@@ -314,14 +328,46 @@ function prepareRollbackCandidate({local,remote,backup,installerPath,integrity,m
 }
 function markCurrentVersionLastKnownGood(health,source='health-check'){
   if(!health||health.ok!==true)throw new Error('Cannot mark Last Known Good before full health check passes');
-  const lkg={version:String(app.getVersion()||''),channel:readDeviceUpdateChannel(readUpdateConfig()),arch:process.arch,confirmedAt:new Date().toISOString(),source,health};
-  updateSafetyStatePatch({lastKnownGood:lkg,lastHealth:health});
-  logUpdateEvent('LKG_CONFIRMED',{version:lkg.version,source});
+  const state=readUpdateSafetyState();
+  const currentVersion=String(app.getVersion()||'');
+  const oldLkg=state.lastKnownGood||null;
+  let previous=state.previousLastKnownGood||null;
+
+  // Rotate history only when the newly confirmed healthy version is different.
+  // This preserves the immediately previous healthy version for explicit rollback.
+  if(oldLkg?.version&&String(oldLkg.version)!==currentVersion)previous=oldLkg;
+
+  const lkg={
+    version:currentVersion,
+    channel:readDeviceUpdateChannel(readUpdateConfig()),
+    arch:process.arch,
+    confirmedAt:new Date().toISOString(),
+    source,
+    health
+  };
+  updateSafetyStatePatch({lastKnownGood:lkg,previousLastKnownGood:previous,lastHealth:health});
+  logUpdateEvent('LKG_CONFIRMED',{
+    version:lkg.version,
+    previousVersion:previous?.version||null,
+    source
+  });
   return lkg;
 }
+function rollbackTargetForState(state=readUpdateSafetyState(),currentVersion=String(app.getVersion()||'')){
+  const current=String(currentVersion||'');
+  const currentLkg=state?.lastKnownGood||null;
+  const previous=state?.previousLastKnownGood||null;
+
+  // If the current build failed health, lastKnownGood is already the correct rollback target.
+  if(currentLkg?.version&&String(currentLkg.version)!==current)return currentLkg;
+
+  // If the current build is healthy, rollback means the immediately previous healthy build.
+  if(previous?.version&&String(previous.version)!==current)return previous;
+
+  return null;
+}
 function rollbackAvailability(){
-  const state=readUpdateSafetyState(),lkg=state.lastKnownGood;
-  return !!(lkg&&lkg.version&&String(lkg.version)!==String(app.getVersion()));
+  return !!rollbackTargetForState();
 }
 function runPostUpdateHealthCheck(){
   const state=readUpdateSafetyState(),pending=state.pendingUpdate||null,expected=pending?.toVersion||null;
@@ -361,7 +407,7 @@ async function applyRendererHealthReport(report={}){
     const lkg=markCurrentVersionLastKnownGood(combined,pending.mode==='rollback'?'rollback-health':'post-update-health');
     updateSafetyStatePatch({pendingUpdate:null,lastHealth:combined,lastTransaction:{...pending,status:'healthy',rendererHealth:renderer,finishedAt:combined.checkedAt}});
     logUpdateEvent(pending.mode==='rollback'?'ROLLBACK_SUCCESS':'UPDATE_SUCCESS',{transactionId:pending.id,fromVersion:pending.fromVersion,toVersion:pending.toVersion,lastKnownGood:lkg.version});
-    return {ok:true,health:combined,lastKnownGood:lkg,rollbackAvailable:false};
+    return {ok:true,health:combined,lastKnownGood:lkg,previousLastKnownGood:readUpdateSafetyState().previousLastKnownGood||null,rollbackAvailable:rollbackAvailability()};
   }
   const core=runLocalHealthChecks(null,null);
   if(!rendererOk||!core.ok){
@@ -374,7 +420,7 @@ async function applyRendererHealthReport(report={}){
   const lkg=markCurrentVersionLastKnownGood(combined,'baseline-full-health');
   updateSafetyStatePatch({lastHealth:combined});
   logUpdateEvent('HEALTH_BASELINE_PASS',{version:lkg.version});
-  return {ok:true,health:combined,lastKnownGood:lkg,rollbackAvailable:false};
+  return {ok:true,health:combined,lastKnownGood:lkg,previousLastKnownGood:readUpdateSafetyState().previousLastKnownGood||null,rollbackAvailable:rollbackAvailability()};
 }
 function selectWindowsInstallerAsset(rel,arch=process.arch){
   const assets=Array.isArray(rel?.assets)?rel.assets:[],exeAssets=assets.filter(a=>/\.exe$/i.test(a?.name||'')),wantedArch=arch==='ia32'?'ia32':'x64';
@@ -385,8 +431,9 @@ function selectWindowsInstallerAsset(rel,arch=process.arch){
   return asset;
 }
 async function rollbackToLastKnownGood({confirmFirst=true}={}){
-  const state=readUpdateSafetyState(),lkg=state.lastKnownGood,current=String(app.getVersion()||''),cfg=readUpdateConfig();
-  if(!lkg?.version||String(lkg.version)===current)return {ok:false,error:'لا توجد نسخة سابقة سليمة متاحة للرجوع'};
+  const state=readUpdateSafetyState(),current=String(app.getVersion()||''),cfg=readUpdateConfig();
+  const lkg=rollbackTargetForState(state,current);
+  if(!lkg?.version)return {ok:false,error:'لا توجد نسخة سابقة سليمة متاحة للرجوع'};
   const gateA=updateOfflineQueueState();
   if(!gateA.clear){
     const message=updateQueueGuardMessage(gateA);

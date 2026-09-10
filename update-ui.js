@@ -69,7 +69,12 @@
       const health=info?.lastHealth;
       setText('updateHealthValue',health?.ok===true?'✓ سليم':(health?.ok===false?'✕ فشل':'—'));
       setText('updateLastGoodValue',info?.lastKnownGood?.version?`V${info.lastKnownGood.version}`:'—');
-      const rb=document.getElementById('rollbackLastGoodBtn');if(rb)rb.classList.toggle('hidden',info?.rollbackAvailable!==true);
+      setText('updatePreviousGoodValue',info?.previousLastKnownGood?.version?`V${info.previousLastKnownGood.version}`:'—');
+      const rb=document.getElementById('rollbackLastGoodBtn');
+      if(rb){
+        rb.classList.toggle('hidden',info?.rollbackAvailable!==true);
+        rb.textContent=info?.rollbackTarget?.version?`↩️ الرجوع إلى V${info.rollbackTarget.version}`:'↩️ الرجوع لآخر نسخة سليمة';
+      }
       return info;
     }catch(err){
       setText('updateOfflineQueueValue','تعذر الفحص');
