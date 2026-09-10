@@ -8,10 +8,8 @@ const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
 const BUSINESS_CONNECTION_CACHE_KEY='sharawlaBusinessConnectionV1';
 const RUNTIME_CONFIG_CACHE_KEY='sharawlaRuntimeConfigV1';
-// V10.5.0 Phase 1: Restaurant is the only implemented runtime profile.
-// If an older Restaurant business has no explicit module mappings yet, preserve
-// V10.4.21 behavior through this compatibility set instead of disabling features.
-const LEGACY_RESTAURANT_MODULES=['pos','kitchen','delivery','pickup','website','inventory','returns','promocodes','expenses','reports','customers','tables'];
+// V10.5.2 Phase 2 Step 2: Restaurant navigation, permissions, page titles and
+// operational page rules now live in the Restaurant Engine instead of app.js.
 let sharawlaRuntimeConfig=null;
 let sharawlaDeviceInfo=null;
 function clearLegacyBusinessConfig(){
@@ -60,60 +58,54 @@ async function ensureSharawlaBusinessConnection(){
   return showActivation('لا توجد إعدادات اتصال محفوظة لهذا النشاط. وصّل الجهاز بالإنترنت للتحقق مرة واحدة.'),false;
 }
 
-
-function normalizeRuntimeModules(values){
-  return [...new Set((Array.isArray(values)?values:[]).map(x=>String(x||'').trim().toLowerCase()).filter(Boolean))];
-}
+function runtimeCore(){return window.SharawlaRuntimeCore||null}
 function loadRuntimeConfigCache(businessId){
-  try{
-    const c=JSON.parse(localStorage.getItem(RUNTIME_CONFIG_CACHE_KEY)||'null');
-    if(!c||String(c.business_id)!==String(businessId||''))return null;
-    if(String(c.pos_profile||'').toLowerCase()!=='restaurant')return null;
-    c.enabled_modules=normalizeRuntimeModules(c.enabled_modules);
-    return c;
-  }catch{return null}
+  const core=runtimeCore();
+  return core?core.loadCache(RUNTIME_CONFIG_CACHE_KEY,businessId):null;
 }
 function saveRuntimeConfigCache(c){
-  const modules=normalizeRuntimeModules(c.enabled_modules);
-  const configured=!!c.modules_configured;
-  const row={
-    business_id:String(c.business_id||''),
-    business_name:String(c.business_name||''),
-    pos_profile:String(c.pos_profile||'').trim().toLowerCase(),
-    profile_active:c.profile_active!==false,
-    profile_implemented:c.profile_implemented===true,
-    modules_configured:configured,
-    legacy_restaurant_compat:!configured,
-    enabled_modules:configured?modules:[...LEGACY_RESTAURANT_MODULES],
-    updated_at:new Date().toISOString()
-  };
-  localStorage.setItem(RUNTIME_CONFIG_CACHE_KEY,JSON.stringify(row));
+  const core=runtimeCore();
+  if(!core)throw new Error('Sharawla Runtime Core غير محمل.');
+  const row=core.saveCache(RUNTIME_CONFIG_CACHE_KEY,c);
   sharawlaRuntimeConfig=row;
   return row;
 }
 function moduleEnabled(code){
-  // Until Runtime Config is resolved, keep legacy behavior rather than hiding
-  // Restaurant features during startup/bootstrap.
+  // Until Runtime Config is resolved, keep legacy behavior during bootstrap.
   if(!sharawlaRuntimeConfig)return true;
-  return sharawlaRuntimeConfig.enabled_modules.includes(String(code||'').toLowerCase());
+  return runtimeCore()?.moduleEnabled(sharawlaRuntimeConfig,code)===true;
 }
-function pageRuntimeModule(page){
-  return ({
-    pos:'pos',orders:'pos',products:'pos',shifts:'pos',
-    returns:'returns',customers:'customers',
-    deliveryOrders:'delivery',deliverySettings:'delivery',delivery:'delivery',
-    kitchen:'kitchen',inventory:'inventory',expenses:'expenses',
-    promoCodes:'promocodes',reports:'reports',
-    branchProductAvailability:'website',websiteManagement:'website',
-    websiteBranchSettings:'website',websitePayments:'website',websiteAppearance:'website'
-  })[page]||null;
+function runtimeAllowsPage(page){
+  if(!sharawlaRuntimeConfig)return true;
+  return runtimeCore()?.pageAllowed(sharawlaRuntimeConfig,page)===true;
 }
-function runtimeAllowsPage(page){const m=pageRuntimeModule(page);return !m||moduleEnabled(m)}
+function runtimeOperationalAllowsPage(page){
+  const core=runtimeCore();
+  if(!core)return false;
+  return core.pageOperationalAllowed(sharawlaRuntimeConfig,page,state?.settings||{})===true;
+}
+function runtimePageTitle(page){
+  return runtimeCore()?.pageTitle(sharawlaRuntimeConfig,page)||String(page||'');
+}
+function runtimeAllPages(){
+  return runtimeCore()?.allPages(sharawlaRuntimeConfig)||['home'];
+}
+function runtimeRolePages(role){
+  return runtimeCore()?.rolePages(sharawlaRuntimeConfig,role)||['home'];
+}
+function runtimePermissionDefs(){
+  return runtimeCore()?.permissionDefs(sharawlaRuntimeConfig)||[];
+}
+function runtimePermissionGroups(){
+  return runtimeCore()?.permissionGroups(sharawlaRuntimeConfig)||[];
+}
 async function ensureSharawlaRuntimeConfig(){
   const st=await loadLicenseState();
   if(!st?.device_id||!st?.business_id)return showActivation('بيانات النشاط غير مكتملة. أعد التحقق من الترخيص.'),false;
   const canonical=String(st.device_fingerprint||'').trim();
   if(!canonical)return showActivation('بصمة الجهاز الثابتة غير مثبتة بعد. اضغط إعادة التحقق أثناء الاتصال بالإنترنت.'),false;
+  const core=runtimeCore();
+  if(!core)return showActivation('تعذر تحميل Sharawla Runtime Core. أعد تشغيل البرنامج.'),false;
   if(navigator.onLine){
     try{
       const d=await cloudRpc('get_sharawla_business_runtime_config',{p_device_id:st.device_id,p_device_fingerprint:canonical});
@@ -122,7 +114,7 @@ async function ensureSharawlaRuntimeConfig(){
       const profile=String(d.pos_profile||'').trim().toLowerCase();
       if(d.profile_active===false)return showActivation('POS Profile الخاص بالنشاط موقوف في Sharawla Admin.'),false;
       if(d.profile_implemented!==true)return showActivation('POS Profile الخاص بالنشاط غير منفذ بعد في هذا الإصدار.'),false;
-      if(profile!=='restaurant')return showActivation(`هذا الإصدار يدعم Restaurant فقط. Profile الحالي: ${profile||'غير محدد'}`),false;
+      if(!core.hasEngine(profile))return showActivation(`لا يوجد Engine مثبت للـ POS Profile الحالي: ${profile||'غير محدد'}`),false;
       saveRuntimeConfigCache(d);
       return true;
     }catch(e){
@@ -485,40 +477,12 @@ function zoneName(id){return state.deliveryZones.find(z=>String(z.id)===String(i
 function employeeName(id,employees=[]){return employees.find(e=>String(e.id)===String(id))?.name||''}
 function isAdmin(){return state.employee?.role==='admin'}
 function isCallCenter(){return ['callcenter','delivery'].includes(state.employee?.role)}
-const ALL_PAGES=['home','pos','orders','returns','customers','deliveryOrders','deliverySettings','delivery','kitchen','shifts','inventory','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'];
-const ROLE_PAGES={
-  admin:new Set(ALL_PAGES),
-  cashier:new Set(['home','pos','orders','returns','customers','deliveryOrders','delivery','shifts']),
-  callcenter:new Set(['home','pos','orders','returns','customers','deliveryOrders','delivery']),
-  delivery:new Set(['home','pos','orders','returns','customers','deliveryOrders','delivery'])
-};
-const PERMISSION_DEFS=[
-  ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],
-  ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['promoCodes','🎟️ البرومو كود'],['deliverySettings','إعدادات الدليفري'],
-  ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
-  ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
-  ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],
-  ['branchManagement','🏪 إدارة الفروع'],
-  ['businessSettings','🎨 هوية وإعدادات النشاط'],
-  ['printingSettings','🖨️ إعدادات الطباعة'],
-  ['financialSettings','💳 طرق الدفع والضريبة والخدمة'],
-  ['websiteAppearance','🌐 تصميم وإعدادات الموقع'],
-  ['discount','🏷️ السماح بالخصم']
-];
-const PERMISSION_GROUPS=[
-  ['🧾 المبيعات',['pos','orders','returns','customers','deliveryOrders','shifts']],
-  ['📊 الإدارة',['expenses','reports','products','promoCodes','settings']],
-  ['🚚 التشغيل',['deliverySettings','kitchen','inventory']],
-  ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
-  ['🏪 الفروع',['branchManagement']],
-  ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']]
-];
 function effectivePermissionSet(){
-  if(isAdmin())return new Set(ALL_PAGES);
+  if(isAdmin())return new Set(runtimeAllPages());
   if(Array.isArray(state.userPermissions)&&state.userPermissions.length){
     return new Set(['home',...state.userPermissions.filter(x=>x.allowed!==false).map(x=>x.permission_key)]);
   }
-  return ROLE_PAGES[state.employee?.role]||new Set(['home']);
+  return new Set(runtimeRolePages(state.employee?.role));
 }
 function hasFeaturePermission(key){
   if(isAdmin())return true;
@@ -536,11 +500,8 @@ function canAccessPage(page){
   if(page==='websiteAppearance')return isAdmin()||allowed.has('websiteAppearance');
   if(page==='settings')return isAdmin()||allowed.has('settings')||allowed.has('businessSettings')||allowed.has('printingSettings')||allowed.has('financialSettings');
   if(!allowed.has(page))return false;
-  if(page==='deliveryOrders'||page==='delivery')return !!state.settings.enable_delivery;
-  if(page==='kitchen')return !!state.settings.enable_kitchen;
-  if(page==='inventory')return !!state.settings.enable_inventory;
   if(page==='users')return isAdmin();
-  return true;
+  return runtimeOperationalAllowsPage(page);
 }
 function applyRoleNavigation(){
   $$('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
@@ -744,9 +705,8 @@ if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false)
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',websitePayments:'طرق الدفع على الموقع',websiteAppearance:'تصميم وقائمة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -1910,7 +1870,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.0',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.1',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
@@ -2053,14 +2013,15 @@ async function renderUsers(){
  }catch(e){ $('#page').innerHTML=`<div class="panel"><h2>المستخدمون والصلاحيات</h2><div class="empty"><b>تعذر تحميل المستخدمين.</b><p>${esc(e.message)}</p></div></div>`;return; }
  const roleLabel=r=>({admin:'مدير',cashier:'كاشير',callcenter:'كول سنتر'}[r]||r);
  const branchChecks=(selected=[],admin=false)=>admin?'<span class="tag">كل الفروع</span>':state.branches.map(b=>`<label><input type="checkbox" class="user-branch" value="${b.id}" ${selected.map(String).includes(String(b.id))?'checked':''}> ${esc(b.name)}</label>`).join('');
- const defaultPermissions=role=>[...(ROLE_PAGES[role]||ROLE_PAGES.cashier)].filter(x=>x!=='home'&&x!=='delivery'&&x!=='users');
- const permissionChecks=(selected=[],admin=false)=>admin?'<div class="empty">المدير لديه كل الصلاحيات تلقائيًا.</div>':PERMISSION_GROUPS.map(([title,keys])=>`<section class="permission-group"><h4>${title}</h4><div class="permission-list">${keys.map(k=>{const d=PERMISSION_DEFS.find(x=>x[0]===k);if(!d)return '';return `<label class="permission-row"><span>${d[1]}</span><input type="checkbox" class="user-permission permission-toggle" value="${k}" ${selected.includes(k)?'checked':''}></label>`}).join('')}</div></section>`).join('');
- $('#page').innerHTML=`<div class="panel users-admin-head"><div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>حدد لكل مستخدم الفروع والشاشات المسموح له بها.</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div></div><div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}"><div class="user-main"><b>${esc(u.name)}</b><small>${esc(u.email||u.username||'بدون بريد')} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الصلاحيات</span>':((u.permissions_configured?u.permissions:defaultPermissions(u.role)).map(k=>`<span class="tag">${esc(PERMISSION_DEFS.find(x=>x[0]===k)?.[1]||k)}</span>`).join(''))}</div><div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div></div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
- const savePermissions=async(employeeId,keys)=>{await rest('employee_permissions',`employee_id=eq.${employeeId}`,{method:'DELETE'});const rows=PERMISSION_DEFS.map(([k])=>({employee_id:employeeId,permission_key:k,allowed:keys.includes(k)}));if(rows.length)await rest('employee_permissions','',{method:'POST',body:JSON.stringify(rows)})};
+ const defaultPermissions=role=>runtimeRolePages(role).filter(x=>x!=='home'&&x!=='delivery'&&x!=='users');
+ const permissionDefs=runtimePermissionDefs(), permissionGroups=runtimePermissionGroups();
+ const permissionChecks=(selected=[],admin=false)=>admin?'<div class="empty">المدير لديه كل الصلاحيات تلقائيًا.</div>':permissionGroups.map(([title,keys])=>`<section class="permission-group"><h4>${title}</h4><div class="permission-list">${keys.map(k=>{const d=permissionDefs.find(x=>x[0]===k);if(!d)return '';return `<label class="permission-row"><span>${d[1]}</span><input type="checkbox" class="user-permission permission-toggle" value="${k}" ${selected.includes(k)?'checked':''}></label>`}).join('')}</div></section>`).join('');
+ $('#page').innerHTML=`<div class="panel users-admin-head"><div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>حدد لكل مستخدم الفروع والشاشات المسموح له بها.</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div></div><div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}"><div class="user-main"><b>${esc(u.name)}</b><small>${esc(u.email||u.username||'بدون بريد')} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الصلاحيات</span>':((u.permissions_configured?u.permissions:defaultPermissions(u.role)).map(k=>`<span class="tag">${esc(permissionDefs.find(x=>x[0]===k)?.[1]||k)}</span>`).join(''))}</div><div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div></div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
+ const savePermissions=async(employeeId,keys)=>{await rest('employee_permissions',`employee_id=eq.${employeeId}`,{method:'DELETE'});const rows=permissionDefs.map(([k])=>({employee_id:employeeId,permission_key:k,allowed:keys.includes(k)}));if(rows.length)await rest('employee_permissions','',{method:'POST',body:JSON.stringify(rows)})};
  const openForm=(u=null)=>{const editing=!!u,role=u?.role||'cashier',ids=u?.branch_ids||[currentBranchId()],initialPerms=u?.permissions_configured?u.permissions:defaultPermissions(role);const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card user-edit-modal" id="userForm"><h2>${editing?'تعديل المستخدم':'إضافة مستخدم جديد'}</h2><div class="form-grid"><label>الاسم<input id="uName" value="${esc(u?.name||'')}" required></label><label>البريد الإلكتروني<input id="uEmail" type="email" value="${esc(u?.email||'')}" ${editing?'readonly':''} required></label>${editing?'':`<label>كلمة المرور<input id="uPassword" type="password" minlength="6" required></label>`}<label>الدور<select id="uRole"><option value="cashier" ${role==='cashier'?'selected':''}>كاشير</option><option value="callcenter" ${role==='callcenter'?'selected':''}>كول سنتر</option><option value="admin" ${role==='admin'?'selected':''}>مدير</option></select></label><label>الفرع الأساسي<select id="uHomeBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(u?.branch_id||currentBranchId())?'selected':''}>${esc(b.name)}</option>`).join('')}</select></label><label class="check-line"><input id="uActive" type="checkbox" ${u?.active===false?'':'checked'}> المستخدم فعال</label></div><div class="user-branches-box"><b>الفروع المسموح بها</b><div id="uBranchChecks" class="branch-checks">${branchChecks(ids,role==='admin')}</div><small id="uBranchHint">${role==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'}</small></div><div class="user-branches-box"><b>الصلاحيات</b><div id="uPermissionChecks" class="branch-checks">${permissionChecks(initialPerms,role==='admin')}</div><small>الدور يضع قالبًا افتراضيًا، وبعدها تقدر تزود أو تشيل أي صلاحية.</small></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ</button></div></form>`;document.body.appendChild(m);
    const redraw=()=>{const r=m.querySelector('#uRole').value;const currentBranches=[...m.querySelectorAll('.user-branch:checked')].map(x=>x.value);m.querySelector('#uBranchChecks').innerHTML=branchChecks(currentBranches.length?currentBranches:ids,r==='admin');m.querySelector('#uBranchHint').textContent=r==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.';m.querySelector('#uPermissionChecks').innerHTML=permissionChecks(defaultPermissions(r),r==='admin')};
    m.querySelector('#uRole').onchange=redraw;m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove()};
-   m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length)return toast('حدد فرعًا واحدًا على الأقل');const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const permissions=role==='admin'?ALL_PAGES:[...m.querySelectorAll('.user-permission:checked')].map(x=>x.value);const active=m.querySelector('#uActive').checked;try{let employeeId=u?.id;if(editing){await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({name:m.querySelector('#uName').value.trim(),role,branch_id,active})});await rest('employee_branches',`employee_id=eq.${u.id}`,{method:'DELETE'});if(branch_ids.length)await rest('employee_branches','',{method:'POST',body:JSON.stringify(branch_ids.map(bid=>({employee_id:u.id,branch_id:bid})))});}else{const result=await callFunction('smart-function',{action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),email:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_ids});employeeId=result?.employee_id;if(active===false&&employeeId)await rest('employees',`id=eq.${employeeId}`,{method:'PATCH',body:JSON.stringify({active:false})});}if(employeeId)await savePermissions(employeeId,permissions);m.remove();toast(editing?'تم تعديل المستخدم والصلاحيات':'تم إنشاء المستخدم والصلاحيات');renderUsers()}catch(err){toast(err.message)}};
+   m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length)return toast('حدد فرعًا واحدًا على الأقل');const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const permissions=role==='admin'?runtimeAllPages():[...m.querySelectorAll('.user-permission:checked')].map(x=>x.value);const active=m.querySelector('#uActive').checked;try{let employeeId=u?.id;if(editing){await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({name:m.querySelector('#uName').value.trim(),role,branch_id,active})});await rest('employee_branches',`employee_id=eq.${u.id}`,{method:'DELETE'});if(branch_ids.length)await rest('employee_branches','',{method:'POST',body:JSON.stringify(branch_ids.map(bid=>({employee_id:u.id,branch_id:bid})))});}else{const result=await callFunction('smart-function',{action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),email:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_ids});employeeId=result?.employee_id;if(active===false&&employeeId)await rest('employees',`id=eq.${employeeId}`,{method:'PATCH',body:JSON.stringify({active:false})});}if(employeeId)await savePermissions(employeeId,permissions);m.remove();toast(editing?'تم تعديل المستخدم والصلاحيات':'تم إنشاء المستخدم والصلاحيات');renderUsers()}catch(err){toast(err.message)}};
  };
  $('#newUserBtn').onclick=()=>openForm();$('#page').onclick=async e=>{const eb=e.target.closest('[data-edit-user]');if(eb){const u=rows.find(x=>String(x.id)===eb.dataset.editUser);if(u)openForm(u);return}const tb=e.target.closest('[data-toggle-user]');if(tb){const u=rows.find(x=>String(x.id)===tb.dataset.toggleUser);if(!u)return;if(String(u.auth_user_id)===String(session.user.id)&&u.active!==false)return toast('لا يمكنك إيقاف حسابك الحالي');if(!await uiConfirm(`${u.active===false?'تفعيل':'إيقاف'} ${u.name}؟`))return;try{await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({active:u.active===false})});toast('تم تحديث حالة المستخدم');renderUsers()}catch(err){toast(err.message)}return}const pb=e.target.closest('[data-password-user]');if(pb){const u=rows.find(x=>String(x.id)===pb.dataset.passwordUser);if(!u)return;const password=await uiPrompt(`كلمة المرور الجديدة لـ ${u.name}`);if(password===null)return;if(password.length<6)return toast('كلمة المرور 6 أحرف على الأقل');try{await callFunction('smart-function',{action:'password',employee_id:u.id,password});toast('تم تغيير كلمة المرور')}catch(err){toast(err.message)}return}};
 }

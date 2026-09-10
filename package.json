@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.0",
-  "description": "Sharawla POS V10.5.0 - Multi-Industry Core / Restaurant Isolation Phase 1; runtime POS Profile + Modules with Restaurant compatibility",
+  "version": "10.5.2",
+  "description": "Sharawla POS V10.5.2 - Core / Restaurant Isolation Phase 2 Step 2; Restaurant navigation and permissions moved into profile engine",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

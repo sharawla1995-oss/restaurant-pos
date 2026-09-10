@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.0",
+  "version": "10.5.2",
   "channel": "candidate",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Multi-Industry Core / Restaurant Isolation Phase 1. Reads Business POS Profile + Enabled Modules from Sharawla Cloud using a new read-only Runtime Config RPC. Restaurant remains the only implemented profile and preserves V10.4.21 behavior, including legacy Restaurant compatibility when no modules are configured. Top Burger is treated as Business data, while legacy desktop/storage identifiers remain unchanged for upgrade compatibility."
+  "notes": "Core / Restaurant Isolation Phase 2 Step 2. Restaurant page titles, permission metadata, role page defaults and operational page gates now live in the Restaurant Engine. Runtime Config RPC, licensing, Business Connection, Support Code, Canonical Fingerprint, printing, offline behavior and Restaurant business functions remain unchanged."
 }
