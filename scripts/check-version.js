@@ -113,4 +113,26 @@ const rollbackPrep = main.indexOf("prepareRollbackCandidate({local,remote,backup
 const spawnAfterPrep = main.indexOf("spawn(target,['/S']", rollbackPrep);
 if (!(backupReadyForSpawn >= 0 && rollbackPrep > backupReadyForSpawn && spawnAfterPrep > rollbackPrep)) throw new Error('Pending update state must be committed after backup and before spawn.');
 
+
+// V10.5.4-beta.12 FINAL MASTER CANDIDATE — Previous LKG invariants.
+for (const token of [
+  'previousLastKnownGood:safety.previousLastKnownGood||null',
+  'rollbackTarget:rollbackTargetForState(safety)',
+  'function rollbackTargetForState(',
+  'if(oldLkg?.version&&String(oldLkg.version)!==currentVersion)previous=oldLkg',
+  'previousLastKnownGood:previous',
+  "previousVersion:previous?.version||null"
+]) {
+  if (!main.includes(token)) throw new Error(`Previous LKG hardening missing: ${token}`);
+}
+if (!index.includes('id="updatePreviousGoodValue"')) throw new Error('Update Center must show Previous LKG.');
+if (!updateUi.includes("setText('updatePreviousGoodValue'")) throw new Error('Previous LKG UI refresh missing.');
+if (!updateUi.includes('info?.rollbackTarget?.version')) throw new Error('Rollback button must show the resolved rollback target.');
+const rollbackFnStart = main.indexOf('async function rollbackToLastKnownGood({confirmFirst=true}={})');
+const rollbackTargetUse = main.indexOf('const lkg=rollbackTargetForState(state,current);', rollbackFnStart);
+const rollbackDownload = main.indexOf("releases/tags/${encodeURIComponent('v'+lkg.version)}", rollbackFnStart);
+if (!(rollbackFnStart >= 0 && rollbackTargetUse > rollbackFnStart && rollbackDownload > rollbackTargetUse)) {
+  throw new Error('Rollback must resolve Previous/Current LKG target before downloading the installer.');
+}
+
 console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
