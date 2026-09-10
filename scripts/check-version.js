@@ -136,21 +136,48 @@ if (!(rollbackFnStart >= 0 && rollbackTargetUse > rollbackFnStart && rollbackDow
 }
 
 
-// V10.5.4-beta.14 Retail Checkout + Barcode invariants.
+// V10.5.4-beta.15 Retail Inventory Foundation invariants.
 const runtimeCore = read('sharawla-runtime-core.js');
 const restaurantEngine = read('restaurant-engine.js');
 const retailEngine = read('retail-engine.js');
 const appSource = read('app.js');
+const retailInventorySql = read('supabase-v10-5-4-beta15-retail-inventory-foundation.sql');
 if (!runtimeCore.includes('bootstrapDefault===true')) throw new Error('Runtime Core must support an explicit bootstrap default engine.');
 if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restaurant must remain the bootstrap compatibility default.');
-for (const token of ["code:'retail'","phase:'checkout-barcode-mvp'","'home','pos','customers','shifts','inventory','expenses','products','reports','users','settings'","pos:'pos'"]) {
-  if (!retailEngine.includes(token)) throw new Error(`Retail beta.14 missing: ${token}`);
+for (const token of ["code:'retail'","phase:'inventory-foundation'","'home','pos','customers','shifts','inventory','returns','expenses','products','reports','users','settings'","returns:'returns'","pos:'pos'"]) {
+  if (!retailEngine.includes(token)) throw new Error(`Retail beta.15 missing: ${token}`);
 }
-for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'websiteManagement'","'orders'","'returns'"]) {
-  if (retailEngine.includes(forbidden)) throw new Error(`Retail beta.14 must not expose Restaurant/unfinished page: ${forbidden}`);
+for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'websiteManagement'","'orders'"]) {
+  if (retailEngine.includes(forbidden)) throw new Error(`Retail beta.15 must not expose Restaurant-only page: ${forbidden}`);
 }
-for (const token of ['function renderRetailPOS()','function findRetailProductByBarcode(code)','function addRetailProductToCart(p)',"moduleEnabled('barcode')","if(isRetailProfile())return renderRetailPOS();"]) {
-  if (!appSource.includes(token)) throw new Error(`Retail checkout implementation missing: ${token}`);
+for (const token of [
+  'function renderRetailPOS()',
+  'function findRetailProductByBarcode(code)',
+  'function addRetailProductToCart(p)',
+  "moduleEnabled('barcode')",
+  'async function renderRetailInventory()',
+  "create_retail_pos_order_atomic",
+  "create_retail_order_return_idempotent",
+  "retail_inventory_adjust",
+  "retail_inventory_set_policy",
+  "job.engine==='retail'",
+  "step=\"${isRetailProfile()?'0.001':'1'}\""
+]) {
+  if (!appSource.includes(token)) throw new Error(`Retail inventory implementation missing: ${token}`);
+}
+for (const token of [
+  'create table if not exists public.retail_inventory_balances',
+  'quantity numeric(14,3)',
+  'create table if not exists public.retail_inventory_movements',
+  "movement_type in ('opening','sale','return','adjustment','waste','purchase','supplier_return','transfer_out','transfer_in')",
+  'create or replace function public.create_retail_pos_order_atomic',
+  'v_result:=public.create_pos_order_atomic',
+  'create or replace function public.create_retail_order_return_idempotent',
+  'v_return_id:=public.create_order_return_idempotent',
+  'create or replace function public.retail_inventory_adjust',
+  'create or replace function public.retail_inventory_set_policy'
+]) {
+  if (!retailInventorySql.includes(token)) throw new Error(`Retail inventory SQL missing: ${token}`);
 }
 if (!index.includes(`retail-engine.js?v=${packageVersion}`)) throw new Error('Retail Engine must load before app.js.');
 if (!(index.indexOf(`restaurant-engine.js?v=${packageVersion}`) < index.indexOf(`retail-engine.js?v=${packageVersion}`) && index.indexOf(`retail-engine.js?v=${packageVersion}`) < index.indexOf(`app.js?v=${packageVersion}`))) {
