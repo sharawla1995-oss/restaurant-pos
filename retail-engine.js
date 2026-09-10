@@ -16,11 +16,13 @@
     inventory:'inventory',
     expenses:'expenses',
     reports:'reports',
-    products:'pos'
+    products:'pos',
+    pos:'pos'
   });
 
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',
+    pos:'نقطة البيع',
     customers:'العملاء',
     shifts:'الورديات',
     inventory:'المخزون',
@@ -31,20 +33,21 @@
     settings:'الإعدادات'
   });
 
-  // Phase 1 deliberately excludes cashier/orders/returns until the Retail
-  // transaction model and barcode checkout are implemented and regression-tested.
+  // Retail Phase 2 enables the dedicated retail checkout page. Restaurant-only
+  // order/delivery/kitchen semantics remain excluded from the Retail engine.
   const ALL_PAGES=Object.freeze([
-    'home','customers','shifts','inventory','expenses','products','reports','users','settings'
+    'home','pos','customers','shifts','inventory','expenses','products','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
     admin:ALL_PAGES,
-    cashier:Object.freeze(['home','customers','shifts','products']),
+    cashier:Object.freeze(['home','pos','customers','shifts','products']),
     callcenter:Object.freeze(['home','customers','products']),
     delivery:Object.freeze(['home'])
   });
 
   const PERMISSION_DEFS=Object.freeze([
+    ['pos','نقطة البيع'],
     ['customers','العملاء'],
     ['shifts','الورديات'],
     ['inventory','المخزون'],
@@ -59,6 +62,7 @@
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
+    ['🧾 نقطة البيع',['pos']],
     ['📦 Retail',['customers','shifts','inventory','products']],
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
@@ -68,7 +72,7 @@
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
-    phase:'foundation-shell',
+    phase:'checkout-barcode-mvp',
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];

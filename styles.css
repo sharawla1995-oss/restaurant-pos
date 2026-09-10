@@ -385,3 +385,17 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:8px;scrollbar-width:thin}
 .sidebar nav::-webkit-scrollbar{width:7px}.sidebar nav::-webkit-scrollbar-thumb{background:#ffffff2b;border-radius:999px}.sidebar nav::-webkit-scrollbar-track{background:transparent}
 .sidebar-foot{flex:0 0 auto;margin-top:0}
+
+
+/* Sharawla POS V10.5.4-beta.14 — Retail Checkout + Barcode MVP (Retail only) */
+.retail-checkout-shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,390px);gap:14px;height:calc(100vh - 112px);min-height:520px}
+.retail-catalog{min-width:0;overflow:hidden;display:flex;flex-direction:column}
+.retail-scan-row{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:10px;margin-bottom:10px}
+.retail-scan-row input{min-height:46px;font-size:15px}
+.retail-scan-input{font-weight:700;letter-spacing:.4px}
+.retail-module-note{display:flex;align-items:center;padding:10px 12px;border:1px dashed var(--border,#334155);border-radius:10px;opacity:.8}
+#retailProductsGrid{overflow:auto;align-content:start}
+.retail-product small{font-size:11px;opacity:.68;direction:ltr;unicode-bidi:plaintext}
+.retail-cart{min-height:0}
+.retail-sale-head{grid-template-columns:1fr 1fr}
+@media(max-width:900px){.retail-checkout-shell{grid-template-columns:1fr;height:auto}.retail-scan-row{grid-template-columns:1fr}.retail-cart{min-height:560px}}

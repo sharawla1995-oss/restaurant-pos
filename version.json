@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.13",
+  "version": "10.5.4-beta.14",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Engine Foundation only: registers an independent retail profile engine, adds explicit bootstrap-default engine selection while preserving Restaurant as compatibility default, and gates Retail navigation/permissions to a safe non-transaction shell. No Retail checkout/orders/returns semantics yet. Update Safety, licensing, Canonical Fingerprint, Business Connection, offline/update infrastructure and Restaurant operational logic remain unchanged."
+  "notes": "Retail Checkout + Barcode MVP: enables the Retail POS page only for the retail profile, adds exact barcode scan-to-cart with Enter, retail name/barcode search, retail product cards, customer optional fields, discounts/tax/service/payment reuse, and keeps existing atomic checkout/offline sale pipeline. Restaurant rendering and all update/licensing/identity/business-connection infrastructure remain unchanged."
 }

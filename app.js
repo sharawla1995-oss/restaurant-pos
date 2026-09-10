@@ -741,7 +741,68 @@ function bonDisplay(o){return Number(o?.bon_number)>0?String(o.bon_number):(o?.o
 async function updateNextBonBadge(){const el=$('#nextBonBadge');if(!el)return;try{const sh=await getOpenShift();if(!sh){el.innerHTML='<span>رقم البون التالي</span><b>—</b><small>افتح وردية</small>';return}const r=await rest('shift_bon_counters',`select=next_number&shift_id=eq.${sh.id}&limit=1`).catch(()=>[]);let next=Number(r?.[0]?.next_number||0);if(!next){const oo=await rest('orders',`select=bon_number&shift_id=eq.${sh.id}&order=bon_number.desc&limit=1`).catch(()=>[]);next=Number(oo?.[0]?.bon_number||0)+1}el.innerHTML=`<span>رقم البون التالي</span><b>${next||1}</b><small>وردية #${sh.id}</small>`}catch(e){el.innerHTML='<span>رقم البون التالي</span><b>—</b>'}}
 function invoiceDisplay(o){return Number(o?.invoice_number)>0?String(o.invoice_number):'-';}
 function discountAllowed(){return isAdmin()||hasFeaturePermission('discount');}
+function isRetailProfile(){return String(sharawlaRuntimeConfig?.pos_profile||'').trim().toLowerCase()==='retail'}
+function retailBarcodeValue(v){return String(v??'').trim()}
+function addRetailProductToCart(p){
+ if(!p)return;
+ const price=effectiveProductPrice(p);
+ const existing=state.cart.find(x=>String(x.product_id)===String(p.id)&&!(x.modifiers||[]).length&&!x.variant_id&&!x.notes);
+ invalidateActivePromo();
+ if(existing){existing.qty+=1;drawCart();return}
+ state.cart.push({product_id:p.id,name:p.name,price:Number(price),base_price:Number(price),cost:Number(p.cost||0),qty:1,modifiers:[],removed:[],notes:''});
+ drawCart();
+}
+function findRetailProductByBarcode(code){
+ const wanted=retailBarcodeValue(code);
+ if(!wanted)return null;
+ return state.products.find(p=>p.active!==false&&productAvailableAtBranch(p)&&retailBarcodeValue(p.barcode)===wanted)||null;
+}
+function drawRetailProducts(){
+ const grid=$('#retailProductsGrid');if(!grid)return;
+ const q=String($('#retailProductSearch')?.value||'').trim().toLowerCase();
+ const rows=state.products.filter(p=>p.active!==false&&productAvailableAtBranch(p)&&(!q||String(p.name||'').toLowerCase().includes(q)||retailBarcodeValue(p.barcode).toLowerCase().includes(q))).slice(0,120);
+ grid.innerHTML=rows.map(p=>`<button class="product retail-product" data-retail-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">📦</div>`}<b>${esc(p.name)}</b><span>${money(effectiveProductPrice(p))}</span>${p.barcode?`<small>${esc(p.barcode)}</small>`:''}</button>`).join('')||'<div class="empty">لا توجد أصناف مطابقة</div>';
+ grid.onclick=e=>{const b=e.target.closest('[data-retail-id]');if(!b)return;const p=state.products.find(x=>String(x.id)===String(b.dataset.retailId));if(p)addRetailProductToCart(p)};
+}
+function renderRetailPOS(){
+ const barcodeOn=moduleEnabled('barcode');
+ $('#page').innerHTML=`<div class="retail-checkout-shell">
+  <section class="retail-catalog catalog">
+   <div class="retail-scan-row">
+    ${barcodeOn?'<input id="retailScanInput" class="retail-scan-input" autocomplete="off" inputmode="numeric" placeholder="▥ امسح الباركود ثم Enter" autofocus>':'<div class="retail-module-note">موديول الباركود غير مفعّل لهذا النشاط</div>'}
+    <input id="retailProductSearch" placeholder="🔎 بحث بالاسم أو الباركود">
+   </div>
+   <div class="products-grid" id="retailProductsGrid"></div>
+  </section>
+  <aside class="cart retail-cart">
+   <div class="next-bon-badge" id="nextBonBadge"><span>رقم الفاتورة التالية</span><b>...</b></div>
+   <div class="cart-head retail-sale-head">
+    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل — اختياري">
+    <input id="customerName" placeholder="اسم العميل — اختياري">
+    <select id="orderType" class="hidden"><option value="takeaway" selected>بيع تجزئة</option></select>
+   </div>
+   <div id="customerHint" class="customer-hint"></div>
+   <div class="cart-items" id="cartItems"></div>
+   <div class="cart-foot">
+    <div class="totline"><span>الإجمالي الفرعي</span><b id="subtotal">0</b></div>
+    ${financialCfg().discount_enabled&&discountAllowed()?`<div class="totline discount-row"><span>خصم</span><div style="display:flex;gap:6px"><select id="discountType" style="width:82px">${financialCfg().discount_mode!=='percent'?'<option value="amount">مبلغ</option>':''}${financialCfg().discount_mode!=='amount'?'<option value="percent">%</option>':''}</select><input id="discount" type="number" min="0" value="0" style="width:90px;padding:5px"></div></div>`:''}
+    <div class="totline" id="taxLine"><span>الضريبة</span><b id="taxAmount">0</b></div>
+    <div class="totline" id="serviceLine"><span>الخدمة</span><b id="serviceAmount">0</b></div>
+    <div class="totline grand"><span>المطلوب</span><span id="grand">0</span></div>
+    <div class="pay-actions">${branchPaymentList().map(m=>`<button class="${m.is_default?'primary':'secondary'}" data-pay="${esc(m.code)}">${esc(m.name)}</button>`).join('')}${state.settings.enable_mixed_payment&&branchPaymentList().length>1?'<button class="secondary" data-mixed-pay>➗ دفع مختلط</button>':''}</div>
+   </div>
+  </aside>
+ </div>`;
+ const scan=$('#retailScanInput');
+ if(scan){scan.addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();const code=retailBarcodeValue(scan.value);if(!code)return;const p=findRetailProductByBarcode(code);if(!p){toast(`باركود غير موجود: ${code}`);scan.select();return}addRetailProductToCart(p);scan.value='';scan.focus()});}
+ $('#retailProductSearch').oninput=drawRetailProducts;
+ if($('#discount'))$('#discount').oninput=drawCart;if($('#discountType'))$('#discountType').onchange=drawCart;
+ let customerLookupTimer;$('#customerPhone').addEventListener('input',()=>{clearTimeout(customerLookupTimer);customerLookupTimer=setTimeout(lookupCustomerByPhone,350)});$('#customerPhone').addEventListener('blur',lookupCustomerByPhone);
+ $('.pay-actions').onclick=e=>{const b=e.target.closest('[data-pay]');if(b)return checkout(b.dataset.pay);if(e.target.closest('[data-mixed-pay]'))return openMixedPayment()};
+ drawRetailProducts();drawCart();updateNextBonBadge();setTimeout(()=>scan?.focus(),0);
+}
 function renderPOS(){
+ if(isRetailProfile())return renderRetailPOS();
  $('#page').innerHTML=`<div class="pos-layout"><section class="catalog">
  <div class="catalog-tools"><input id="productSearch" placeholder="🔎 بحث سريع عن صنف"></div>
  <div class="cat-tabs" id="catTabs"><button data-cat="all" class="active">الكل</button>${state.categories.map(c=>`<button data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>
