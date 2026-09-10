@@ -126,8 +126,10 @@ async function getReleaseForChannel(cfg,channel){
     return rel;
   }
   const rows=await githubJson(`${base}/releases?per_page=50`);
-  const releases=(Array.isArray(rows)?rows:[]).filter(validRelease).sort((a,b)=>compareSemver(releaseVersion(b),releaseVersion(a)));
-  if(!releases.length)throw new Error('No valid beta/stable release found');
+  const releases=(Array.isArray(rows)?rows:[])
+    .filter(rel=>validRelease(rel)&&rel.prerelease===true)
+    .sort((a,b)=>compareSemver(releaseVersion(b),releaseVersion(a)));
+  if(!releases.length)throw new Error('No valid beta prerelease found');
   return releases[0];
 }
 function githubJson(url){
