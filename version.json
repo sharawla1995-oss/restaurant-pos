@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.20",
+  "version": "10.4.21",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Canonical device fingerprint is immutable after pinning; legacy devices migrate using the same device_id without creating a new device. Includes website order pre-accept/reject review and developer contact on the login screen only."
+  "notes": "Stable Restaurant baseline based on V10.4.20. Adds read-only Support Code on the login screen and touch/mouse vertical scrolling for the right sidebar. Canonical fingerprint, activation, license_hash verification, printing, auto update and offline behavior are unchanged."
 }

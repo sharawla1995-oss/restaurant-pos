@@ -375,3 +375,13 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .developer-contact-login-btn{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:right;padding:11px 13px;border:1px solid #d7dee8;background:#f8fafc;border-radius:11px;color:#111827;transition:.18s}
 .developer-contact-login-btn:hover{transform:translateY(-1px);border-color:#f4b323;background:#fffdf6}
 .developer-contact-login-btn>span:last-child{display:grid;gap:1px}.developer-contact-login-btn b{font-size:13px}.developer-contact-login-btn small{font-size:10px;color:#64748b}.developer-contact-icon{width:32px;height:32px;border-radius:9px;background:#f4b323;color:#111;display:grid;place-items:center;flex:0 0 auto}
+
+
+/* V10.4.21 — Login Support Code + touch/mouse scrollable right sidebar. */
+.login-support-code{width:100%;margin-top:9px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:right;padding:10px 13px;border:1px solid #d7dee8;background:#fff;border-radius:11px;color:#111827}
+.login-support-code>span:last-child{display:grid;gap:1px}.login-support-code small{font-size:10px;color:#64748b}.login-support-code b{font-size:14px;letter-spacing:.35px}.login-support-code-icon{width:32px;height:32px;border-radius:9px;background:#eef2f7;color:#111827;display:grid;place-items:center;flex:0 0 auto}
+.sidebar{height:100vh;height:100dvh;overflow:hidden}
+.sidebar .brand{flex:0 0 auto}
+.sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:8px;scrollbar-width:thin}
+.sidebar nav::-webkit-scrollbar{width:7px}.sidebar nav::-webkit-scrollbar-thumb{background:#ffffff2b;border-radius:999px}.sidebar nav::-webkit-scrollbar-track{background:transparent}
+.sidebar-foot{flex:0 0 auto;margin-top:0}

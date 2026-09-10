@@ -1,0 +1,51 @@
+Sharawla POS V10.4.21 — STATIC SAFETY VALIDATION
+==========================================================
+Passed: 37/37
+
+[PASS] package.json version is 10.4.21
+[PASS] version.json version is 10.4.21
+[PASS] package/version match
+[PASS] x64 target retained
+[PASS] ia32 target retained
+[PASS] Login Support Code element present
+[PASS] Developer contact remains on Login
+[PASS] Support Code read RPC call present
+[PASS] Support Code cached in license state
+[PASS] Support Code read failure does not block startup
+[PASS] Sidebar nav is vertically scrollable
+[PASS] Sidebar touch scroll enabled
+[PASS] Sidebar scroll chaining contained
+[PASS] Sidebar header fixed by flex sizing
+[PASS] PWA cache bumped
+[PASS] app.js asset bumped
+[PASS] styles.css asset bumped
+[PASS] Service worker registration bumped
+[PASS] New SQL RPC exact signature
+[PASS] New SQL RPC uses SECURITY DEFINER
+[PASS] New SQL RPC pins search_path
+[PASS] New SQL RPC PUBLIC revoked
+[PASS] New SQL RPC anon allowed
+[PASS] New SQL RPC authenticated allowed
+[PASS] SQL verifies activate exact contract
+[PASS] SQL verifies verify exact contract
+[PASS] SQL verifies connection exact contract
+[PASS] SQL does not redefine activate_sharawla_device
+[PASS] SQL does not redefine verify_sharawla_device
+[PASS] SQL does not redefine get_sharawla_business_connection
+[PASS] main.js unchanged
+[PASS] preload.js unchanged
+[PASS] update-config.json unchanged
+[PASS] Canonical fingerprint candidate + verify block unchanged
+[PASS] Website order details/review block unchanged
+[PASS] Only intended existing files changed — app.js,index.html,package.json,styles.css,sw.js,version.json
+[PASS] Only intended new files added — README-V10.4.21-SUPPORT-CODE-SIDEBAR-SCROLL-SAFE.txt,SHARAWLA-CLOUD-V10.4.21-SUPPORT-CODE-READ-SAFE.sql
+
+Runtime/build checks executed separately:
+- npm run check: PASS
+- node --check app.js: PASS
+- node --check main.js: PASS
+- node --check preload.js: PASS
+- node --check sw.js: PASS
+- JSON parse: PASS
+
+NOTE: This is static validation. Real device regression is still required before declaring V10.4.21 Stable.

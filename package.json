@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.20",
-  "description": "Sharawla POS V10.4.20 - canonical device fingerprint migration and website order pre-accept review",
+  "version": "10.4.21",
+  "description": "Sharawla POS V10.4.21 - stable restaurant baseline with Support Code on login and scrollable sidebar",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

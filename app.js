@@ -88,6 +88,37 @@ async function clearLicenseState(){
   if(window.topBurgerDesktop?.licenseState?.clear)await window.topBurgerDesktop.licenseState.clear();
   await odbSet(LICENSE_STATE_KEY,null);
 }
+
+// V10.4.21 — read-only device Support Code for the Login screen.
+// This is display metadata only; it never changes Device ID, Canonical Fingerprint,
+// activation identity or the existing license verification contract.
+function renderLoginSupportCode(code){
+  const el=$('#loginSupportCodeValue');
+  if(!el)return;
+  const v=String(code||'').trim();
+  el.textContent=v||'—';
+}
+async function ensureSharawlaSupportCode(st=null){
+  try{
+    const current=st||await loadLicenseState();
+    if(!current?.device_id)return null;
+    const cached=String(current.support_code||'').trim();
+    if(cached){renderLoginSupportCode(cached);return cached}
+    const canonical=String(current.device_fingerprint||'').trim();
+    if(!canonical||!navigator.onLine){renderLoginSupportCode(null);return null}
+    const d=await cloudRpc('get_sharawla_device_support_code',{p_device_id:current.device_id,p_device_fingerprint:canonical});
+    const code=String(d?.support_code||'').trim();
+    if(!d?.ok||!code){renderLoginSupportCode(null);return null}
+    await saveLicenseState({...current,support_code:code});
+    renderLoginSupportCode(code);
+    return code;
+  }catch(e){
+    // Support Code is helpful metadata and must never block POS startup.
+    console.warn('Sharawla Support Code read failed:',e?.message||e);
+    try{renderLoginSupportCode((st||await loadLicenseState())?.support_code)}catch{}
+    return null;
+  }
+}
 async function clearBusinessLocalStateForLicenseChange(){
   session=null;resumeSession=null;
   localStorage.removeItem(BUSINESS_CONNECTION_CACHE_KEY);
@@ -152,7 +183,9 @@ async function retryExistingSharawlaLicense({quiet=false}={}){
     if(!sharawlaDeviceInfo&&window.topBurgerDesktop?.device?.info)sharawlaDeviceInfo=await window.topBurgerDesktop.device.info();
     const vr=await verifySharawlaDeviceState(st),d=vr.data;
     if(!d?.ok){if(!quiet&&d?.message)toast(d.message);return false}
-    await saveLicenseState({...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    const nextState={...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()};
+    await saveLicenseState(nextState);
+    await ensureSharawlaSupportCode(nextState);
     stopLicenseRetry();
     if(!quiet)toast('تم التحقق من الجهاز');
     setTimeout(()=>location.reload(),250);
@@ -176,13 +209,16 @@ async function ensureSharawlaLicense(){
   const st=await loadLicenseState();
   if(!st?.device_id)return showActivation(),false;
   if(!navigator.onLine){
+    renderLoginSupportCode(st?.support_code);
     if(licenseGraceValid(st))return true;
     return showActivation('انتهت فترة السماح بدون إنترنت. وصّل الجهاز بالإنترنت للتحقق من الترخيص.'),false;
   }
   try{
     const vr=await verifySharawlaDeviceState(st),d=vr.data;
     if(!d?.ok)return showActivation(d?.message||'الترخيص غير ساري.'),false;
-    await saveLicenseState({...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    const nextState={...st,device_fingerprint:vr.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()};
+    await saveLicenseState(nextState);
+    await ensureSharawlaSupportCode(nextState);
     return true;
   }catch(e){
     if(licenseGraceValid(st))return true;
@@ -607,7 +643,9 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
     const key=$('#licenseKey').value.trim().toUpperCase();
     const d=await cloudRpc('activate_sharawla_device',{p_license_key:key,p_device_fingerprint:sharawlaDeviceInfo.fingerprint,p_device_name:sharawlaDeviceInfo.name,p_app_version:sharawlaDeviceInfo.version,p_operating_system:sharawlaDeviceInfo.os});
     if(!d?.ok)throw new Error(d?.message||'فشل التفعيل');
-    await saveLicenseState({device_id:d.device_id,device_fingerprint:sharawlaDeviceInfo.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()});
+    const nextState={device_id:d.device_id,device_fingerprint:sharawlaDeviceInfo.fingerprint,business_id:d.business_id,business_name:d.business_name,offline_grace_days:d.offline_grace_days,last_verified_at:new Date().toISOString()};
+    await saveLicenseState(nextState);
+    await ensureSharawlaSupportCode(nextState);
     toast('تم تفعيل الجهاز بنجاح');setTimeout(()=>location.reload(),500);
   }catch(err){toast(err.message)}finally{btn.disabled=false}
 });
@@ -1784,10 +1822,10 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.20',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.4.21',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
