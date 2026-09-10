@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.4",
+  "version": "10.5.4-beta.5",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Update Infrastructure Part 3: fail-closed pre-update local backup, offline queue guard before download and again before install, Update Center safety visibility, and carry-forward manual Check Only enforcement. No Restaurant Engine, Runtime Core business logic, licensing, fingerprint, Business Connection, printing or modules changes."
+  "notes": "UI-only hotfix over beta.4: move fixed updater/offline/pending indicators away from cashier payment area and keep delivery cart item rows visibly usable. Part 2 checkOnly and Part 3 Gate A/B/C + backup runtime logic unchanged."
 }

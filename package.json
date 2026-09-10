@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.4",
-  "description": "Sharawla POS V10.5.4 Beta 4 - Part 3 runtime test target + Login Update Center UI",
+  "version": "10.5.4-beta.5",
+  "description": "Sharawla POS V10.5.4 Beta 5 - UI hotfix for non-blocking status banners and delivery cart visibility; Part 3 logic unchanged",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
