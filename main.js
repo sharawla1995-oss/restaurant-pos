@@ -146,7 +146,7 @@ function githubJson(url){
 function sendUpdateProgress(payload){
   try{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.webContents.send('update:progress',payload)}catch{}
   try{if(mainWindow&&!mainWindow.isDestroyed()&&payload&&payload.state==='progress'&&Number.isFinite(payload.percent))mainWindow.setProgressBar(Math.max(0,Math.min(1,payload.percent/100)))}catch{}
-  if(payload&&['done','error','idle'].includes(payload.state)){try{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1)}catch{}}
+  if(payload&&['done','downloaded','available','up-to-date','error','idle'].includes(payload.state)){try{if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1)}catch{}}
 }
 function downloadFile(url,target,onProgress){
   return new Promise((resolve,reject)=>{
@@ -170,43 +170,85 @@ function downloadFile(url,target,onProgress){
   })
 }
 async function checkForWindowsUpdate({interactive=false}={}){
-  if(updateCheckBusy||!app.isPackaged)return null;
   const cfg=readUpdateConfig();
-  if(!cfg.enabled||!cfg.owner||!cfg.repo)return null;
+  const local=app.getVersion();
+  const channel=readDeviceUpdateChannel(cfg);
+
+  if(updateCheckBusy){
+    const result={busy:true,local,channel};
+    if(interactive)sendUpdateProgress({state:'busy',local,channel,message:'يوجد فحص تحديثات جارٍ بالفعل'});
+    return result;
+  }
+  if(!app.isPackaged){
+    const result={error:'Update check is available in the installed Windows app only',local,channel};
+    if(interactive)sendUpdateProgress({state:'error',local,channel,message:'فحص التحديثات متاح من نسخة Windows المثبتة فقط'});
+    return result;
+  }
+  if(!cfg.enabled||!cfg.owner||!cfg.repo){
+    const result={error:'Updater is disabled or repository is not configured',local,channel};
+    if(interactive)sendUpdateProgress({state:'error',local,channel,message:'نظام التحديث غير مفعّل في هذه النسخة'});
+    return result;
+  }
+
   updateCheckBusy=true;let userAcceptedUpdate=false;
   try{
-    const channel=readDeviceUpdateChannel(cfg);
-    const rel=await getReleaseForChannel(cfg,channel);const remote=releaseVersion(rel);const local=app.getVersion();
+    sendUpdateProgress({state:'checking',local,channel,message:'جاري فحص التحديثات…'});
+    const rel=await getReleaseForChannel(cfg,channel);
+    const remote=releaseVersion(rel);
+
     if(!isNewerVersion(remote,local)){
+      sendUpdateProgress({state:'up-to-date',local,remote,channel,message:`أنت على أحدث إصدار V${local}`});
       if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Sharawla POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
       return {available:false,local,remote,channel};
     }
+
+    sendUpdateProgress({state:'available',local,remote,channel,message:`متاح تحديث V${remote}`});
+
     const assets=Array.isArray(rel.assets)?rel.assets:[];
     const exeAssets=assets.filter(a=>/\.exe$/i.test(a.name||''));
     const wantedArch=process.arch==='ia32'?'ia32':'x64';
     const archPattern=wantedArch==='ia32'?/(?:^|[._-])(?:ia32|x86|win32)(?:[._-]|$)/i:/(?:^|[._-])(?:x64|amd64|win64)(?:[._-]|$)/i;
     let asset=exeAssets.find(a=>archPattern.test(String(a.name||'')));
+
     // Backward compatibility for old x64-only releases that used a generic EXE name.
     if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
     if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in selected ${channel} release`);
+
     const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
-    if(ask.response!==0)return {available:true,skipped:true,remote,channel};
+    if(ask.response!==0){
+      sendUpdateProgress({state:'available',local,remote,channel,skipped:true,message:`التحديث V${remote} متاح — تم التأجيل`});
+      return {available:true,skipped:true,local,remote,channel};
+    }
+
     userAcceptedUpdate=true;
     const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
     const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
-    sendUpdateProgress({state:'start',version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
-    await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
-    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
+
+    sendUpdateProgress({state:'downloading',local,remote,channel,version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
+    await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',local,remote,channel,version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
+
+    sendUpdateProgress({state:'downloaded',local,remote,channel,version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
+
     const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة. بيانات الكاشير المحلية والنسخ الاحتياطية لن تُحذف.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
     if(ready.response===0){
-      sendUpdateProgress({state:'installing',version:remote,percent:100,message:'جاري بدء التثبيت…'});
-      try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),600)}catch(e){throw e}
-    }else sendUpdateProgress({state:'idle'});
-    return {available:true,downloaded:true,remote,channel};
+      sendUpdateProgress({state:'installing',local,remote,channel,version:remote,percent:100,message:'جاري بدء التثبيت…'});
+      try{
+        spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();
+        setTimeout(()=>{
+          sendUpdateProgress({state:'restarting',local,remote,channel,version:remote,percent:100,message:'سيتم إغلاق البرنامج لإكمال التثبيت…'});
+          app.quit();
+        },600);
+      }catch(e){throw e}
+    }else{
+      sendUpdateProgress({state:'available',local,remote,channel,version:remote,skipped:true,message:`تم تنزيل V${remote} — التثبيت مؤجل`});
+    }
+
+    return {available:true,downloaded:true,local,remote,channel};
   }catch(e){
-    console.warn('auto update',e);sendUpdateProgress({state:'error',message:'فشل تنزيل أو تثبيت التحديث',error:String(e&&e.message||e)});
+    console.warn('auto update',e);
+    sendUpdateProgress({state:'error',local,channel,message:'فشل تنزيل أو تثبيت التحديث',error:String(e&&e.message||e)});
     if((interactive||userAcceptedUpdate)&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'تحديث Sharawla POS',message:userAcceptedUpdate?'تعذر تنزيل أو بدء تثبيت التحديث.':'تعذر فحص التحديث الآن.',detail:String(e&&e.message||e),buttons:['تمام']});
-    return {error:String(e&&e.message||e)};
+    return {error:String(e&&e.message||e),local,channel};
   }finally{updateCheckBusy=false}
 }
 function startUpdateWatch(){

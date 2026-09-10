@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Sharawla POS</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="styles.css?v=10.5.4-beta.1">
+  <link rel="stylesheet" href="styles.css?v=10.5.4-beta.2">
 </head>
 <body>
 <div id="toast"></div>
@@ -77,6 +77,7 @@
       <button data-page="reports">📊 التقارير</button>
       <button data-page="users">👥 المستخدمون</button>
       <button data-page="settings">⚙️ الإعدادات</button>
+      <button id="updateCenterMenuBtn" type="button">⬆️ التحديثات</button>
       <button id="logoutMenuBtn" type="button">🚪 تسجيل الخروج</button>
     </nav>
     <div class="sidebar-foot"><span id="who"></span></div>
@@ -86,6 +87,24 @@
     <div id="page" class="page"></div>
   </main>
 </section>
+
+
+<div id="updateCenterModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateCenterTitle">
+  <div class="modal-card">
+    <button id="updateCenterCloseBtn" class="developer-contact-close" type="button" aria-label="إغلاق">✕</button>
+    <h2 id="updateCenterTitle">⬆️ تحديث Sharawla POS</h2>
+    <div class="settings-list">
+      <div class="setting-switch"><span>النسخة الحالية</span><b id="updateCurrentVersion" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>النسخة المتاحة</span><b id="updateAvailableVersion" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>قناة التحديث</span><b id="updateChannelValue" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>المعمارية</span><b id="updateArchitectureValue" dir="ltr">—</b></div>
+      <div class="setting-switch"><span>الحالة</span><b id="updateStatusValue">جاهز</b></div>
+    </div>
+    <progress id="updateProgressBar" class="hidden" max="100" value="0" style="width:100%;margin:12px 0"></progress>
+    <p id="updateStatusMessage">اضغط «فحص التحديثات الآن» للبحث عن تحديث جديد.</p>
+    <button id="checkUpdatesNowBtn" class="primary" type="button">🔄 فحص التحديثات الآن</button>
+  </div>
+</div>
 
 <div id="developerContactModal" class="modal hidden developer-contact-modal" role="dialog" aria-modal="true" aria-labelledby="developerContactTitle">
   <div class="modal-card developer-contact-card">
@@ -101,9 +120,10 @@
   </div>
 </div>
 
-<script src="version-ui.js?v=10.5.4-beta.1"></script>
-<script src="sharawla-runtime-core.js?v=10.5.4-beta.1"></script>
-<script src="restaurant-engine.js?v=10.5.4-beta.1"></script>
-<script src="app.js?v=10.5.4-beta.1"></script>
+<script src="version-ui.js?v=10.5.4-beta.2"></script>
+<script src="update-ui.js?v=10.5.4-beta.2"></script>
+<script src="sharawla-runtime-core.js?v=10.5.4-beta.2"></script>
+<script src="restaurant-engine.js?v=10.5.4-beta.2"></script>
+<script src="app.js?v=10.5.4-beta.2"></script>
 </body>
 </html>
