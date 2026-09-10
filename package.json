@@ -1,6 +1,6 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.7",
+  "version": "10.5.4-beta.8",
   "description": "Sharawla POS V10.5.4 Beta 7 - UI regression rollback to original cashier layout + Part 3 backup hardening",
   "main": "main.js",
   "author": "Sharawla POS",
