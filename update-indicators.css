@@ -1,0 +1,5 @@
+/* V10.5.4-beta.7 — system indicator placement only.
+   Do not change cashier/cart/payment/delivery layout here. */
+.desktop-update-progress{top:78px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}
+.offline-status{top:136px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}
+.pending-sync-badge{top:182px!important;bottom:auto!important;left:16px!important;pointer-events:none!important}

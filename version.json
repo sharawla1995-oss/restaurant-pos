@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.6",
+  "version": "10.5.4-beta.7",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Part 3 final backup hardening: pre-update backup is independent from persistDb()/createBackup(), writes db.export() to a unique exclusive temp file, fsyncs temp and finalized target, verifies exact non-zero size, uses atomic rename/copy fallback, and removes a created final target if any later step fails. Includes the cashier UI hotfix. Gate A/B/C and Manual Check checkOnly remain unchanged."
+  "notes": "UI regression fix: restore the cashier/cart/payment/delivery layout to the beta.4/original baseline while keeping only non-blocking system indicator relocation. Part 3 backup EPERM hardening, Gate A/B/C, Login Update Center, and Manual Check checkOnly remain unchanged."
 }
