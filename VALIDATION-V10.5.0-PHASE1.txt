@@ -1,0 +1,23 @@
+package_10_5_0: PASS
+version_10_5_0: PASS
+index_10_5_0: PASS
+sw_10_5_0: PASS
+runtime_rpc_client: PASS
+runtime_cache_key: PASS
+restaurant_only_guard: PASS
+legacy_restaurant_modules: PASS
+module_page_gate: PASS
+generic_business_fallback: PASS
+topburger_business_default_removed: PASS
+canonical_comment_preserved: PASS
+verify_contract_call: PASS
+activate_contract_call: PASS
+business_connection_contract_call: PASS
+support_code_contract_call: PASS
+no_cloud_contract_redefinition_in_sql: PASS
+runtime_rpc_security: PASS
+anon_grant: PASS
+public_revoked: PASS
+appid_preserved: PASS
+x64_ia32_preserved: PASS
+TOTAL: 22/22 PASS

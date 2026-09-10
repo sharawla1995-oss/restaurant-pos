@@ -7,6 +7,12 @@ const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
 const SHARAWLA_CLOUD_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const LICENSE_STATE_KEY='sharawlaLicenseStateV1';
 const BUSINESS_CONNECTION_CACHE_KEY='sharawlaBusinessConnectionV1';
+const RUNTIME_CONFIG_CACHE_KEY='sharawlaRuntimeConfigV1';
+// V10.5.0 Phase 1: Restaurant is the only implemented runtime profile.
+// If an older Restaurant business has no explicit module mappings yet, preserve
+// V10.4.21 behavior through this compatibility set instead of disabling features.
+const LEGACY_RESTAURANT_MODULES=['pos','kitchen','delivery','pickup','website','inventory','returns','promocodes','expenses','reports','customers','tables'];
+let sharawlaRuntimeConfig=null;
 let sharawlaDeviceInfo=null;
 function clearLegacyBusinessConfig(){
   if(!window.topBurgerDesktop?.isDesktop)return;
@@ -52,6 +58,82 @@ async function ensureSharawlaBusinessConnection(){
   const cached=loadBusinessConnectionCache(st.business_id);
   if(cached&&licenseGraceValid(st)){cfg={url:cached.url,key:cached.key};return true}
   return showActivation('لا توجد إعدادات اتصال محفوظة لهذا النشاط. وصّل الجهاز بالإنترنت للتحقق مرة واحدة.'),false;
+}
+
+
+function normalizeRuntimeModules(values){
+  return [...new Set((Array.isArray(values)?values:[]).map(x=>String(x||'').trim().toLowerCase()).filter(Boolean))];
+}
+function loadRuntimeConfigCache(businessId){
+  try{
+    const c=JSON.parse(localStorage.getItem(RUNTIME_CONFIG_CACHE_KEY)||'null');
+    if(!c||String(c.business_id)!==String(businessId||''))return null;
+    if(String(c.pos_profile||'').toLowerCase()!=='restaurant')return null;
+    c.enabled_modules=normalizeRuntimeModules(c.enabled_modules);
+    return c;
+  }catch{return null}
+}
+function saveRuntimeConfigCache(c){
+  const modules=normalizeRuntimeModules(c.enabled_modules);
+  const configured=!!c.modules_configured;
+  const row={
+    business_id:String(c.business_id||''),
+    business_name:String(c.business_name||''),
+    pos_profile:String(c.pos_profile||'').trim().toLowerCase(),
+    profile_active:c.profile_active!==false,
+    profile_implemented:c.profile_implemented===true,
+    modules_configured:configured,
+    legacy_restaurant_compat:!configured,
+    enabled_modules:configured?modules:[...LEGACY_RESTAURANT_MODULES],
+    updated_at:new Date().toISOString()
+  };
+  localStorage.setItem(RUNTIME_CONFIG_CACHE_KEY,JSON.stringify(row));
+  sharawlaRuntimeConfig=row;
+  return row;
+}
+function moduleEnabled(code){
+  // Until Runtime Config is resolved, keep legacy behavior rather than hiding
+  // Restaurant features during startup/bootstrap.
+  if(!sharawlaRuntimeConfig)return true;
+  return sharawlaRuntimeConfig.enabled_modules.includes(String(code||'').toLowerCase());
+}
+function pageRuntimeModule(page){
+  return ({
+    pos:'pos',orders:'pos',products:'pos',shifts:'pos',
+    returns:'returns',customers:'customers',
+    deliveryOrders:'delivery',deliverySettings:'delivery',delivery:'delivery',
+    kitchen:'kitchen',inventory:'inventory',expenses:'expenses',
+    promoCodes:'promocodes',reports:'reports',
+    branchProductAvailability:'website',websiteManagement:'website',
+    websiteBranchSettings:'website',websitePayments:'website',websiteAppearance:'website'
+  })[page]||null;
+}
+function runtimeAllowsPage(page){const m=pageRuntimeModule(page);return !m||moduleEnabled(m)}
+async function ensureSharawlaRuntimeConfig(){
+  const st=await loadLicenseState();
+  if(!st?.device_id||!st?.business_id)return showActivation('بيانات النشاط غير مكتملة. أعد التحقق من الترخيص.'),false;
+  const canonical=String(st.device_fingerprint||'').trim();
+  if(!canonical)return showActivation('بصمة الجهاز الثابتة غير مثبتة بعد. اضغط إعادة التحقق أثناء الاتصال بالإنترنت.'),false;
+  if(navigator.onLine){
+    try{
+      const d=await cloudRpc('get_sharawla_business_runtime_config',{p_device_id:st.device_id,p_device_fingerprint:canonical});
+      if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعداد تشغيل النشاط.'),false;
+      if(String(d.business_id)!==String(st.business_id))return showActivation('Runtime Config غير متطابقة مع ترخيص الجهاز.'),false;
+      const profile=String(d.pos_profile||'').trim().toLowerCase();
+      if(d.profile_active===false)return showActivation('POS Profile الخاص بالنشاط موقوف في Sharawla Admin.'),false;
+      if(d.profile_implemented!==true)return showActivation('POS Profile الخاص بالنشاط غير منفذ بعد في هذا الإصدار.'),false;
+      if(profile!=='restaurant')return showActivation(`هذا الإصدار يدعم Restaurant فقط. Profile الحالي: ${profile||'غير محدد'}`),false;
+      saveRuntimeConfigCache(d);
+      return true;
+    }catch(e){
+      const cached=loadRuntimeConfigCache(st.business_id);
+      if(cached&&licenseGraceValid(st)){sharawlaRuntimeConfig=cached;return true}
+      return showActivation('تعذر تحميل POS Profile وModules من Sharawla Cloud. وصّل الإنترنت وأعد المحاولة.'),false;
+    }
+  }
+  const cached=loadRuntimeConfigCache(st.business_id);
+  if(cached&&licenseGraceValid(st)){sharawlaRuntimeConfig=cached;return true}
+  return showActivation('لا توجد Runtime Config محفوظة لهذا النشاط. وصّل الجهاز بالإنترنت للتحقق مرة واحدة.'),false;
 }
 
 async function cloudRpc(name,payload={}){
@@ -122,6 +204,8 @@ async function ensureSharawlaSupportCode(st=null){
 async function clearBusinessLocalStateForLicenseChange(){
   session=null;resumeSession=null;
   localStorage.removeItem(BUSINESS_CONNECTION_CACHE_KEY);
+  localStorage.removeItem(RUNTIME_CONFIG_CACHE_KEY);
+  sharawlaRuntimeConfig=null;
   localStorage.removeItem('sbResumeSession');
   localStorage.removeItem('offlineLoginVerifier');
   localStorage.removeItem('sbUrl');
@@ -228,7 +312,7 @@ async function ensureSharawlaLicense(){
 
 let resumeSession=JSON.parse(localStorage.getItem('sbResumeSession')||'null');
 let state={employee:null,branches:[],categories:[],products:[],cart:[],cat:'all',
-business:{business_name:'Top Burger',tagline:'🔥 طعم يستاهل التجربة',phone:'',address:'',logo_url:'',currency_symbol:'ج.م',receipt_footer:'شكرًا لزيارتكم',primary_color:'#b51f2b',accent_color:'#f0643d'},
+business:{business_name:'Sharawla POS',tagline:'نظام نقاط البيع',phone:'',address:'',logo_url:'',currency_symbol:'ج.م',receipt_footer:'شكرًا لزيارتكم',primary_color:'#111827',accent_color:'#f5b82e'},
 settings:{
   enable_extras:true,enable_removals:true,enable_item_notes:true,
   enable_kitchen:false,enable_receipt_print:true,enable_prep_receipt:true,
@@ -385,7 +469,7 @@ async function signIn(email,password){
   session=resumeSession;return session;
 }
 async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
-function businessName(){return state.business?.business_name||'Top Burger'}
+function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
   document.title='Sharawla POS';
@@ -444,6 +528,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
+  if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings')||allowed.has('websiteAppearance')||allowed.has('financialSettings');
   if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
@@ -703,7 +788,7 @@ function renderPOS(){
  <div class="products-grid" id="productsGrid"></div></section>
  <aside class="cart">
   <div class="next-bon-badge" id="nextBonBadge"><span>رقم البون التالي</span><b>...</b></div><div class="cart-head sales-head">
-   <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
+   <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery&&moduleEnabled('delivery')?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل">
    <input id="customerName" placeholder="اسم العميل">
   </div>
@@ -721,7 +806,7 @@ function renderPOS(){
   <div class="cart-items" id="cartItems"></div>
   <div class="cart-foot">
    <div class="totline"><span>الإجمالي الفرعي</span><b id="subtotal">0</b></div>
-   ${financialCfg().discount_enabled&&discountAllowed()?`<div class="totline discount-row"><span>خصم</span><div style="display:flex;gap:6px"><select id="discountType" style="width:82px">${financialCfg().discount_mode!=='percent'?'<option value="amount">مبلغ</option>':''}${financialCfg().discount_mode!=='amount'?'<option value="percent">%</option>':''}</select><input id="discount" type="number" min="0" value="0" style="width:90px;padding:5px"></div></div>`:''}<div class="promo-pos-box"><div class="promo-pos-entry"><input id="posPromoCode" placeholder="برومو كود" autocomplete="off"><button id="applyPosPromo" class="secondary" type="button">تطبيق</button></div><div id="posPromoResult" class="promo-pos-result hidden"></div></div><div class="totline" id="taxLine"><span>الضريبة</span><b id="taxAmount">0</b></div><div class="totline" id="serviceLine"><span>الخدمة</span><b id="serviceAmount">0</b></div>
+   ${financialCfg().discount_enabled&&discountAllowed()?`<div class="totline discount-row"><span>خصم</span><div style="display:flex;gap:6px"><select id="discountType" style="width:82px">${financialCfg().discount_mode!=='percent'?'<option value="amount">مبلغ</option>':''}${financialCfg().discount_mode!=='amount'?'<option value="percent">%</option>':''}</select><input id="discount" type="number" min="0" value="0" style="width:90px;padding:5px"></div></div>`:''}${moduleEnabled('promocodes')?`<div class="promo-pos-box"><div class="promo-pos-entry"><input id="posPromoCode" placeholder="برومو كود" autocomplete="off"><button id="applyPosPromo" class="secondary" type="button">تطبيق</button></div><div id="posPromoResult" class="promo-pos-result hidden"></div></div>`:''}<div class="totline" id="taxLine"><span>الضريبة</span><b id="taxAmount">0</b></div><div class="totline" id="serviceLine"><span>الخدمة</span><b id="serviceAmount">0</b></div>
    <div class="totline delivery-total hidden" id="deliveryFeeLine"><span>الدليفري</span><b id="deliveryFee">0</b></div>
    <div class="totline grand"><span>المطلوب</span><span id="grand">0</span></div>
    <div class="pay-actions">${branchPaymentList().map((m,i)=>`<button class="${m.is_default?'primary':'secondary'}" data-pay="${esc(m.code)}">${esc(m.name)}</button>`).join('')}${state.settings.enable_mixed_payment&&branchPaymentList().length>1?'<button class="secondary" data-mixed-pay>➗ دفع مختلط</button>':''}</div>
@@ -1822,10 +1907,10 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.4.21',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.0',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });

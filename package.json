@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.4.21",
-  "description": "Sharawla POS V10.4.21 - stable restaurant baseline with Support Code on login and scrollable sidebar",
+  "version": "10.5.0",
+  "description": "Sharawla POS V10.5.0 - Multi-Industry Core / Restaurant Isolation Phase 1; runtime POS Profile + Modules with Restaurant compatibility",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

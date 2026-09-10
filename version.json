@@ -1,12 +1,12 @@
 {
   "product": "Sharawla POS",
-  "version": "10.4.21",
-  "channel": "stable",
+  "version": "10.5.0",
+  "channel": "candidate",
   "source": "github",
   "windows": {
     "supported": "Windows 7 x64",
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Stable Restaurant baseline based on V10.4.20. Adds read-only Support Code on the login screen and touch/mouse vertical scrolling for the right sidebar. Canonical fingerprint, activation, license_hash verification, printing, auto update and offline behavior are unchanged."
+  "notes": "Multi-Industry Core / Restaurant Isolation Phase 1. Reads Business POS Profile + Enabled Modules from Sharawla Cloud using a new read-only Runtime Config RPC. Restaurant remains the only implemented profile and preserves V10.4.21 behavior, including legacy Restaurant compatibility when no modules are configured. Top Burger is treated as Business data, while legacy desktop/storage identifiers remain unchanged for upgrade compatibility."
 }
