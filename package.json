@@ -2,11 +2,11 @@
   "name": "sharawla-pos-windows",
   "version": "10.5.4-beta.23",
   "description": "Sharawla POS V10.5.4 Beta 23 - Full Retail Candidate + Acceptance Suite",
-  "main": "main.js",
+  "main": "main-beta23.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta-self-test.js && node scripts/check-beta23-acceptance.js && node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta-self-test.js && node scripts/check-beta23-acceptance.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
