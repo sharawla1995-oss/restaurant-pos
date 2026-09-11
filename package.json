@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.26",
-  "description": "Sharawla POS V10.5.4 Beta 26 - Retail UI and Delivery Diagnostic Candidate",
+  "version": "10.5.4-beta.27",
+  "description": "Sharawla POS V10.5.4 Beta 27 - Retail Delivery Final Fix and Owner Diagnostics",
   "main": "main-beta23.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta-self-test.js && node scripts/check-beta23-acceptance.js && node scripts/check-retail-finalization.js && node scripts/check-beta26-ui-delivery.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-owner-diagnostics.js && node scripts/check-retail-finalization.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
@@ -19,8 +19,8 @@
     "asar": true,
     "files": ["**/*","!dist/**","!node_modules/.cache/**","!README*","!legacy-sql/**","!*.sql","!**/*.zip","!.github/**","!scripts/**"],
     "directories": {"output": "dist"},
-    "win": {"target": [{"target": "nsis","arch": ["x64","ia32"]}]},
-    "nsis": {"oneClick": false,"allowToChangeInstallationDirectory": true,"createDesktopShortcut": true,"createStartMenuShortcut": true,"shortcutName": "Sharawla POS"},
+    "win": {"target": [{"target":"nsis","arch":["x64","ia32"]}]},
+    "nsis": {"oneClick":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"shortcutName":"Sharawla POS"},
     "artifactName": "Sharawla-POS-Setup-${version}-${arch}.${ext}"
   }
 }
