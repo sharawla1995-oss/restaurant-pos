@@ -9,6 +9,7 @@ on:
       - beta20-retail-engine-hotfix
       - beta21-self-test-center
       - beta22-runtime-acceptance-fixes
+      - beta23-full-retail-candidate
   workflow_dispatch:
 
 permissions:
