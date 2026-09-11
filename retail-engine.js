@@ -5,7 +5,7 @@
   if(!core)throw new Error('SharawlaRuntimeCore must load before Retail Engine.');
 
   // Retail engine remains isolated from Restaurant delivery/kitchen/table rules.
-  // Beta.15 adds Retail inventory foundation and generic returns integration.
+  // Beta.16 adds Retail suppliers, purchasing, GRN and supplier-return foundation.
   const LEGACY_MODULES=Object.freeze([
     'customers','expenses','inventory','reports','returns','pos','barcode'
   ]);
@@ -13,6 +13,8 @@
   const PAGE_MODULE=Object.freeze({
     customers:'customers',
     inventory:'inventory',
+    suppliers:'inventory',
+    purchasing:'inventory',
     expenses:'expenses',
     reports:'reports',
     returns:'returns',
@@ -26,6 +28,8 @@
     customers:'العملاء',
     shifts:'الورديات',
     inventory:'المخزون',
+    suppliers:'الموردين',
+    purchasing:'المشتريات والاستلام',
     returns:'المرتجعات',
     expenses:'المصروفات',
     products:'الأصناف',
@@ -37,7 +41,7 @@
   // Retail checkout + inventory + returns are enabled. Restaurant-only
   // delivery/kitchen/table/website semantics remain excluded from Retail.
   const ALL_PAGES=Object.freeze([
-    'home','pos','customers','shifts','inventory','returns','expenses','products','reports','users','settings'
+    'home','pos','customers','shifts','inventory','suppliers','purchasing','returns','expenses','products','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
@@ -52,6 +56,8 @@
     ['customers','العملاء'],
     ['shifts','الورديات'],
     ['inventory','المخزون'],
+    ['suppliers','الموردين'],
+    ['purchasing','المشتريات والاستلام'],
     ['returns','المرتجعات'],
     ['expenses','المصروفات'],
     ['products','الأصناف'],
@@ -65,7 +71,7 @@
 
   const PERMISSION_GROUPS=Object.freeze([
     ['🧾 نقطة البيع',['pos']],
-    ['📦 Retail',['customers','shifts','inventory','products','returns']],
+    ['📦 Retail',['customers','shifts','inventory','suppliers','purchasing','products','returns']],
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
@@ -74,7 +80,7 @@
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
-    phase:'inventory-foundation',
+    phase:'purchasing-foundation',
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];

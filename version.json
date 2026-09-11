@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.15",
+  "version": "10.5.4-beta.16",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Checkout + Barcode MVP: enables the Retail POS page only for the retail profile, adds exact barcode scan-to-cart with Enter, retail name/barcode search, retail product cards, customer optional fields, discounts/tax/service/payment reuse, and keeps existing atomic checkout/offline sale pipeline. Restaurant rendering and all update/licensing/identity/business-connection infrastructure remain unchanged."
+  "notes": "Retail Suppliers & Purchasing Foundation: suppliers, purchase orders, approval, GRN receipt, weighted-average cost, supplier returns, and inventory-ledger integration. Retail-only; Restaurant and updater/licensing runtime remain unchanged."
 }

@@ -1,0 +1,10 @@
+V10.5.4-beta.16 validation gates
+- Version sync: PASS
+- npm run check: PASS
+- JS syntax (app/retail-engine/main/preload): PASS
+- SQL includes RLS + SECURITY DEFINER write RPCs
+- PO receiving rejects non-PO lines and over-receipt
+- GRN updates balance + weighted-average cost in one transaction
+- Supplier return deducts stock and records inventory ledger movement
+- Protected runtime files main/preload/update-ui/update-indicators/restaurant-engine/runtime-core: byte-identical vs beta.15
+- Runtime test on SH-0007: PENDING

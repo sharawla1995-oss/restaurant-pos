@@ -706,7 +706,7 @@ $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,suppliers:renderRetailSuppliers,purchasing:renderRetailPurchasing,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -1575,6 +1575,54 @@ async function renderRetailInventory(){
   const low=e.target.closest('[data-low]');if(low&&e.type==='click')return;
  };
  for(const inp of document.querySelectorAll('[data-low]'))inp.addEventListener('change',async()=>{const productId=Number(inp.dataset.low),track=$(`[data-track="${productId}"]`);try{await rpc('retail_inventory_set_item_policy',{p_branch_id:branchId,p_product_id:productId,p_track_inventory:track?.checked!==false,p_low_stock_threshold:Number(inp.value||0)});toast('تم تحديث حد التنبيه')}catch(e){toast(e.message)}})
+}
+
+
+async function renderRetailSuppliers(){
+ if(!isRetailProfile()){$('#page').innerHTML='<div class="empty">الموردين متاحون لقطاع Retail فقط</div>';return;}
+ const branchId=Number(currentBranchId());
+ let suppliers=[];
+ try{suppliers=await rest('retail_suppliers','select=*&order=name.asc')}catch(e){if(String(e?.message||'').includes('retail_suppliers')){$('#page').innerHTML='<div class="empty">شغّل SQL beta.16 Suppliers & Purchasing أولًا</div>';return;}throw e}
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🚚 الموردين</h2><p class="muted">قائمة الموردين مشتركة داخل نشاط Retail، والمشتريات ترتبط بالفرع الحالي.</p></div><button id="addRetailSupplier" class="primary">➕ مورد جديد</button></div></div>
+ <div class="panel"><div class="table-wrap"><table><thead><tr><th>المورد</th><th>الهاتف</th><th>الرقم الضريبي</th><th>الحالة</th></tr></thead><tbody>${suppliers.map(x=>`<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.phone||'-')}</td><td>${esc(x.tax_no||'-')}</td><td>${x.active===false?'موقوف':'نشط'}</td></tr>`).join('')||'<tr><td colspan="4">لا يوجد موردون بعد</td></tr>'}</tbody></table></div></div>`;
+ $('#addRetailSupplier').onclick=async()=>{const name=await uiPrompt('اسم المورد','',{title:'مورد جديد'});if(name===null||!String(name).trim())return;const phone=await uiPrompt('رقم الهاتف (اختياري)','',{title:'بيانات المورد'});if(phone===null)return;const tax=await uiPrompt('الرقم الضريبي (اختياري)','',{title:'بيانات المورد'});if(tax===null)return;try{await rpc('retail_supplier_create',{p_name:String(name).trim(),p_phone:String(phone||'').trim()||null,p_tax_no:String(tax||'').trim()||null});toast('تم إضافة المورد');renderRetailSuppliers()}catch(e){toast(e.message)}};
+}
+
+async function renderRetailPurchasing(){
+ if(!isRetailProfile()){$('#page').innerHTML='<div class="empty">المشتريات متاحة لقطاع Retail فقط</div>';return;}
+ const branchId=Number(currentBranchId());
+ let suppliers=[],orders=[],items=[],balances=[];
+ try{[suppliers,orders,items,balances]=await Promise.all([
+  rest('retail_suppliers','select=*&active=eq.true&order=name.asc'),
+  rest('retail_purchase_orders',`select=*&branch_id=eq.${branchId}&order=created_at.desc&limit=50`),
+  rest('retail_purchase_order_items','select=*'),
+  rest('retail_inventory_balances',`select=*&branch_id=eq.${branchId}`)
+ ])}catch(e){if(String(e?.message||'').includes('retail_purchase_')||String(e?.message||'').includes('retail_suppliers')){$('#page').innerHTML='<div class="empty">شغّل SQL beta.16 Suppliers & Purchasing أولًا</div>';return;}throw e}
+ const supMap=new Map(suppliers.map(x=>[String(x.id),x]));
+ const prodMap=new Map(state.products.map(x=>[String(x.id),x]));
+ const orderItems=id=>items.filter(x=>String(x.purchase_order_id)===String(id));
+ const statusLabel={draft:'مسودة',approved:'معتمد',partially_received:'استلام جزئي',received:'مستلم',cancelled:'ملغي'};
+ const avgMap=new Map(balances.map(x=>[String(x.product_id),x]));
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>📥 المشتريات والاستلام</h2><p class="muted">PO → اعتماد → GRN. الاستلام يزيد المخزون ويحدّث متوسط التكلفة داخل Transaction واحدة.</p></div><div class="chips"><button id="newRetailPO" class="primary">➕ أمر شراء</button><button id="newSupplierReturn" class="secondary">↩️ مرتجع مورد</button></div></div></div>
+ <div class="panel"><h2>متوسطات التكلفة الحالية</h2><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الرصيد</th><th>آخر شراء</th><th>متوسط التكلفة</th></tr></thead><tbody>${state.products.filter(p=>p.active!==false&&productAvailableAtBranch(p)).map(p=>{const b=avgMap.get(String(p.id))||{};return `<tr><td>${esc(p.name)}</td><td>${retailQty(b.quantity)}</td><td>${Number(b.last_purchase_cost||0).toFixed(2)}</td><td>${Number(b.average_unit_cost||0).toFixed(4)}</td></tr>`}).join('')}</tbody></table></div></div>
+ <div class="panel"><h2>أوامر الشراء</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>المورد</th><th>الحالة</th><th>الأصناف</th><th>الإجمالي</th><th>التاريخ</th><th>إجراء</th></tr></thead><tbody>${orders.map(o=>{const oi=orderItems(o.id),total=oi.reduce((a,x)=>a+Number(x.quantity_ordered||0)*Number(x.unit_cost||0),0);return `<tr><td>${o.id}</td><td>${esc(supMap.get(String(o.supplier_id))?.name||o.supplier_id)}</td><td>${esc(statusLabel[o.status]||o.status)}</td><td>${oi.map(x=>`${esc(prodMap.get(String(x.product_id))?.name||x.product_id)} (${retailQty(x.quantity_received)}/${retailQty(x.quantity_ordered)})`).join('<br>')}</td><td>${money(total)}</td><td>${fmtDate(o.created_at)}</td><td><div class="chips">${o.status==='draft'?`<button class="secondary" data-po-approve="${o.id}">اعتماد</button>`:''}${['approved','partially_received'].includes(o.status)?`<button class="primary" data-po-receive="${o.id}">استلام GRN</button>`:''}</div></td></tr>`}).join('')||'<tr><td colspan="7">لا توجد أوامر شراء</td></tr>'}</tbody></table></div></div>`;
+ $('#newRetailPO').onclick=async()=>{
+  if(!suppliers.length)return toast('أضف موردًا أولًا');
+  const supplierId=await uiPrompt('اكتب رقم المورد:\n'+suppliers.map(x=>`${x.id} - ${x.name}`).join('\n'),String(suppliers[0].id),{title:'أمر شراء جديد',type:'number'});if(supplierId===null)return;
+  const lines=[];for(const p of state.products.filter(x=>x.active!==false&&productAvailableAtBranch(x))){const q=await uiPrompt(`كمية ${p.name} (0 للتخطي)`,'0',{title:'كميات أمر الشراء',type:'number'});if(q===null)return;const qty=Math.round(Number(q||0)*1000)/1000;if(qty>0){const c=await uiPrompt(`تكلفة الوحدة — ${p.name}`,String(Number(p.cost||0)),{title:'تكلفة الشراء',type:'number'});if(c===null)return;const cost=Math.round(Number(c||0)*10000)/10000;if(!Number.isFinite(cost)||cost<0)return toast('تكلفة غير صحيحة');lines.push({product_id:Number(p.id),quantity:qty,unit_cost:cost})}}
+  if(!lines.length)return toast('أدخل كمية لصنف واحد على الأقل');
+  const notes=await uiPrompt('ملاحظات أمر الشراء (اختياري)','',{title:'أمر شراء'});if(notes===null)return;
+  try{await rpc('retail_purchase_order_create',{p_branch_id:branchId,p_supplier_id:Number(supplierId),p_notes:String(notes||'').trim()||null,p_items:lines,p_client_tx_id:uuid()});toast('تم إنشاء أمر الشراء');renderRetailPurchasing()}catch(e){toast(e.message)}
+ };
+ $('#newSupplierReturn').onclick=async()=>{
+  if(!suppliers.length)return toast('لا يوجد موردون');const sid=await uiPrompt('رقم المورد:\n'+suppliers.map(x=>`${x.id} - ${x.name}`).join('\n'),String(suppliers[0].id),{title:'مرتجع مورد',type:'number'});if(sid===null)return;
+  const active=state.products.filter(x=>x.active!==false&&productAvailableAtBranch(x));const pid=await uiPrompt('رقم الصنف:\n'+active.map(x=>`${x.id} - ${x.name}`).join('\n'),String(active[0]?.id||''),{title:'مرتجع مورد',type:'number'});if(pid===null)return;const qty=await uiPrompt('الكمية المرتجعة','1',{title:'مرتجع مورد',type:'number'});if(qty===null)return;const cost=await uiPrompt('تكلفة الوحدة',String(Number(avgMap.get(String(pid))?.average_unit_cost||0)),{title:'مرتجع مورد',type:'number'});if(cost===null)return;const notes=await uiPrompt('سبب/ملاحظة المرتجع','',{title:'مرتجع مورد'});if(notes===null)return;
+  try{await rpc('retail_supplier_return_create',{p_branch_id:branchId,p_supplier_id:Number(sid),p_notes:String(notes||'').trim()||null,p_items:[{product_id:Number(pid),quantity:Number(qty),unit_cost:Number(cost)}],p_client_tx_id:uuid()});toast('تم تسجيل مرتجع المورد وخصم المخزون');renderRetailPurchasing()}catch(e){toast(e.message)}
+ };
+ $('#page').onclick=async e=>{
+  const a=e.target.closest('[data-po-approve]');if(a){try{await rpc('retail_purchase_order_approve',{p_purchase_order_id:Number(a.dataset.poApprove)});toast('تم اعتماد أمر الشراء');renderRetailPurchasing()}catch(err){toast(err.message)}return}
+  const r=e.target.closest('[data-po-receive]');if(r){const id=Number(r.dataset.poReceive),rows=orderItems(id),receive=[];for(const x of rows){const remain=Math.max(0,Number(x.quantity_ordered||0)-Number(x.quantity_received||0));if(remain<=0)continue;const p=prodMap.get(String(x.product_id));const q=await uiPrompt(`استلام ${p?.name||x.product_id}\nالمتبقي ${retailQty(remain)}`,String(remain),{title:'GRN',type:'number'});if(q===null)return;const qty=Math.round(Number(q||0)*1000)/1000;if(qty>0)receive.push({purchase_order_item_id:Number(x.id),quantity:qty})}if(!receive.length)return toast('لا توجد كمية للاستلام');try{await rpc('retail_purchase_receive',{p_purchase_order_id:id,p_items:receive,p_client_tx_id:uuid()});toast('تم ترحيل GRN وتحديث المخزون');renderRetailPurchasing()}catch(err){toast(err.message)}return}
+ };
 }
 
 function downloadCSV(name,rows){const csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
