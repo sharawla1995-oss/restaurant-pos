@@ -149,6 +149,17 @@
     return clonePairs(rows);
   }
 
+  // Core contract: each profile decides which committed orders, if any, block
+  // closing a shift. This prevents Restaurant delivery semantics from leaking
+  // into Retail or future profiles.
+  function shiftCloseBlockers(config,orders){
+    const engine=resolveEngine(config);
+    if(!engine)return [];
+    if(typeof engine.shiftCloseBlockers!=='function')return [];
+    const rows=engine.shiftCloseBlockers(Array.isArray(orders)?orders:[]);
+    return Array.isArray(rows)?rows:[];
+  }
+
   global.SharawlaRuntimeCore=Object.freeze({
     normalizeCode,
     normalizeModules,
@@ -166,6 +177,7 @@
     allPages,
     rolePages,
     permissionDefs,
-    permissionGroups
+    permissionGroups,
+    shiftCloseBlockers
   });
 })(window);
