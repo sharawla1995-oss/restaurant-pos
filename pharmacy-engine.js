@@ -3,6 +3,18 @@
   const core=global.SharawlaRuntimeCore;
   if(!core)throw new Error('SharawlaRuntimeCore must load before Pharmacy Engine.');
 
+  // Beta31 hotfix: Pharmacy UI runs in a separate classic script and cannot
+  // see app.js's lexical sharawlaRuntimeConfig directly. Expose a read-only
+  // runtimeConfig getter backed by the canonical Runtime Config cache.
+  if(typeof global.runtimeConfig!=='function'){
+    global.runtimeConfig=()=>{
+      try{
+        const raw=JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'null');
+        return raw&&typeof raw==='object'?raw:null;
+      }catch{return null}
+    };
+  }
+
   const LEGACY_MODULES=Object.freeze(['pos','customers','inventory','returns','reports','expenses','barcode','delivery','website','promocodes','pharmacy','insurance']);
   const PAGE_MODULE=Object.freeze({
     orders:'pos',customers:'customers',deliveryOrders:'delivery',deliverySettings:'delivery',inventory:'inventory',
@@ -48,13 +60,13 @@
     ['🛵 الدليفري والموقع',['deliveryOrders','deliverySettings','websiteManagement','promoCodes']],
     ['📊 الإدارة',['shifts','returns','expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([n,k])=>Object.freeze([n,Object.freeze(k)])));
+  ].map(([n,k])=>Object.freeze([n,Object.freeze(k)]));
   const REPORT_ORDER_TYPES=Object.freeze([
     Object.freeze({code:'takeaway',label:'بيع صيدلية'}),Object.freeze({code:'pickup',label:'استلام من الفرع'}),Object.freeze({code:'delivery',label:'توصيل'})
   ]);
 
   core.registerEngine({
-    code:'pharmacy',displayName:'Pharmacy',phase:'pharmacy-complete-beta30',
+    code:'pharmacy',displayName:'Pharmacy',phase:'pharmacy-complete-beta31',
     resolveModules(modules,configured){return configured?core.normalizeModules(modules):[...LEGACY_MODULES]},
     pageAllowed(config,page){if(!ALL_PAGES.includes(page))return false;const moduleCode=PAGE_MODULE[page]||null;return !moduleCode||core.moduleEnabled(config,moduleCode)},
     pageOperationalAllowed(){return true},shiftCloseBlockers(){return []},reportOrderTypes(){return REPORT_ORDER_TYPES.map(x=>({...x}))},
