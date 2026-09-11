@@ -1,6 +1,6 @@
 Sharawla POS V10.5.4-beta.19 — Core Parity Fix Pack
 
-STATUS: WORK IN PROGRESS — Beta only. Production/Stable 10.5.3 must not be touched.
+STATUS: STATIC PASS — BUILD REQUESTED. Beta only. Production/Stable 10.5.3 must not be touched.
 BASE: v10.5.4-beta.18
 
 Architecture rule
