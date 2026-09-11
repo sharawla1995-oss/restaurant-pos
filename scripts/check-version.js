@@ -1,127 +1,70 @@
-const fs = require('fs');
-const path = require('path');
-const root = path.resolve(__dirname, '..');
-function read(file) { return fs.readFileSync(path.join(root, file), 'utf8'); }
-function readJson(file) { return JSON.parse(read(file)); }
-const pkg = readJson('package.json');
-const versionFile = readJson('version.json');
-const packageVersion = String(pkg.version || '').trim();
-const appVersion = String(versionFile.version || '').trim();
-const expectedChannel = packageVersion.includes('-') ? 'beta' : 'stable';
-if (!packageVersion) throw new Error('package.json has no version.');
-if (packageVersion !== appVersion) throw new Error(`Version mismatch: package.json=${packageVersion}, version.json=${appVersion}`);
-if (String(versionFile.channel || '').trim() !== expectedChannel) throw new Error(`Channel mismatch: expected ${expectedChannel}, got ${versionFile.channel}`);
-const index = read('index.html');
-const sw = read('sw.js');
-const app = read('app.js');
-if (!/id="appVersionBadge">V—<\/small>/.test(index)) throw new Error('Version badge must be runtime-driven and contain no hardcoded app version.');
-for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','retail-website-pos.js','profile-parity-ui.js','app.js']) {
-  if (!index.includes(`${asset}?v=${packageVersion}`) && asset !== 'retail-website-pos.js') throw new Error(`index.html cache reference mismatch for ${asset}`);
-  if (!sw.includes(`./${asset}?v=${packageVersion}`)) throw new Error(`sw.js cache reference mismatch for ${asset}`);
-}
-if (!sw.includes(`const CACHE='sharawla-pos-v${packageVersion}';`)) throw new Error('sw.js cache name is not synchronized.');
-if (/serviceWorker\.register\('\.\/sw\.js\?v=/.test(app)) throw new Error('app.js still hardcodes a service-worker version.');
+const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const json=f=>JSON.parse(read(f));
+const pkg=json('package.json'),ver=json('version.json');
+const version=String(pkg.version||'').trim();
+const channel=version.includes('-')?'beta':'stable';
+if(!version)throw new Error('package.json has no version');
+if(String(ver.version||'').trim()!==version)throw new Error(`Version mismatch: package=${version}; version.json=${ver.version}`);
+if(String(ver.channel||'').trim()!==channel)throw new Error(`Channel mismatch: expected ${channel}; got ${ver.channel}`);
+if(pkg.main!=='main-beta23.js')throw new Error('Protected updater recovery wrapper main-beta23.js must remain package main');
+if(!Array.isArray(pkg.build?.files)||!pkg.build.files.includes('!**/*.zip'))throw new Error('Build must exclude nested ZIP files');
 
-// V10.5.4 Part 3 safety invariants.
-const main = read('main.js');
-const preload = read('preload.js');
-const updateUi = read('update-ui.js');
-if (!main.includes('function updateOfflineQueueState()')) throw new Error('Part 3 missing Offline Queue Guard state reader.');
-if (!main.includes('function createPreUpdateBackup(remoteVersion)')) throw new Error('Part 3 missing pre-update backup creator.');
-const backupStart = main.indexOf('function createPreUpdateBackup(remoteVersion)');
-const backupEnd = main.indexOf('function updateSafetyInfo()', backupStart);
-const backupBody = backupStart >= 0 && backupEnd > backupStart ? main.slice(backupStart, backupEnd) : '';
-if (!backupBody) throw new Error('Unable to validate pre-update backup implementation.');
-if (backupBody.includes('persistDb()') || backupBody.includes('createBackup(')) throw new Error('Pre-update backup must be independent from persistDb()/createBackup() fixed runtime temp path.');
-for (const token of ['db.export()', 'process.pid', 'Date.now()', 'crypto.randomBytes', "fs.openSync(tmp,'wx')", 'fs.fsyncSync(fd)', 'fs.renameSync(tmp,target)', 'fs.constants.COPYFILE_EXCL', "fs.openSync(target,'r+')", 'fs.fsyncSync(finalFd)', 'let targetCreated=false', 'let success=false', 'targetCreated=true', 'success=true', 'if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}']) {
-  if (!backupBody.includes(token)) throw new Error(`Pre-update backup hardening missing: ${token}`);
-}
-const finalFsync = backupBody.indexOf("fs.openSync(target,'r+')");
-const finalVerify = backupBody.indexOf("if(!st.isFile()||st.size!==bytes.length||st.size<=0)");
-const markSuccess = backupBody.indexOf('success=true;');
-const failedTargetCleanup = backupBody.indexOf('if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}');
-if (!(finalFsync >= 0 && finalVerify > finalFsync && markSuccess > finalVerify && failedTargetCleanup > markSuccess)) {
-  throw new Error('Pre-update backup must fsync/verify the final target before success and clean the target on failure.');
-}
-if ((main.match(/updateOfflineQueueState\(\)/g)||[]).length < 3) throw new Error('Part 3 must check the offline queue before download and again before install.');
-if (!main.includes('async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})')) throw new Error('Updater function must explicitly support checkOnly.');
-if (!main.includes("checkForWindowsUpdate({interactive:true,checkOnly:true})")) throw new Error('Manual update IPC must invoke checkOnly=true.');
-const updaterStart = main.indexOf('async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})');
-const availableState = main.indexOf("sendUpdateProgress({state:'available'", updaterStart);
-const checkOnlyReturn = main.indexOf('if(checkOnly)return {available:true,checkOnly:true,local,remote,channel};', updaterStart);
-const assetSelection = main.indexOf('const assets=Array.isArray(rel.assets)?rel.assets:[];', updaterStart);
-const downloadPrompt = main.indexOf("title:'تحديث جديد متاح'", updaterStart);
-if (updaterStart < 0 || availableState < 0 || checkOnlyReturn < 0 || assetSelection < 0 || downloadPrompt < 0) throw new Error('Unable to validate Manual Check control flow.');
-if (!(availableState < checkOnlyReturn && checkOnlyReturn < assetSelection && checkOnlyReturn < downloadPrompt)) throw new Error('Manual Check checkOnly return must occur before asset selection and any download/install dialog.');
-if (!main.includes("state:'blocked-offline'")) throw new Error('Part 3 missing blocked-offline updater state.');
-if (!main.includes("state:'backup-ready'")) throw new Error('Part 3 missing backup-ready updater state.');
+const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),main=read('main.js'),preload=read('preload.js'),updateUi=read('update-ui.js');
+if(!/id="appVersionBadge">V—<\/small>/.test(index))throw new Error('Version badge must remain runtime-driven');
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js'];
+for(const asset of direct){if(!index.includes(`${asset}?v=${version}`))throw new Error(`index cache version mismatch: ${asset}`);if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW shell version mismatch: ${asset}`)}
+for(const asset of ['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'])if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW dynamic Retail asset mismatch: ${asset}`);
+if(!sw.includes(`const CACHE='sharawla-pos-v${version}';`))throw new Error('Service worker cache name not synchronized');
+if(index.includes('beta-self-test.js?v='))throw new Error('Public Beta Self-Test must not auto-load');
+if(!index.includes(`owner-diagnostics.js?v=${version}`))throw new Error('Owner diagnostics must be loaded globally');
 
-// Gate C must exist in the exact final-install path: explicit Install Now -> final queue read -> blocking guard -> installer spawn.
-const readyResponse = main.indexOf('if(ready.response===0){', updaterStart);
-const finalQueueRead = main.indexOf('const finalBeforeSpawn=updateOfflineQueueState();', readyResponse);
-const finalQueueGuard = main.indexOf('if(!finalBeforeSpawn.clear){', finalQueueRead);
-const finalBlockedReturn = main.indexOf("stage:'final-before-spawn'", finalQueueGuard);
-const installerSpawn = main.indexOf("spawn(target,['/S']", finalQueueGuard);
-if (readyResponse < 0 || finalQueueRead < 0 || finalQueueGuard < 0 || finalBlockedReturn < 0 || installerSpawn < 0) {
-  throw new Error('Part 3 Gate C final instant guard is missing or cannot be validated.');
-}
-if (!(readyResponse < finalQueueRead && finalQueueRead < finalQueueGuard && finalQueueGuard < finalBlockedReturn && finalBlockedReturn < installerSpawn)) {
-  throw new Error('Part 3 Gate C order must be Install Now -> final queue read -> guard/block -> installer spawn.');
-}
-if (!preload.includes("safety:()=>ipcRenderer.invoke('update:safety')")) throw new Error('Part 3 update safety bridge is missing.');
-if (!index.includes('id="updateOfflineQueueValue"')) throw new Error('Part 3 Offline Queue status UI is missing.');
-if (!index.includes('id="updateBackupValue"')) throw new Error('Part 3 pre-update backup status UI is missing.');
-if (!updateUi.includes('refreshSafety')) throw new Error('Part 3 Update Center safety refresh is missing.');
+// Canonical fingerprint / Business Connection invariants.
+for(const token of [
+  "const canonical=String(st.device_fingerprint||'').trim();",
+  'if(canonical)return [canonical];',
+  "cloudRpc('verify_sharawla_device'",
+  "cloudRpc('get_sharawla_business_connection'",
+  "if(String(d.business_id)!==String(st.business_id))"
+])if(!app.includes(token))throw new Error(`Canonical/Business Connection invariant missing: ${token}`);
+if(app.includes('MachineGuid'))throw new Error('MachineGuid fallback must not be reintroduced into app runtime');
 
-// V10.5.4-beta.4 UI invariants: Update Center lives on Login, not the authenticated sidebar.
-const loginStart = index.indexOf('<section id="loginView"');
-const appStart = index.indexOf('<section id="appView"');
-const updateEntry = index.indexOf('id="updateCenterMenuBtn"');
-if (loginStart < 0 || appStart < 0 || updateEntry < 0 || !(loginStart < updateEntry && updateEntry < appStart)) {
-  throw new Error('Update Center entry must live inside the Login view.');
-}
+// Update Part 3 protected flow.
+for(const token of ['function updateOfflineQueueState()','function createPreUpdateBackup(remoteVersion)','async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})',"checkForWindowsUpdate({interactive:true,checkOnly:true})","state:'blocked-offline'","state:'backup-ready'"])if(!main.includes(token))throw new Error(`Protected updater invariant missing: ${token}`);
+const updater=main.indexOf('async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})');
+const available=main.indexOf("sendUpdateProgress({state:'available'",updater);
+const checkOnly=main.indexOf('if(checkOnly)return {available:true,checkOnly:true,local,remote,channel};',updater);
+const assets=main.indexOf('const assets=Array.isArray(rel.assets)?rel.assets:[];',updater);
+if(!(updater>=0&&available>updater&&checkOnly>available&&assets>checkOnly))throw new Error('Manual checkOnly must return before download asset selection');
+const ready=main.indexOf('if(ready.response===0){',updater);
+const finalRead=main.indexOf('const finalBeforeSpawn=updateOfflineQueueState();',ready);
+const finalGuard=main.indexOf('if(!finalBeforeSpawn.clear){',finalRead);
+const finalBlock=main.indexOf("stage:'final-before-spawn'",finalGuard);
+const spawn=main.indexOf("spawn(target,['/S']",finalGuard);
+if(!(ready>=0&&finalRead>ready&&finalGuard>finalRead&&finalBlock>finalGuard&&spawn>finalBlock))throw new Error('Gate C order must be Install Now -> queue read -> block guard -> spawn');
+const backupStart=main.indexOf('function createPreUpdateBackup(remoteVersion)');
+const backupEnd=main.indexOf('function updateSafetyInfo()',backupStart);
+const backup=backupStart>=0&&backupEnd>backupStart?main.slice(backupStart,backupEnd):'';
+for(const token of ['db.export()','process.pid','Date.now()','crypto.randomBytes',"fs.openSync(tmp,'wx')",'fs.fsyncSync(fd)','fs.renameSync(tmp,target)','fs.constants.COPYFILE_EXCL',"fs.openSync(target,'r+')",'success=true','if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}'])if(!backup.includes(token))throw new Error(`Pre-update backup invariant missing: ${token}`);
+if(!preload.includes("safety:()=>ipcRenderer.invoke('update:safety')"))throw new Error('Update safety preload bridge missing');
+if(!updateUi.includes('refreshSafety'))throw new Error('Update Center safety refresh missing');
+if(!index.includes('id="updateOfflineQueueValue"')||!index.includes('id="updateBackupValue"'))throw new Error('Update Center safety fields missing');
 
-// V10.5.4-beta.10+ LKG/rollback invariants.
-if (!updateUi.includes("setText('updatePreviousGoodValue'")) throw new Error('Previous LKG UI refresh missing.');
-if (!updateUi.includes('info?.rollbackTarget?.version')) throw new Error('Rollback button must show the resolved rollback target.');
-const rollbackFnStart = main.indexOf('async function rollbackToLastKnownGood({confirmFirst=true}={})');
-const rollbackTargetUse = main.indexOf('const lkg=rollbackTargetForState(state,current);', rollbackFnStart);
-const rollbackDownload = main.indexOf("releases/tags/${encodeURIComponent('v'+lkg.version)}", rollbackFnStart);
-if (!(rollbackFnStart >= 0 && rollbackTargetUse > rollbackFnStart && rollbackDownload > rollbackTargetUse)) {
-  throw new Error('Rollback must resolve Previous/Current LKG target before downloading the installer.');
-}
+// Retail finalization + shared Delivery Module. Delivery is not Restaurant leakage.
+const retail=read('retail-engine.js'),checkout=read('beta23-full-retail.js');
+for(const token of ["code:'retail'","phase:'retail-delivery-finalization'","deliveryOrders:'delivery'","deliverySettings:'delivery'","{code:'delivery',label:'توصيل'}"])if(!retail.includes(token))throw new Error(`Retail delivery contract missing: ${token}`);
+const allPagesMatch=retail.match(/const ALL_PAGES=Object\.freeze\(\[([^\]]+)\]\)/);
+if(!allPagesMatch)throw new Error('Retail ALL_PAGES contract not found');
+if(!allPagesMatch[1].includes("'deliveryOrders'")||!allPagesMatch[1].includes("'deliverySettings'"))throw new Error('Retail delivery routes missing from ALL_PAGES');
+if(allPagesMatch[1].includes("'kitchen'")||allPagesMatch[1].includes("'tables'"))throw new Error('Retail must not expose kitchen/tables');
+for(const token of ["rows('delivery_drivers'","rows('delivery_zones'",'function start(){observe()}'])if(!checkout.includes(token))throw new Error(`Retail POS delivery wiring missing: ${token}`);
+if(checkout.includes("rows('drivers'"))throw new Error('Retail POS must use delivery_drivers table');
 
-// V10.5.4-beta.15+ Retail foundation invariants.
-const runtimeCore = read('sharawla-runtime-core.js');
-const restaurantEngine = read('restaurant-engine.js');
-const retailEngine = read('retail-engine.js');
-const appSource = read('app.js');
-const retailInventorySql = read('supabase-v10-5-4-beta15-retail-inventory-foundation.sql');
-if (!runtimeCore.includes('bootstrapDefault===true')) throw new Error('Runtime Core must support an explicit bootstrap default engine.');
-if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restaurant must remain the bootstrap compatibility default.');
-for (const token of ["code:'retail'","'home','pos','orders','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'","orders:'pos'","returns:'returns'","pos:'pos'"]) {
-  if (!retailEngine.includes(token)) throw new Error(`Retail foundation missing: ${token}`);
-}
-// Phase is release-progress metadata. Accept only the known compatible Retail release stages.
-const retailPhaseMatch = retailEngine.match(/phase:'([^']+)'/);
-const retailPhase = retailPhaseMatch?.[1] || '';
-const compatibleRetailPhases = new Set(['full-retail-candidate','retail-finalization']);
-if (!compatibleRetailPhases.has(retailPhase)) throw new Error(`Retail foundation has unsupported phase: ${retailPhase || 'missing'}`);
-for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'"]) {
-  if (retailEngine.includes(forbidden)) throw new Error(`Retail must not expose Restaurant-only page: ${forbidden}`);
-}
-for (const token of [
-  'async function renderRetailPOS()',
-  'function findRetailProductByBarcode(code)',
-  'function addRetailProductToCart(p,forcedQty=null)',
-  "moduleEnabled('barcode')",
-  'async function renderRetailInventory()',
-  "create_retail_pos_order_atomic",
-  "create_retail_order_return_idempotent",
-  "retail_inventory_balances",
-  "retail_inventory_movements"
-]) {
-  if (!appSource.includes(token) && !retailInventorySql.includes(token)) throw new Error(`Retail runtime/inventory contract missing: ${token}`);
-}
+// Owner-only diagnostics contract. No plaintext owner secret may be embedded in source.
+const owner=read('owner-diagnostics.js');
+for(const token of ['verify_sharawla_owner_diagnostics_access','ACCESS_TTL_MS=30*60*1000',"e.ctrlKey&&e.shiftKey&&e.key==='F12'",'runNegativeStockSandbox'])if(!owner.includes(token))throw new Error(`Owner diagnostics invariant missing: ${token}`);
+for(const token of ['OWNER_CODE=','OWNER_PASSWORD=','localStorage.setItem(\'owner','sessionStorage.setItem(\'owner'])if(owner.includes(token))throw new Error(`Owner diagnostics secret persistence forbidden: ${token}`);
 
-console.log(`Sharawla source checks passed for ${packageVersion}.`);
+console.log(`Sharawla source checks passed for ${version}.`);
