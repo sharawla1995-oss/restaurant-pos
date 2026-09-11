@@ -13,6 +13,7 @@ on:
       - beta25-retail-finalization
       - beta26-retail-ui-delivery-finalization
       - beta27-retail-delivery-owner-diagnostics
+      - beta28-owner-users-home-fix
   workflow_dispatch:
 
 permissions:
@@ -27,7 +28,7 @@ jobs:
       - name: Required source preflight
         shell: pwsh
         run: |
-          $required = @("package.json","scripts/sync-version.js","scripts/check-version.js","scripts/check-owner-diagnostics.js",".github/workflows/build-windows-release.yml","version-ui.js")
+          $required = @("package.json","scripts/sync-version.js","scripts/check-version.js","scripts/check-owner-diagnostics.js","scripts/check-beta28-fixes.js","beta28-runtime-fixes.js",".github/workflows/build-windows-release.yml","version-ui.js")
           foreach ($file in $required) { if (-not (Test-Path $file)) { throw "Required source file missing: $file" } }
       - name: Read version
         id: ver
