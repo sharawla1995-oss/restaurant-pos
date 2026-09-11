@@ -36,7 +36,7 @@
       <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" required>
     </label>
     <label>Publishable key
-      <textarea id="publishableKey" rows="4" placeholder="sb_publishable_..." required></textarea>
+      <textarea id="publishableKey" rows="4" placeholder="sb_publishable_..." autocomplete="off" required></textarea>
     </label>
     <button class="primary" type="submit">حفظ ومتابعة</button>
     <small>استخدم Publishable key فقط. لا تستخدم Secret key أو service_role.</small>
@@ -48,7 +48,7 @@
     <div class="brand-mark">POS</div>
     <h1>Sharawla POS</h1>
     <p>دخول الإدارة والموظفين</p>
-    <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+    <label>اسم المستخدم<input id="email" type="text" autocomplete="username" placeholder="مثال: cashier1" required></label>
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
     <button class="primary" type="submit">تسجيل الدخول</button>
     <button id="updateCenterMenuBtn" class="developer-contact-login-btn" type="button"><span class="developer-contact-icon">⬆️</span><span><b>التحديثات</b><small>فحص وتحديث Sharawla POS</small></span></button>
@@ -139,6 +139,7 @@
 <script src="retail-engine.js?v=10.5.4-beta.27"></script>
 <script src="app.js?v=10.5.4-beta.27"></script>
 <script src="profile-parity-ui.js?v=10.5.4-beta.27"></script>
+<script src="beta28-runtime-fixes.js?v=10.5.4-beta.27"></script>
 <script src="owner-diagnostics.js?v=10.5.4-beta.27"></script>
 </body>
 </html>
