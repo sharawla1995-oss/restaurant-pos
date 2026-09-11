@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Sharawla Retail</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <img id="brandLogo" class="brand-logo hidden" alt="">
+      <div><h1 id="brandName">Sharawla Retail</h1><p id="branchStatus">جاري التحميل…</p></div>
+    </div>
+    <button id="cartBtn" class="cart-button" type="button">🛒 السلة <span id="cartCount">0</span></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">طلب أونلاين</span>
+        <h2 id="heroTitle">اختار احتياجاتك وإحنا نجهزها</h2>
+        <p>الأسعار والمخزون والعروض تتحقق مباشرة من النظام قبل تأكيد الطلب.</p>
+      </div>
+      <label class="branch-select-wrap">الفرع
+        <select id="branchSelect"></select>
+      </label>
+    </section>
+
+    <section id="closedBanner" class="notice danger hidden">الفرع لا يستقبل طلبات الموقع حاليًا.</section>
+    <section id="categoryBar" class="category-bar"></section>
+    <section id="catalogGrid" class="catalog-grid"><div class="loading">جاري تحميل الأصناف…</div></section>
+  </main>
+
+  <aside id="cartDrawer" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-card">
+      <div class="drawer-head"><h2>🛒 السلة</h2><button id="closeCart" type="button">✕</button></div>
+      <div id="cartItems"></div>
+      <div id="quoteBox" class="summary-box"></div>
+      <button id="checkoutBtn" class="primary wide" type="button">متابعة الطلب</button>
+    </div>
+  </aside>
+
+  <div id="checkoutModal" class="modal hidden">
+    <form id="checkoutForm" class="modal-card">
+      <div class="drawer-head"><h2>تأكيد الطلب</h2><button id="closeCheckout" type="button">✕</button></div>
+      <div class="two-cols">
+        <label>الاسم<input id="customerName" required maxlength="80"></label>
+        <label>رقم الهاتف<input id="customerPhone" required inputmode="tel" maxlength="20" dir="ltr"></label>
+      </div>
+      <div class="two-cols">
+        <label>نوع الطلب<select id="orderType"><option value="pickup">استلام فرع</option><option value="delivery">توصيل</option></select></label>
+        <label>طريقة الدفع<select id="paymentMethod"></select></label>
+      </div>
+      <div id="deliveryFields" class="hidden">
+        <label>منطقة التوصيل<select id="deliveryZone"></select></label>
+        <label>العنوان<textarea id="customerAddress" rows="2" maxlength="240"></textarea></label>
+      </div>
+      <label>ملاحظات<textarea id="customerNotes" rows="2" maxlength="300"></textarea></label>
+      <label id="paymentReferenceWrap" class="hidden">مرجع الدفع<input id="paymentReference" maxlength="120"></label>
+      <div id="checkoutQuote" class="summary-box"></div>
+      <button id="submitOrderBtn" class="primary wide" type="submit">تأكيد الطلب</button>
+    </form>
+  </div>
+
+  <div id="trackingModal" class="modal hidden">
+    <form id="trackingForm" class="modal-card compact-card">
+      <div class="drawer-head"><h2>متابعة الطلب</h2><button id="closeTracking" type="button">✕</button></div>
+      <label>رقم الطلب<input id="trackCode" placeholder="RW-00000001" required dir="ltr"></label>
+      <label>رقم الهاتف<input id="trackPhone" required dir="ltr"></label>
+      <button class="primary wide" type="submit">متابعة</button>
+      <div id="trackingResult"></div>
+    </form>
+  </div>
+
+  <footer class="site-footer">
+    <button id="trackBtn" type="button">🔎 متابعة طلب</button>
+    <span>Powered by Sharawla POS</span>
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
