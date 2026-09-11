@@ -13,9 +13,10 @@
   core.registerEngine({code:'retail',displayName:'Retail',phase:'retail-finalization',resolveModules(modules,configured){return configured?core.normalizeModules(modules):[...LEGACY_MODULES]},pageAllowed(config,page){if(!ALL_PAGES.includes(page))return false;const moduleCode=PAGE_MODULE[page]||null;return !moduleCode||core.moduleEnabled(config,moduleCode)},pageOperationalAllowed(){return true},shiftCloseBlockers(){return []},reportOrderTypes(){return REPORT_ORDER_TYPES.map(x=>({...x}))},promotionStackPolicy(){return {...PROMOTION_STACK_POLICY}},pageTitle(page){return PAGE_TITLES[page]||page},allPages(){return [...ALL_PAGES]},rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)]},permissionDefs(){return PERMISSION_DEFS.map(row=>[row[0],row[1]])},permissionGroups(){return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]])}});
   if(!core.hasEngine('retail'))throw new Error('Retail Engine registration failed.');global.__SharawlaRetailEngineLoaded=true;
   const load=(key,src)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.defer=true;s.setAttribute(`data-${key}`,'1');document.head.appendChild(s)};
-  load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.25');
-  load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.25');
-  load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.25');
-  load('sharawla-beta23-acceptance-suite','beta23-acceptance-suite.js?v=10.5.4-beta.25');
-  load('sharawla-retail-finalization-ui','retail-finalization-ui.js?v=10.5.4-beta.25');
+  load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.26');
+  load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.26');
+  load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.26');
+  load('sharawla-beta23-acceptance-suite','beta23-acceptance-suite.js?v=10.5.4-beta.26');
+  load('sharawla-retail-finalization-ui','retail-finalization-ui.js?v=10.5.4-beta.26');
+  load('sharawla-beta26-ui-delivery','beta26-ui-delivery-acceptance.js?v=10.5.4-beta.26');
 })(window);
