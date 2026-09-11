@@ -10,6 +10,7 @@ on:
       - beta21-self-test-center
       - beta22-runtime-acceptance-fixes
       - beta23-full-retail-candidate
+      - beta24-release-certification-suite
   workflow_dispatch:
 
 permissions:
