@@ -6,6 +6,7 @@ on:
       - main
       - beta18-website-integration-foundation
       - beta19-core-parity-fix-pack
+      - beta20-retail-engine-hotfix
   workflow_dispatch:
 
 permissions:
