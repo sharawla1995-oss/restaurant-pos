@@ -77,7 +77,7 @@
     ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']]
-  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
+  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)]));
 
   const OPERATIONAL_FLAGS=Object.freeze({
     deliveryOrders:'enable_delivery',
@@ -103,6 +103,10 @@
     pageOperationalAllowed(_config,page,settings){
       const flag=OPERATIONAL_FLAGS[page]||null;
       return !flag || !!settings?.[flag];
+    },
+
+    shiftCloseBlockers(orders){
+      return orders.filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));
     },
 
     pageTitle(page){
