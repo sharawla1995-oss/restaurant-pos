@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - beta18-website-integration-foundation
   workflow_dispatch:
 
 permissions:
@@ -118,13 +117,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             if ("${{ steps.ver.outputs.prerelease }}" -eq "True") {
               gh release create $tag `
-                --target "${{ github.sha }}" `
                 --prerelease `
                 --title "Sharawla POS $version" `
                 --notes "Sharawla POS Windows beta release"
             } else {
               gh release create $tag `
-                --target "${{ github.sha }}" `
                 --title "Sharawla POS $version" `
                 --notes "Sharawla POS Windows stable release"
             }
