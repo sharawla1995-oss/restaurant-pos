@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.29",
+  "version": "10.5.4-beta.30",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Retail Functional Finalization: website orders priority, complete Retail offers UI including Buy X Get Y, soft archive contract, Retail promo codes route, developer contact on License and Login, Owner Diagnostics session resolver, and page usability search improvements. Production Stable remains unchanged."
+  "notes": "Pharmacy Complete Candidate: Pharmacy profile engine, drug master, batch/expiry FEFO, prescriptions, insurance companies/plans/claims, pharmacy POS with batch allocation and insurance split payment, website prescription request management, shared branches/delivery/inventory/purchasing/reports/users, and Pharmacy static gates. Production Stable remains unchanged."
 }
