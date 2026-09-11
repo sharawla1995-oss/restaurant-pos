@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.27",
+  "version": "10.5.4-beta.29",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Retail Delivery final fix pack with shared Delivery Module routes, reliable POS delivery selector, owner-only cross-profile diagnostics, corrected route-based Home parity checks, and Beta-only negative-stock enforcement validation. Production Stable remains unchanged."
+  "notes": "Retail Functional Finalization: website orders priority, complete Retail offers UI including Buy X Get Y, soft archive contract, Retail promo codes route, developer contact on License and Login, Owner Diagnostics session resolver, and page usability search improvements. Production Stable remains unchanged."
 }
