@@ -9,19 +9,13 @@ const files=[
   'retail-website-pos.js',
   'profile-parity-ui.js',
   'beta-self-test.js',
+  'beta22-runtime-fixes.js',
   'app.js'
 ];
 
 for(const file of files){
   const full=path.join(root,file);
   const source=fs.readFileSync(full,'utf8');
-  try{
-    // Parse without executing browser globals. This catches syntax errors that
-    // token-based static checks cannot detect.
-    new Function(source);
-  }catch(err){
-    throw new Error(`Runtime syntax check failed in ${file}: ${err.message}`);
-  }
+  try{new Function(source)}catch(err){throw new Error(`Runtime syntax check failed in ${file}: ${err.message}`)}
 }
-
 console.log(`Runtime syntax check OK: ${files.join(', ')}`);
