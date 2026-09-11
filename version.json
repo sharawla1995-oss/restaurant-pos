@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.18",
+  "version": "10.5.4-beta.19",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Website Integration Test Build: hosted Retail website API flow, server-side quote and pricing, stock reservations, pickup and delivery orders, customer tracking/cancellation, POS website-order inbox, and staff accept/reject flow. Beta-only; Restaurant and production Stable remain unchanged."
+  "notes": "Retail Core Parity Fix Pack: Retail invoices/orders parity, profile-aware shift closing and report order types, Retail prep-receipt separation, website reject modal and order notifications, pending-reservation expiry filtering, EAN-13 guard, and an explicit Retail promotion stacking contract. Beta-only; Restaurant Stable and production remain unchanged."
 }
