@@ -91,7 +91,7 @@
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
+  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)]));
 
   core.registerEngine({
     code:'retail',
@@ -109,6 +109,13 @@
     },
 
     pageOperationalAllowed(){return true;},
+
+    // Retail sales are complete transactions when committed. Pending website
+    // requests live in retail_website_orders before acceptance and therefore do
+    // not belong to the current POS shift. They must not inherit Restaurant
+    // delivery/preparation blockers.
+    shiftCloseBlockers(){return [];},
+
     pageTitle(page){return PAGE_TITLES[page]||page;},
     allPages(){return [...ALL_PAGES];},
     rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)];},
