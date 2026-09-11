@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.22",
-  "description": "Sharawla POS V10.5.4 Beta 22 - Retail Runtime Acceptance Fixes",
+  "version": "10.5.4-beta.23",
+  "description": "Sharawla POS V10.5.4 Beta 23 - Full Retail Candidate",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
