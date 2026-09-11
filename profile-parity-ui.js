@@ -30,6 +30,45 @@
     select.dataset.retailReportTypesApplied='1';
   }
 
+  function ean13Valid(raw){
+    const code=String(raw||'').replace(/\D/g,'');
+    if(!/^\d{13}$/.test(code))return false;
+    let sum=0;
+    for(let i=0;i<12;i++)sum+=Number(code[i])*(i%2===0?1:3);
+    const check=(10-(sum%10))%10;
+    return check===Number(code[12]);
+  }
+
+  function wireRetailEanGuard(root=document){
+    if(!isRetail())return;
+    const scan=(root.matches?.('#retailScanInput')?root:root.querySelector?.('#retailScanInput'))||document.querySelector('#retailScanInput');
+    if(!scan||scan.dataset.ean13GuardWired==='1')return;
+    scan.dataset.ean13GuardWired='1';
+    scan.addEventListener('keydown',e=>{
+      if(e.key!=='Enter')return;
+      const raw=String(scan.value||'').replace(/\D/g,'');
+      if(raw.length!==13||ean13Valid(raw))return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      try{global.toast?.('باركود EAN-13 غير صالح — تحقق من Checksum')}catch{}
+      try{scan.select()}catch{}
+    },true);
+  }
+
+  function patchRetailWebsitePendingRest(){
+    if(global.__sharawlaRetailPendingExpiryPatch===true)return;
+    const original=global.rest;
+    if(typeof original!=='function')return;
+    global.rest=async function(resource,query,...args){
+      let q=query;
+      if(isRetail()&&resource==='retail_website_orders'&&typeof q==='string'&&q.includes('status=eq.pending')&&!q.includes('reservation_expires_at=gt.')){
+        q+=`&reservation_expires_at=gt.${encodeURIComponent(new Date().toISOString())}`;
+      }
+      return original.call(this,resource,q,...args);
+    };
+    global.__sharawlaRetailPendingExpiryPatch=true;
+  }
+
   function enforceRetailParity(root=document){
     if(!isRetail())return;
 
@@ -47,6 +86,7 @@
     });
 
     enforceRetailReportTypes(root);
+    wireRetailEanGuard(root);
     wireRetailShiftClose(root);
   }
 
@@ -117,6 +157,10 @@
     for(const r of records)for(const n of r.addedNodes){if(n.nodeType===1)enforceRetailParity(n)}
   });
 
-  function start(){enforceRetailParity(document);observer.observe(document.body,{childList:true,subtree:true})}
+  function start(){
+    patchRetailWebsitePendingRest();
+    enforceRetailParity(document);
+    observer.observe(document.body,{childList:true,subtree:true});
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
