@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.30",
-  "description": "Sharawla POS V10.5.4 Beta 30 - Pharmacy Complete Candidate",
+  "version": "10.5.4-beta.31",
+  "description": "Sharawla POS V10.5.4 Beta 31 - Pharmacy UI Hotfix",
   "main": "main-beta23.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta28-fixes.js && node scripts/check-beta29-functional.js && node scripts/check-beta30-pharmacy.js && node scripts/check-owner-diagnostics.js && node scripts/check-retail-finalization.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta28-fixes.js && node scripts/check-beta29-functional.js && node scripts/check-beta30-pharmacy.js && node scripts/check-beta31-pharmacy-ui.js && node scripts/check-owner-diagnostics.js && node scripts/check-retail-finalization.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
