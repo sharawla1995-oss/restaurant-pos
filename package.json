@@ -6,7 +6,7 @@
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta-self-test.js && node scripts/check-version.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
