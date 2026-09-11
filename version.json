@@ -4,5 +4,5 @@
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Full Retail Candidate: Retail checkout with immediate sale, pickup and delivery (no dine-in), inventory, decimal/weight entry, returns, offers, stock count, transfers, suppliers/purchasing, website integration, staged notifications and Beta Self-Test diagnostics. Production Stable remains unchanged."
+  "notes": "Full Retail Candidate with comprehensive Beta-only acceptance suite: immediate sale, pickup, delivery (no dine-in), inventory, decimal/weight, EAN13, returns, idempotency, payment reconciliation, suppliers/purchasing, GRN, offers, stock count, transfers, website/reservations, notifications, offline/update health, printer diagnostics, and optional hard-locked transactional sandbox. Production Stable remains unchanged."
 }
