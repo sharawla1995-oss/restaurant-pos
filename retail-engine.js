@@ -4,13 +4,14 @@
   const core=global.SharawlaRuntimeCore;
   if(!core)throw new Error('SharawlaRuntimeCore must load before Retail Engine.');
 
-  // Retail engine remains isolated from Restaurant delivery/kitchen/table rules.
-  // Beta.17 completes the Retail/Supermarket core: units, weighted barcode, offers, holds, stock count, transfers and website-ready stock APIs.
+  // Retail stays isolated from Restaurant delivery/kitchen/table rules.
+  // Beta.19 restores shared Core sales-document parity without importing Restaurant-only behavior.
   const LEGACY_MODULES=Object.freeze([
     'customers','expenses','inventory','reports','returns','pos','barcode'
   ]);
 
   const PAGE_MODULE=Object.freeze({
+    orders:'pos',
     customers:'customers',
     inventory:'inventory',
     suppliers:'inventory',
@@ -30,6 +31,7 @@
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',
     pos:'نقطة البيع',
+    orders:'الفواتير',
     customers:'العملاء',
     shifts:'الورديات',
     inventory:'المخزون',
@@ -48,21 +50,20 @@
     settings:'الإعدادات'
   });
 
-  // Retail checkout + inventory + returns are enabled. Restaurant-only
-  // delivery/kitchen/table/website semantics remain excluded from Retail.
   const ALL_PAGES=Object.freeze([
-    'home','pos','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'
+    'home','pos','orders','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
     admin:ALL_PAGES,
-    cashier:Object.freeze(['home','pos','customers','shifts','products','returns']),
-    callcenter:Object.freeze(['home','customers','products']),
+    cashier:Object.freeze(['home','pos','orders','customers','shifts','products','returns']),
+    callcenter:Object.freeze(['home','orders','customers','products']),
     delivery:Object.freeze(['home'])
   });
 
   const PERMISSION_DEFS=Object.freeze([
     ['pos','نقطة البيع'],
+    ['orders','الفواتير'],
     ['customers','العملاء'],
     ['shifts','الورديات'],
     ['inventory','المخزون'],
@@ -85,7 +86,7 @@
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
-    ['🧾 نقطة البيع',['pos']],
+    ['🧾 نقطة البيع',['pos','orders']],
     ['📦 Retail',['customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','products','returns']],
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
@@ -95,7 +96,7 @@
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
-    phase:'market-test-candidate',
+    phase:'core-parity-fix-pack',
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];
@@ -107,36 +108,18 @@
       return !moduleCode || core.moduleEnabled(config,moduleCode);
     },
 
-    pageOperationalAllowed(){
-      return true;
-    },
-
-    pageTitle(page){
-      return PAGE_TITLES[page]||page;
-    },
-
-    allPages(){
-      return [...ALL_PAGES];
-    },
-
-    rolePages(role){
-      return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)];
-    },
-
-    permissionDefs(){
-      return PERMISSION_DEFS.map(row=>[row[0],row[1]]);
-    },
-
-    permissionGroups(){
-      return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]]);
-    }
+    pageOperationalAllowed(){return true;},
+    pageTitle(page){return PAGE_TITLES[page]||page;},
+    allPages(){return [...ALL_PAGES];},
+    rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)];},
+    permissionDefs(){return PERMISSION_DEFS.map(row=>[row[0],row[1]]);},
+    permissionGroups(){return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]]);}
   });
 
-  // Beta18 website integration stays isolated from app.js and Restaurant Engine.
-  // The panel script self-enables only when the resolved runtime is Retail + Website.
+  // Website integration remains isolated from Restaurant Engine.
   if(!document.querySelector('script[data-sharawla-retail-website-orders]')){
     const s=document.createElement('script');
-    s.src='retail-website-pos.js?v=10.5.4-beta.18';
+    s.src='retail-website-pos.js?v=10.5.4-beta.19';
     s.defer=true;
     s.dataset.sharawlaRetailWebsiteOrders='1';
     document.head.appendChild(s);
