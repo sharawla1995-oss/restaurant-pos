@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.17",
+  "version": "10.5.4-beta.18",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Suppliers & Purchasing Foundation: suppliers, purchase orders, approval, GRN receipt, weighted-average cost, supplier returns, and inventory-ledger integration. Retail-only; Restaurant and updater/licensing runtime remain unchanged."
+  "notes": "Retail Website Integration Test Build: hosted Retail website API flow, server-side quote and pricing, stock reservations, pickup and delivery orders, customer tracking/cancellation, POS website-order inbox, and staff accept/reject flow. Beta-only; Restaurant and production Stable remain unchanged."
 }
