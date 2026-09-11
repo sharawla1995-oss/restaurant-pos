@@ -11,10 +11,11 @@ const ui=read('pharmacy-ui.js');
 const index=read('index.html');
 const sw=read('sw.js');
 const version=String(pkg.version||'');
+const betaNo=Number((version.match(/10\.5\.4-beta\.(\d+)/)||[])[1]||0);
 
-must(version==='10.5.4-beta.31','package version mismatch');
+must(betaNo>=31,'requires Beta31 or later package version');
 must(engine.includes("localStorage.getItem('sharawlaRuntimeConfigV1')"),'Runtime Config cache getter missing');
-must(engine.includes("phase:'pharmacy-complete-beta31'"),'Pharmacy engine phase not bumped');
+must(engine.includes("phase:'pharmacy-complete-beta31'"),'Pharmacy engine Beta31 phase contract missing');
 must(ui.includes("global.runtimeConfig?.()?.pos_profile"),'Pharmacy UI is not wired to runtimeConfig getter');
 for(const page of ['pharmacyCatalog','pharmacyBatches','pharmacyExpiry','pharmacyPrescriptions','pharmacyInsurance','pharmacyClaims']){
   must(ui.includes(page),`Pharmacy UI page missing: ${page}`);
@@ -25,9 +26,6 @@ must(index.indexOf(`pharmacy-engine.js?v=${version}`)>=0,'Pharmacy engine asset 
 must(index.indexOf(`pharmacy-ui.js?v=${version}`)>index.indexOf(`pharmacy-engine.js?v=${version}`),'Pharmacy UI must load after Pharmacy engine');
 must(sw.includes(`pharmacy-engine.js?v=${version}`)&&sw.includes(`pharmacy-ui.js?v=${version}`),'Pharmacy assets missing from service worker cache');
 
-// Reproduce the Beta30 failure mode without DOM: the UI could not see the
-// lexical app.js Runtime Config. The Beta31 engine must expose a safe getter
-// that resolves the canonical cached profile as pharmacy.
 let registered=null;
 const sandbox={
   console,
