@@ -1,12 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.21",
+  "version": "10.5.4-beta.22",
   "channel": "beta",
   "source": "github",
-  "windows": {
-    "supported": "Windows 7 x64",
-    "electron": "22.3.27",
-    "electronBuilder": "22.10.5"
-  },
-  "notes": "Beta-only Self-Test Center foundation for SH-0007. Adds read-only Runtime/Connection/Retail/Website/Reports/Update diagnostics plus manual sound/printer confirmations. Production Stable remains unchanged."
+  "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
+  "notes": "Beta-only Retail runtime acceptance fixes: staged website alert sound, direct weight entry modal, Retail decimal settings refresh, and exported EAN13 diagnostic validator. Update Health stale-pending root cause is diagnosed separately; Production Stable remains unchanged."
 }
