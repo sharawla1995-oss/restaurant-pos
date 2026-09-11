@@ -95,8 +95,28 @@ function testCapabilityBridge(){
   const cached=core.loadCache('runtime','test-business');
   must(cached&&cached.runtime_contract==='v2'&&core.featureEnabled(cached,'food.kitchen'),'V2 capability config must survive cache roundtrip');
 }
+function testShellWiring(){
+  const pkg=JSON.parse(read('package.json'));
+  const version=String(pkg.version||'');
+  must(version==='10.5.4-beta.33','package version must be Beta33');
+  const index=read('index.html'),sw=read('sw.js');
+  const assets=['sharawla-capabilities-beta33.js','sharawla-capability-runtime-bridge.js','sharawla-cloud-runtime-v2.js'];
+  for(const asset of assets){
+    must(index.includes(`${asset}?v=${version}`),`index is missing ${asset}`);
+    must(sw.includes(`./${asset}?v=${version}`),`service worker shell is missing ${asset}`);
+    must(sw.includes(`url.pathname.endsWith('/${asset}')`),`service worker fetch policy is missing ${asset}`);
+  }
+  const pBase=index.indexOf(`sharawla-capabilities.js?v=${version}`);
+  const pExt=index.indexOf(`sharawla-capabilities-beta33.js?v=${version}`);
+  const pBridge=index.indexOf(`sharawla-capability-runtime-bridge.js?v=${version}`);
+  const pTransport=index.indexOf(`sharawla-cloud-runtime-v2.js?v=${version}`);
+  const pEngine=index.indexOf(`restaurant-engine.js?v=${version}`);
+  const pApp=index.indexOf(`app.js?v=${version}`);
+  must(pBase>=0&&pExt>pBase&&pBridge>pExt&&pTransport>pBridge&&pEngine>pTransport&&pApp>pEngine,'Beta33 script load order is unsafe');
+}
 (async()=>{
   await testTransport();
   testCapabilityBridge();
+  testShellWiring();
   console.log('Beta33 Cloud Runtime V2 gate OK.');
 })().catch(e=>{console.error(e);process.exit(1)});
