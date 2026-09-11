@@ -96,7 +96,7 @@
   const REPORT_ORDER_TYPES=Object.freeze([
     Object.freeze({code:'takeaway',label:'بيع تجزئة'}),
     Object.freeze({code:'pickup',label:'استلام من الفرع'}),
-    Object.freeze({code:'delivery',label:'توصيل'})
+    Object.freeze({code:"delivery",label:'توصيل'})
   ]);
 
   // Commercial rule for Retail promotions.
