@@ -1,12 +1,12 @@
-const CACHE='sharawla-pos-v10.5.4-beta.20';
-const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.20','./update-indicators.css?v=10.5.4-beta.20','./sharawla-runtime-core.js?v=10.5.4-beta.20','./restaurant-engine.js?v=10.5.4-beta.20','./retail-engine.js?v=10.5.4-beta.20','./retail-website-pos.js?v=10.5.4-beta.20','./version-ui.js?v=10.5.4-beta.20','./update-ui.js?v=10.5.4-beta.20','./app.js?v=10.5.4-beta.20','./profile-parity-ui.js?v=10.5.4-beta.20','./manifest.json','./icon-192.png','./icon-512.png'];
+const CACHE='sharawla-pos-v10.5.4-beta.21';
+const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.21','./update-indicators.css?v=10.5.4-beta.21','./sharawla-runtime-core.js?v=10.5.4-beta.21','./restaurant-engine.js?v=10.5.4-beta.21','./retail-engine.js?v=10.5.4-beta.21','./retail-website-pos.js?v=10.5.4-beta.21','./version-ui.js?v=10.5.4-beta.21','./update-ui.js?v=10.5.4-beta.21','./app.js?v=10.5.4-beta.21','./profile-parity-ui.js?v=10.5.4-beta.21','./beta-self-test.js?v=10.5.4-beta.21','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
-  const isApp=url.pathname.endsWith('/')||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/app.js')||url.pathname.endsWith('/sharawla-runtime-core.js')||url.pathname.endsWith('/restaurant-engine.js')||url.pathname.endsWith('/retail-engine.js')||url.pathname.endsWith('/retail-website-pos.js')||url.pathname.endsWith('/profile-parity-ui.js')||url.pathname.endsWith('/styles.css')||url.pathname.endsWith('/update-indicators.css')||url.pathname.endsWith('/version-ui.js')||url.pathname.endsWith('/update-ui.js')||event.request.mode==='navigate';
+  const isApp=url.pathname.endsWith('/')||url.pathname.endsWith('/index.html')||url.pathname.endsWith('/app.js')||url.pathname.endsWith('/sharawla-runtime-core.js')||url.pathname.endsWith('/restaurant-engine.js')||url.pathname.endsWith('/retail-engine.js')||url.pathname.endsWith('/retail-website-pos.js')||url.pathname.endsWith('/profile-parity-ui.js')||url.pathname.endsWith('/beta-self-test.js')||url.pathname.endsWith('/styles.css')||url.pathname.endsWith('/update-indicators.css')||url.pathname.endsWith('/version-ui.js')||url.pathname.endsWith('/update-ui.js')||event.request.mode==='navigate';
   if(isApp){
     event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response}).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('./index.html'))));
     return;
