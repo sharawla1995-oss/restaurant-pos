@@ -18,6 +18,7 @@ on:
       - beta30-pharmacy-complete
       - beta31-pharmacy-ui-hotfix
       - beta32-capability-platform-foundation
+      - beta33-cloud-runtime-v2
   workflow_dispatch:
 
 permissions:
@@ -32,7 +33,7 @@ jobs:
       - name: Required source preflight
         shell: pwsh
         run: |
-          $required = @("package.json","scripts/sync-version.js","scripts/check-version.js","scripts/check-owner-diagnostics.js","scripts/check-beta28-fixes.js","scripts/check-beta29-functional.js","scripts/check-beta30-pharmacy.js","scripts/check-beta31-pharmacy-ui.js","scripts/check-beta32-capabilities.js","sharawla-capabilities.js","beta28-runtime-fixes.js","beta29-retail-functional-finalization.js","pharmacy-engine.js","pharmacy-ui.js",".github/workflows/build-windows-release.yml","version-ui.js")
+          $required = @("package.json","scripts/sync-version.js","scripts/check-version.js","scripts/check-owner-diagnostics.js","scripts/check-beta28-fixes.js","scripts/check-beta29-functional.js","scripts/check-beta30-pharmacy.js","scripts/check-beta31-pharmacy-ui.js","scripts/check-beta32-capabilities.js","scripts/check-beta33-cloud-runtime-v2.js","sharawla-capabilities.js","sharawla-capabilities-beta33.js","sharawla-capability-runtime-bridge.js","sharawla-cloud-runtime-v2.js","beta28-runtime-fixes.js","beta29-retail-functional-finalization.js","pharmacy-engine.js","pharmacy-ui.js",".github/workflows/build-windows-release.yml","version-ui.js")
           foreach ($file in $required) { if (-not (Test-Path $file)) { throw "Required source file missing: $file" } }
       - name: Read version
         id: ver
