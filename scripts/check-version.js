@@ -14,24 +14,16 @@ if(!Array.isArray(pkg.build?.files)||!pkg.build.files.includes('!**/*.zip'))thro
 
 const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),main=read('main.js'),preload=read('preload.js'),updateUi=read('update-ui.js');
 if(!/id="appVersionBadge">V—<\/small>/.test(index))throw new Error('Version badge must remain runtime-driven');
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js','pharmacy-ui.js'];
 for(const asset of direct){if(!index.includes(`${asset}?v=${version}`))throw new Error(`index cache version mismatch: ${asset}`);if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW shell version mismatch: ${asset}`)}
 for(const asset of ['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'])if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW dynamic Retail asset mismatch: ${asset}`);
 if(!sw.includes(`const CACHE='sharawla-pos-v${version}';`))throw new Error('Service worker cache name not synchronized');
 if(index.includes('beta-self-test.js?v='))throw new Error('Public Beta Self-Test must not auto-load');
 if(!index.includes(`owner-diagnostics.js?v=${version}`))throw new Error('Owner diagnostics must be loaded globally');
 
-// Canonical fingerprint / Business Connection invariants.
-for(const token of [
-  "const canonical=String(st.device_fingerprint||'').trim();",
-  'if(canonical)return [canonical];',
-  "cloudRpc('verify_sharawla_device'",
-  "cloudRpc('get_sharawla_business_connection'",
-  "if(String(d.business_id)!==String(st.business_id))"
-])if(!app.includes(token))throw new Error(`Canonical/Business Connection invariant missing: ${token}`);
+for(const token of ["const canonical=String(st.device_fingerprint||'').trim();",'if(canonical)return [canonical];',"cloudRpc('verify_sharawla_device'","cloudRpc('get_sharawla_business_connection'","if(String(d.business_id)!==String(st.business_id))"])if(!app.includes(token))throw new Error(`Canonical/Business Connection invariant missing: ${token}`);
 if(app.includes('MachineGuid'))throw new Error('MachineGuid fallback must not be reintroduced into app runtime');
 
-// Update Part 3 protected flow.
 for(const token of ['function updateOfflineQueueState()','function createPreUpdateBackup(remoteVersion)','async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})',"checkForWindowsUpdate({interactive:true,checkOnly:true})","state:'blocked-offline'","state:'backup-ready'"])if(!main.includes(token))throw new Error(`Protected updater invariant missing: ${token}`);
 const updater=main.indexOf('async function checkForWindowsUpdate({interactive=false,checkOnly=false}={})');
 const available=main.indexOf("sendUpdateProgress({state:'available'",updater);
@@ -52,7 +44,6 @@ if(!preload.includes("safety:()=>ipcRenderer.invoke('update:safety')"))throw new
 if(!updateUi.includes('refreshSafety'))throw new Error('Update Center safety refresh missing');
 if(!index.includes('id="updateOfflineQueueValue"')||!index.includes('id="updateBackupValue"'))throw new Error('Update Center safety fields missing');
 
-// Retail finalization + shared Delivery Module. Delivery is not Restaurant leakage.
 const retail=read('retail-engine.js'),checkout=read('beta23-full-retail.js');
 for(const token of ["code:'retail'","phase:'retail-delivery-finalization'","deliveryOrders:'delivery'","deliverySettings:'delivery'","{code:'delivery',label:'توصيل'}"])if(!retail.includes(token))throw new Error(`Retail delivery contract missing: ${token}`);
 const allPagesMatch=retail.match(/const ALL_PAGES=Object\.freeze\(\[([^\]]+)\]\)/);
@@ -62,7 +53,10 @@ if(allPagesMatch[1].includes("'kitchen'")||allPagesMatch[1].includes("'tables'")
 for(const token of ["rows('delivery_drivers'","rows('delivery_zones'",'function start(){observe()}'])if(!checkout.includes(token))throw new Error(`Retail POS delivery wiring missing: ${token}`);
 if(checkout.includes("rows('drivers'"))throw new Error('Retail POS must use delivery_drivers table');
 
-// Owner-only diagnostics contract. No plaintext owner secret may be embedded in source.
+const pharmacy=read('pharmacy-engine.js'),pharmacyUi=read('pharmacy-ui.js');
+for(const token of ["code:'pharmacy'",'pharmacyCatalog','pharmacyBatches','pharmacyPrescriptions','pharmacyInsurance','pharmacyClaims'])if(!pharmacy.includes(token))throw new Error(`Pharmacy profile contract missing: ${token}`);
+for(const token of ['create_pharmacy_pos_order_atomic','pharmacy_receive_batch','pharmacy_update_claim_status','allocateBatches'])if(!pharmacyUi.includes(token))throw new Error(`Pharmacy UI contract missing: ${token}`);
+
 const owner=read('owner-diagnostics.js');
 for(const token of ['verify_sharawla_owner_diagnostics_access','ACCESS_TTL_MS=30*60*1000',"e.ctrlKey&&e.shiftKey&&e.key==='F12'",'runNegativeStockSandbox'])if(!owner.includes(token))throw new Error(`Owner diagnostics invariant missing: ${token}`);
 for(const token of ['OWNER_CODE=','OWNER_PASSWORD=','localStorage.setItem(\'owner','sessionStorage.setItem(\'owner'])if(owner.includes(token))throw new Error(`Owner diagnostics secret persistence forbidden: ${token}`);
