@@ -11,6 +11,7 @@ on:
       - beta22-runtime-acceptance-fixes
       - beta23-full-retail-candidate
       - beta25-retail-finalization
+      - beta26-retail-ui-delivery-finalization
   workflow_dispatch:
 
 permissions:
