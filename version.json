@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.20",
+  "version": "10.5.4-beta.21",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Engine startup hotfix: fixes a JavaScript syntax error in Retail Engine registration discovered by SH-0007 runtime validation after beta.19, adds an explicit registration self-check, and adds a build-time runtime JavaScript syntax gate. Beta-only; Production Stable remains unchanged."
+  "notes": "Beta-only Self-Test Center foundation for SH-0007. Adds read-only Runtime/Connection/Retail/Website/Reports/Update diagnostics plus manual sound/printer confirmations. Production Stable remains unchanged."
 }
