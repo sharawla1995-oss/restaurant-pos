@@ -15,8 +15,8 @@ const index = read('index.html');
 const sw = read('sw.js');
 const app = read('app.js');
 if (!/id="appVersionBadge">V—<\/small>/.test(index)) throw new Error('Version badge must be runtime-driven and contain no hardcoded app version.');
-for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js']) {
-  if (!index.includes(`${asset}?v=${packageVersion}`)) throw new Error(`index.html cache reference mismatch for ${asset}`);
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','retail-website-pos.js','profile-parity-ui.js','app.js']) {
+  if (!index.includes(`${asset}?v=${packageVersion}`) && asset !== 'retail-website-pos.js') throw new Error(`index.html cache reference mismatch for ${asset}`);
   if (!sw.includes(`./${asset}?v=${packageVersion}`)) throw new Error(`sw.js cache reference mismatch for ${asset}`);
 }
 if (!sw.includes(`const CACHE='sharawla-pos-v${packageVersion}';`)) throw new Error('sw.js cache name is not synchronized.');
@@ -83,9 +83,6 @@ if (loginStart < 0 || appStart < 0 || updateEntry < 0 || !(loginStart < updateEn
 if ((index.match(/id="updateCenterMenuBtn"/g)||[]).length !== 1) throw new Error('Update Center entry must exist exactly once.');
 if (!app.includes("data?.state==='idle'||data?.state==='up-to-date'")) throw new Error('Bottom desktop update widget must stay hidden for up-to-date state.');
 
-
-
-
 // V10.5.4-beta.10 FINAL MERGED Update Safety invariants.
 const indicators = read('update-indicators.css');
 for (const forbidden of ['.cart{','.cart-items{','.cart-foot{','.delivery-fields{','.pay-actions{']) {
@@ -113,7 +110,6 @@ const rollbackPrep = main.indexOf("prepareRollbackCandidate({local,remote,backup
 const spawnAfterPrep = main.indexOf("spawn(target,['/S']", rollbackPrep);
 if (!(backupReadyForSpawn >= 0 && rollbackPrep > backupReadyForSpawn && spawnAfterPrep > rollbackPrep)) throw new Error('Pending update state must be committed after backup and before spawn.');
 
-
 // V10.5.4-beta.12 FINAL MASTER CANDIDATE — Previous LKG invariants.
 for (const token of [
   'previousLastKnownGood:safety.previousLastKnownGood||null',
@@ -135,8 +131,7 @@ if (!(rollbackFnStart >= 0 && rollbackTargetUse > rollbackFnStart && rollbackDow
   throw new Error('Rollback must resolve Previous/Current LKG target before downloading the installer.');
 }
 
-
-// V10.5.4-beta.15 Retail Inventory Foundation invariants.
+// V10.5.4-beta.15+ Retail foundation invariants.
 const runtimeCore = read('sharawla-runtime-core.js');
 const restaurantEngine = read('restaurant-engine.js');
 const retailEngine = read('retail-engine.js');
@@ -144,11 +139,11 @@ const appSource = read('app.js');
 const retailInventorySql = read('supabase-v10-5-4-beta15-retail-inventory-foundation.sql');
 if (!runtimeCore.includes('bootstrapDefault===true')) throw new Error('Runtime Core must support an explicit bootstrap default engine.');
 if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restaurant must remain the bootstrap compatibility default.');
-for (const token of ["code:'retail'","phase:'market-test-candidate'","'home','pos','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'","returns:'returns'","pos:'pos'"]) {
+for (const token of ["code:'retail'","phase:'core-parity-fix-pack'","'home','pos','orders','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'","orders:'pos'","returns:'returns'","pos:'pos'"]) {
   if (!retailEngine.includes(token)) throw new Error(`Retail foundation missing: ${token}`);
 }
-for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'orders'"]) {
-  if (retailEngine.includes(forbidden)) throw new Error(`Retail beta.15 must not expose Restaurant-only page: ${forbidden}`);
+for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'"]) {
+  if (retailEngine.includes(forbidden)) throw new Error(`Retail must not expose Restaurant-only page: ${forbidden}`);
 }
 for (const token of [
   'async function renderRetailPOS()',
@@ -184,17 +179,14 @@ if (!(index.indexOf(`restaurant-engine.js?v=${packageVersion}`) < index.indexOf(
   throw new Error('Engine script order must be Runtime Core -> Restaurant -> Retail -> app.js.');
 }
 
-console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
-
 // V10.5.4 beta.16 Retail Suppliers & Purchasing invariants.
 const retailEngineBeta16 = read('retail-engine.js');
 const beta16Sql = read('supabase-v10-5-4-beta16-retail-suppliers-purchasing.sql');
-for (const token of ["suppliers:'inventory'","purchasing:'inventory'","phase:'market-test-candidate'"]) if (!retailEngineBeta16.includes(token)) throw new Error(`beta.16 Retail Engine invariant missing: ${token}`);
+for (const token of ["suppliers:'inventory'","purchasing:'inventory'"]) if (!retailEngineBeta16.includes(token)) throw new Error(`beta.16 Retail Engine invariant missing: ${token}`);
 for (const token of ['retail_purchase_orders','retail_goods_receipts','retail_purchase_receive','average_unit_cost','supplier_return']) if (!beta16Sql.includes(token)) throw new Error(`beta.16 SQL invariant missing: ${token}`);
 for (const token of ['renderRetailSuppliers','renderRetailPurchasing','retail_purchase_order_create','retail_purchase_receive','retail_supplier_return_create']) if (!app.includes(token)) throw new Error(`beta.16 UI invariant missing: ${token}`);
 
-
-// V10.5.4-beta.17 Retail / Supermarket Market Test Candidate invariants.
+// V10.5.4-beta.17 Retail / Supermarket Market foundation invariants.
 const beta17Sql = read('supabase-v10-5-4-beta17-retail-market-core.sql');
 for (const token of ['retail_product_settings','retail_offers','retail_suspended_sales','retail_stock_counts','retail_transfers','retail_stock_reservations','retail_catalog','retail_reserve_stock']) {
   if (!beta17Sql.includes(token)) throw new Error(`beta.17 Market SQL invariant missing: ${token}`);
@@ -202,6 +194,26 @@ for (const token of ['retail_product_settings','retail_offers','retail_suspended
 for (const token of ['decodeRetailEmbeddedBarcode','retailOfferDiscount','renderRetailMarketSettings','renderRetailOffers','renderRetailStockCount','renderRetailTransfers','retail_suspend_sale']) {
   if (!app.includes(token)) throw new Error(`beta.17 Market UI invariant missing: ${token}`);
 }
-for (const token of ["marketSettings:'inventory'","retailOffers:'pos'","stockCount:'inventory'","transfers:'inventory'","websiteManagement:'website'","phase:'market-test-candidate'"]) {
+for (const token of ["marketSettings:'inventory'","retailOffers:'pos'","stockCount:'inventory'","transfers:'inventory'","websiteManagement:'website'"]) {
   if (!retailEngine.includes(token)) throw new Error(`beta.17 Retail Engine invariant missing: ${token}`);
 }
+
+// V10.5.4-beta.19 Core Parity invariants.
+const parityUi = read('profile-parity-ui.js');
+const retailWebsite = read('retail-website-pos.js');
+for (const token of ['shiftCloseBlockers','reportOrderTypes']) {
+  if (!runtimeCore.includes(token)) throw new Error(`Core parity contract missing: ${token}`);
+  if (!restaurantEngine.includes(token)) throw new Error(`Restaurant parity implementation missing: ${token}`);
+  if (!retailEngine.includes(token)) throw new Error(`Retail parity implementation missing: ${token}`);
+}
+for (const token of ['function ean13Valid(raw)','wireRetailShiftClose','enforceRetailReportTypes','[data-prep]']) {
+  if (!parityUi.includes(token)) throw new Error(`beta.19 parity UI invariant missing: ${token}`);
+}
+for (const token of ['showRejectModal','Retail Website','reservation_expires_at']) {
+  if (!retailWebsite.includes(token)) throw new Error(`beta.19 Retail Website invariant missing: ${token}`);
+}
+if (!(index.indexOf(`app.js?v=${packageVersion}`) < index.indexOf(`profile-parity-ui.js?v=${packageVersion}`))) {
+  throw new Error('profile-parity-ui.js must load after app.js.');
+}
+
+console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
