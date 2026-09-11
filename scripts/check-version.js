@@ -144,16 +144,16 @@ const appSource = read('app.js');
 const retailInventorySql = read('supabase-v10-5-4-beta15-retail-inventory-foundation.sql');
 if (!runtimeCore.includes('bootstrapDefault===true')) throw new Error('Runtime Core must support an explicit bootstrap default engine.');
 if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restaurant must remain the bootstrap compatibility default.');
-for (const token of ["code:'retail'","phase:'purchasing-foundation'","'home','pos','customers','shifts','inventory','suppliers','purchasing','returns','expenses','products','reports','users','settings'","returns:'returns'","pos:'pos'"]) {
+for (const token of ["code:'retail'","phase:'market-test-candidate'","'home','pos','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'","returns:'returns'","pos:'pos'"]) {
   if (!retailEngine.includes(token)) throw new Error(`Retail foundation missing: ${token}`);
 }
-for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'websiteManagement'","'orders'"]) {
+for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'","'orders'"]) {
   if (retailEngine.includes(forbidden)) throw new Error(`Retail beta.15 must not expose Restaurant-only page: ${forbidden}`);
 }
 for (const token of [
-  'function renderRetailPOS()',
+  'async function renderRetailPOS()',
   'function findRetailProductByBarcode(code)',
-  'function addRetailProductToCart(p)',
+  'function addRetailProductToCart(p,forcedQty=null)',
   "moduleEnabled('barcode')",
   'async function renderRetailInventory()',
   "create_retail_pos_order_atomic",
@@ -189,6 +189,19 @@ console.log(`Version check OK: ${packageVersion} (${expectedChannel})`);
 // V10.5.4 beta.16 Retail Suppliers & Purchasing invariants.
 const retailEngineBeta16 = read('retail-engine.js');
 const beta16Sql = read('supabase-v10-5-4-beta16-retail-suppliers-purchasing.sql');
-for (const token of ["suppliers:'inventory'","purchasing:'inventory'","phase:'purchasing-foundation'"]) if (!retailEngineBeta16.includes(token)) throw new Error(`beta.16 Retail Engine invariant missing: ${token}`);
+for (const token of ["suppliers:'inventory'","purchasing:'inventory'","phase:'market-test-candidate'"]) if (!retailEngineBeta16.includes(token)) throw new Error(`beta.16 Retail Engine invariant missing: ${token}`);
 for (const token of ['retail_purchase_orders','retail_goods_receipts','retail_purchase_receive','average_unit_cost','supplier_return']) if (!beta16Sql.includes(token)) throw new Error(`beta.16 SQL invariant missing: ${token}`);
 for (const token of ['renderRetailSuppliers','renderRetailPurchasing','retail_purchase_order_create','retail_purchase_receive','retail_supplier_return_create']) if (!app.includes(token)) throw new Error(`beta.16 UI invariant missing: ${token}`);
+
+
+// V10.5.4-beta.17 Retail / Supermarket Market Test Candidate invariants.
+const beta17Sql = read('supabase-v10-5-4-beta17-retail-market-core.sql');
+for (const token of ['retail_product_settings','retail_offers','retail_suspended_sales','retail_stock_counts','retail_transfers','retail_stock_reservations','retail_catalog','retail_reserve_stock']) {
+  if (!beta17Sql.includes(token)) throw new Error(`beta.17 Market SQL invariant missing: ${token}`);
+}
+for (const token of ['decodeRetailEmbeddedBarcode','retailOfferDiscount','renderRetailMarketSettings','renderRetailOffers','renderRetailStockCount','renderRetailTransfers','retail_suspend_sale']) {
+  if (!app.includes(token)) throw new Error(`beta.17 Market UI invariant missing: ${token}`);
+}
+for (const token of ["marketSettings:'inventory'","retailOffers:'pos'","stockCount:'inventory'","transfers:'inventory'","websiteManagement:'website'","phase:'market-test-candidate'"]) {
+  if (!retailEngine.includes(token)) throw new Error(`beta.17 Retail Engine invariant missing: ${token}`);
+}
