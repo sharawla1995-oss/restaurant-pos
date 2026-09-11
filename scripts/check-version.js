@@ -14,12 +14,13 @@ if(!Array.isArray(pkg.build?.files)||!pkg.build.files.includes('!**/*.zip'))thro
 
 const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),main=read('main.js'),preload=read('preload.js'),updateUi=read('update-ui.js');
 if(!/id="appVersionBadge">V—<\/small>/.test(index))throw new Error('Version badge must remain runtime-driven');
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js','pharmacy-ui.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js','restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js','pharmacy-ui.js'];
 for(const asset of direct){if(!index.includes(`${asset}?v=${version}`))throw new Error(`index cache version mismatch: ${asset}`);if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW shell version mismatch: ${asset}`)}
 for(const asset of ['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'])if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW dynamic Retail asset mismatch: ${asset}`);
 if(!sw.includes(`const CACHE='sharawla-pos-v${version}';`))throw new Error('Service worker cache name not synchronized');
 if(index.includes('beta-self-test.js?v='))throw new Error('Public Beta Self-Test must not auto-load');
 if(!index.includes(`owner-diagnostics.js?v=${version}`))throw new Error('Owner diagnostics must be loaded globally');
+if(!(index.indexOf(`sharawla-runtime-core.js?v=${version}`)<index.indexOf(`sharawla-capabilities.js?v=${version}`)&&index.indexOf(`sharawla-capabilities.js?v=${version}`)<index.indexOf(`restaurant-engine.js?v=${version}`)))throw new Error('Capability registry must load after Runtime Core and before profile engines');
 
 for(const token of ["const canonical=String(st.device_fingerprint||'').trim();",'if(canonical)return [canonical];',"cloudRpc('verify_sharawla_device'","cloudRpc('get_sharawla_business_connection'","if(String(d.business_id)!==String(st.business_id))"])if(!app.includes(token))throw new Error(`Canonical/Business Connection invariant missing: ${token}`);
 if(app.includes('MachineGuid'))throw new Error('MachineGuid fallback must not be reintroduced into app runtime');
@@ -43,6 +44,9 @@ for(const token of ['db.export()','process.pid','Date.now()','crypto.randomBytes
 if(!preload.includes("safety:()=>ipcRenderer.invoke('update:safety')"))throw new Error('Update safety preload bridge missing');
 if(!updateUi.includes('refreshSafety'))throw new Error('Update Center safety refresh missing');
 if(!index.includes('id="updateOfflineQueueValue"')||!index.includes('id="updateBackupValue"'))throw new Error('Update Center safety fields missing');
+
+const capabilities=read('sharawla-capabilities.js');
+for(const token of ["global.SharawlaCapabilities","logistics.shipments","membership.subscriptions","pharmacy.prescriptions","function validateSelection(values)","function resolveRuntime(config)"])if(!capabilities.includes(token))throw new Error(`Capability foundation missing: ${token}`);
 
 const retail=read('retail-engine.js'),checkout=read('beta23-full-retail.js');
 for(const token of ["code:'retail'","phase:'retail-delivery-finalization'","deliveryOrders:'delivery'","deliverySettings:'delivery'","{code:'delivery',label:'توصيل'}"])if(!retail.includes(token))throw new Error(`Retail delivery contract missing: ${token}`);
