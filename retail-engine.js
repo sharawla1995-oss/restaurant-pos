@@ -91,12 +91,12 @@
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
+  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)]));
 
   const REPORT_ORDER_TYPES=Object.freeze([
     Object.freeze({code:'takeaway',label:'بيع تجزئة'}),
     Object.freeze({code:'pickup',label:'استلام من الفرع'}),
-    Object.freeze({code:'delivery',label:'توصيل'})
+    Object.freeze({code:"delivery",label:'توصيل'})
   ]);
 
   // Commercial rule for Retail promotions.
