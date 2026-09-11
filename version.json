@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.23",
+  "version": "10.5.4-beta.27",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Full Retail Candidate with comprehensive Beta-only acceptance suite: immediate sale, pickup, delivery (no dine-in), inventory, decimal/weight, EAN13, returns, idempotency, payment reconciliation, suppliers/purchasing, GRN, offers, stock count, transfers, website/reservations, notifications, offline/update health, printer diagnostics, and optional hard-locked transactional sandbox. Production Stable remains unchanged."
+  "notes": "Retail Delivery final fix pack with shared Delivery Module routes, reliable POS delivery selector, owner-only cross-profile diagnostics, corrected route-based Home parity checks, and Beta-only negative-stock enforcement validation. Production Stable remains unchanged."
 }
