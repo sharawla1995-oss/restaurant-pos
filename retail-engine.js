@@ -9,37 +9,17 @@
   const PAGE_TITLES=Object.freeze({home:'الرئيسية',pos:'نقطة البيع',orders:'الفواتير',customers:'العملاء',shifts:'الورديات',inventory:'المخزون',suppliers:'الموردين',purchasing:'المشتريات والاستلام',marketSettings:'وحدات وباركود الوزن',retailOffers:'عروض الماركت',stockCount:'الجرد',transfers:'تحويلات الفروع',websiteManagement:'إدارة الموقع',returns:'المرتجعات',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'});
   const ALL_PAGES=Object.freeze(['home','pos','orders','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings']);
   const ROLE_PAGES=Object.freeze({admin:ALL_PAGES,cashier:Object.freeze(['home','pos','orders','customers','shifts','products','returns']),callcenter:Object.freeze(['home','orders','customers','products']),delivery:Object.freeze(['home'])});
-  const PERMISSION_DEFS=Object.freeze([
-    ['pos','نقطة البيع'],['orders','الفواتير'],['customers','العملاء'],['shifts','الورديات'],['inventory','المخزون'],['suppliers','الموردين'],['purchasing','المشتريات والاستلام'],['marketSettings','وحدات وباركود الوزن'],['retailOffers','عروض الماركت'],['stockCount','الجرد'],['transfers','تحويلات الفروع'],['websiteManagement','إدارة الموقع'],['returns','المرتجعات'],['expenses','المصروفات'],['products','الأصناف'],['reports','التقارير'],['settings','الإعدادات'],['branchManagement','🏪 إدارة الفروع'],['businessSettings','🎨 هوية وإعدادات النشاط'],['printingSettings','🖨️ إعدادات الطباعة'],['financialSettings','💳 طرق الدفع والضريبة والخدمة']
-  ].map(row=>Object.freeze(row)));
-  const PERMISSION_GROUPS=Object.freeze([
-    ['🧾 نقطة البيع',['pos','orders']],['📦 Retail',['customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','products','returns']],['📊 الإدارة',['expenses','reports','settings']],['🏪 الفروع',['branchManagement']],['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
+  const PERMISSION_DEFS=Object.freeze([['pos','نقطة البيع'],['orders','الفواتير'],['customers','العملاء'],['shifts','الورديات'],['inventory','المخزون'],['suppliers','الموردين'],['purchasing','المشتريات والاستلام'],['marketSettings','وحدات وباركود الوزن'],['retailOffers','عروض الماركت'],['stockCount','الجرد'],['transfers','تحويلات الفروع'],['websiteManagement','إدارة الموقع'],['returns','المرتجعات'],['expenses','المصروفات'],['products','الأصناف'],['reports','التقارير'],['settings','الإعدادات'],['branchManagement','🏪 إدارة الفروع'],['businessSettings','🎨 هوية وإعدادات النشاط'],['printingSettings','🖨️ إعدادات الطباعة'],['financialSettings','💳 طرق الدفع والضريبة والخدمة']].map(row=>Object.freeze(row)));
+  const PERMISSION_GROUPS=Object.freeze([['🧾 نقطة البيع',['pos','orders']],['📦 Retail',['customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','products','returns']],['📊 الإدارة',['expenses','reports','settings']],['🏪 الفروع',['branchManagement']],['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
   const REPORT_ORDER_TYPES=Object.freeze([Object.freeze({code:'takeaway',label:'بيع تجزئة'}),Object.freeze({code:'pickup',label:'استلام من الفرع'}),Object.freeze({code:"delivery",label:'توصيل'})]);
   const PROMOTION_STACK_POLICY=Object.freeze({automatic:'best_of_promo_or_offer',manual:'add_after_automatic_if_authorized',cap:'subtotal'});
 
-  core.registerEngine({
-    code:'retail',displayName:'Retail',phase:'runtime-acceptance-fixes',
-    resolveModules(modules,configured){return configured?core.normalizeModules(modules):[...LEGACY_MODULES]},
-    pageAllowed(config,page){if(!ALL_PAGES.includes(page))return false;const moduleCode=PAGE_MODULE[page]||null;return !moduleCode||core.moduleEnabled(config,moduleCode)},
-    pageOperationalAllowed(){return true},
-    shiftCloseBlockers(){return []},
-    reportOrderTypes(){return REPORT_ORDER_TYPES.map(x=>({...x}))},
-    promotionStackPolicy(){return {...PROMOTION_STACK_POLICY}},
-    pageTitle(page){return PAGE_TITLES[page]||page},
-    allPages(){return [...ALL_PAGES]},
-    rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)]},
-    permissionDefs(){return PERMISSION_DEFS.map(row=>[row[0],row[1]])},
-    permissionGroups(){return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]])}
-  });
+  core.registerEngine({code:'retail',displayName:'Retail',phase:'full-retail-candidate',resolveModules(modules,configured){return configured?core.normalizeModules(modules):[...LEGACY_MODULES]},pageAllowed(config,page){if(!ALL_PAGES.includes(page))return false;const moduleCode=PAGE_MODULE[page]||null;return !moduleCode||core.moduleEnabled(config,moduleCode)},pageOperationalAllowed(){return true},shiftCloseBlockers(){return []},reportOrderTypes(){return REPORT_ORDER_TYPES.map(x=>({...x}))},promotionStackPolicy(){return {...PROMOTION_STACK_POLICY}},pageTitle(page){return PAGE_TITLES[page]||page},allPages(){return [...ALL_PAGES]},rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)]},permissionDefs(){return PERMISSION_DEFS.map(row=>[row[0],row[1]])},permissionGroups(){return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]])}});
 
   if(!core.hasEngine('retail'))throw new Error('Retail Engine registration failed.');
   global.__SharawlaRetailEngineLoaded=true;
-
-  if(!document.querySelector('script[data-sharawla-retail-website-orders]')){
-    const s=document.createElement('script');s.src='retail-website-pos.js?v=10.5.4-beta.22';s.defer=true;s.dataset.sharawlaRetailWebsiteOrders='1';document.head.appendChild(s);
-  }
-  if(!document.querySelector('script[data-sharawla-beta22-runtime-fixes]')){
-    const s=document.createElement('script');s.src='beta22-runtime-fixes.js?v=10.5.4-beta.22';s.defer=true;s.dataset.sharawlaBeta22RuntimeFixes='1';document.head.appendChild(s);
-  }
+  const load=(key,src)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.defer=true;s.setAttribute(`data-${key}`,'1');document.head.appendChild(s)};
+  load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.23');
+  load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.23');
+  load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.23');
 })(window);
