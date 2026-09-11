@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - beta18-website-integration-foundation
+      - beta19-core-parity-fix-pack
   workflow_dispatch:
 
 permissions:
