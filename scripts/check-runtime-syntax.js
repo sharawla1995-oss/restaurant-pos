@@ -8,6 +8,7 @@ const files=[
   'retail-engine.js',
   'retail-website-pos.js',
   'profile-parity-ui.js',
+  'beta-self-test.js',
   'app.js'
 ];
 
