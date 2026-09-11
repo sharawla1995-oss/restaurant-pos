@@ -1,5 +1,5 @@
-const CACHE='sharawla-pos-v10.5.4-beta.19';
-const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.19','./update-indicators.css?v=10.5.4-beta.19','./sharawla-runtime-core.js?v=10.5.4-beta.19','./restaurant-engine.js?v=10.5.4-beta.19','./retail-engine.js?v=10.5.4-beta.19','./retail-website-pos.js?v=10.5.4-beta.19','./version-ui.js?v=10.5.4-beta.19','./update-ui.js?v=10.5.4-beta.19','./app.js?v=10.5.4-beta.19','./profile-parity-ui.js?v=10.5.4-beta.19','./manifest.json','./icon-192.png','./icon-512.png'];
+const CACHE='sharawla-pos-v10.5.4-beta.20';
+const SHELL=['./','./index.html','./styles.css?v=10.5.4-beta.20','./update-indicators.css?v=10.5.4-beta.20','./sharawla-runtime-core.js?v=10.5.4-beta.20','./restaurant-engine.js?v=10.5.4-beta.20','./retail-engine.js?v=10.5.4-beta.20','./retail-website-pos.js?v=10.5.4-beta.20','./version-ui.js?v=10.5.4-beta.20','./update-ui.js?v=10.5.4-beta.20','./app.js?v=10.5.4-beta.20','./profile-parity-ui.js?v=10.5.4-beta.20','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
