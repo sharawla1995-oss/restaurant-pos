@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.22",
+  "version": "10.5.4-beta.23",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Beta-only Retail runtime acceptance fixes: staged website alert sound, direct weight entry modal, Retail decimal settings refresh, and exported EAN13 diagnostic validator. Update Health stale-pending root cause is diagnosed separately; Production Stable remains unchanged."
+  "notes": "Full Retail Candidate: Retail checkout with immediate sale, pickup and delivery (no dine-in), inventory, decimal/weight entry, returns, offers, stock count, transfers, suppliers/purchasing, website integration, staged notifications and Beta Self-Test diagnostics. Production Stable remains unchanged."
 }
