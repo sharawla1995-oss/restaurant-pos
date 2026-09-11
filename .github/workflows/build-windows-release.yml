@@ -7,6 +7,7 @@ on:
       - beta18-website-integration-foundation
       - beta19-core-parity-fix-pack
       - beta20-retail-engine-hotfix
+      - beta21-self-test-center
   workflow_dispatch:
 
 permissions:
@@ -132,7 +133,6 @@ jobs:
             }
           }
 
-          # Always enforce the release classification, even when this tag already existed.
           $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
 
           if (-not $releaseId) {
@@ -153,8 +153,6 @@ jobs:
               -f make_latest=true | Out-Null
           }
 
-          # Normalize ALL existing Beta releases on every build.
-          # This prevents an older beta tag from remaining Latest/Stable by mistake.
           $betaRows = gh api `
             --paginate `
             "repos/${{ github.repository }}/releases?per_page=100" `
@@ -176,7 +174,6 @@ jobs:
             Write-Host "Normalized beta release: $betaTag => prerelease=true, make_latest=false"
           }
 
-          # Fail if ANY beta release is still not a Pre-release.
           $badBetas = gh api `
             --paginate `
             "repos/${{ github.repository }}/releases?per_page=100" `
@@ -186,8 +183,6 @@ jobs:
             throw "Beta release classification enforcement failed. Still non-prerelease: $($badBetas -join ', ')"
           }
 
-          # Fail the workflow if GitHub did not keep the expected classification
-          # for the release being built right now.
           $actualPrerelease = gh api `
             "repos/${{ github.repository }}/releases/$releaseId" `
             --jq ".prerelease"
@@ -198,7 +193,6 @@ jobs:
             throw "Release classification mismatch for $tag. Expected prerelease=$expectedPrerelease, actual=$actualPrerelease"
           }
 
-          # Stable /releases/latest must never resolve to a beta tag.
           try {
             $latestStableTag = gh api `
               "repos/${{ github.repository }}/releases/latest" `
