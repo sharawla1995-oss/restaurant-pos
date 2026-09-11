@@ -16,5 +16,5 @@
   load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.23');
   load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.23');
   load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.23');
-  load('sharawla-beta23-candidate-self-test','beta23-candidate-self-test.js?v=10.5.4-beta.23');
+  load('sharawla-beta23-acceptance-suite','beta23-acceptance-suite.js?v=10.5.4-beta.23');
 })(window);
