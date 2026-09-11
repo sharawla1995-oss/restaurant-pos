@@ -42,6 +42,7 @@ function writeJsonAtomic(target,value){
     fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',flag:'wx'});made=true;
     try{const fd=fs.openSync(tmp,'r');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}
     fs.copyFileSync(tmp,target);
+    try{const fd=fs.openSync(target,'r+');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}
     const verify=JSON.parse(fs.readFileSync(target,'utf8'));
     if(!verify||typeof verify!=='object')throw new Error('stale pending recovery verification failed');
   }finally{if(made)try{fs.unlinkSync(tmp)}catch{}}
@@ -51,9 +52,10 @@ function appendRecoveryLog(userData,row){
 }
 function recoverStalePending(){
   if(recoveryAttempted)return false;
+  let userData;
+  try{userData=app.getPath('userData')}catch{return false}
   recoveryAttempted=true;
   try{
-    const userData=app.getPath('userData');
     const statePath=path.join(userData,'update-safety-state.json');
     if(!fs.existsSync(statePath))return false;
     const state=JSON.parse(fs.readFileSync(statePath,'utf8'));
@@ -85,15 +87,14 @@ function recoverStalePending(){
     appendRecoveryLog(userData,{stage:'STALE_PENDING_RECOVERY_PREPARED',transactionId:pending.id||null,staleTarget,currentVersion:current});
     return true;
   }catch(e){
-    try{appendRecoveryLog(app.getPath('userData'),{stage:'STALE_PENDING_RECOVERY_ERROR',error:String(e&&e.message||e)})}catch{}
+    appendRecoveryLog(userData,{stage:'STALE_PENDING_RECOVERY_ERROR',error:String(e&&e.message||e)});
     return false;
   }
 }
 
 // Try synchronously first so main.js sees the repaired target before its own
-// startup health check. The ready listener is a safe fallback for environments
-// where userData is not yet available this early.
+// startup health check. If userData is not available yet, retry before ready.
 recoverStalePending();
-if(!recoveryAttempted)app.once('ready',recoverStalePending);
+if(!recoveryAttempted)app.once('will-finish-launching',recoverStalePending);
 
 require('./main.js');
