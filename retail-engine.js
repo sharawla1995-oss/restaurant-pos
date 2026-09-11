@@ -5,7 +5,7 @@
   if(!core)throw new Error('SharawlaRuntimeCore must load before Retail Engine.');
 
   // Retail engine remains isolated from Restaurant delivery/kitchen/table rules.
-  // Beta.19 adds Core parity without importing Restaurant-only operations.
+  // Beta.20 hotfix preserves beta.19 Core Parity behavior and fixes engine startup.
   const LEGACY_MODULES=Object.freeze([
     'customers','expenses','inventory','reports','returns','pos','barcode'
   ]);
@@ -91,12 +91,12 @@
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)]));
+  ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
 
   const REPORT_ORDER_TYPES=Object.freeze([
     Object.freeze({code:'takeaway',label:'بيع تجزئة'}),
     Object.freeze({code:'pickup',label:'استلام من الفرع'}),
-    Object.freeze({code:"delivery",label:'توصيل'})
+    Object.freeze({code:'delivery',label:'توصيل'})
   ]);
 
   // Commercial rule for Retail promotions.
@@ -161,10 +161,13 @@
     }
   });
 
-  // Beta19 website integration stays isolated from app.js and Restaurant Engine.
+  if(!core.hasEngine('retail'))throw new Error('Retail Engine registration failed.');
+  global.__SharawlaRetailEngineLoaded=true;
+
+  // Website integration stays isolated from app.js and Restaurant Engine.
   if(!document.querySelector('script[data-sharawla-retail-website-orders]')){
     const s=document.createElement('script');
-    s.src='retail-website-pos.js?v=10.5.4-beta.19';
+    s.src='retail-website-pos.js?v=10.5.4-beta.20';
     s.defer=true;
     s.dataset.sharawlaRetailWebsiteOrders='1';
     document.head.appendChild(s);
