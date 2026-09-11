@@ -6,6 +6,7 @@ const pkgPath = path.join(root, 'package.json');
 const versionPath = path.join(root, 'version.json');
 const indexPath = path.join(root, 'index.html');
 const swPath = path.join(root, 'sw.js');
+const retailEnginePath = path.join(root, 'retail-engine.js');
 
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const version = String(pkg.version || '').trim();
@@ -24,9 +25,13 @@ for (const asset of ['styles.css','update-indicators.css','version-ui.js','updat
 }
 fs.writeFileSync(indexPath, index, 'utf8');
 
+let retailEngine = fs.readFileSync(retailEnginePath, 'utf8');
+retailEngine = retailEngine.replace(/retail-website-pos\.js\?v=[^']+/g, `retail-website-pos.js?v=${version}`);
+fs.writeFileSync(retailEnginePath, retailEngine, 'utf8');
+
 let sw = fs.readFileSync(swPath, 'utf8');
 sw = sw.replace(/const CACHE='sharawla-pos-v[^']+';/, `const CACHE='sharawla-pos-v${version}';`);
-for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js']) {
+for (const asset of ['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','retail-website-pos.js','app.js']) {
   sw = sw.replace(new RegExp('\\./' + escapeRe(asset) + '\\?v=[^\']+', 'g'), `./${asset}?v=${version}`);
 }
 fs.writeFileSync(swPath, sw, 'utf8');
