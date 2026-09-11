@@ -1,10 +1,6 @@
 (function(global){
   'use strict';
 
-  function runtimeConfig(){
-    try{return global.sharawlaRuntimeConfig||null}catch{return null}
-  }
-
   function isRetail(){
     try{return typeof global.runtimeAllPages==='function'&&global.runtimeAllPages().includes('marketSettings')}catch{return false}
   }
@@ -37,7 +33,8 @@
   function closeBlockers(orders){
     try{
       const core=global.SharawlaRuntimeCore;
-      if(core?.shiftCloseBlockers)return core.shiftCloseBlockers(runtimeConfig(),orders||[]);
+      const engine=core?.getEngine?.('retail');
+      if(typeof engine?.shiftCloseBlockers==='function')return engine.shiftCloseBlockers(Array.isArray(orders)?orders:[]);
     }catch{}
     return [];
   }
