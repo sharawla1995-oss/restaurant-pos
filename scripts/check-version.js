@@ -209,7 +209,7 @@ for (const token of ['shiftCloseBlockers','reportOrderTypes']) {
 for (const token of ['function ean13Valid(raw)','wireRetailShiftClose','enforceRetailReportTypes','[data-prep]']) {
   if (!parityUi.includes(token)) throw new Error(`beta.19 parity UI invariant missing: ${token}`);
 }
-for (const token of ['showRejectModal','Retail Website','reservation_expires_at']) {
+for (const token of ['openRejectModal','Retail Website','reservation_expires_at']) {
   if (!retailWebsite.includes(token)) throw new Error(`beta.19 Retail Website invariant missing: ${token}`);
 }
 if (!(index.indexOf(`app.js?v=${packageVersion}`) < index.indexOf(`profile-parity-ui.js?v=${packageVersion}`))) {
