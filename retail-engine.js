@@ -131,4 +131,14 @@
       return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]]);
     }
   });
+
+  // Beta18 website integration stays isolated from app.js and Restaurant Engine.
+  // The panel script self-enables only when the resolved runtime is Retail + Website.
+  if(!document.querySelector('script[data-sharawla-retail-website-orders]')){
+    const s=document.createElement('script');
+    s.src='retail-website-pos.js?v=10.5.4-beta.18';
+    s.defer=true;
+    s.dataset.sharawlaRetailWebsiteOrders='1';
+    document.head.appendChild(s);
+  }
 })(window);
