@@ -19,8 +19,8 @@ versionJson.channel = channel;
 fs.writeFileSync(versionPath, JSON.stringify(versionJson, null, 2) + '\n', 'utf8');
 
 function escapeRe(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-const directAssets=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js','profile-parity-ui.js','beta-self-test.js'];
-const dynamicRetailAssets=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','beta23-acceptance-suite.js','retail-finalization-ui.js','beta26-ui-delivery-acceptance.js'];
+const directAssets=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','restaurant-engine.js','retail-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js'];
+const dynamicRetailAssets=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'];
 
 let index = fs.readFileSync(indexPath, 'utf8');
 for (const asset of directAssets) index = index.replace(new RegExp(escapeRe(asset) + '\\?v=[^\"]+', 'g'), `${asset}?v=${version}`);
