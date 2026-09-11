@@ -3,7 +3,8 @@ const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
-if(pkg.version!=='10.5.4-beta.23')throw new Error(`Expected beta.23 package, got ${pkg.version}`);
+const versionMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+if(!versionMatch||Number(versionMatch[1])<23)throw new Error(`Expected 10.5.4-beta.23 or later beta candidate, got ${pkg.version}`);
 const suite=read('beta23-acceptance-suite.js');
 const engine=read('retail-engine.js');
 const sw=read('sw.js');
@@ -25,4 +26,4 @@ if(!sw.includes("./beta23-acceptance-suite.js?v=10.5.4-beta.23"))throw new Error
 if(!sw.includes("./beta23-full-retail.js?v=10.5.4-beta.23"))throw new Error('Service worker does not cache beta23 full retail runtime');
 if(!suite.includes("confirm('سيتم إنشاء بيع ومرتجع SELFTEST داخل Beta TEST فقط. متابعة؟')"))throw new Error('Transactional sandbox operator confirmation missing');
 if(!suite.includes("business===BETA_BUSINESS_ID&&host===BETA_OPERATIONAL_HOST"))throw new Error('Transactional sandbox hard beta lock missing');
-console.log('Beta23 Full Retail acceptance gate OK');
+console.log(`Beta23 Full Retail acceptance gate OK on ${pkg.version}`);
