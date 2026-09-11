@@ -8,6 +8,7 @@ on:
       - beta19-core-parity-fix-pack
       - beta20-retail-engine-hotfix
       - beta21-self-test-center
+      - beta22-runtime-acceptance-fixes
   workflow_dispatch:
 
 permissions:
@@ -16,98 +17,55 @@ permissions:
 jobs:
   release:
     runs-on: windows-2022
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Required source preflight
         shell: pwsh
         run: |
-          $required = @(
-            "package.json",
-            "scripts/sync-version.js",
-            "scripts/check-version.js",
-            ".github/workflows/build-windows-release.yml",
-            "version-ui.js"
-          )
-          foreach ($file in $required) {
-            if (-not (Test-Path $file)) { throw "Required source file missing: $file" }
-          }
-
+          $required = @("package.json","scripts/sync-version.js","scripts/check-version.js",".github/workflows/build-windows-release.yml","version-ui.js")
+          foreach ($file in $required) { if (-not (Test-Path $file)) { throw "Required source file missing: $file" } }
       - name: Read version
         id: ver
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           $isBeta = [bool]($pkg.version -match '-beta(?:\.|$)')
-
           "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
           "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
           "prerelease=$isBeta" >> $env:GITHUB_OUTPUT
           "channel=$(if ($isBeta) { 'beta' } else { 'stable' })" >> $env:GITHUB_OUTPUT
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '16'
-
       - name: Stamp update repository
         shell: pwsh
         run: |
-          $cfg = @{
-            enabled = $true
-            owner = "${{ github.repository_owner }}"
-            repo = "${{ github.event.repository.name }}"
-            channel = "${{ steps.ver.outputs.channel }}"
-            checkEveryHours = 6
-          }
-
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "${{ steps.ver.outputs.channel }}"; checkEveryHours = 6 }
           $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
-
       - name: Install dependencies
         run: npm install
-
       - name: Verify version
         run: npm run check
-
       - name: Build Windows x64
         shell: pwsh
-        run: |
-          npm run dist -- --win --x64 --publish never
-
+        run: npm run dist -- --win --x64 --publish never
       - name: Save x64 installer
         shell: pwsh
         run: |
-          $exe = Get-ChildItem dist -Filter *.exe |
-            Where-Object { $_.Name -notmatch "ia32|x86" } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-
-          if (-not $exe) {
-            throw "x64 installer not found"
-          }
-
+          $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "x64 installer not found" }
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
-
       - name: Build Windows ia32
         shell: pwsh
-        run: |
-          npm run dist -- --win --ia32 --publish never
-
+        run: npm run dist -- --win --ia32 --publish never
       - name: Save ia32 installer
         shell: pwsh
         run: |
-          $exe = Get-ChildItem dist -Filter *.exe |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-
-          if (-not $exe) {
-            throw "ia32 installer not found"
-          }
-
+          $exe = Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "ia32 installer not found" }
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
-
       - name: Create or update GitHub Release
         shell: pwsh
         env:
@@ -115,97 +73,21 @@ jobs:
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
-
           gh release view $tag *> $null
-
           if ($LASTEXITCODE -ne 0) {
-            if ("${{ steps.ver.outputs.prerelease }}" -eq "True") {
-              gh release create $tag `
-                --target "${{ github.sha }}" `
-                --prerelease `
-                --title "Sharawla POS $version" `
-                --notes "Sharawla POS Windows beta release"
-            } else {
-              gh release create $tag `
-                --target "${{ github.sha }}" `
-                --title "Sharawla POS $version" `
-                --notes "Sharawla POS Windows stable release"
-            }
+            if ("${{ steps.ver.outputs.prerelease }}" -eq "True") { gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes "Sharawla POS Windows beta release" }
+            else { gh release create $tag --target "${{ github.sha }}" --title "Sharawla POS $version" --notes "Sharawla POS Windows stable release" }
           }
-
           $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
-
-          if (-not $releaseId) {
-            throw "Could not resolve GitHub Release ID for $tag"
-          }
-
-          if ("${{ steps.ver.outputs.prerelease }}" -eq "True") {
-            gh api `
-              --method PATCH `
-              "repos/${{ github.repository }}/releases/$releaseId" `
-              -F prerelease=true `
-              -f make_latest=false | Out-Null
-          } else {
-            gh api `
-              --method PATCH `
-              "repos/${{ github.repository }}/releases/$releaseId" `
-              -F prerelease=false `
-              -f make_latest=true | Out-Null
-          }
-
-          $betaRows = gh api `
-            --paginate `
-            "repos/${{ github.repository }}/releases?per_page=100" `
-            --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta"))) | "\(.id)|\(.tag_name)"'
-
-          foreach ($row in $betaRows) {
-            if (-not $row) { continue }
-
-            $parts = $row -split '\|', 2
-            $betaId = $parts[0]
-            $betaTag = $parts[1]
-
-            gh api `
-              --method PATCH `
-              "repos/${{ github.repository }}/releases/$betaId" `
-              -F prerelease=true `
-              -f make_latest=false | Out-Null
-
-            Write-Host "Normalized beta release: $betaTag => prerelease=true, make_latest=false"
-          }
-
-          $badBetas = gh api `
-            --paginate `
-            "repos/${{ github.repository }}/releases?per_page=100" `
-            --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta")) and (.prerelease != true)) | .tag_name'
-
-          if ($badBetas) {
-            throw "Beta release classification enforcement failed. Still non-prerelease: $($badBetas -join ', ')"
-          }
-
-          $actualPrerelease = gh api `
-            "repos/${{ github.repository }}/releases/$releaseId" `
-            --jq ".prerelease"
-
+          if (-not $releaseId) { throw "Could not resolve GitHub Release ID for $tag" }
+          if ("${{ steps.ver.outputs.prerelease }}" -eq "True") { gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -F prerelease=true -f make_latest=false | Out-Null }
+          else { gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -F prerelease=false -f make_latest=true | Out-Null }
+          $betaRows = gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta"))) | "\(.id)|\(.tag_name)"'
+          foreach ($row in $betaRows) { if (-not $row) { continue }; $parts = $row -split '\|', 2; $betaId = $parts[0]; $betaTag = $parts[1]; gh api --method PATCH "repos/${{ github.repository }}/releases/$betaId" -F prerelease=true -f make_latest=false | Out-Null; Write-Host "Normalized beta release: $betaTag => prerelease=true, make_latest=false" }
+          $badBetas = gh api --paginate "repos/${{ github.repository }}/releases?per_page=100" --jq '.[] | select((.draft == false) and (.tag_name | contains("-beta")) and (.prerelease != true)) | .tag_name'
+          if ($badBetas) { throw "Beta release classification enforcement failed. Still non-prerelease: $($badBetas -join ', ')" }
+          $actualPrerelease = gh api "repos/${{ github.repository }}/releases/$releaseId" --jq ".prerelease"
           $expectedPrerelease = "${{ steps.ver.outputs.prerelease }}".ToLower()
-
-          if ($actualPrerelease.ToLower() -ne $expectedPrerelease) {
-            throw "Release classification mismatch for $tag. Expected prerelease=$expectedPrerelease, actual=$actualPrerelease"
-          }
-
-          try {
-            $latestStableTag = gh api `
-              "repos/${{ github.repository }}/releases/latest" `
-              --jq ".tag_name"
-
-            if ($latestStableTag -match '-beta') {
-              throw "Stable latest endpoint is pointing to a beta release: $latestStableTag"
-            }
-          } catch {
-            throw "Could not verify stable /releases/latest after release normalization. $($_.Exception.Message)"
-          }
-
-          gh release upload $tag `
-            "Sharawla-POS-Setup-$version-x64.exe" `
-            "Sharawla-POS-Setup-$version-ia32.exe" `
-            --clobber
+          if ($actualPrerelease.ToLower() -ne $expectedPrerelease) { throw "Release classification mismatch for $tag. Expected prerelease=$expectedPrerelease, actual=$actualPrerelease" }
+          try { $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"; if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to a beta release: $latestStableTag" } } catch { throw "Could not verify stable /releases/latest after release normalization. $($_.Exception.Message)" }
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" --clobber
