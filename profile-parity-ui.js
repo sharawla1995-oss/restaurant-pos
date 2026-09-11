@@ -11,6 +11,25 @@
     el.setAttribute('aria-hidden','true');
   }
 
+  function retailReportOrderTypes(){
+    try{
+      const core=global.SharawlaRuntimeCore;
+      const engine=core?.getEngine?.('retail');
+      if(typeof engine?.reportOrderTypes==='function')return engine.reportOrderTypes();
+    }catch{}
+    return [];
+  }
+
+  function enforceRetailReportTypes(root=document){
+    if(!isRetail())return;
+    const select=(root.matches?.('#repType')?root:root.querySelector?.('#repType'))||document.querySelector('#repType');
+    if(!select||select.dataset.retailReportTypesApplied==='1')return;
+    const rows=retailReportOrderTypes();
+    if(!rows.length)return;
+    select.innerHTML='<option value="all">كل الأنواع</option>'+rows.map(x=>`<option value="${String(x.code).replace(/"/g,'&quot;')}">${String(x.label).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))}</option>`).join('');
+    select.dataset.retailReportTypesApplied='1';
+  }
+
   function enforceRetailParity(root=document){
     if(!isRetail())return;
 
@@ -27,6 +46,7 @@
       if(/ريسيت التحضير|طباعة ريسيت التحضير/.test(row.textContent||''))hideNode(row);
     });
 
+    enforceRetailReportTypes(root);
     wireRetailShiftClose(root);
   }
 
@@ -67,16 +87,7 @@
         closedShift=await global.rpc('close_pos_shift_idempotent',{
           p_shift_id:Number(open.id),
           p_closing_cash:actual,
-          p_metrics:{
-            sales_total:metrics.sales,
-            cash_sales:metrics.cash,
-            wallet_sales:metrics.wallet,
-            instapay_sales:metrics.instapay,
-            expenses_total:metrics.exp,
-            expected_cash:metrics.expected,
-            cash_difference:diff,
-            orders_count:metrics.count
-          },
+          p_metrics:{sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count},
           p_client_tx_id:global.uuid()
         });
         try{await global.odbSet?.(`openShift:${open.employee_id}:${open.branch_id}`,null)}catch{}
@@ -96,26 +107,16 @@
 
       try{await global.renderShifts?.()}catch{}
       if(navigator.onLine&&closedShift){
-        try{
-          const employees=await global.rest('employees','select=id,name,branch_id,role,active&order=name');
-          await global.openShiftReport?.(closedShift,employees||[]);
-        }catch{}
+        try{const employees=await global.rest('employees','select=id,name,branch_id,role,active&order=name');await global.openShiftReport?.(closedShift,employees||[])}catch{}
       }
     };
   }
 
   const observer=new MutationObserver(records=>{
     if(!isRetail())return;
-    for(const r of records)for(const n of r.addedNodes){
-      if(n.nodeType===1)enforceRetailParity(n);
-    }
+    for(const r of records)for(const n of r.addedNodes){if(n.nodeType===1)enforceRetailParity(n)}
   });
 
-  function start(){
-    enforceRetailParity(document);
-    observer.observe(document.body,{childList:true,subtree:true});
-  }
-
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
-  else start();
+  function start(){enforceRetailParity(document);observer.observe(document.body,{childList:true,subtree:true})}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
