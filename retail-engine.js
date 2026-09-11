@@ -99,6 +99,16 @@
     Object.freeze({code:'delivery',label:'توصيل'})
   ]);
 
+  // Commercial rule for Retail promotions.
+  // Automatic Retail Offer and Promo Code must not stack with each other.
+  // The higher automatic discount wins; an authorised manual discount may then
+  // be added, with the final combined discount capped at the order subtotal.
+  const PROMOTION_STACK_POLICY=Object.freeze({
+    automatic:'best_of_promo_or_offer',
+    manual:'add_after_automatic_if_authorized',
+    cap:'subtotal'
+  });
+
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
@@ -124,6 +134,10 @@
 
     reportOrderTypes(){
       return REPORT_ORDER_TYPES.map(x=>({...x}));
+    },
+
+    promotionStackPolicy(){
+      return {...PROMOTION_STACK_POLICY};
     },
 
     pageTitle(page){
