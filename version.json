@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.19",
+  "version": "10.5.4-beta.20",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Retail Core Parity Fix Pack: Retail invoices/orders parity, profile-aware shift closing and report order types, Retail prep-receipt separation, website reject modal and order notifications, pending-reservation expiry filtering, EAN-13 guard, and an explicit Retail promotion stacking contract. Beta-only; Restaurant Stable and production remain unchanged."
+  "notes": "Retail Engine startup hotfix: fixes a JavaScript syntax error in Retail Engine registration discovered by SH-0007 runtime validation after beta.19, adds an explicit registration self-check, and adds a build-time runtime JavaScript syntax gate. Beta-only; Production Stable remains unchanged."
 }
