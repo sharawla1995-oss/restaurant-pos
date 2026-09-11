@@ -102,8 +102,11 @@ if (!restaurantEngine.includes('bootstrapDefault:true')) throw new Error('Restau
 for (const token of ["code:'retail'","'home','pos','orders','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'","orders:'pos'","returns:'returns'","pos:'pos'"]) {
   if (!retailEngine.includes(token)) throw new Error(`Retail foundation missing: ${token}`);
 }
-// Phase is release-progress metadata, not a frozen compatibility contract. Beta.23 intentionally advances it.
-if (!retailEngine.includes("phase:'full-retail-candidate'")) throw new Error("Retail foundation missing current phase: full-retail-candidate");
+// Phase is release-progress metadata. Accept only the known compatible Retail release stages.
+const retailPhaseMatch = retailEngine.match(/phase:'([^']+)'/);
+const retailPhase = retailPhaseMatch?.[1] || '';
+const compatibleRetailPhases = new Set(['full-retail-candidate','retail-finalization']);
+if (!compatibleRetailPhases.has(retailPhase)) throw new Error(`Retail foundation has unsupported phase: ${retailPhase || 'missing'}`);
 for (const forbidden of ["'deliveryOrders'","'deliverySettings'","'delivery'","'kitchen'","'tables'"]) {
   if (retailEngine.includes(forbidden)) throw new Error(`Retail must not expose Restaurant-only page: ${forbidden}`);
 }
