@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.21",
-  "description": "Sharawla POS V10.5.4 Beta 21 - Beta Self-Test Center",
+  "version": "10.5.4-beta.22",
+  "description": "Sharawla POS V10.5.4 Beta 22 - Retail Runtime Acceptance Fixes",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
@@ -11,49 +11,16 @@
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
   },
-  "dependencies": {
-    "sql.js": "1.8.0"
-  },
-  "devDependencies": {
-    "electron": "22.3.27",
-    "electron-builder": "22.10.5"
-  },
+  "dependencies": {"sql.js": "1.8.0"},
+  "devDependencies": {"electron": "22.3.27","electron-builder": "22.10.5"},
   "build": {
     "appId": "com.topburger.pos",
     "productName": "Sharawla POS",
     "asar": true,
-    "files": [
-      "**/*",
-      "!dist/**",
-      "!node_modules/.cache/**",
-      "!README*",
-      "!legacy-sql/**",
-      "!*.sql",
-      "!**/*.zip",
-      "!.github/**",
-      "!scripts/**"
-    ],
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Sharawla POS"
-    },
+    "files": ["**/*","!dist/**","!node_modules/.cache/**","!README*","!legacy-sql/**","!*.sql","!**/*.zip","!.github/**","!scripts/**"],
+    "directories": {"output": "dist"},
+    "win": {"target": [{"target": "nsis","arch": ["x64","ia32"]}]},
+    "nsis": {"oneClick": false,"allowToChangeInstallationDirectory": true,"createDesktopShortcut": true,"createStartMenuShortcut": true,"shortcutName": "Sharawla POS"},
     "artifactName": "Sharawla-POS-Setup-${version}-${arch}.${ext}"
   }
 }
