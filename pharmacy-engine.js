@@ -60,7 +60,7 @@
     ['🛵 الدليفري والموقع',['deliveryOrders','deliverySettings','websiteManagement','promoCodes']],
     ['📊 الإدارة',['shifts','returns','expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
-  ].map(([n,k])=>Object.freeze([n,Object.freeze(k)]));
+  ].map(([n,k])=>Object.freeze([n,Object.freeze(k)])));
   const REPORT_ORDER_TYPES=Object.freeze([
     Object.freeze({code:'takeaway',label:'بيع صيدلية'}),Object.freeze({code:'pickup',label:'استلام من الفرع'}),Object.freeze({code:'delivery',label:'توصيل'})
   ]);
