@@ -5,7 +5,7 @@
   if(!core)throw new Error('SharawlaRuntimeCore must load before Retail Engine.');
 
   // Retail engine remains isolated from Restaurant delivery/kitchen/table rules.
-  // Beta.16 adds Retail suppliers, purchasing, GRN and supplier-return foundation.
+  // Beta.17 completes the Retail/Supermarket core: units, weighted barcode, offers, holds, stock count, transfers and website-ready stock APIs.
   const LEGACY_MODULES=Object.freeze([
     'customers','expenses','inventory','reports','returns','pos','barcode'
   ]);
@@ -15,6 +15,11 @@
     inventory:'inventory',
     suppliers:'inventory',
     purchasing:'inventory',
+    marketSettings:'inventory',
+    retailOffers:'pos',
+    stockCount:'inventory',
+    transfers:'inventory',
+    websiteManagement:'website',
     expenses:'expenses',
     reports:'reports',
     returns:'returns',
@@ -30,6 +35,11 @@
     inventory:'المخزون',
     suppliers:'الموردين',
     purchasing:'المشتريات والاستلام',
+    marketSettings:'وحدات وباركود الوزن',
+    retailOffers:'عروض الماركت',
+    stockCount:'الجرد',
+    transfers:'تحويلات الفروع',
+    websiteManagement:'إدارة الموقع',
     returns:'المرتجعات',
     expenses:'المصروفات',
     products:'الأصناف',
@@ -41,7 +51,7 @@
   // Retail checkout + inventory + returns are enabled. Restaurant-only
   // delivery/kitchen/table/website semantics remain excluded from Retail.
   const ALL_PAGES=Object.freeze([
-    'home','pos','customers','shifts','inventory','suppliers','purchasing','returns','expenses','products','reports','users','settings'
+    'home','pos','customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
@@ -58,6 +68,11 @@
     ['inventory','المخزون'],
     ['suppliers','الموردين'],
     ['purchasing','المشتريات والاستلام'],
+    ['marketSettings','وحدات وباركود الوزن'],
+    ['retailOffers','عروض الماركت'],
+    ['stockCount','الجرد'],
+    ['transfers','تحويلات الفروع'],
+    ['websiteManagement','إدارة الموقع'],
     ['returns','المرتجعات'],
     ['expenses','المصروفات'],
     ['products','الأصناف'],
@@ -71,7 +86,7 @@
 
   const PERMISSION_GROUPS=Object.freeze([
     ['🧾 نقطة البيع',['pos']],
-    ['📦 Retail',['customers','shifts','inventory','suppliers','purchasing','products','returns']],
+    ['📦 Retail',['customers','shifts','inventory','marketSettings','retailOffers','stockCount','transfers','suppliers','purchasing','websiteManagement','products','returns']],
     ['📊 الإدارة',['expenses','reports','settings']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]
@@ -80,7 +95,7 @@
   core.registerEngine({
     code:'retail',
     displayName:'Retail',
-    phase:'purchasing-foundation',
+    phase:'market-test-candidate',
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];
