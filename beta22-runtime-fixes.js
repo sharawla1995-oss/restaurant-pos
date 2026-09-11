@@ -1,72 +1,18 @@
 (function(global){
   'use strict';
-
-  let bypassWeightCapture=false;
-  let alertSoundTimer=null;
-  let alertSoundStopTimer=null;
-
+  let bypassWeightCapture=false,alertSoundTimer=null,alertSoundStopTimer=null;
   function isRetail(){try{return typeof global.runtimeAllPages==='function'&&global.runtimeAllPages().includes('marketSettings')}catch{return false}}
   function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
-
-  function settingFromLabel(label){
-    const s=String(label||'');
-    if(s.includes('كجم'))return {unit_type:'kg',allow_decimal:true,qty_step:.001,min_qty:.001};
-    if(s.includes('جم'))return {unit_type:'g',allow_decimal:true,qty_step:.001,min_qty:.001};
-    if(s.includes('لتر'))return {unit_type:'liter',allow_decimal:true,qty_step:.001,min_qty:.001};
-    if(s.includes('مل'))return {unit_type:'ml',allow_decimal:true,qty_step:.001,min_qty:.001};
-    return {unit_type:'piece',allow_decimal:false,qty_step:1,min_qty:1};
-  }
+  function settingFromLabel(label){const s=String(label||'');if(s.includes('كجم'))return {unit_type:'kg',allow_decimal:true,qty_step:.001,min_qty:.001};if(s.includes('جم'))return {unit_type:'g',allow_decimal:true,qty_step:.001,min_qty:.001};if(s.includes('لتر'))return {unit_type:'liter',allow_decimal:true,qty_step:.001,min_qty:.001};if(s.includes('مل'))return {unit_type:'ml',allow_decimal:true,qty_step:.001,min_qty:.001};return {unit_type:'piece',allow_decimal:false,qty_step:1,min_qty:1}}
   function unitLabel(st){return ({piece:'قطعة',kg:'كجم',g:'جم',liter:'لتر',ml:'مل'})[st?.unit_type]||'وحدة'}
-  function normalizeBySetting(st,value){
-    let q=Number(value);if(!Number.isFinite(q)||q<=0)return null;
-    const allow=st?.allow_decimal===true,step=Math.max(.001,Number(allow?st?.qty_step:1)||1),min=Math.max(0,Number(st?.min_qty||0));
-    q=Math.round(q/step)*step;if(!allow)q=Math.round(q);q=Math.round(q*1000)/1000;
-    return q>0&&q+1e-9>=min?q:null;
-  }
-
-  function openWeightModal(button){
-    const label=button.parentElement?.querySelector('b')?.textContent||'';
-    const current=(label.match(/[0-9٠-٩.,]+/)||['1'])[0].replace(/,/g,'.');
-    const st=settingFromLabel(label),unit=unitLabel(st),step=st.qty_step,min=st.min_qty;
-    const m=document.createElement('div');m.className='modal';
-    m.innerHTML=`<div class="modal-card" style="max-width:430px"><h2>⚖️ إدخال الكمية / الوزن</h2><p class="muted">اكتب القيمة مباشرة ثم اضغط موافق.</p><label>الكمية (${esc(unit)})<input id="retailWeightDirectInput" type="number" inputmode="decimal" min="${min}" step="${step}" value="${esc(current)}" style="font-size:28px;text-align:center;font-weight:800" autofocus></label><small>أقل كمية: ${min} · خطوة الكمية: ${step}</small><div class="modal-actions"><button class="secondary" data-weight-cancel>إلغاء</button><button class="primary" data-weight-ok>موافق</button></div></div>`;
-    document.body.appendChild(m);const input=m.querySelector('#retailWeightDirectInput');setTimeout(()=>{try{input.focus();input.select()}catch{}},0);
-    const close=()=>m.remove();
-    const apply=()=>{
-      const normalized=normalizeBySetting(st,Number(input.value));
-      if(normalized==null){try{global.toast?.(`اكتب كمية صحيحة لا تقل عن ${min} ${unit}`)}catch{};return}
-      const originalPrompt=global.prompt;
-      try{bypassWeightCapture=true;global.prompt=()=>String(normalized);button.click()}finally{global.prompt=originalPrompt;bypassWeightCapture=false}
-      close();
-    };
-    m.onclick=e=>{if(e.target===m||e.target.closest('[data-weight-cancel]'))return close();if(e.target.closest('[data-weight-ok]'))return apply()};
-    input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();apply()}if(e.key==='Escape')close()});
-  }
-
-  function wireWeightEntry(){
-    document.addEventListener('click',e=>{
-      if(bypassWeightCapture||!isRetail())return;
-      const b=e.target.closest?.('button[data-a="editqty"]');if(!b)return;
-      e.preventDefault();e.stopImmediatePropagation();openWeightModal(b);
-    },true);
-  }
-
-  async function toneBurst(){
-    try{
-      const Ctx=global.AudioContext||global.webkitAudioContext;if(!Ctx)return false;
-      const ctx=new Ctx();if(ctx.state==='suspended')await ctx.resume();
-      [880,1040,880].forEach((freq,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.value=freq;gain.gain.value=.22;const at=ctx.currentTime+i*.34;osc.start(at);osc.stop(at+.20)});
-      setTimeout(()=>{try{ctx.close()}catch{}},1300);return true;
-    }catch{return false}
-  }
+  function normalizeBySetting(st,value){let q=Number(value);if(!Number.isFinite(q)||q<=0)return null;const allow=st?.allow_decimal===true,step=Math.max(.001,Number(allow?st?.qty_step:1)||1),min=Math.max(0,Number(st?.min_qty||0));q=Math.round(q/step)*step;if(!allow)q=Math.round(q);q=Math.round(q*1000)/1000;return q>0&&q+1e-9>=min?q:null}
+  function openWeightModal(button){const label=button.parentElement?.querySelector('b')?.textContent||'',current=(label.match(/[0-9٠-٩.,]+/)||['1'])[0].replace(/,/g,'.'),st=settingFromLabel(label),unit=unitLabel(st),step=st.qty_step,min=st.min_qty;const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card" style="max-width:430px"><h2>⚖️ إدخال الكمية / الوزن</h2><p class="muted">اكتب القيمة مباشرة ثم اضغط موافق.</p><label>الكمية (${esc(unit)})<input id="retailWeightDirectInput" type="number" inputmode="decimal" min="${min}" step="${step}" value="${esc(current)}" style="font-size:28px;text-align:center;font-weight:800" autofocus></label><small>أقل كمية: ${min} · خطوة الكمية: ${step}</small><div class="modal-actions"><button class="secondary" data-weight-cancel>إلغاء</button><button class="primary" data-weight-ok>موافق</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('#retailWeightDirectInput');setTimeout(()=>{try{input.focus();input.select()}catch{}},0);const close=()=>m.remove(),apply=()=>{const normalized=normalizeBySetting(st,Number(input.value));if(normalized==null){try{global.toast?.(`اكتب كمية صحيحة لا تقل عن ${min} ${unit}`)}catch{};return}const originalPrompt=global.prompt;try{bypassWeightCapture=true;global.prompt=()=>String(normalized);button.click()}finally{global.prompt=originalPrompt;bypassWeightCapture=false}close()};m.onclick=e=>{if(e.target===m||e.target.closest('[data-weight-cancel]'))return close();if(e.target.closest('[data-weight-ok]'))return apply()};input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();apply()}if(e.key==='Escape')close()})}
+  function wireWeightEntry(){document.addEventListener('click',e=>{if(bypassWeightCapture||!isRetail())return;const b=e.target.closest?.('button[data-a="editqty"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();openWeightModal(b)},true)}
+  async function toneBurst(){try{const Ctx=global.AudioContext||global.webkitAudioContext;if(!Ctx)return false;const ctx=new Ctx();if(ctx.state==='suspended')await ctx.resume();[880,1040,880].forEach((freq,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.frequency.value=freq;gain.gain.value=.22;const at=ctx.currentTime+i*.34;osc.start(at);osc.stop(at+.20)});setTimeout(()=>{try{ctx.close()}catch{}},1300);return true}catch{return false}}
   function stopAlertSound(){if(alertSoundTimer){clearInterval(alertSoundTimer);alertSoundTimer=null}if(alertSoundStopTimer){clearTimeout(alertSoundStopTimer);alertSoundStopTimer=null}}
   function startAlertSound(){stopAlertSound();toneBurst();alertSoundTimer=setInterval(()=>{if(!document.querySelector('#retailWebsiteOrderAlert'))return stopAlertSound();toneBurst()},3500);alertSoundStopTimer=setTimeout(stopAlertSound,30000)}
   function watchWebsiteAlert(){const observer=new MutationObserver(()=>{const alert=document.querySelector('#retailWebsiteOrderAlert');if(alert&&!alert.dataset.beta22Sound){alert.dataset.beta22Sound='1';startAlertSound()}if(!alert)stopAlertSound()});observer.observe(document.body,{childList:true,subtree:true})}
-
-  global.__SharawlaRetailWebsiteTestSound=async()=>{await toneBurst();await new Promise(r=>setTimeout(r,420));await toneBurst();return true};
-  global.__SharawlaBeta22NormalizeBySetting=normalizeBySetting;
-  global.__SharawlaBeta22FixesLoaded=true;
-
-  function start(){if(!isRetail())return;wireWeightEntry();watchWebsiteAlert()}
+  global.__SharawlaRetailWebsiteTestSound=async()=>{await toneBurst();await new Promise(r=>setTimeout(r,420));await toneBurst();return true};global.__SharawlaBeta22NormalizeBySetting=normalizeBySetting;global.__SharawlaBeta22FixesLoaded=true;
+  async function start(){if(!isRetail())return;try{if(typeof global.loadRetailMarketData==='function')await global.loadRetailMarketData(true)}catch{}wireWeightEntry();watchWebsiteAlert()}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
