@@ -8,19 +8,13 @@ if(!version)throw new Error('package.json has no version');
 const channel=version.includes('-')?'beta':'stable';
 const v=JSON.parse(fs.readFileSync(p('version.json'),'utf8'));v.version=version;v.channel=channel;fs.writeFileSync(p('version.json'),JSON.stringify(v,null,2)+'\n','utf8');
 const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-const beta33=['sharawla-capabilities-beta33.js','sharawla-capability-runtime-bridge.js','sharawla-cloud-runtime-v2.js'];
-const preCloud=['sharawla-feature-consumption.js'];
-const postApp=['beta34-feature-ui.js','beta35-feature-behavior.js'];
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js',...beta33,...preCloud,'restaurant-engine.js','retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js',...postApp,'beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js'];
+const runtimeChain=['sharawla-runtime-core.js','sharawla-capabilities.js','sharawla-capabilities-beta33.js','sharawla-capabilities-v3.js','sharawla-capability-runtime-bridge.js','sharawla-feature-consumption.js','sharawla-cloud-runtime-v2.js','restaurant-engine.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js'];
 const retailDynamic=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js','retail-variants-runtime-bridge.js','retail-variants-ui.js','retail-variants-startup-hotfix.js','advanced-purchasing-v1.js'];
 const beta36Dynamic=['beta36-offline-v2.js','permissions-v2-ui.js','printing-v2.js','landed-cost-posting-v1.js','commerce-orders-v2-ui.js','reports-v2-ui.js','finance-b2b-ui.js','service-v1-ui.js','warehouse-v1-ui.js','membership-v1-ui.js','logistics-v1-ui.js','retail-variants-startup-hotfix.js'];
-function ensureBefore(html,asset,anchor){if(html.includes(`${asset}?v=`))return html;const mark=`<script src="${anchor}`;if(!html.includes(mark))throw new Error(`Could not find ${anchor} anchor for ${asset}`);return html.replace(mark,`<script src="${asset}?v=${version}"></script>\n${mark}`)}
-function ensureAfter(html,asset,anchor){if(html.includes(`${asset}?v=`))return html;const re=new RegExp(`<script src="${esc(anchor)}\\?v=[^"]+"><\\/script>`);const m=html.match(re);if(!m)throw new Error(`Could not find ${anchor} anchor for ${asset}`);return html.replace(re,`${m[0]}\n<script src="${asset}?v=${version}"></script>`)}
 let index=fs.readFileSync(p('index.html'),'utf8');
-for(const a of beta33)index=ensureBefore(index,a,'restaurant-engine.js');
-for(const a of preCloud)index=ensureBefore(index,a,'sharawla-cloud-runtime-v2.js');
-index=ensureAfter(index,'beta34-feature-ui.js','app.js');
-index=ensureAfter(index,'beta35-feature-behavior.js','beta34-feature-ui.js');
+for(const a of direct)if(!index.includes(`${a}?v=`))throw new Error(`Source shell missing required asset before version sync: ${a}`);
+let previous=-1;for(const a of runtimeChain){const pos=index.indexOf(`${a}?v=`);if(pos<=previous)throw new Error(`Unsafe Capability V3 source load order at ${a}`);previous=pos}
 for(const a of direct)index=index.replace(new RegExp(`${esc(a)}\\?v=[^"]+`,'g'),`${a}?v=${version}`);
 fs.writeFileSync(p('index.html'),index,'utf8');
 
@@ -37,4 +31,4 @@ let sw=fs.readFileSync(p('sw.js'),'utf8');
 sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);
 for(const a of [...direct,...retailDynamic,...beta36Dynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);
 fs.writeFileSync(p('sw.js'),sw,'utf8');
-console.log(`Version sync OK: ${version} (${channel})`);
+console.log(`Version sync OK: ${version} (${channel}) — source wiring already explicit`);
