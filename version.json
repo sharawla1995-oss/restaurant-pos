@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.37",
+  "version": "10.5.4-beta.38",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Beta37 hotfix: preserve Beta36 Multi-Engine Integration and retry Retail Variants UI after Runtime Config becomes ready. Production Top Burger remains outside Beta rollout."
+  "notes": "Beta38 hotfix: ensure Retail Variants startup hotfix is actually loaded at runtime, retry Variants UI after Runtime Config resolves, and hide legacy Restaurant Single/Double controls in Retail without deleting legacy data. Production Top Burger remains outside Beta rollout."
 }
