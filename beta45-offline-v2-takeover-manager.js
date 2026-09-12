@@ -58,7 +58,12 @@ async function openMeta(){
   if(metaDb)return metaDb;
   await app.whenReady();
   metaDb=await new Promise((resolve,reject)=>{const d=new sqlite3.Database(dbPath(),sqlite3.OPEN_READWRITE|sqlite3.OPEN_CREATE,err=>err?reject(err):resolve(d))});
-  await dbExec('PRAGMA busy_timeout=5000;');
+  await dbExec(`PRAGMA busy_timeout=5000;
+CREATE TABLE IF NOT EXISTS offline_v2_meta(
+ key TEXT PRIMARY KEY,
+ value TEXT NOT NULL,
+ updated_at TEXT NOT NULL
+);`);
   return metaDb;
 }
 function metaReady(){if(!metaReadyPromise)metaReadyPromise=openMeta();return metaReadyPromise}
