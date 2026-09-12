@@ -5,12 +5,7 @@
   const PAGE_MODULE=Object.freeze({orders:'pos',customers:'customers',deliveryOrders:'delivery',deliverySettings:'delivery',inventory:'inventory',suppliers:'inventory',purchasing:'inventory',marketSettings:'inventory',retailOffers:'pos',promoCodes:'promocodes',stockCount:'inventory',transfers:'inventory',websiteManagement:'website',expenses:'expenses',reports:'reports',returns:'returns',products:'pos',pos:'pos'});
   const PAGE_TITLES=Object.freeze({home:'الرئيسية',pos:'نقطة البيع',orders:'الفواتير',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إدارة الدليفري',shifts:'الورديات',inventory:'المخزون',suppliers:'الموردين',purchasing:'المشتريات والاستلام',marketSettings:'وحدات وباركود الوزن',retailOffers:'عروض الماركت',promoCodes:'البرومو كود',stockCount:'الجرد',transfers:'تحويلات الفروع',websiteManagement:'إدارة الموقع',returns:'المرتجعات',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'});
   const ALL_PAGES=Object.freeze(['home','pos','orders','customers','deliveryOrders','shifts','inventory','marketSettings','retailOffers','promoCodes','stockCount','transfers','suppliers','purchasing','websiteManagement','returns','expenses','products','reports','users','settings','deliverySettings']);
-  const ROLE_PAGES=Object.freeze({
-    admin:ALL_PAGES,
-    cashier:Object.freeze(['home','pos','orders','customers','deliveryOrders','shifts','products','returns']),
-    callcenter:Object.freeze(['home','orders','customers','deliveryOrders','products']),
-    delivery:Object.freeze(['home','deliveryOrders'])
-  });
+  const ROLE_PAGES=Object.freeze({admin:ALL_PAGES,cashier:Object.freeze(['home','pos','orders','customers','deliveryOrders','shifts','products','returns']),callcenter:Object.freeze(['home','orders','customers','deliveryOrders','products']),delivery:Object.freeze(['home','deliveryOrders'])});
   const PERMISSION_DEFS=Object.freeze([['pos','نقطة البيع'],['orders','الفواتير'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['deliverySettings','إدارة الدليفري والمناديب والمناطق'],['shifts','الورديات'],['inventory','المخزون'],['suppliers','الموردين'],['purchasing','المشتريات والاستلام'],['marketSettings','وحدات وباركود الوزن'],['retailOffers','عروض الماركت'],['promoCodes','البرومو كود'],['stockCount','الجرد'],['transfers','تحويلات الفروع'],['websiteManagement','إدارة الموقع'],['returns','المرتجعات'],['expenses','المصروفات'],['products','الأصناف'],['reports','التقارير'],['settings','الإعدادات'],['branchManagement','🏪 إدارة الفروع'],['businessSettings','🎨 هوية وإعدادات النشاط'],['printingSettings','🖨️ إعدادات الطباعة'],['financialSettings','💳 طرق الدفع والضريبة والخدمة']].map(row=>Object.freeze(row)));
   const PERMISSION_GROUPS=Object.freeze([['🧾 نقطة البيع',['pos','orders']],['🛵 الدليفري',['deliveryOrders','deliverySettings']],['📦 Retail',['customers','shifts','inventory','marketSettings','retailOffers','promoCodes','stockCount','transfers','suppliers','purchasing','websiteManagement','products','returns']],['📊 الإدارة',['expenses','reports','settings']],['🏪 الفروع',['branchManagement']],['⚙️ النظام',['businessSettings','printingSettings','financialSettings']]].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
   const REPORT_ORDER_TYPES=Object.freeze([Object.freeze({code:'takeaway',label:'بيع تجزئة'}),Object.freeze({code:'pickup',label:'استلام من الفرع'}),Object.freeze({code:'delivery',label:'توصيل'})]);
@@ -18,11 +13,11 @@
   core.registerEngine({code:'retail',displayName:'Retail',phase:'retail-delivery-finalization',resolveModules(modules,configured){return configured?core.normalizeModules(modules):[...LEGACY_MODULES]},pageAllowed(config,page){if(!ALL_PAGES.includes(page))return false;const moduleCode=PAGE_MODULE[page]||null;return !moduleCode||core.moduleEnabled(config,moduleCode)},pageOperationalAllowed(){return true},shiftCloseBlockers(){return []},reportOrderTypes(){return REPORT_ORDER_TYPES.map(x=>({...x}))},promotionStackPolicy(){return {...PROMOTION_STACK_POLICY}},pageTitle(page){return PAGE_TITLES[page]||page},allPages(){return [...ALL_PAGES]},rolePages(role){return [...(ROLE_PAGES[role]||ROLE_PAGES.cashier)]},permissionDefs(){return PERMISSION_DEFS.map(row=>[row[0],row[1]])},permissionGroups(){return PERMISSION_GROUPS.map(([title,keys])=>[title,[...keys]])}});
   if(!core.hasEngine('retail'))throw new Error('Retail Engine registration failed.');global.__SharawlaRetailEngineLoaded=true;
   const load=(key,src)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.defer=true;s.setAttribute(`data-${key}`,'1');document.head.appendChild(s)};
-  load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.29');
-  load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.29');
-  load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.29');
-  load('sharawla-retail-finalization-ui','retail-finalization-ui.js?v=10.5.4-beta.29');
-  load('sharawla-retail-variants-runtime-v1','retail-variants-runtime-bridge.js?v=variants-v1-runtime-bridge.1');
-  load('sharawla-retail-variants-v1','retail-variants-ui.js?v=variants-v1-runtime-ui.1');
-  load('sharawla-advanced-purchasing-v1','advanced-purchasing-v1.js?v=advanced-purchasing-v1.1');
+  load('sharawla-retail-website-orders','retail-website-pos.js?v=10.5.4-beta.36');
+  load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.36');
+  load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.36');
+  load('sharawla-retail-finalization-ui','retail-finalization-ui.js?v=10.5.4-beta.36');
+  load('sharawla-retail-variants-runtime-v1','retail-variants-runtime-bridge.js?v=10.5.4-beta.36');
+  load('sharawla-retail-variants-v1','retail-variants-ui.js?v=10.5.4-beta.36');
+  load('sharawla-advanced-purchasing-v1','advanced-purchasing-v1.js?v=10.5.4-beta.36');
 })(window);
