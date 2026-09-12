@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   commitOperation:o=>ipcRenderer.invoke('offline-v2:commit-operation',o),
   importShadow:s=>ipcRenderer.invoke('offline-v2:import-shadow',s),
   outbox:s=>ipcRenderer.invoke('offline-v2:outbox',s??null),
+  event:tx=>ipcRenderer.invoke('offline-v2:event',tx),
   record:(t,id)=>ipcRenderer.invoke('offline-v2:record',t,id),
   health:()=>ipcRenderer.invoke('offline-v2:health'),
   syncStats:()=>ipcRenderer.invoke('offline-v2:sync-stats'),
