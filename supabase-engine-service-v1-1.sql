@@ -41,7 +41,7 @@ returns public.finance_commission_rules_v1 language plpgsql security definer set
 as $$declare r public.finance_commission_rules_v1%rowtype;begin
  if auth.uid() is null or not public.is_admin() then raise exception 'إدارة العمولات للمدير فقط';end if;
  if p_basis not in('service','labor','job_total','product') or p_calculation not in('percent','fixed') or coalesce(p_value,-1)<0 then raise exception 'بيانات العمولة غير صحيحة';end if;
- if p_calculation='percent' and p_value>100 then raise exception 'نسبة العمولة لا تتجاوز 100%';end if;
+ if p_calculation='percent' and p_value>100 then raise exception 'نسبة العمولة لا تتجاوز مائة بالمائة';end if;
  if p_ends_on is not null and p_starts_on is not null and p_ends_on<p_starts_on then raise exception 'فترة العمولة غير صحيحة';end if;
  if p_rule_id is null then insert into public.finance_commission_rules_v1(employee_id,service_id,basis,calculation,value,active,starts_on,ends_on) values(p_employee_id,p_service_id,p_basis,p_calculation,p_value,coalesce(p_active,true),p_starts_on,p_ends_on) returning * into r;
  else update public.finance_commission_rules_v1 set employee_id=p_employee_id,service_id=p_service_id,basis=p_basis,calculation=p_calculation,value=p_value,active=coalesce(p_active,true),starts_on=p_starts_on,ends_on=p_ends_on where id=p_rule_id returning * into r;end if;
