@@ -23,6 +23,16 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   orderProjection:id=>ipcRenderer.invoke('offline-v2:order-projection',id),
   customerProjection:x=>ipcRenderer.invoke('offline-v2:customer-projection',x||{}),
   customerAddresses:id=>ipcRenderer.invoke('offline-v2:customer-addresses',id),
+  guardState:()=>ipcRenderer.invoke('offline-v2:guard-state'),
+  guardAssert:x=>ipcRenderer.invoke('offline-v2:guard-assert',x||{}),
+  authEnroll:x=>ipcRenderer.invoke('offline-v2:auth-enroll',x||{}),
+  authVerify:x=>ipcRenderer.invoke('offline-v2:auth-verify',x||{}),
+  authState:x=>ipcRenderer.invoke('offline-v2:auth-state',x||{}),
+  authClear:()=>ipcRenderer.invoke('offline-v2:auth-clear'),
+  backupCreate:x=>ipcRenderer.invoke('offline-v2:backup-create',x||{}),
+  recoveryState:()=>ipcRenderer.invoke('offline-v2:recovery-state'),
+  startupReport:()=>ipcRenderer.invoke('offline-v2:startup-report'),
+  localReport:x=>ipcRenderer.invoke('offline-v2:local-report',x||{}),
   syncNow:x=>ipcRenderer.invoke('offline-v2:sync-now',x),
   manualRetry:x=>ipcRenderer.invoke('offline-v2:manual-retry',x),
   transportAttest:x=>ipcRenderer.invoke('offline-v2:transport-attest',x),
@@ -35,7 +45,7 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  backup:{create:r=>ipcRenderer.invoke('backup:create',r),saveJson:(j,r)=>ipcRenderer.invoke('backup:saveJson',j,r),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
  app:{info:()=>ipcRenderer.invoke('app:info')},
- update:{check:()=>ipcRenderer.invoke('update:check'),info:()=>ipcRenderer.invoke('update:info'),safety:()=>ipcRenderer.invoke('update:safety'),health:r=>ipcRenderer.invoke('update:health',r),rollback:()=>ipcRenderer.invoke('update:rollback'),setChannel:c=>ipcRenderer.invoke('update:setChannel',c),onProgress:cb=>{const fn=(_e,data)=>{try{cb(data)}catch{}};ipcRenderer.on('update:progress',fn);return()=>ipcRenderer.removeListener('update:progress',fn)}},
+ update:{check:()=>ipcRenderer.invoke('update:check'),info:()=>ipcRenderer.invoke('update:info'),safety:async()=>{const [legacy,offlineV2]=await Promise.all([ipcRenderer.invoke('update:safety'),ipcRenderer.invoke('offline-v2:guard-state').catch(e=>({ok:false,clear:false,error:e.message}))]);return {...legacy,offlineV2}},health:r=>ipcRenderer.invoke('update:health',r),rollback:()=>ipcRenderer.invoke('update:rollback'),setChannel:c=>ipcRenderer.invoke('update:setChannel',c),onProgress:cb=>{const fn=(_e,data)=>{try{cb(data)}catch{}};ipcRenderer.on('update:progress',fn);return()=>ipcRenderer.removeListener('update:progress',fn)}},
  paths:()=>ipcRenderer.invoke('desktop:paths'),
  device:{info:()=>ipcRenderer.invoke('device:info')},
  external:{open:url=>ipcRenderer.invoke('external:open',url)},
@@ -67,8 +77,13 @@ window.addEventListener('DOMContentLoaded',()=>{
      if(document.querySelector('script[data-offline-v2-phase7-inbox]'))return;
      const n=document.createElement('script');n.src='beta45-offline-v2-inbox-runtime.js?v=10.5.4-beta.45-dev';n.dataset.offlineV2Phase7Inbox='1';
      n.onload=()=>{
-      if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
-      const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+      if(document.querySelector('script[data-offline-v2-phase8-safety]'))return;
+      const g=document.createElement('script');g.src='beta45-offline-v2-safety-runtime.js?v=10.5.4-beta.45-dev';g.dataset.offlineV2Phase8Safety='1';
+      g.onload=()=>{
+       if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
+       const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+      };
+      document.body.appendChild(g);
      };
      document.body.appendChild(n);
     };
