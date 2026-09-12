@@ -1,6 +1,6 @@
 -- Sharawla Offline Engine V2 — Phase 5 backend transport v1
 -- Additive only. Existing operational RPCs remain the source of truth and are
--- dispatched through an explicit whitelist. No existing table/function is changed.
+-- dispatched through an explicit whitelist. No existing operational object is changed.
 
 create table if not exists public.offline_v2_server_receipts (
   client_tx_id text primary key,
@@ -85,6 +85,38 @@ begin
     raise exception using errcode='42501', message='بيانات الموظف غير مطابقة لجلسة المزامنة';
   end if;
 
+  -- Bind the envelope operation to one exact RPC family. An authenticated caller
+  -- cannot relabel an expense as a sale or route arbitrary SQL through transport.
+  if (v_operation='sale' and v_rpc not in (
+        'create_pos_order_atomic','create_retail_pos_order_atomic','create_retail_variant_pos_order_atomic_v1',
+        'create_food_pos_order_atomic_v1','create_food_retail_pos_order_atomic_v1'))
+     or (v_operation='return' and v_rpc not in (
+        'create_order_return_idempotent','create_retail_order_return_idempotent','create_retail_variant_order_return_idempotent_v1',
+        'create_food_order_return_idempotent_v1','create_food_retail_order_return_idempotent_v1'))
+     or (v_operation='expense' and v_rpc<>'create_pos_expense_idempotent')
+     or (v_operation='shift_open' and v_rpc<>'open_pos_shift_idempotent')
+     or (v_operation='shift_close' and v_rpc<>'close_pos_shift_idempotent')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close') then
+    raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
+  end if;
+
+  -- The server idempotency key must be exactly the same durable client_tx_id that
+  -- owns the local outbox row and explicit ACK.
+  if v_operation='sale' then
+    if nullif(trim(coalesce(v_payload#>>'{p_order,client_tx_id}','')),'') is distinct from v_tx
+       or coalesce(nullif(v_payload#>>'{p_order,branch_id}','')::bigint,0) is distinct from v_branch
+       or coalesce(nullif(v_payload#>>'{p_order,employee_id}','')::bigint,0) is distinct from v_employee then
+      raise exception using errcode='22023', message='Offline V2 sale identity/TX mismatch';
+    end if;
+  else
+    if nullif(trim(coalesce(v_payload->>'p_client_tx_id','')),'') is distinct from v_tx then
+      raise exception using errcode='22023', message='Offline V2 RPC client_tx_id mismatch';
+    end if;
+    if v_operation='shift_open' and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+      raise exception using errcode='22023', message='Offline V2 shift branch mismatch';
+    end if;
+  end if;
+
   if v_dep_tx is not null then
     if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
       raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
@@ -108,7 +140,10 @@ begin
        or v_receipt.rpc_name is distinct from v_rpc
        or v_receipt.operation_type is distinct from v_operation
        or v_receipt.device_id is distinct from v_device_id
-       or v_receipt.employee_id is distinct from v_employee then
+       or v_receipt.device_sequence is distinct from v_sequence
+       or v_receipt.branch_id is distinct from v_branch
+       or v_receipt.employee_id is distinct from v_employee
+       or v_receipt.auth_user_id is distinct from auth.uid() then
       raise exception using errcode='22000', message='Offline V2 duplicate TX payload/identity mismatch';
     end if;
     return jsonb_build_object(
