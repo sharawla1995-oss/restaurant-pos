@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.30",
+  "version": "10.5.4-beta.35",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Pharmacy Complete Candidate: Pharmacy profile engine, drug master, batch/expiry FEFO, prescriptions, insurance companies/plans/claims, pharmacy POS with batch allocation and insurance split payment, website prescription request management, shared branches/delivery/inventory/purchasing/reports/users, and Pharmacy static gates. Production Stable remains unchanged."
+  "notes": "Beta35 Feature Behavior Gates: consume Cloud Capability V1 for food.modifiers and food.tables without changing Production data. Modifiers gate Extras/removable-components behavior while preserving item notes/variants; tables currently gates dine-in/sala availability only and does not claim table assignment. Legacy runtime fallback preserves historical behavior."
 }
