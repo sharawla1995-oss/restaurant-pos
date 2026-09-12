@@ -41,5 +41,6 @@ require('./main-beta23.js');
 // Installing store/manager/transport exposes durable APIs only; it never arms,
 // migrates, attests or activates the V2 runtime automatically.
 const offlineV2Store=require('./beta45-offline-v2-native-store.js').installOfflineV2NativeStore();
+require('./beta45-offline-v2-inventory-store.js').installOfflineV2InventoryStore();
 require('./beta45-offline-v2-takeover-manager.js').installOfflineV2TakeoverManager(offlineV2Store);
 require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store);
