@@ -10,17 +10,16 @@ function behaviorTest(){
   store.set('sharawlaRuntimeConfigV1',JSON.stringify({
     pos_profile:'retail',
     capability_version:2,
-    enabled_features:['food.ingredients','food.recipes','food.prep','food.production']
+    enabled_features:['commerce.variants','food.ingredients','food.recipes','food.prep','food.production']
   }));
   const appended=[];
-  const docEvents=new Map();
   const document={
     readyState:'complete',
     head:{appendChild(el){appended.push(el)}},
     createElement(tag){return {tagName:String(tag).toUpperCase(),dataset:{},defer:false,async:true,src:'',onload:null,onerror:null,getAttribute(name){return name==='src'?this.src:null}}},
     querySelector(){return null},
-    querySelectorAll(selector){if(selector==='script[src]')return appended;return []},
-    addEventListener(name,fn){docEvents.set(name,fn)}
+    querySelectorAll(selector){return selector==='script[src]'?appended:[]},
+    addEventListener(){}
   };
   const localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,String(v))};
   const window={localStorage,addEventListener(){},dispatchEvent(){},console};
@@ -43,7 +42,9 @@ function behaviorTest(){
 }
 
 async function recipeRoutingTest(){
-  const store=new Map([['sharawlaRuntimeConfigV1',JSON.stringify({pos_profile:'retail',enabled_features:['food.recipes']})]]);
+  const store=new Map([['sharawlaRuntimeConfigV1',JSON.stringify({
+    pos_profile:'retail',enabled_features:['food.recipes','commerce.variants']
+  })]]);
   const calls=[];
   const localStorage={getItem:k=>store.get(k)||null};
   const document={readyState:'complete',addEventListener(){}};
@@ -56,14 +57,23 @@ async function recipeRoutingTest(){
   const sandbox={window,document,localStorage,console,setTimeout,clearTimeout};
   vm.runInNewContext(read('food-recipe-runtime-bridge.js'),sandbox,{filename:'food-recipe-runtime-bridge.js'});
 
-  await window.rpc('create_retail_pos_order_atomic',{p_items:[{product_id:1,quantity:1}]});
+  await window.rpc('create_retail_pos_order_atomic',{p_items:[{product_id:1,variant_id:7,quantity:1,cost:25}]});
   await window.rpc('create_retail_order_return_idempotent',{p_order_id:1});
   await window.rpc('create_pos_order_atomic',{p_items:[{product_id:1,quantity:1}]});
   await window.rpc('create_order_return_idempotent',{p_order_id:1});
-  must(calls[0].name==='create_retail_food_pos_order_atomic_v1','Retail sale is not routed through composed Recipe RPC');
-  must(calls[1].name==='create_retail_food_order_return_idempotent_v1','Retail return is not routed through composed Recipe RPC');
+
+  must(calls[0].name==='create_food_retail_pos_order_atomic_v1','Retail sale is not routed through canonical Food+Retail RPC');
+  must(calls[0].payload.p_use_variants===true,'Retail Variant sale lost p_use_variants');
+  must(calls[1].name==='create_food_retail_order_return_idempotent_v1','Retail return is not routed through canonical Food+Retail RPC');
+  must(calls[1].payload.p_use_variants===true,'Retail Variant return lost p_use_variants');
   must(calls[2].name==='create_food_pos_order_atomic_v1','Restaurant/base sale Recipe route regressed');
   must(calls[3].name==='create_food_order_return_idempotent_v1','Restaurant/base return Recipe route regressed');
+
+  await window.saveOfflineSale({branch_id:1},[{product_id:1,variant_id:7,removed:['x'],modifiers:[{id:9}]}],[], 'tx');
+  const offline=calls.find(x=>x.name==='offline');
+  must(offline&&offline.args[1][0].variant_id===7,'Offline Recipe payload lost variant identity');
+  must(Array.isArray(offline.args[1][0].removed)&&offline.args[1][0].removed[0]==='x','Offline Recipe payload lost removals');
+  must(Array.isArray(offline.args[1][0].modifiers)&&offline.args[1][0].modifiers[0].id===9,'Offline Recipe payload lost modifiers');
 }
 
 function sourceContractTest(){
@@ -91,17 +101,27 @@ function sourceContractTest(){
   must(trackSql.includes('food_order_item_consumption_snapshots'),'untracked ingredients would lose sale snapshots/cost history');
   must(trackSql.includes('food_return_consumption_snapshots'),'returns would lose reversal snapshots');
 
-  const composeSql=read('supabase-beta42-retail-recipe-composable-runtime.sql');
-  for(const token of ['create_retail_food_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_retail_pos_order_atomic','create_food_pos_order_atomic_v1','create_retail_food_order_return_idempotent_v1','create_food_order_return_idempotent_v1'])must(composeSql.includes(token),`Retail/Recipe composition missing ${token}`);
-  must(composeSql.includes('same transaction')||composeSql.includes('Same transaction'),'composition transaction contract missing');
+  const canonicalSql=read('supabase-beta42-food-cross-profile-retail-runtime-v1.sql');
+  for(const token of [
+    'create_food_retail_pos_order_atomic_v1',
+    'create_retail_variant_pos_order_atomic_v1',
+    'create_retail_pos_order_atomic',
+    'food_apply_order_consumption_v1',
+    'create_food_retail_order_return_idempotent_v1',
+    'food_apply_return_consumption_v1',
+    'order_items.cost'
+  ])must(canonicalSql.includes(token),`Canonical Retail/Recipe runtime missing ${token}`);
+  must(canonicalSql.includes('set cost=coalesce'),'Retail COGS preservation contract missing');
 
   const helperSql=read('supabase-beta42-food-helper-duplicate-composition-fix.sql');
   must(helperSql.includes('food_apply_order_consumption_v1'),'Recipe helper patch missing');
   must(helperSql.includes('food_order_item_cost_snapshots where order_item_id=v_order_item_id'),'Recipe helper per-item idempotency guard not asserted');
 
   const bridge=read('food-recipe-runtime-bridge.js');
-  must(bridge.includes("create_retail_pos_order_atomic')return baseRpc('create_retail_food_pos_order_atomic_v1"),'Retail Recipe sale routing missing');
-  must(bridge.includes("create_retail_order_return_idempotent')return baseRpc('create_retail_food_order_return_idempotent_v1"),'Retail Recipe return routing missing');
+  must(bridge.includes("baseRpc('create_food_retail_pos_order_atomic_v1'"),'Canonical Retail Recipe sale routing missing');
+  must(bridge.includes("baseRpc('create_food_retail_order_return_idempotent_v1'"),'Canonical Retail Recipe return routing missing');
+  must(!bridge.includes("baseRpc('create_retail_food_pos_order_atomic_v1'"),'Obsolete Retail/Food sale alias reintroduced');
+  must(!bridge.includes("baseRpc('create_retail_food_order_return_idempotent_v1'"),'Obsolete Retail/Food return alias reintroduced');
 
   const app=read('app.js');
   must(app.includes("job.engine==='retail'?'create_retail_pos_order_atomic':'create_pos_order_atomic'"),'offline sale engine routing contract changed unexpectedly');
@@ -112,5 +132,5 @@ function sourceContractTest(){
   sourceContractTest();
   behaviorTest();
   await recipeRoutingTest();
-  console.log('Beta42 Capability Registry + Recipe composition gates OK.');
+  console.log('Beta42 Capability Registry + canonical Retail Recipe composition gates OK.');
 })().catch(e=>{console.error(e);process.exit(1)});
