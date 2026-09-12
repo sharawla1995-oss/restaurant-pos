@@ -30,6 +30,7 @@ function defaultState(){return {
   armed:false,
   active:false,
   migration_verified:false,
+  transport_ready:false,
   legacy_retired:false,
   identity:null,
   legacy_count:0,
@@ -179,6 +180,7 @@ function installOfflineV2TakeoverManager(store){
     const identity=assertIdentity(input.identity);
     const current=await readState();
     if(!current.armed||!current.migration_verified){const e=new Error('Offline V2 migration must be verified before activation');e.code='OFFLINE_V2_MIGRATION_NOT_VERIFIED';throw e}
+    if(current.transport_ready!==true){const e=new Error('Offline V2 sync transport is not ready for runtime takeover');e.code='OFFLINE_V2_TRANSPORT_NOT_READY';throw e}
     if(!sameIdentity(current.identity,identity)){const e=new Error('Offline V2 activation identity mismatch');e.code='OFFLINE_V2_IDENTITY_MISMATCH';throw e}
     return writeState({...current,mode:'active',armed:true,active:true,activated_at:nowIso(),legacy_source_untouched:true,legacy_retired:false});
   }
@@ -198,6 +200,8 @@ function installOfflineV2TakeoverManager(store){
   ipcMain.handle('offline-v2:takeover-deactivate',(_e,input)=>deactivate(input));
 
   // NO automatic arm/prepare/activate call here by design.
+  // Phase 4 intentionally cannot become active until a later phase installs
+  // and attests the explicit-ACK V2 transport by setting transport_ready.
   metaReady().catch(e=>console.error('Offline V2 takeover metadata init failed',e));
   return {state:readState,arm,prepare,activate,deactivate};
 }
