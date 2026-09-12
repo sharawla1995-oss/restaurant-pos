@@ -29,7 +29,7 @@ function resolveRuntime(config){
   let features=[];
   let source='profile-preset';
   if(Array.isArray(config?.enabled_features)&&config.enabled_features.length){
-    features=base.dependencyClosure(config.enabled_features);
+    features=base.preserveCloudFeatures?base.preserveCloudFeatures(config.enabled_features):[...new Set(config.enabled_features.map(norm).filter(Boolean))];
     source='cloud-features';
   }else if(config?.modules_configured===true){
     features=base.fromModules(config.enabled_modules);
