@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.40",
+  "version": "10.5.4-beta.41",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Retail Variants acceptance candidate: delayed Runtime Config scanner recovery, variant-aware sale/return/offline routing, SKU/barcode lookup, and behavioral acceptance gate. Beta-only; Production Top Burger remains outside rollout."
+  "notes": "Advanced Purchasing acceptance candidate: variant-aware GRN routing to retail_purchase_receive_v2, supplier-return routing to retail_supplier_return_create_v2, entitlement-scoped behavior, and regression gate coverage. Beta-only; Production Top Burger remains outside rollout."
 }
