@@ -36,3 +36,8 @@ fs.unlinkSync=function(file,...args){
 };
 
 require('./main-beta23.js');
+
+// Beta45 Phase 2: native Offline V2 store runs in shadow mode only. Existing
+// Beta43/Beta44 operational queue remains authoritative until the later V2
+// takeover gate, so this wiring cannot consume or delete legacy movements.
+require('./beta45-offline-v2-native-store.js').installOfflineV2NativeStore();
