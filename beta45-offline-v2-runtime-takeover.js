@@ -39,7 +39,7 @@ async function canonicalIdentity(){
 }
 function desktopApi(){const api=global.topBurgerDesktop?.offlineV2;if(!api?.commitOperation||!api?.takeoverState)throw new Error('Offline V2 desktop bridge unavailable');return api}
 async function takeoverState(){return desktopApi().takeoverState()}
-async function isTakeoverActive(){const s=await takeoverState();return s?.active===true&&s?.migration_verified===true}
+async function isTakeoverActive(){const s=await takeoverState();return s?.active===true&&s?.migration_verified===true&&s?.transport_ready===true}
 
 function registerOperation(type,adapter={}){
   type=text(type);
@@ -72,7 +72,7 @@ function shiftFromPayload(type,payload={}){
   if(type==='sale')return text(payload?.p_order?.shift_id)||null;
   return text(payload?.p_shift_id)||null;
 }
-function deterministicLocalId(type,tx,payload={}){
+function deterministicLocalId(type,tx){
   if(type==='sale')return `offline-${tx}`;
   if(type==='return')return `offline-ret-${tx}`;
   if(type==='expense')return `offline-exp-${tx}`;
@@ -94,7 +94,7 @@ function recordsFor(type,entityType,localId,payload,created){
   return [{record_type:entityType,local_id:localId,payload:clone(payload),created_local_at:created}];
 }
 function genericBuild(type,entityType,{payload,clientTx,identity,createdAt}){
-  const scope=scopeFrom(payload,identity),localShiftId=shiftFromPayload(type,payload),localId=deterministicLocalId(type,clientTx,payload),created=createdAt||nowIso();
+  const scope=scopeFrom(payload,identity),localShiftId=shiftFromPayload(type,payload),localId=deterministicLocalId(type,clientTx),created=createdAt||nowIso();
   return {
     client_tx_id:clientTx,...scope,
     operation_type:type,entity_type:entityType,local_entity_id:localId,
@@ -135,6 +135,17 @@ async function ensureCommitted(type,payload,forcedTx=null){
 }
 function rememberFailed(type,entry,rpcName,payload,error){failedFallback.set(type,{...entry,rpcName,payload:clone(payload),error,at:Date.now()})}
 function consumeFailed(type){const c=failedFallback.get(type);if(!c)return null;failedFallback.delete(type);return Date.now()-c.at<=FALLBACK_CONTEXT_MS?c:null}
+function localDependencyError(){const e=new TypeError('Failed to fetch');e.code='OFFLINE_V2_LOCAL_DEPENDENCY_PENDING';return e}
+function numericServerId(v){const n=Number(v);return Number.isFinite(n)&&n>0}
+function mustFallbackBeforeCommit(type,payload={}){
+  if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
+  if(type==='return')return !numericServerId(payload?.p_order_id);
+  return false;
+}
+function mustDeferAfterCommit(type,payload={}){
+  if(type==='sale')return offlineShiftTx(payload?.p_order?.shift_id)!==null;
+  return false;
+}
 
 function localSaleResult(entry,payload){
   const localId=entry.commit.local_entity_id,created=entry.commit.created_local_at,code=`OFF-${entry.tx.slice(0,8)}`;
@@ -150,14 +161,24 @@ function localReturnResult(entry,o,selected,reason,notes,method,total,available=
   const items=(selected||[]).map(x=>{const i=(available||[]).find(z=>String(z.id)===String(x.order_item_id));const unit=Number(i?.total||0)/Math.max(1,Number(i?.quantity||1));return {return_id:id,order_item_id:x.order_item_id,product_name:i?.product_name||'صنف',quantity:x.quantity,unit_refund:unit,total:unit*x.quantity}});
   const payments=[{return_id:id,method,amount:Number(total)}];return {r,items,payments};
 }
+function shiftMetricsPayload(metrics,actual){const expected=Number(metrics?.expected||0);return {sales_total:Number(metrics?.sales||0),cash_sales:Number(metrics?.cash||0),wallet_sales:Number(metrics?.wallet||0),instapay_sales:Number(metrics?.instapay||0),expenses_total:Number(metrics?.exp||0),expected_cash:expected,cash_difference:Number(actual)-expected,orders_count:Number(metrics?.count||0)}}
+function localShiftClosed(entry,shift,metrics,actual){const p=shiftMetricsPayload(metrics,actual);return {...clone(shift),closing_cash:Number(actual),closed_at:entry.commit.created_local_at,status:'closed',closed_by_employee_id:runtimeEmployee(),sales_total:p.sales_total,cash_sales:p.cash_sales,wallet_sales:p.wallet_sales,instapay_sales:p.instapay_sales,expenses_total:p.expenses_total,expected_cash:p.expected_cash,cash_difference:p.cash_difference,orders_count:p.orders_count,_offline:true,client_tx_id:entry.tx}}
 
 async function rpcTakeover(name,payload={}){
   const adapter=operationForRpc(name);
   if(migrationLock&&adapter){const e=new Error('Offline V2 migration lock: operational sync is paused');e.code='OFFLINE_V2_MIGRATION_LOCK';throw e}
   if(!adapter||!(await isTakeoverActive()))return base.rpc(name,payload);
   const type=adapter.type;
+  // Some legacy callers coerce local IDs through Number(), producing NaN before
+  // the RPC wrapper sees them. Do not persist that corrupted dependency. Throw a
+  // network-shaped error so the caller's existing offline branch commits from
+  // the original local entity (shift/order) instead.
+  if(mustFallbackBeforeCommit(type,payload))throw localDependencyError();
   const tx=text(adapter.extractTx?.(payload)||txFromPayload(type,payload));
   const entry=await ensureCommitted(type,payload,tx); // durable COMMIT BEFORE network
+  // A sale attached to an unsynced local shift is durable now but must wait for
+  // its parent mapping; never send the local shift id to the server.
+  if(mustDeferAfterCommit(type,payload)){rememberFailed(type,entry,name,payload,localDependencyError());throw localDependencyError()}
   try{return await base.rpc(name,payload)}
   catch(error){rememberFailed(type,entry,name,payload,error);throw error}
 }
@@ -189,14 +210,16 @@ async function saveReturnV2(o,selected,reason,notes,method,total,available,provi
   }
   return localReturnResult(entry,o,selected,reason,notes,method,total,available);
 }
-async function saveShiftCloseV2(...args){
-  if(!(await isTakeoverActive()))return base.saveOfflineShiftClose(...args);
-  let entry=consumeFailed('shift_close');
-  if(entry)return {id:entry.commit.local_entity_id,client_tx_id:entry.tx,_offline:true,created_at:entry.commit.created_local_at};
-  // Preserve compatibility for direct calls whose legacy argument contract may
-  // differ; the adapter is registered, but takeover refuses an ambiguous close
-  // instead of inventing server identifiers.
-  const e=new Error('Offline V2 shift close requires the idempotent RPC context before local fallback');e.code='OFFLINE_V2_SHIFT_CLOSE_CONTEXT_REQUIRED';throw e;
+async function saveShiftCloseV2(shift,metrics,actual,providedClientTx=null){
+  if(!(await isTakeoverActive()))return base.saveOfflineShiftClose(shift,metrics,actual,providedClientTx);
+  let entry=consumeFailed('shift_close');const tx=text(providedClientTx||entry?.tx)||uid();
+  if(!entry||entry.tx!==tx){
+    const payload={p_shift_id:shift?.id,p_closing_cash:Number(actual),p_metrics:shiftMetricsPayload(metrics,actual),p_client_tx_id:tx};
+    entry=await ensureCommitted('shift_close',payload,tx);
+  }
+  const local=localShiftClosed(entry,shift,metrics,actual);
+  try{await odbSet(`openShift:${state.employee?.id}:${runtimeBranch()}`,null)}catch{}
+  return local;
 }
 
 async function guardedLegacySync(...args){
