@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.36",
+  "version": "10.5.4-beta.37",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Beta36 Multi-Engine Integration RC: Variants, Advanced Purchasing, Recipe Basic/Advanced and Food Cost, Orders V2, Reports V2, Finance/B2B, Service, Warehouse, Membership, Logistics, action permissions, safe idempotent Offline V2, Printing V2 and profile-aware Web/PWA. Production Top Burger remains outside Beta rollout."
+  "notes": "Beta37 hotfix: preserve Beta36 Multi-Engine Integration and retry Retail Variants UI after Runtime Config becomes ready. Production Top Burger remains outside Beta rollout."
 }
