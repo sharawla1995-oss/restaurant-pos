@@ -76,7 +76,10 @@ jobs:
             gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes "Beta44 Offline Storage Recovery hotfix. SH-0007 only; Production remains read-only."
           }
           $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
-          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -F prerelease=true -f make_latest=false | Out-Null
+          if (-not $releaseId) { throw "Could not resolve Beta44 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false | Out-Null
           gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" --clobber
+          $actualTarget = gh api "repos/${{ github.repository }}/releases/$releaseId" --jq ".target_commitish"
+          if ($actualTarget -ne "${{ github.sha }}") { throw "Beta44 release target mismatch: $actualTarget" }
           $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
           if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
