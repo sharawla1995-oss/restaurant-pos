@@ -70,7 +70,7 @@ class MemoryStore{
  for(const t of ['legacy_source_untouched:true','migration_verified','transport_ready','OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED'])need(takeover,t);
  for(const t of ['sharawla_offline_v2_apply_event','manualRetry','markDeadLetter','markBlocked','markConflict','client_tx_id'])need(transport,t);
  for(const t of ['server_event_id TEXT PRIMARY KEY','received','applied','order_projection','customer'])need(inbox,t);
- for(const t of ['inventory_movements','stock_policy','server_derived'])need(inventory,t);
+ for(const t of ['inventory_ledger','pending_delta','server_derived'])need(inventory,t);
  for(const t of ['UNRESOLVED_STATUSES','OFFLINE_V2_GUARD_BLOCKED','AES-256-GCM','PBKDF2_ITERATIONS','VACUUM INTO','integrity_check','localReport'])need(safety,t);
  for(const t of ['supportBundle','exportSupportBundle','dead_letter','conflict','retryable','blocked','stopImmediatePropagation'])need(diagnostics,t);
  for(const t of ['Multi-Industry Profile Isolation','Offline V2 Native Store','Outbox Integrity','Inbox Exactly-Once','Safety Guard','Diagnostics / Support Bundle','SAFE READ-ONLY'])need(selfTest,t);
