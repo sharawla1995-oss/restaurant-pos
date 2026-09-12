@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.38",
+  "version": "10.5.4-beta.39",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Beta38 hotfix: ensure Retail Variants startup hotfix is actually loaded at runtime, retry Variants UI after Runtime Config resolves, and hide legacy Restaurant Single/Double controls in Retail without deleting legacy data. Production Top Burger remains outside Beta rollout."
+  "notes": "Capability Runtime V3 parity: explicit 107-capability local catalog overlay, Cloud Runtime V2 authoritative feature preservation, corrected Food dependency direction, explicit source shell wiring, cache-safe future feature preservation, and retained Retail legacy-control isolation. Production Top Burger remains outside Beta rollout."
 }
