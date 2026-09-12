@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.43",
+  "version": "10.5.4-beta.44",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Offline Core Closure candidate: persistent per-user offline login/bootstrap, duplicate offline shift protection, dependency-aware queue sync with stale-shift reconcile, pending-sync diagnostics, offline order visibility, scoped offline bon counter, and queue remap hardening. Beta-only; SH-0005/SH-0006 and Top Burger remain Production Read-Only."
+  "notes": "Offline Storage Recovery hotfix: recover queue from IndexedDB when Desktop SQLite has no value, mirror queue writes to both stores, harden the legacy SQLite temp-file path against Windows EPERM, and preserve Beta43 dependency-aware sync/reconcile behavior. Beta-only; SH-0007 test target only."
 }
