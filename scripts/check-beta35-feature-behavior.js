@@ -7,19 +7,14 @@ const must=(cond,msg)=>{if(!cond)throw new Error(`Beta35 Feature Behavior gate f
 
 function testBehaviorHelper(){
   const source=read('beta35-feature-behavior.js');
-  const document={
-    body:{},
-    querySelector:()=>null,
-    querySelectorAll:()=>[]
-  };
+  const document={body:{},querySelector:()=>null,querySelectorAll:()=>[]};
   class MutationObserver{constructor(fn){this.fn=fn}observe(){}}
-  const window={
-    SharawlaRuntimeCore:{featureEnabled:(config,code)=>Array.isArray(config?.enabled_features)&&config.enabled_features.includes(code)}
-  };
+  const window={SharawlaRuntimeCore:{featureEnabled:(config,code)=>Array.isArray(config?.enabled_features)&&config.enabled_features.includes(code)}};
   window.window=window;
   const sandbox={window,document,MutationObserver,setInterval:()=>0,console};
   vm.runInNewContext(source,sandbox,{filename:'beta35-feature-behavior.js'});
   const b=window.__SharawlaFeatureBehavior;
+  // The helper itself remains the frozen Beta35 behavior implementation even when later releases consume it.
   must(b?.VERSION==='10.5.4-beta.35','behavior version mismatch');
   must(b.configuredFeatureEnabled(null,'food.modifiers')===true,'bootstrap must preserve legacy behavior');
   must(b.configuredFeatureEnabled({},'food.modifiers')===true,'legacy runtime fallback must stay fail-open');
@@ -36,7 +31,8 @@ function testBehaviorHelper(){
 
 function testStaticWiring(){
   const pkg=JSON.parse(read('package.json'));
-  must(pkg.version==='10.5.4-beta.35','package version must be Beta35');
+  const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+  must(m&&Number(m[1])>=35,'package version must be Beta35 or newer');
   must(String(pkg.scripts?.check||'').includes('check-beta35-feature-behavior.js'),'npm check missing Beta35 gate');
 
   const app=read('app.js');
@@ -45,9 +41,7 @@ function testStaticWiring(){
   must(!app.includes('table_id')&&!app.includes('table_number'),'Beta35 must not claim full table assignment implementation');
 
   const behavior=read('beta35-feature-behavior.js');
-  for(const token of ['food.modifiers','food.tables','features_configured','capability_version','option[value="dinein"]','enable_extras','enable_removals']){
-    must(behavior.includes(token),`behavior source missing ${token}`);
-  }
+  for(const token of ['food.modifiers','food.tables','features_configured','capability_version','option[value="dinein"]','enable_extras','enable_removals'])must(behavior.includes(token),`behavior source missing ${token}`);
 
   const index=read('index.html'),sw=read('sw.js');
   must(index.includes(`beta35-feature-behavior.js?v=${pkg.version}`),'index missing Beta35 behavior asset');
@@ -61,14 +55,8 @@ function testStaticWiring(){
 
 function testProtectedScope(){
   const source=read('beta35-feature-behavior.js');
-  for(const forbidden of ['SH-0005','SH-0006','top burger','business_features','admin_set_business_features','admin_reset_business_features']){
-    must(!source.toLowerCase().includes(forbidden.toLowerCase()),`Beta35 runtime source must not target Production or Cloud writes: ${forbidden}`);
-  }
+  for(const forbidden of ['SH-0005','SH-0006','top burger','business_features','admin_set_business_features','admin_reset_business_features'])must(!source.toLowerCase().includes(forbidden.toLowerCase()),`Beta35 runtime source must not target Production or Cloud writes: ${forbidden}`);
 }
 
-try{
-  testBehaviorHelper();
-  testStaticWiring();
-  testProtectedScope();
-  console.log('Beta35 Feature Behavior gate OK.');
-}catch(e){console.error(e);process.exit(1)}
+try{testBehaviorHelper();testStaticWiring();testProtectedScope();console.log('Beta35 Feature Behavior gate OK.');}
+catch(e){console.error(e);process.exit(1)}
