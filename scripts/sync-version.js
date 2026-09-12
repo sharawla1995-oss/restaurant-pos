@@ -9,7 +9,7 @@ const channel=version.includes('-')?'beta':'stable';
 const v=JSON.parse(fs.readFileSync(p('version.json'),'utf8'));v.version=version;v.channel=channel;fs.writeFileSync(p('version.json'),JSON.stringify(v,null,2)+'\n','utf8');
 const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const runtimeChain=['sharawla-runtime-core.js','sharawla-capabilities.js','sharawla-capabilities-beta33.js','sharawla-capabilities-v3.js','sharawla-capability-runtime-bridge.js','sharawla-feature-consumption.js','sharawla-cloud-runtime-v2.js','restaurant-engine.js'];
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js','beta43-offline-core.js'];
 const retailDynamic=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js','retail-variants-runtime-bridge.js','retail-variants-ui.js','retail-variants-startup-hotfix.js','advanced-purchasing-runtime-bridge.js','advanced-purchasing-v1.js'];
 const beta36Dynamic=['beta36-offline-v2.js','permissions-v2-ui.js','printing-v2.js','landed-cost-posting-v1.js','commerce-orders-v2-ui.js','reports-v2-ui.js','finance-b2b-ui.js','service-v1-ui.js','warehouse-v1-ui.js','membership-v1-ui.js','logistics-v1-ui.js','retail-variants-startup-hotfix.js'];
 const capabilityRegistry='sharawla-capability-module-registry.js';
@@ -42,6 +42,10 @@ fs.writeFileSync(p('beta36-integration-loader.js'),loader,'utf8');
 let variantsHotfix=fs.readFileSync(p('retail-variants-startup-hotfix.js'),'utf8');
 variantsHotfix=variantsHotfix.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
 fs.writeFileSync(p('retail-variants-startup-hotfix.js'),variantsHotfix,'utf8');
+
+let offline43=fs.readFileSync(p('beta43-offline-core.js'),'utf8');
+offline43=offline43.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
+fs.writeFileSync(p('beta43-offline-core.js'),offline43,'utf8');
 
 let sw=fs.readFileSync(p('sw.js'),'utf8');
 sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);
