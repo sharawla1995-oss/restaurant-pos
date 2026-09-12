@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.42",
+  "version": "10.5.4-beta.43",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Capability Module Registry V1 + Recipe acceptance candidate: entitlement-driven Recipe/Prep/Production/Waste/Food Cost module loading, cross-profile UI/runtime consumption, delayed Runtime Config reconciliation, and removal of Restaurant hard-gates. Beta-only; Production Top Burger remains outside rollout."
+  "notes": "Offline Core Closure candidate: persistent per-user offline login/bootstrap, duplicate offline shift protection, dependency-aware queue sync with stale-shift reconcile, pending-sync diagnostics, offline order visibility, scoped offline bon counter, and queue remap hardening. Beta-only; SH-0005/SH-0006 and Top Burger remain Production Read-Only."
 }
