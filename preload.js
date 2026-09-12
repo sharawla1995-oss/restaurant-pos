@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   record:(t,id)=>ipcRenderer.invoke('offline-v2:record',t,id),
   health:()=>ipcRenderer.invoke('offline-v2:health'),
   syncStats:()=>ipcRenderer.invoke('offline-v2:sync-stats'),
+  inventoryLedger:x=>ipcRenderer.invoke('offline-v2:inventory-ledger',x||{}),
+  inventoryProjection:x=>ipcRenderer.invoke('offline-v2:inventory-projection',x||{}),
+  inventoryStats:x=>ipcRenderer.invoke('offline-v2:inventory-stats',x||{}),
   syncNow:x=>ipcRenderer.invoke('offline-v2:sync-now',x),
   manualRetry:x=>ipcRenderer.invoke('offline-v2:manual-retry',x),
   transportAttest:x=>ipcRenderer.invoke('offline-v2:transport-attest',x),
@@ -46,13 +49,18 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(document.querySelector('script[data-offline-v2-phase4]'))return;
   const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev';s.dataset.offlineV2Phase4='1';
   s.onload=()=>{
-   if(document.querySelector('script[data-offline-v2-phase5]'))return;
-   const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';
-   t.onload=()=>{
-    if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
-    const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+   if(document.querySelector('script[data-offline-v2-phase6-inventory]'))return;
+   const i=document.createElement('script');i.src='beta45-offline-v2-inventory-runtime.js?v=10.5.4-beta.45-dev';i.dataset.offlineV2Phase6Inventory='1';
+   i.onload=()=>{
+    if(document.querySelector('script[data-offline-v2-phase5]'))return;
+    const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';
+    t.onload=()=>{
+     if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
+     const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+    };
+    document.body.appendChild(t);
    };
-   document.body.appendChild(t);
+   document.body.appendChild(i);
   };
   document.body.appendChild(s);
  },0);
