@@ -42,6 +42,30 @@ function behaviorTest(){
   must(api.reconcile().length===0,'disabled entitlements still report active modules');
 }
 
+async function recipeRoutingTest(){
+  const store=new Map([['sharawlaRuntimeConfigV1',JSON.stringify({pos_profile:'retail',enabled_features:['food.recipes']})]]);
+  const calls=[];
+  const localStorage={getItem:k=>store.get(k)||null};
+  const document={readyState:'complete',addEventListener(){}};
+  const window={
+    window:null,localStorage,console,
+    rpc:async(name,payload)=>{calls.push({name,payload});return {ok:true}},
+    saveOfflineSale:async(...args)=>{calls.push({name:'offline',args});return {ok:true}}
+  };
+  window.window=window;
+  const sandbox={window,document,localStorage,console,setTimeout,clearTimeout};
+  vm.runInNewContext(read('food-recipe-runtime-bridge.js'),sandbox,{filename:'food-recipe-runtime-bridge.js'});
+
+  await window.rpc('create_retail_pos_order_atomic',{p_items:[{product_id:1,quantity:1}]});
+  await window.rpc('create_retail_order_return_idempotent',{p_order_id:1});
+  await window.rpc('create_pos_order_atomic',{p_items:[{product_id:1,quantity:1}]});
+  await window.rpc('create_order_return_idempotent',{p_order_id:1});
+  must(calls[0].name==='create_retail_food_pos_order_atomic_v1','Retail sale is not routed through composed Recipe RPC');
+  must(calls[1].name==='create_retail_food_order_return_idempotent_v1','Retail return is not routed through composed Recipe RPC');
+  must(calls[2].name==='create_food_pos_order_atomic_v1','Restaurant/base sale Recipe route regressed');
+  must(calls[3].name==='create_food_order_return_idempotent_v1','Restaurant/base return Recipe route regressed');
+}
+
 function sourceContractTest(){
   const registry=read('sharawla-capability-module-registry.js');
   for(const token of ['food.recipe.runtime','food.recipe.ui','food.advanced.ui','food.recipes','food.prep','food.production','food.waste','food.costing','contracts','permission'])must(registry.includes(token),`registry invariant missing: ${token}`);
@@ -61,15 +85,32 @@ function sourceContractTest(){
   const sw=read('sw.js');
   for(const token of ['sharawla-capability-module-registry.js','food-recipe-runtime-bridge.js','food-recipe-ui-v1.js','food-advanced-ui-v1.js'])must(sw.includes(token),`service worker missing ${token}`);
 
-  const sql=read('supabase-beta42-recipe-track-inventory-acceptance.sql');
-  must(sql.includes('if v_line.track_inventory then'),'sale path does not gate stock mutation by track_inventory');
-  must(sql.includes('if v.track_inventory then'),'return path does not gate stock restoration by track_inventory');
-  must(sql.includes("insert into public.food_order_item_consumption_snapshots"),'untracked ingredients would lose consumption snapshots/cost history');
-  must(sql.includes("insert into public.food_return_consumption_snapshots"),'returns would lose consumption reversal snapshots');
-  must(sql.includes('v_base_cost:=v_base_cost+(v_need*v_unit_cost)'),'base recipe costing missing');
-  must(sql.includes('v_mod_cost:=v_mod_cost+(v_need*v_unit_cost)'),'modifier costing missing');
+  const trackSql=read('supabase-beta42-recipe-track-inventory-acceptance.sql');
+  must(trackSql.includes('if v_line.track_inventory then'),'sale path does not gate stock mutation by track_inventory');
+  must(trackSql.includes('if v.track_inventory then'),'return path does not gate stock restoration by track_inventory');
+  must(trackSql.includes('food_order_item_consumption_snapshots'),'untracked ingredients would lose sale snapshots/cost history');
+  must(trackSql.includes('food_return_consumption_snapshots'),'returns would lose reversal snapshots');
+
+  const composeSql=read('supabase-beta42-retail-recipe-composable-runtime.sql');
+  for(const token of ['create_retail_food_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_retail_pos_order_atomic','create_food_pos_order_atomic_v1','create_retail_food_order_return_idempotent_v1','create_food_order_return_idempotent_v1'])must(composeSql.includes(token),`Retail/Recipe composition missing ${token}`);
+  must(composeSql.includes('same transaction')||composeSql.includes('Same transaction'),'composition transaction contract missing');
+
+  const helperSql=read('supabase-beta42-food-helper-duplicate-composition-fix.sql');
+  must(helperSql.includes('food_apply_order_consumption_v1'),'Recipe helper patch missing');
+  must(helperSql.includes('food_order_item_cost_snapshots where order_item_id=v_order_item_id'),'Recipe helper per-item idempotency guard not asserted');
+
+  const bridge=read('food-recipe-runtime-bridge.js');
+  must(bridge.includes("create_retail_pos_order_atomic')return baseRpc('create_retail_food_pos_order_atomic_v1"),'Retail Recipe sale routing missing');
+  must(bridge.includes("create_retail_order_return_idempotent')return baseRpc('create_retail_food_order_return_idempotent_v1"),'Retail Recipe return routing missing');
+
+  const app=read('app.js');
+  must(app.includes("job.engine==='retail'?'create_retail_pos_order_atomic':'create_pos_order_atomic'"),'offline sale engine routing contract changed unexpectedly');
+  must(app.includes("job.engine==='retail'?'create_retail_order_return_idempotent':'create_order_return_idempotent'"),'offline return engine routing contract changed unexpectedly');
 }
 
-sourceContractTest();
-behaviorTest();
-console.log('Beta42 Capability Module Registry + Recipe track_inventory gate OK.');
+(async()=>{
+  sourceContractTest();
+  behaviorTest();
+  await recipeRoutingTest();
+  console.log('Beta42 Capability Registry + Recipe composition gates OK.');
+})().catch(e=>{console.error(e);process.exit(1)});
