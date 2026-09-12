@@ -3,6 +3,13 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  isDesktop:true,
  db:{get:k=>ipcRenderer.invoke('db:get',k),set:(k,v)=>ipcRenderer.invoke('db:set',k,v)},
  operations:{put:o=>ipcRenderer.invoke('ops:put',o),list:s=>ipcRenderer.invoke('ops:list',s),status:(id,s,e)=>ipcRenderer.invoke('ops:status',id,s,e)},
+ offlineV2:{
+  commitOperation:o=>ipcRenderer.invoke('offline-v2:commit-operation',o),
+  importShadow:s=>ipcRenderer.invoke('offline-v2:import-shadow',s),
+  outbox:s=>ipcRenderer.invoke('offline-v2:outbox',s??null),
+  record:(t,id)=>ipcRenderer.invoke('offline-v2:record',t,id),
+  health:()=>ipcRenderer.invoke('offline-v2:health')
+ },
  backup:{create:r=>ipcRenderer.invoke('backup:create',r),saveJson:(j,r)=>ipcRenderer.invoke('backup:saveJson',j,r),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
  app:{info:()=>ipcRenderer.invoke('app:info')},
