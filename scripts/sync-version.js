@@ -9,15 +9,18 @@ const channel=version.includes('-')?'beta':'stable';
 const v=JSON.parse(fs.readFileSync(p('version.json'),'utf8'));v.version=version;v.channel=channel;fs.writeFileSync(p('version.json'),JSON.stringify(v,null,2)+'\n','utf8');
 const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 const runtimeChain=['sharawla-runtime-core.js','sharawla-capabilities.js','sharawla-capabilities-beta33.js','sharawla-capabilities-v3.js','sharawla-capability-runtime-bridge.js','sharawla-feature-consumption.js','sharawla-cloud-runtime-v2.js','restaurant-engine.js'];
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta44-finance-b2b-inject-shim.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js','beta43-offline-core.js','beta44-offline-storage-recovery.js'];
+const beta45Shell=['beta45-offline-v2-foundation.js','beta-self-test.js'];
+const beta45Dynamic=['beta45-offline-v2-runtime-takeover.js','beta45-offline-v2-inventory-runtime.js','beta45-offline-v2-transport-runtime.js','beta45-offline-v2-inbox-runtime.js','beta45-offline-v2-safety-runtime.js','beta45-offline-v2-diagnostics.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta44-finance-b2b-inject-shim.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js','beta43-offline-core.js','beta44-offline-storage-recovery.js','beta45-offline-v2-foundation.js'];
 const retailDynamic=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js','retail-variants-runtime-bridge.js','retail-variants-ui.js','retail-variants-startup-hotfix.js','advanced-purchasing-runtime-bridge.js','advanced-purchasing-v1.js'];
 const beta36Dynamic=['beta36-offline-v2.js','permissions-v2-ui.js','printing-v2.js','landed-cost-posting-v1.js','commerce-orders-v2-ui.js','reports-v2-ui.js','finance-b2b-ui.js','service-v1-ui.js','warehouse-v1-ui.js','membership-v1-ui.js','logistics-v1-ui.js','retail-variants-startup-hotfix.js'];
 const capabilityRegistry='sharawla-capability-module-registry.js';
 const capabilityDynamic=['food-recipe-runtime-bridge.js','food-recipe-ui-v1.js','food-advanced-ui-v1.js'];
 let index=fs.readFileSync(p('index.html'),'utf8');
+if(!index.includes('beta-self-test.js?v='))index=index.replace('</body>',`<script src="beta-self-test.js?v=${version}"></script>\n</body>`);
 for(const a of direct)if(!index.includes(`${a}?v=`))throw new Error(`Source shell missing required asset before version sync: ${a}`);
 let previous=-1;for(const a of runtimeChain){const pos=index.indexOf(`${a}?v=`);if(pos<=previous)throw new Error(`Unsafe Capability V3 source load order at ${a}`);previous=pos}
-for(const a of direct)index=index.replace(new RegExp(`${esc(a)}\\?v=[^"]+`,'g'),`${a}?v=${version}`);
+for(const a of [...direct,'beta-self-test.js'])index=index.replace(new RegExp(`${esc(a)}\\?v=[^"]+`,'g'),`${a}?v=${version}`);
 fs.writeFileSync(p('index.html'),index,'utf8');
 
 let consumption=fs.readFileSync(p('sharawla-feature-consumption.js'),'utf8');
@@ -49,8 +52,21 @@ for(const file of ['beta44-offline-storage-recovery.js','beta44-finance-b2b-inje
   fs.writeFileSync(p(file),src,'utf8');
 }
 
+for(const file of beta45Shell.concat(beta45Dynamic)){
+  let src=fs.readFileSync(p(file),'utf8');
+  src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
+  fs.writeFileSync(p(file),src,'utf8');
+}
+
+let preload=fs.readFileSync(p('preload.js'),'utf8');
+for(const a of beta45Dynamic)preload=preload.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);
+fs.writeFileSync(p('preload.js'),preload,'utf8');
+
 let sw=fs.readFileSync(p('sw.js'),'utf8');
 sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);
-for(const a of [...direct,...retailDynamic,...beta36Dynamic,capabilityRegistry,...capabilityDynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);
+for(const a of beta45Shell.concat(beta45Dynamic)){
+  if(!sw.includes(`./${a}?v=`))sw=sw.replace(" './manifest.json'",` './${a}?v=${version}',\n './manifest.json'`);
+}
+for(const a of [...direct,...retailDynamic,...beta36Dynamic,capabilityRegistry,...capabilityDynamic,...beta45Shell,...beta45Dynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);
 fs.writeFileSync(p('sw.js'),sw,'utf8');
-console.log(`Version sync OK: ${version} (${channel}) — source wiring already explicit`);
+console.log(`Version sync OK: ${version} (${channel}) — Beta45 final integration wiring synchronized`);
