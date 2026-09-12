@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='food-recipe-runtime-v1.1';
+const VERSION='food-recipe-runtime-v1.2';
 const FEATURE='food.recipes';
 let wrapped=false,bootTimer=null;
 function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
@@ -27,11 +27,16 @@ function boot(){
  if(typeof global.rpc!=='function'||typeof global.saveOfflineSale!=='function'){
    clearTimeout(bootTimer);bootTimer=setTimeout(boot,80);return;
  }
+ // Capture the current chain. On Retail this may already include the Variants bridge;
+ // our composed RPC names are intentionally not intercepted by it, so they delegate
+ // to the raw backend RPC while preserving all existing wrappers for unrelated calls.
  const baseRpc=global.rpc.bind(global),baseOffline=global.saveOfflineSale.bind(global);
  global.rpc=async function(name,payload={}){
    if(!operational())return baseRpc(name,payload);
    if(name==='create_pos_order_atomic')return baseRpc('create_food_pos_order_atomic_v1',{...payload,p_items:enrich(payload?.p_items)});
    if(name==='create_order_return_idempotent')return baseRpc('create_food_order_return_idempotent_v1',payload);
+   if(name==='create_retail_pos_order_atomic')return baseRpc('create_retail_food_pos_order_atomic_v1',{...payload,p_items:enrich(payload?.p_items)});
+   if(name==='create_retail_order_return_idempotent')return baseRpc('create_retail_food_order_return_idempotent_v1',payload);
    return baseRpc(name,payload);
  };
  global.saveOfflineSale=async function(orderPayload,itemPayload,payRows,clientTx){
