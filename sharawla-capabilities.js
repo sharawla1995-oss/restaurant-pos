@@ -54,6 +54,10 @@ function dependencyClosure(values){
   while(stack.length){const code=stack.pop();if(out.has(code))continue;const f=getFeature(code);if(!f)continue;out.add(code);for(const dep of f.dependsOn)stack.push(dep)}
   return [...out];
 }
+function preserveCloudFeatures(values){
+  const raw=unique(values);
+  return unique([...raw,...dependencyClosure(raw)]);
+}
 function validateSelection(values){
   const selected=new Set(unique(values));const unknown=[...selected].filter(x=>!FEATURES.has(x));const missing=[];
   for(const code of selected){const f=getFeature(code);if(!f)continue;for(const dep of f.dependsOn)if(!selected.has(dep))missing.push({feature:code,dependency:dep})}
@@ -62,7 +66,7 @@ function validateSelection(values){
 function fromModules(modules){const rows=[...BASE_FEATURES];for(const mod of unique(modules))for(const f of MODULE_TO_FEATURES[mod]||[])rows.push(f);return dependencyClosure(rows)}
 function resolveRuntime(config){
   const profile=norm(config?.pos_profile);const preset=getProfile(profile);let features=[];let source='profile-preset';
-  if(Array.isArray(config?.enabled_features)&&config.enabled_features.length){features=dependencyClosure(config.enabled_features);source='cloud-features'}
+  if(Array.isArray(config?.enabled_features)&&config.enabled_features.length){features=preserveCloudFeatures(config.enabled_features);source='cloud-features'}
   else if(config?.modules_configured===true){features=fromModules(config.enabled_modules);source='legacy-modules'}
   else features=dependencyClosure(preset?.features||BASE_FEATURES);
   return Object.freeze({profile,domain:preset?.domain||'unknown',implemented:preset?.implemented===true,source,features:Object.freeze(features)});
@@ -78,5 +82,5 @@ function selfValidate(){
   return true;
 }
 selfValidate();
-global.SharawlaCapabilities=Object.freeze({VERSION,BASE_FEATURES,FEATURE_COUNT:FEATURES.size,PROFILE_COUNT:Object.keys(PROFILES).length,getFeature,getProfile,listFeatures,listProfiles,dependencyClosure,validateSelection,fromModules,resolveRuntime,selfValidate});
+global.SharawlaCapabilities=Object.freeze({VERSION,BASE_FEATURES,FEATURE_COUNT:FEATURES.size,PROFILE_COUNT:Object.keys(PROFILES).length,getFeature,getProfile,listFeatures,listProfiles,dependencyClosure,preserveCloudFeatures,validateSelection,fromModules,resolveRuntime,selfValidate});
 })(window);
