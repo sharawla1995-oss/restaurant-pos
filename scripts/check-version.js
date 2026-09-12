@@ -20,7 +20,9 @@ const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js
 for(const asset of direct){if(!index.includes(`${asset}?v=${version}`))throw new Error(`index cache version mismatch: ${asset}`);if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW shell version mismatch: ${asset}`)}
 for(const asset of ['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'])if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW dynamic Retail asset mismatch: ${asset}`);
 if(!sw.includes(`const CACHE='sharawla-pos-v${version}';`))throw new Error('Service worker cache name not synchronized');
-if(index.includes('beta-self-test.js?v='))throw new Error('Public Beta Self-Test must not auto-load');
+if(!index.includes(`beta-self-test.js?v=${version}`))throw new Error('Beta45 Self-Test must be loaded with the current beta version');
+if(!sw.includes(`./beta-self-test.js?v=${version}`))throw new Error('Beta45 Self-Test must be in the current service-worker shell');
+if(!(index.indexOf(`app.js?v=${version}`)<index.indexOf(`beta-self-test.js?v=${version}`)))throw new Error('Beta45 Self-Test must load after app.js');
 if(!index.includes(`owner-diagnostics.js?v=${version}`))throw new Error('Owner diagnostics must be loaded globally');
 if(!(index.indexOf(`sharawla-runtime-core.js?v=${version}`)<index.indexOf(`sharawla-capabilities.js?v=${version}`)&&index.indexOf(`sharawla-capabilities.js?v=${version}`)<index.indexOf(`restaurant-engine.js?v=${version}`)))throw new Error('Capability registry must load after Runtime Core and before profile engines');
 if(!(index.indexOf(`beta44-finance-b2b-inject-shim.js?v=${version}`)<index.indexOf(`beta36-integration-loader.js?v=${version}`)))throw new Error('Beta44 Finance shim must load before Beta36 integration loader');
