@@ -6,7 +6,7 @@
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta28-fixes.js && node scripts/check-beta29-functional.js && node scripts/check-beta30-pharmacy.js && node scripts/check-beta31-pharmacy-ui.js && node scripts/check-beta32-capabilities.js && node scripts/check-beta33-cloud-runtime-v2.js && node scripts/check-beta34-feature-consumption.js && node scripts/check-beta35-feature-behavior.js && node scripts/check-beta36-multi-engine.js && node scripts/check-owner-diagnostics.js && node scripts/check-retail-finalization.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
+    "check": "npm run sync-version && node scripts/check-runtime-syntax.js && node scripts/check-beta28-fixes.js && node scripts/check-beta29-functional.js && node scripts/check-beta30-pharmacy.js && node scripts/check-beta31-pharmacy-ui.js && node scripts/check-beta32-capabilities.js && node scripts/check-beta33-cloud-runtime-v2.js && node scripts/check-beta34-feature-consumption.js && node scripts/check-beta35-feature-behavior.js && node scripts/check-beta36-multi-engine.js && node scripts/check-beta36-landed-cost.js && node scripts/check-owner-diagnostics.js && node scripts/check-retail-finalization.js && node scripts/check-update-recovery.js && node scripts/check-version.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
