@@ -21,7 +21,6 @@ on:
       - beta33-cloud-runtime-v2
       - beta34-feature-consumption-bridge
       - beta35-feature-behavior-gates
-      - beta36-multi-engine-integration
   workflow_dispatch:
 
 permissions:
