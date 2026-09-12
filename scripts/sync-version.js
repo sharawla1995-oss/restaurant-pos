@@ -46,12 +46,8 @@ let variantsHotfix=fs.readFileSync(p('retail-variants-startup-hotfix.js'),'utf8'
 variantsHotfix=variantsHotfix.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
 fs.writeFileSync(p('retail-variants-startup-hotfix.js'),variantsHotfix,'utf8');
 
-for(const file of ['beta44-offline-storage-recovery.js','beta44-finance-b2b-inject-shim.js']){
-  let src=fs.readFileSync(p(file),'utf8');
-  src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
-  fs.writeFileSync(p(file),src,'utf8');
-}
-
+// Historical Beta44 runtime constants remain Beta44 by design. Only their shell
+// cache query is bumped so the protected implementation is not semantically rewritten.
 for(const file of beta45Shell.concat(beta45Dynamic)){
   let src=fs.readFileSync(p(file),'utf8');
   src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
