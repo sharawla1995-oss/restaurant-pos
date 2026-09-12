@@ -27,6 +27,10 @@ for(const a of beta36Dynamic)loader=loader.replace(new RegExp(`${esc(a)}\\?v=[^'
 loader=loader.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
 fs.writeFileSync(p('beta36-integration-loader.js'),loader,'utf8');
 
+let variantsHotfix=fs.readFileSync(p('retail-variants-startup-hotfix.js'),'utf8');
+variantsHotfix=variantsHotfix.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
+fs.writeFileSync(p('retail-variants-startup-hotfix.js'),variantsHotfix,'utf8');
+
 let sw=fs.readFileSync(p('sw.js'),'utf8');
 sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);
 for(const a of [...direct,...retailDynamic,...beta36Dynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);
