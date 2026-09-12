@@ -1,13 +1,16 @@
 (function(global){
 'use strict';
-const VERSION='variants-v1-runtime-bridge.1';
+const VERSION='variants-v1-runtime-bridge.2';
 const FEATURE='commerce.variants';
 const originalRpc=typeof global.rpc==='function'?global.rpc.bind(global):null;
 const originalAddRetailProduct=typeof global.addRetailProductToCart==='function'?global.addRetailProductToCart.bind(global):null;
 const originalSaveOfflineSale=typeof global.saveOfflineSale==='function'?global.saveOfflineSale.bind(global):null;
 let scanObserver=null;
+let scannerRetryTimer=null;
+let scannerRetryTries=0;
+const SCANNER_RETRY_MAX=600;
 
-const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const notify=m=>{try{if(typeof global.toast==='function')return global.toast(m)}catch{};console.warn(m)};
 function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
 function operational(){const c=cfg();return String(c.pos_profile||'').toLowerCase()==='retail'&&global.SharawlaRuntimeCore?.hasEngine?.('retail')===true&&(Array.isArray(c.enabled_features)?c.enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()).includes(FEATURE)}
@@ -132,14 +135,27 @@ async function handleScan(input,e){
  notify(`باركود/SKU غير موجود: ${code}`);input.select();
 }
 function wireScanner(){
- if(!operational())return;
- const input=document.querySelector('#retailScanInput');if(!input||input.dataset.variantV1Scan==='1')return;
- input.dataset.variantV1Scan='1';input.addEventListener('keydown',e=>handleScan(input,e),true);
+ if(!operational())return false;
+ const input=document.querySelector('#retailScanInput');if(!input)return false;
+ if(input.dataset.variantV1Scan==='1')return true;
+ input.dataset.variantV1Scan='1';input.addEventListener('keydown',e=>handleScan(input,e),true);return true;
+}
+function ensureScannerRuntime(){
+ scannerRetryTries++;
+ if(operational()){
+  if(!scanObserver){scanObserver=new MutationObserver(wireScanner);scanObserver.observe(document.body,{childList:true,subtree:true})}
+  wireScanner();
+  global.__SharawlaRetailVariantsRuntimeV1=Object.freeze({version:VERSION,feature:FEATURE,operational,enrichSaleItems,lookupVariant,wireScanner});
+  if(scannerRetryTimer){clearInterval(scannerRetryTimer);scannerRetryTimer=null}
+  return true;
+ }
+ if(scannerRetryTries>=SCANNER_RETRY_MAX&&scannerRetryTimer){clearInterval(scannerRetryTimer);scannerRetryTimer=null}
+ return false;
 }
 function start(){
- if(!String(cfg().pos_profile||'').toLowerCase().includes('retail'))return;
- wireScanner();scanObserver=new MutationObserver(wireScanner);scanObserver.observe(document.body,{childList:true,subtree:true});
- global.__SharawlaRetailVariantsRuntimeV1=Object.freeze({version:VERSION,feature:FEATURE,operational,enrichSaleItems,lookupVariant});
+ ensureScannerRuntime();
+ if(!scannerRetryTimer&&!operational()&&scannerRetryTries<SCANNER_RETRY_MAX)scannerRetryTimer=setInterval(ensureScannerRuntime,100);
 }
+for(const eventName of ['sharawla-beta36-integrations-ready','sharawla-beta37-integrations-ready','sharawla-beta38-integrations-ready','sharawla-beta39-integrations-ready','sharawla-retail-variants-ready'])global.addEventListener(eventName,ensureScannerRuntime);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
