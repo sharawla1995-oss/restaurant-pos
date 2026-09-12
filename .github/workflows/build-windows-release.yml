@@ -45,7 +45,7 @@ jobs:
           $chain = @("sharawla-runtime-core.js","sharawla-capabilities.js","sharawla-capabilities-beta33.js","sharawla-capabilities-v3.js","sharawla-capability-runtime-bridge.js","sharawla-feature-consumption.js","sharawla-cloud-runtime-v2.js","restaurant-engine.js")
           $last = -1
           foreach ($asset in $chain) {
-            $needle = "$asset?v="
+            $needle = $asset + "?v="
             $pos = $index.IndexOf($needle)
             if ($pos -lt 0) { throw "Source shell missing before sync: $asset" }
             if ($pos -le $last) { throw "Unsafe source shell order at: $asset" }
