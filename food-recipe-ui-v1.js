@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='food-recipe-ui-v1.0';
+const VERSION='food-recipe-ui-v1.1';
 const F={ingredients:'food.ingredients',recipes:'food.recipes'};
 let observer=null,queued=false;
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -11,8 +11,7 @@ const branch=()=>{try{return Number(global.currentBranchId?.()||0)}catch{return 
 const txid=()=>global.crypto?.randomUUID?.()||`food-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
 function has(code){return (Array.isArray(cfg().enabled_features)?cfg().enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()).includes(String(code).toLowerCase())}
-function restaurant(){return String(cfg().pos_profile||'').trim().toLowerCase()==='restaurant'&&global.SharawlaRuntimeCore?.hasEngine?.('restaurant')===true}
-function enabled(){return restaurant()&&(has(F.ingredients)||has(F.recipes))}
+function enabled(){return has(F.ingredients)||has(F.recipes)}
 function canManage(){try{return global.isAdmin?.()===true||global.hasFeaturePermission?.('inventory')===true}catch{return true}}
 async function ask(msg,def='',opts={}){try{if(typeof global.uiPrompt==='function')return await global.uiPrompt(msg,def,opts)}catch{}return prompt(msg,def)}
 async function yes(msg,opts={}){try{if(typeof global.uiConfirm==='function')return await global.uiConfirm(msg,opts)}catch{}return confirm(msg)}
