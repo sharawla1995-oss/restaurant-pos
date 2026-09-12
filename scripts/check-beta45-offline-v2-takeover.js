@@ -15,15 +15,21 @@ new Function(manager);
 new Function(runtime);
 new Function(preload);
 
-// Takeover is fail-safe and disabled until explicitly approved.
+// Takeover is fail-safe, disabled by default, and cannot activate before the
+// later explicit-ACK transport phase attests itself ready.
 for(const token of [
-  "mode:'disabled'","armed:false","active:false","migration_verified:false","legacy_retired:false",
-  "input?.approved!==true","OFFLINE_V2_APPROVAL_REQUIRED",
+  "mode:'disabled'","armed:false","active:false","migration_verified:false","transport_ready:false","legacy_retired:false",
+  "input?.approved!==true","OFFLINE_V2_APPROVAL_REQUIRED","OFFLINE_V2_TRANSPORT_NOT_READY",
   "device_id:text(raw?.device_id)","business_id:text(raw?.business_id)","device_fingerprint:text(raw?.device_fingerprint)",
   "OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED","OFFLINE_V2_IDENTITY_MISMATCH",
   "ipcMain.handle('offline-v2:takeover-state'","ipcMain.handle('offline-v2:takeover-arm'",
   "ipcMain.handle('offline-v2:takeover-prepare'","ipcMain.handle('offline-v2:takeover-activate'"
 ])need(manager,token);
+const activation=manager.indexOf('async function activate');
+const transportGate=manager.indexOf('current.transport_ready!==true',activation);
+const activeWrite=manager.indexOf("mode:'active'",activation);
+if(!(activation>=0&&transportGate>activation&&activeWrite>transportGate))throw new Error('Runtime takeover can activate before transport readiness');
+need(runtime,"s?.transport_ready===true");
 
 // Controlled migration is copy -> block V2 duplicate -> re-read -> exact verify
 // -> marker last. The legacy source may never be cleared or rewritten.
@@ -60,6 +66,21 @@ if(!(rpcFn>=0&&commitAt>rpcFn&&networkAt>commitAt))throw new Error('Active takeo
 need(runtime,'OFFLINE_V2_CLIENT_TX_REQUIRED');
 need(runtime,'committedThisSession');
 
+// Never persist Number(local-id)=>NaN dependencies. Expense/shift-close/return
+// fall back before commit so their caller can commit from the original local
+// entity. A sale on an unsynced local shift commits first, then waits for parent.
+for(const token of [
+  'function mustFallbackBeforeCommit','function mustDeferAfterCommit',
+  "type==='expense'||type==='shift_close'","type==='return'","type==='sale'",
+  'OFFLINE_V2_LOCAL_DEPENDENCY_PENDING','if(mustFallbackBeforeCommit(type,payload))throw localDependencyError()',
+  'if(mustDeferAfterCommit(type,payload))',
+  'async function saveShiftCloseV2(shift,metrics,actual,providedClientTx=null)',
+  "await ensureCommitted('shift_close',payload,tx)",
+  'function localShiftClosed'
+])need(runtime,token);
+const badDep=runtime.indexOf('if(mustFallbackBeforeCommit(type,payload))');
+if(!(badDep>rpcFn&&badDep<commitAt))throw new Error('Invalid local dependency can be committed before fallback');
+
 // Migration lock snapshots legacy queue while operational RPCs are paused.
 const prep=runtime.indexOf('async function prepareLegacyMigration');
 const lock=runtime.indexOf('migrationLock=true',prep);
@@ -87,7 +108,5 @@ if(main.indexOf("installOfflineV2NativeStore()")>main.indexOf('installOfflineV2T
 need(manager,'// NO automatic arm/prepare/activate call here by design.');
 need(runtime,'Nothing below arms');
 
-if(!String(pkg.scripts?.check||'').includes('check-beta45-offline-v2-takeover.js')){
-  throw new Error('package check pipeline missing Phase 4 takeover gate');
-}
+if(!String(pkg.scripts?.check||'').includes('check-beta45-offline-v2-takeover.js'))throw new Error('package check pipeline missing Phase 4 takeover gate');
 console.log('Beta45 Offline V2 controlled migration + generic runtime takeover gate PASS');
