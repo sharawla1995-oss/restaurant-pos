@@ -146,4 +146,5 @@
   const load=(key,src)=>{if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=src;s.defer=true;s.setAttribute(`data-${key}`,'1');document.head.appendChild(s)};
   load('sharawla-food-recipe-runtime-v1','food-recipe-runtime-bridge.js?v=food-recipe-runtime-v1.0');
   load('sharawla-food-recipe-ui-v1','food-recipe-ui-v1.js?v=food-recipe-ui-v1.0');
+  load('sharawla-food-advanced-ui-v1','food-advanced-ui-v1.js?v=food-advanced-ui-v1.0');
 })(window);
