@@ -80,3 +80,7 @@ require('./beta45-offline-v2-inventory-store.js').installOfflineV2InventoryStore
 require('./beta45-offline-v2-inbox-store.js').installOfflineV2InboxStore();
 require('./beta45-offline-v2-takeover-manager.js').installOfflineV2TakeoverManager(offlineV2Store);
 require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store);
+
+// Beta46 Acceptance Lab is fail-closed to SH-0007 + the experimental business.
+// It can simulate backend faults without cutting Windows/AnyDesk connectivity.
+require('./beta46-acceptance-network-main.js').installAcceptanceNetworkMain();
