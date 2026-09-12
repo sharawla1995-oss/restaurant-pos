@@ -20,5 +20,6 @@
   load('sharawla-retail-variants-runtime-v1','retail-variants-runtime-bridge.js?v=10.5.4-beta.39');
   load('sharawla-retail-variants-v1','retail-variants-ui.js?v=10.5.4-beta.39');
   load('sharawla-retail-variants-startup-hotfix','retail-variants-startup-hotfix.js?v=10.5.4-beta.39');
+  load('sharawla-advanced-purchasing-runtime-bridge','advanced-purchasing-runtime-bridge.js?v=10.5.4-beta.39');
   load('sharawla-advanced-purchasing-v1','advanced-purchasing-v1.js?v=10.5.4-beta.39');
 })(window);
