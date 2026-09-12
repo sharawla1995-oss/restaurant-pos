@@ -39,7 +39,8 @@ forbid(store,'DELETE FROM offline_v2_inbox','Inbox audit rows must never be prun
 forbid(store,'DELETE FROM offline_v2_order_events','Order event ledger must never be pruned');
 
 for(const t of [
-  'sharawlaOfflineV2InboxCursor','offline_v2_pull_events_v1','website.order_created','customer.upsert','customer_address.deleted',
+  'sharawlaOfflineV2InboxCursor','offline_v2_pull_events_v1','website.order_created','customer_address.deleted',
+  "event.entity_type==='customer'","event.entity_type==='customer_address'",
   'inboxReceive(event)','inboxApply(event.event_id)','queueCustomerMerge','queueOrderStatus','customer_merge','order_status',
   'offline_v2_merge_customer_v1','offline_v2_update_order_status_v1','OFFLINE_V2_CUSTOMER_PENDING',
   'depends_on_tx_id:dependsOnTx','function orderDependency','function restV2'
