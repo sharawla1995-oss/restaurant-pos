@@ -22,7 +22,8 @@ function escapeRe(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
 const beta33Assets=['sharawla-capabilities-beta33.js','sharawla-capability-runtime-bridge.js','sharawla-cloud-runtime-v2.js'];
 const beta34PreEngineAssets=['sharawla-feature-consumption.js'];
 const beta34PostAppAssets=['beta34-feature-ui.js'];
-const directAssets=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js',...beta33Assets,...beta34PreEngineAssets,'restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js',...beta34PostAppAssets,'profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js'];
+const beta35PostAppAssets=['beta35-feature-behavior.js'];
+const directAssets=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js',...beta33Assets,...beta34PreEngineAssets,'restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js',...beta34PostAppAssets,...beta35PostAppAssets,'profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js'];
 const dynamicRetailAssets=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'];
 
 let index = fs.readFileSync(indexPath, 'utf8');
@@ -44,6 +45,12 @@ if(!index.includes('beta34-feature-ui.js?v=')){
   if(!match)throw new Error('Could not find app.js script anchor for Beta34 UI');
   index=index.replace(appRe,`${match[0]}\n<script src="beta34-feature-ui.js?v=${version}"></script>`);
 }
+if(!index.includes('beta35-feature-behavior.js?v=')){
+  const beta34Re=/<script src="beta34-feature-ui\.js\?v=[^"]+"><\/script>/;
+  const match=index.match(beta34Re);
+  if(!match)throw new Error('Could not find Beta34 UI script anchor for Beta35 behavior');
+  index=index.replace(beta34Re,`${match[0]}\n<script src="beta35-feature-behavior.js?v=${version}"></script>`);
+}
 for (const asset of directAssets) index = index.replace(new RegExp(escapeRe(asset) + '\\?v=[^\"]+', 'g'), `${asset}?v=${version}`);
 fs.writeFileSync(indexPath, index, 'utf8');
 
@@ -59,7 +66,7 @@ if(!sw.includes("'./sharawla-capabilities-beta33.js?v=")){
   if(!sw.includes(shellAnchor))throw new Error('Could not find Restaurant Engine SW shell anchor for Beta33 assets');
   sw=sw.replace(shellAnchor,injected+shellAnchor);
 }
-for(const asset of [...beta34PreEngineAssets,...beta34PostAppAssets]){
+for(const asset of [...beta34PreEngineAssets,...beta34PostAppAssets,...beta35PostAppAssets]){
   if(!sw.includes(`'./${asset}?v=`)){
     const shellAnchor="'./restaurant-engine.js?v=";
     if(!sw.includes(shellAnchor))throw new Error(`Could not find SW shell anchor for ${asset}`);
