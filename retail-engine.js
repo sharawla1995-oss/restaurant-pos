@@ -22,4 +22,5 @@
   load('sharawla-beta22-runtime-fixes','beta22-runtime-fixes.js?v=10.5.4-beta.29');
   load('sharawla-beta23-full-retail','beta23-full-retail.js?v=10.5.4-beta.29');
   load('sharawla-retail-finalization-ui','retail-finalization-ui.js?v=10.5.4-beta.29');
+  load('sharawla-retail-variants-v1','retail-variants-ui.js?v=variants-v1-runtime-ui.1');
 })(window);
