@@ -19,7 +19,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '16'
-      - name: Syntax check universal diagnostics
-        run: node --check owner-diagnostics-universal-v2.js
+      - name: Syntax check acceptance runtime
+        run: |
+          node --check owner-diagnostics-universal-v2.js
+          node --check owner-acceptance-registry-v3.js
+          node --check owner-acceptance-network-lab.js
+          node --check owner-acceptance-e2e-v3.js
+          node --check beta46-acceptance-network-main.js
+          node --check preload.js
+          node --check main-beta44.js
+      - name: Beta46 acceptance static gates
+        run: node scripts/check-beta46-acceptance-center.js
       - name: Run existing source gates
         run: npm run check
