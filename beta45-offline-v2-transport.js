@@ -92,10 +92,17 @@ async function claimNextDueScopedUnsafe(now,ctx){
 }
 async function claimNextDueScoped(now,ctx){await ready();return serial(()=>claimNextDueScopedUnsafe(now,ctx))}
 
+async function recoverStaleScopedUnsafe(cutoff,now,ctx){
+  const r=await run(`UPDATE offline_v2_outbox
+    SET status='retryable',next_retry_at=?,last_error_code='OFFLINE_V2_STALE_IN_FLIGHT',last_error_message='Recovered stale in-flight operation after restart',updated_at=?
+    WHERE device_id=? AND business_id=? AND employee_id=? AND status='syncing' AND (last_attempt_at IS NULL OR last_attempt_at<=?)`,
+    [now,now,ctx.identity.device_id,ctx.identity.business_id,ctx.employee_id,cutoff]);
+  return {ok:true,recovered:r.changes};
+}
+async function recoverStaleScoped(cutoff,now,ctx){await ready();return serial(()=>recoverStaleScopedUnsafe(cutoff,now,ctx))}
+
 async function refreshBlockedDependenciesUnsafe(ctx){
   const now=nowIso();
-  // Children that cannot yet resolve their parent are explicitly blocked for
-  // diagnostics instead of silently spinning or disappearing from the queue.
   await run(`UPDATE offline_v2_outbox SET status='blocked',next_retry_at=NULL,last_error_code='OFFLINE_V2_DEPENDENCY_PENDING',last_error_message='Waiting for acknowledged parent mapping',updated_at=?
     WHERE device_id=? AND business_id=? AND employee_id=? AND status IN ('pending','retryable') AND depends_on_tx_id IS NOT NULL
       AND NOT EXISTS(SELECT 1 FROM offline_v2_outbox p JOIN offline_v2_mappings m ON m.client_tx_id=p.client_tx_id AND m.server_id IS NOT NULL WHERE p.client_tx_id=offline_v2_outbox.depends_on_tx_id AND p.status='synced')`,[now,ctx.identity.device_id,ctx.identity.business_id,ctx.employee_id]);
@@ -137,15 +144,11 @@ async function assertRuntimeState(ctx,{active=false}={}){
 
 async function syncNow(input={}){
   const ctx=validateContext(input,true);await assertRuntimeState(ctx,{active:true});
-  const scoped={
-    ...input.store,
-  };
-  // Use the native store for atomic ACK/mapping writes, but scope claiming to
-  // the current canonical device/business/employee session.
   const baseStore=installOfflineV2Transport._store;
   const adapter={
     ...baseStore,
     claimNextDue:now=>claimNextDueScoped(now,ctx),
+    recoverStaleSyncing:(cutoff,now)=>recoverStaleScoped(cutoff,now,ctx),
     refreshBlockedDependencies:()=>refreshBlockedDependencies(ctx),
     markBlocked,markDeadLetter
   };
@@ -171,8 +174,9 @@ async function attestTransport(input={}){
 
 function installOfflineV2Transport(store){
   if(installed)return {syncNow,manualRetry,attestTransport};
-  if(!store||typeof store.markAcked!=='function'||typeof store.markRetryable!=='function'||typeof store.markConflict!=='function'||typeof store.syncStats!=='function')throw new Error('Offline V2 transport requires native store adapter');
+  if(!store||typeof store.markAcked!=='function'||typeof store.markRetryable!=='function'||typeof store.markConflict!=='function'||typeof store.syncStats!=='function'||typeof store.getOutbox!=='function')throw new Error('Offline V2 transport requires native store adapter');
   installOfflineV2Transport._store=store;installed=true;
+  ipcMain.handle('offline-v2:event',(_e,clientTx)=>store.getOutbox(text(clientTx)));
   ipcMain.handle('offline-v2:sync-now',(_e,input)=>syncNow(input));
   ipcMain.handle('offline-v2:manual-retry',(_e,input)=>manualRetry(input));
   ipcMain.handle('offline-v2:transport-attest',(_e,input)=>attestTransport(input));
