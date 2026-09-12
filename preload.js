@@ -32,6 +32,14 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
 
 window.addEventListener('DOMContentLoaded',()=>{
  ipcRenderer.invoke('app:info').then(info=>{const el=document.getElementById('appVersionBadge')||document.querySelector('.version-badge');if(el){el.textContent=`V${info.version} • ${String(info.channel||'stable').toUpperCase()}`;el.title=`Sharawla POS ${info.version} — ${info.channel}`}}).catch(()=>{});
+ // Beta45: a visible pending badge must always own its physical pointer hit.
+ // This is injected from preload so stale stylesheet cache-busters cannot leave
+ // the badge visually present but pointer-events:none behind form labels.
+ if(!document.getElementById('beta45PendingSyncClickGuard')){
+  const st=document.createElement('style');st.id='beta45PendingSyncClickGuard';
+  st.textContent='.pending-sync-badge.has-pending{z-index:2147483000!important;pointer-events:auto!important;opacity:1!important;transform:none!important;isolation:isolate!important}';
+  document.head.appendChild(st);
+ }
  // Run after the page's DOMContentLoaded installers (Beta43 + V2 foundation),
  // so takeover wrappers always capture the protected legacy runtime as fallback.
  setTimeout(()=>{
