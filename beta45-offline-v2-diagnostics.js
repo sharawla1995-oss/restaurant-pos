@@ -5,13 +5,19 @@
 // Active takeover only. Legacy mode remains byte-for-byte on the Beta43 center.
 const VERSION='10.5.4-beta.45-dev-phase5-diagnostics';
 const LEGACY_PRESERVED='OFFLINE_V2_LEGACY_PRESERVED';
-let refreshing=false,timer=null;
+let refreshing=false,timer=null,activeCached=false;
 
 function text(v){return String(v??'').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
 function fmt(v){try{return new Date(v).toLocaleString('ar-EG')}catch{return text(v)||'—'}}
 function api(){return global.topBurgerDesktop?.offlineV2||null}
-async function active(){try{const s=await api()?.takeoverState?.();return s?.active===true&&s?.migration_verified===true&&s?.transport_ready===true}catch{return false}}
+async function active(){
+  try{
+    const s=await api()?.takeoverState?.();
+    activeCached=s?.active===true&&s?.migration_verified===true&&s?.transport_ready===true;
+    return activeCached;
+  }catch{activeCached=false;return false}
+}
 function statusLabel(s){return ({pending:'في الانتظار',syncing:'جاري المزامنة',retryable:'إعادة محاولة تلقائية',blocked:'معلّقة',conflict:'تعارض يحتاج مراجعة',dead_letter:'تحتاج تدخل يدوي',synced:'تمت المزامنة'}[text(s)]||text(s)||'—')}
 function typeLabel(t){return ({shift_open:'فتح وردية',shift_close:'قفل وردية',sale:'بيع',expense:'مصروف',return:'مرتجع',customer_create:'عميل',inventory_movement:'حركة مخزون',order_status:'حالة أوردر'}[text(t)]||text(t)||'—')}
 function retryAllowed(r){return ['retryable','blocked','conflict','dead_letter'].includes(text(r?.status))&&text(r?.last_error_code)!==LEGACY_PRESERVED}
@@ -26,7 +32,9 @@ async function model(){
 function countModel(m){return m.v2.length+m.legacy.length}
 function ensureBadge(){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('button');el.type='button';el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el)}return el}
 async function refresh(){
-  if(refreshing||!(await active()))return false;refreshing=true;
+  if(refreshing)return false;
+  const isActive=await active();if(!isActive)return false;
+  refreshing=true;
   try{
     const m=await model(),n=countModel(m),el=ensureBadge();
     el.textContent=n?`⟳ ${n} معلّقة`:'✓ متزامن';
@@ -64,13 +72,19 @@ async function openCenter(){
   return true;
 }
 
-// Capture phase beats the Beta43 onclick so a physically clicked active-V2 badge
-// always opens this center even if legacy code rewired the button moments before.
-document.addEventListener('click',async e=>{
-  const badge=e.target?.closest?.('#pendingSyncBadge');if(!badge||!(await active()))return;
-  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();await openCenter();
+// Capture synchronously. Do not await takeoverState before stopping the event:
+// Beta43 may own an onclick on the same badge and would otherwise win the race.
+document.addEventListener('click',e=>{
+  const badge=e.target?.closest?.('#pendingSyncBadge');if(!badge||!activeCached)return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  openCenter().catch(err=>{try{toast(err.message)}catch{}});
 },true);
 
-function start(){refresh().catch(()=>{});timer=setInterval(()=>refresh().catch(()=>{}),1500);global.addEventListener('online',()=>setTimeout(()=>refresh().catch(()=>{}),250));global.SharawlaOfflineV2Diagnostics=Object.freeze({version:VERSION,refresh,openCenter,model,statusLabel,typeLabel})}
+function start(){
+  active().then(()=>refresh()).catch(()=>{});
+  timer=setInterval(()=>refresh().catch(()=>{}),1500);
+  global.addEventListener('online',()=>setTimeout(()=>refresh().catch(()=>{}),250));
+  global.SharawlaOfflineV2Diagnostics=Object.freeze({version:VERSION,refresh,openCenter,model,statusLabel,typeLabel,isActiveCached:()=>activeCached});
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
