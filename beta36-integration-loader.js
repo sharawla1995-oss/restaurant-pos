@@ -12,7 +12,8 @@ const FILES=[
  ['service-v1','service-v1-ui.js?v=10.5.4-beta.39'],
  ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.39'],
  ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.39'],
- ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.39']
+ ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.39'],
+ ['owner-universal-v2','owner-diagnostics-universal-v2.js?v=10.5.4-beta.46-dev']
 ];
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta39 failed to load ${src}`));document.head.appendChild(s)})}
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}
