@@ -9,13 +9,22 @@ async function idbGet(k){const d=await idb();return new Promise((resolve,reject)
 async function idbSet(k,v){const d=await idb();return new Promise((resolve,reject)=>{const t=d.transaction(STORE,'readwrite'),r=t.objectStore(STORE).put(v,k);r.onsuccess=()=>resolve(true);r.onerror=()=>reject(r.error)})}
 
 async function odbGet44(k){
+  let desktopMissing=false;
   if(global.topBurgerDesktop?.db?.get){
     try{
       const desktop=await global.topBurgerDesktop.db.get(k);
       if(desktop!==undefined&&desktop!==null)return desktop;
-    }catch(e){console.warn('Beta44 desktop db get fallback',e)}
+      desktopMissing=true;
+    }catch(e){desktopMissing=true;console.warn('Beta44 desktop db get fallback',e)}
   }
-  return idbGet(k);
+  const fallback=await idbGet(k);
+  // If Desktop SQLite simply has no value but IndexedDB still has one, mirror
+  // the recovered value back into Desktop storage immediately. For `queue`
+  // this also makes the main-process update guard see the recovered operations.
+  if(desktopMissing&&fallback!==undefined&&fallback!==null&&global.topBurgerDesktop?.db?.set){
+    try{await global.topBurgerDesktop.db.set(k,fallback)}catch(e){console.warn('Beta44 desktop db recovery mirror',e)}
+  }
+  return fallback;
 }
 async function odbSet44(k,v){
   let desktopOk=false;
