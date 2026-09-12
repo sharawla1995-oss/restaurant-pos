@@ -60,8 +60,16 @@ function sourceContractTest(){
   for(const token of ['sharawla-capability-module-registry.js','food-recipe-runtime-bridge.js','food-recipe-ui-v1.js','food-advanced-ui-v1.js'])must(sync.includes(token),`version sync missing ${token}`);
   const sw=read('sw.js');
   for(const token of ['sharawla-capability-module-registry.js','food-recipe-runtime-bridge.js','food-recipe-ui-v1.js','food-advanced-ui-v1.js'])must(sw.includes(token),`service worker missing ${token}`);
+
+  const sql=read('supabase-beta42-recipe-track-inventory-acceptance.sql');
+  must(sql.includes('if v_line.track_inventory then'),'sale path does not gate stock mutation by track_inventory');
+  must(sql.includes('if v.track_inventory then'),'return path does not gate stock restoration by track_inventory');
+  must(sql.includes("insert into public.food_order_item_consumption_snapshots"),'untracked ingredients would lose consumption snapshots/cost history');
+  must(sql.includes("insert into public.food_return_consumption_snapshots"),'returns would lose consumption reversal snapshots');
+  must(sql.includes('v_base_cost:=v_base_cost+(v_need*v_unit_cost)'),'base recipe costing missing');
+  must(sql.includes('v_mod_cost:=v_mod_cost+(v_need*v_unit_cost)'),'modifier costing missing');
 }
 
 sourceContractTest();
 behaviorTest();
-console.log('Beta42 Capability Module Registry gate OK.');
+console.log('Beta42 Capability Module Registry + Recipe track_inventory gate OK.');
