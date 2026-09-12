@@ -19,9 +19,12 @@ function mapped(p){return isLegacyDbTmp(p)?(active.get(p)||p):p}
 
 fs.writeFileSync=function(file,data,options){
   if(!isLegacyDbTmp(file))return original.writeFileSync(file,data,options);
+  const previous=active.get(file);
+  if(previous){try{if(original.existsSync(previous))original.unlinkSync(previous)}catch{}}
   const unique=`${file}-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   active.set(file,unique);
-  return original.writeFileSync(unique,data,options);
+  try{return original.writeFileSync(unique,data,options)}
+  catch(e){active.delete(file);throw e}
 };
 fs.openSync=function(file,...args){return original.openSync(mapped(file),...args)};
 fs.copyFileSync=function(src,dst,...args){return original.copyFileSync(mapped(src),dst,...args)};
