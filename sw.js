@@ -28,7 +28,9 @@ self.addEventListener('fetch',event=>{
   url.pathname.endsWith('/sharawla-cloud-runtime-v2.js')||
   url.pathname.endsWith('/sharawla-feature-consumption.js')||
   url.pathname.endsWith('/beta34-feature-ui.js')||
-  url.pathname.endsWith('/beta35-feature-behavior.js');
+  url.pathname.endsWith('/beta35-feature-behavior.js')||
+  url.pathname.endsWith('/owner-diagnostics.js')||
+  url.pathname.endsWith('/retail-finalization-ui.js');
  const isApp=event.request.mode==='navigate'||legacyAppPath||SHELL.some(x=>{const u=new URL(x,self.location.href);return u.pathname===url.pathname});
  if(isApp){event.respondWith(fetch(event.request).then(response=>{if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{})}return response}).catch(()=>caches.match(event.request).then(hit=>hit||caches.match('./index.html'))));return}
  event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{})}return response})))
