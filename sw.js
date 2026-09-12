@@ -1,12 +1,12 @@
-const CACHE='sharawla-pos-v10.5.4-beta.42';
+const CACHE='sharawla-pos-v10.5.4-beta.44';
 const SHELL=[
  './','./index.html','./styles.css?v=10.5.4-beta.39','./update-indicators.css?v=10.5.4-beta.39',
  './version-ui.js?v=10.5.4-beta.39','./update-ui.js?v=10.5.4-beta.39',
  './sharawla-runtime-core.js?v=10.5.4-beta.39','./sharawla-capabilities.js?v=10.5.4-beta.39',
  './sharawla-capabilities-beta33.js?v=10.5.4-beta.39','./sharawla-capabilities-v3.js?v=10.5.4-beta.39','./sharawla-capability-runtime-bridge.js?v=10.5.4-beta.39','./sharawla-feature-consumption.js?v=10.5.4-beta.39','./sharawla-cloud-runtime-v2.js?v=10.5.4-beta.39','./sharawla-capability-module-registry.js?v=10.5.4-beta.42',
  './restaurant-engine.js?v=10.5.4-beta.39','./retail-engine.js?v=10.5.4-beta.39','./pharmacy-engine.js?v=10.5.4-beta.39','./service-engine.js?v=10.5.4-beta.39','./warehouse-engine.js?v=10.5.4-beta.39','./membership-engine.js?v=10.5.4-beta.39','./logistics-engine.js?v=10.5.4-beta.39',
- './app.js?v=10.5.4-beta.39','./beta34-feature-ui.js?v=10.5.4-beta.39','./beta35-feature-behavior.js?v=10.5.4-beta.39','./beta36-integration-loader.js?v=10.5.4-beta.39',
- './profile-parity-ui.js?v=10.5.4-beta.39','./beta28-runtime-fixes.js?v=10.5.4-beta.39','./owner-diagnostics.js?v=10.5.4-beta.39','./beta29-retail-functional-finalization.js?v=10.5.4-beta.39','./pharmacy-ui.js?v=10.5.4-beta.39','./beta43-offline-core.js?v=10.5.4-beta.43',
+ './app.js?v=10.5.4-beta.39','./beta34-feature-ui.js?v=10.5.4-beta.39','./beta35-feature-behavior.js?v=10.5.4-beta.39','./beta44-finance-b2b-inject-shim.js?v=10.5.4-beta.44','./beta36-integration-loader.js?v=10.5.4-beta.39',
+ './profile-parity-ui.js?v=10.5.4-beta.39','./beta28-runtime-fixes.js?v=10.5.4-beta.39','./owner-diagnostics.js?v=10.5.4-beta.39','./beta29-retail-functional-finalization.js?v=10.5.4-beta.39','./pharmacy-ui.js?v=10.5.4-beta.39','./beta43-offline-core.js?v=10.5.4-beta.43','./beta44-offline-storage-recovery.js?v=10.5.4-beta.44',
  './retail-website-pos.js?v=10.5.4-beta.39','./beta22-runtime-fixes.js?v=10.5.4-beta.39','./beta23-full-retail.js?v=10.5.4-beta.39','./retail-finalization-ui.js?v=10.5.4-beta.39',
  './retail-variants-runtime-bridge.js?v=10.5.4-beta.39','./retail-variants-ui.js?v=10.5.4-beta.39','./retail-variants-startup-hotfix.js?v=10.5.4-beta.39','./advanced-purchasing-runtime-bridge.js?v=10.5.4-beta.39','./advanced-purchasing-v1.js?v=10.5.4-beta.39',
  './food-recipe-runtime-bridge.js?v=10.5.4-beta.42','./food-recipe-ui-v1.js?v=10.5.4-beta.42','./food-advanced-ui-v1.js?v=10.5.4-beta.42',
@@ -23,6 +23,8 @@ self.addEventListener('fetch',event=>{
  const legacyAppPath=
   url.pathname.endsWith('/beta28-runtime-fixes.js')||
   url.pathname.endsWith('/beta43-offline-core.js')||
+  url.pathname.endsWith('/beta44-offline-storage-recovery.js')||
+  url.pathname.endsWith('/beta44-finance-b2b-inject-shim.js')||
   url.pathname.endsWith('/sharawla-capabilities-beta33.js')||
   url.pathname.endsWith('/sharawla-capabilities-v3.js')||
   url.pathname.endsWith('/sharawla-capability-runtime-bridge.js')||
