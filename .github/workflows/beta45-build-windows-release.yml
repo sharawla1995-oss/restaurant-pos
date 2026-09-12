@@ -1,0 +1,119 @@
+name: Beta45 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta45-offline-v2-complete
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.45') { throw "Unexpected Beta45 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta45 final source and acceptance gates
+        run: npm run check
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $expected = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
+          if (Test-Path $expected) {
+            Copy-Item $expected "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
+          } else {
+            $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if (-not $exe) { throw "x64 installer not found" }
+            Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
+          }
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $expected = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+          if (Test-Path $expected) {
+            Copy-Item $expected "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+          } else {
+            $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -match "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if (-not $exe) { throw "ia32 installer not found" }
+            Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+          }
+
+      - name: Compute installer hashes
+        id: hash
+        shell: pwsh
+        run: |
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe  $x64" | Set-Content beta45-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe  $ia32" | Add-Content beta45-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta45 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $notes = @"
+          Beta45 Offline Engine V2 Complete.
+
+          Scope: multi-industry Local-First Native SQLite/WAL, durable Outbox/Inbox, explicit ACK/idempotency, dependency-aware sync, conflict/retry/DLQ, inventory ledger/stock policies, website/customer/order events, offline authorization, guards/backups/recovery, diagnostics and acceptance harness.
+
+          Acceptance target: SH-0007 / test business only. Production Stable remains unchanged. Runtime V2 takeover remains explicit and controlled until device acceptance is complete.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta45 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta45-sha256.txt --clobber
+          $actualTarget = gh api "repos/${{ github.repository }}/releases/$releaseId" --jq ".target_commitish"
+          if ($actualTarget -ne "${{ github.sha }}") { throw "Beta45 release target mismatch: $actualTarget" }
+          $assets = gh api "repos/${{ github.repository }}/releases/$releaseId/assets" --jq ".[].name"
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-x64.exe") { throw "Beta45 x64 release asset missing" }
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-ia32.exe") { throw "Beta45 ia32 release asset missing" }
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
