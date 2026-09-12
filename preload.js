@@ -37,7 +37,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  // the badge visually present but pointer-events:none behind form labels.
  if(!document.getElementById('beta45PendingSyncClickGuard')){
   const st=document.createElement('style');st.id='beta45PendingSyncClickGuard';
-  st.textContent='.pending-sync-badge.has-pending{z-index:2147483000!important;pointer-events:auto!important;opacity:1!important;transform:none!important;isolation:isolate!important}';
+  st.textContent='.pending-sync-badge.has-pending{z-index:2147483000!important;pointer-events:auto!important;opacity:1!important;transform:none!important;isolation:isolate!important}.ov2-sync-modal{width:min(760px,100%)!important}.ov2-sync-list{display:grid;gap:10px}.ov2-sync-card{border:1px solid #d8dee8;border-radius:12px;padding:11px;display:grid;gap:7px;white-space:normal}.ov2-sync-card.legacy{border-style:dashed}.ov2-sync-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.ov2-sync-head span{font-size:12px;font-weight:800}.ov2-sync-error{white-space:normal;overflow-wrap:anywhere;background:#f8fafc;border-radius:8px;padding:8px}';
   document.head.appendChild(st);
  }
  // Run after the page's DOMContentLoaded installers (Beta43 + V2 foundation),
@@ -47,7 +47,12 @@ window.addEventListener('DOMContentLoaded',()=>{
   const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev';s.dataset.offlineV2Phase4='1';
   s.onload=()=>{
    if(document.querySelector('script[data-offline-v2-phase5]'))return;
-   const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';document.body.appendChild(t);
+   const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';
+   t.onload=()=>{
+    if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
+    const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+   };
+   document.body.appendChild(t);
   };
   document.body.appendChild(s);
  },0);
