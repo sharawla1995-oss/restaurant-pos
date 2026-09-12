@@ -30,7 +30,7 @@ for(const token of [
 must(!src.includes("localStorage.removeItem(LOGIN_STORE_KEY)"),'per-user offline enrollment is removed on logout');
 must(src.includes("p_shift_id:shiftId"),'offline expense does not preserve local shift identity');
 must(src.includes("String(j.local_expense?.shift_id)===String(localId)"),'expense shift remap missing');
-must(src.includes("global.topBurgerDesktop?.operations?.put(j)"),'desktop operations payload is not refreshed after remap');
+must(src.includes("global.topBurgerDesktop?.operations?.put")&&src.includes("global.topBurgerDesktop.operations.put(j)"),'desktop operations payload is not refreshed after remap');
 must(src.includes("if(syncBusy||!navigator.onLine||!session?.access_token)return"),'sync mutex guard missing');
 must(src.includes("snapshot.sort((a,b)=>Number(a.type!=='shift_open')"),'parent-first sync ordering missing');
 must(!/catch\(e\)\{[^}]{0,240}\bbreak\b/.test(src),'sync loop still stops at first failed job');
