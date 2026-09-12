@@ -42,5 +42,6 @@ require('./main-beta23.js');
 // migrates, attests or activates the V2 runtime automatically.
 const offlineV2Store=require('./beta45-offline-v2-native-store.js').installOfflineV2NativeStore();
 require('./beta45-offline-v2-inventory-store.js').installOfflineV2InventoryStore();
+require('./beta45-offline-v2-inbox-store.js').installOfflineV2InboxStore();
 require('./beta45-offline-v2-takeover-manager.js').installOfflineV2TakeoverManager(offlineV2Store);
 require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store);
