@@ -1,10 +1,10 @@
 (function(global){
 'use strict';
-const VERSION='food-recipe-runtime-v1.0';
+const VERSION='food-recipe-runtime-v1.1';
 const FEATURE='food.recipes';
 let wrapped=false,bootTimer=null;
 function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
-function operational(){const c=cfg();return String(c.pos_profile||'').trim().toLowerCase()==='restaurant'&&(Array.isArray(c.enabled_features)?c.enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()).includes(FEATURE)}
+function operational(){const c=cfg();return (Array.isArray(c.enabled_features)?c.enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()).includes(FEATURE)}
 function variants(){try{return Array.isArray(state?.productVariants)?state.productVariants:[]}catch{return []}}
 function variantById(id){return variants().find(v=>String(v.id)===String(id))||null}
 function enrich(items){
