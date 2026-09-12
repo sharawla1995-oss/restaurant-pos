@@ -14,6 +14,15 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   inventoryLedger:x=>ipcRenderer.invoke('offline-v2:inventory-ledger',x||{}),
   inventoryProjection:x=>ipcRenderer.invoke('offline-v2:inventory-projection',x||{}),
   inventoryStats:x=>ipcRenderer.invoke('offline-v2:inventory-stats',x||{}),
+  inboxReceive:e=>ipcRenderer.invoke('offline-v2:inbox-receive',e),
+  inboxApply:id=>ipcRenderer.invoke('offline-v2:inbox-apply',id),
+  inboxError:(id,e)=>ipcRenderer.invoke('offline-v2:inbox-error',id,e),
+  inboxList:(s,l)=>ipcRenderer.invoke('offline-v2:inbox-list',s??null,l??200),
+  inboxStats:()=>ipcRenderer.invoke('offline-v2:inbox-stats'),
+  orderEvents:(id,l)=>ipcRenderer.invoke('offline-v2:order-events',id??null,l??200),
+  orderProjection:id=>ipcRenderer.invoke('offline-v2:order-projection',id),
+  customerProjection:x=>ipcRenderer.invoke('offline-v2:customer-projection',x||{}),
+  customerAddresses:id=>ipcRenderer.invoke('offline-v2:customer-addresses',id),
   syncNow:x=>ipcRenderer.invoke('offline-v2:sync-now',x),
   manualRetry:x=>ipcRenderer.invoke('offline-v2:manual-retry',x),
   transportAttest:x=>ipcRenderer.invoke('offline-v2:transport-attest',x),
@@ -55,8 +64,13 @@ window.addEventListener('DOMContentLoaded',()=>{
     if(document.querySelector('script[data-offline-v2-phase5]'))return;
     const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';
     t.onload=()=>{
-     if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
-     const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+     if(document.querySelector('script[data-offline-v2-phase7-inbox]'))return;
+     const n=document.createElement('script');n.src='beta45-offline-v2-inbox-runtime.js?v=10.5.4-beta.45-dev';n.dataset.offlineV2Phase7Inbox='1';
+     n.onload=()=>{
+      if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
+      const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.45-dev';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+     };
+     document.body.appendChild(n);
     };
     document.body.appendChild(t);
    };
