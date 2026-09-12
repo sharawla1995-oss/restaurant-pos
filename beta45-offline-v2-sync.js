@@ -1,15 +1,16 @@
 'use strict';
 
-// Sharawla Offline Engine V2 — Phase 3 sync protocol.
-// Pure protocol/state-machine code: no Electron, Supabase or production runtime
-// dependencies. A transport must be injected explicitly. Beta45 remains shadow
-// mode until the later takeover gate wires a real transport.
+// Sharawla Offline Engine V2 — Phase 5 sync protocol.
+// Pure protocol/state-machine code. Network transport and durable storage are
+// injected so the same rules can be acceptance-tested without touching runtime.
 const PROTOCOL_VERSION=2;
 const DEFAULTS=Object.freeze({
   staleInFlightMs:60_000,
-  baseRetryMs:2_000,
+  retryDelaysMs:Object.freeze([5_000,15_000,30_000,60_000,300_000]),
   maxRetryMs:300_000,
   jitterRatio:0.20,
+  maxProtocolAttempts:5,
+  maxTransientAttempts:12,
   maxPerRun:100
 });
 
@@ -36,21 +37,36 @@ function classifyError(error){
   const code=text(error?.code)||'OFFLINE_V2_TRANSPORT_ERROR';
   const message=text(error?.message)||String(error||'Unknown sync error');
   const lower=message.toLowerCase();
-  const businessCodes=new Set(['INSUFFICIENT_STOCK','NEGATIVE_STOCK_NOT_ALLOWED','BUSINESS_CONFLICT','VALIDATION_CONFLICT','OUT_OF_STOCK']);
-  const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock');
-  if(business)return {kind:'conflict',code,message,retryable:false};
-  if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true};
-  return {kind:'transient',code,message,retryable:true};
+  const status=num(error?.http_status||error?.status,0);
+  const businessCodes=new Set(['INSUFFICIENT_STOCK','NEGATIVE_STOCK_NOT_ALLOWED','BUSINESS_CONFLICT','VALIDATION_CONFLICT','OUT_OF_STOCK','23505','P0001']);
+  const auth=status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
+  if(auth)return {kind:'blocked',reason:'auth',code,message,retryable:false,http_status:status};
+  if(code==='OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'||code==='OFFLINE_V2_DEPENDENCY_PENDING'||error?.kind==='dependency')return {kind:'blocked',reason:'dependency',code,message,retryable:false,http_status:status};
+  const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
+  if(business)return {kind:'conflict',code,message,retryable:false,http_status:status};
+  if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true,http_status:status};
+  const transient=error?.kind==='network'||status===0||status===408||status===425||status===429||status>=500||['ECONNRESET','ECONNREFUSED','ETIMEDOUT','ENOTFOUND','EAI_AGAIN','ABORT_ERR'].includes(code)||lower.includes('timeout')||lower.includes('network')||lower.includes('failed to fetch')||lower.includes('socket hang up');
+  if(transient)return {kind:'transient',code,message,retryable:true,http_status:status};
+  if(error?.kind==='permanent'||(status>=400&&status<500))return {kind:'permanent',code,message,retryable:false,http_status:status};
+  return {kind:'transient',code,message,retryable:true,http_status:status};
 }
 
 function retryDelayMs(attempts,opts={},random=Math.random){
-  const base=Math.max(100,num(opts.baseRetryMs,DEFAULTS.baseRetryMs));
-  const cap=Math.max(base,num(opts.maxRetryMs,DEFAULTS.maxRetryMs));
+  // Tests/older callers may still pass baseRetryMs; production defaults use the
+  // explicit 5s -> 15s -> 30s -> 60s -> 5m ladder.
+  let delays=Array.isArray(opts.retryDelaysMs)&&opts.retryDelaysMs.length?opts.retryDelaysMs.map(x=>Math.max(100,num(x,5000))):null;
+  if(!delays&&opts.baseRetryMs!=null){
+    const base=Math.max(100,num(opts.baseRetryMs,1000)),cap=Math.max(base,num(opts.maxRetryMs,DEFAULTS.maxRetryMs));
+    delays=[base,Math.min(cap,base*2),Math.min(cap,base*4),Math.min(cap,base*8),cap];
+  }
+  if(!delays)delays=[...DEFAULTS.retryDelaysMs];
+  const cap=Math.max(100,num(opts.maxRetryMs,DEFAULTS.maxRetryMs));
   const ratio=Math.max(0,Math.min(0.90,num(opts.jitterRatio,DEFAULTS.jitterRatio)));
-  const exp=Math.min(cap,base*Math.pow(2,Math.max(0,num(attempts,1)-1)));
+  const index=Math.max(0,Math.min(delays.length-1,num(attempts,1)-1));
+  const raw=Math.min(cap,delays[index]);
   const r=Math.max(0,Math.min(1,num(random(),0.5)));
   const factor=1+((r*2)-1)*ratio;
-  return Math.max(base,Math.min(cap,Math.round(exp*factor)));
+  return Math.max(100,Math.min(cap,Math.round(raw*factor)));
 }
 
 function outboundEnvelope(row,deviceFingerprint,dependencyMapping){
@@ -92,10 +108,30 @@ function createSyncEngine(options={}){
     return store.recoverStaleSyncing(iso(now-Math.max(1,num(cfg.staleInFlightMs))),iso(now));
   }
 
+  async function transitionFailure(row,c){
+    const attempts=num(row?.attempts,1);
+    if(c.kind==='conflict'){
+      if(typeof store.markConflict!=='function')throw new Error('Offline V2 store missing markConflict');
+      await store.markConflict(row.client_tx_id,c);return 'conflict';
+    }
+    if(c.kind==='blocked'){
+      if(typeof store.markBlocked!=='function')throw new Error('Offline V2 store missing markBlocked');
+      await store.markBlocked(row.client_tx_id,c);return 'blocked';
+    }
+    if(c.kind==='permanent'||(c.kind==='protocol'&&attempts>=num(cfg.maxProtocolAttempts,5))||(c.kind==='transient'&&attempts>=num(cfg.maxTransientAttempts,12))){
+      if(typeof store.markDeadLetter!=='function'){
+        const delay=retryDelayMs(attempts,cfg,random);await store.markRetryable(row.client_tx_id,c,iso(num(clock(),Date.now())+delay));return 'retry';
+      }
+      await store.markDeadLetter(row.client_tx_id,c);return 'dead_letter';
+    }
+    const delay=retryDelayMs(attempts,cfg,random);
+    await store.markRetryable(row.client_tx_id,c,iso(num(clock(),Date.now())+delay));return 'retry';
+  }
+
   async function syncOnce(limit=cfg.maxPerRun){
-    if(running)return {ok:true,skipped:'already_running',attempted:0,acked:0,retried:0,conflicts:0};
+    if(running)return {ok:true,skipped:'already_running',attempted:0,acked:0,retried:0,conflicts:0,blocked:0,dead_letters:0};
     running=true;
-    const result={ok:true,attempted:0,acked:0,retried:0,conflicts:0,protocol_errors:0};
+    const result={ok:true,attempted:0,acked:0,retried:0,conflicts:0,blocked:0,dead_letters:0,protocol_errors:0};
     try{
       await recoverStale();
       const identity=await identityProvider();
@@ -103,6 +139,7 @@ function createSyncEngine(options={}){
       if(!fingerprint)throw err('OFFLINE_V2_CANONICAL_FINGERPRINT_REQUIRED','Canonical device_fingerprint is required before sync','identity');
       const max=Math.max(1,Math.min(1000,num(limit,cfg.maxPerRun)));
       while(result.attempted<max){
+        if(typeof store.refreshBlockedDependencies==='function')await store.refreshBlockedDependencies();
         const nowMs=num(clock(),Date.now());
         const row=await store.claimNextDue(iso(nowMs));
         if(!row)break;
@@ -111,7 +148,7 @@ function createSyncEngine(options={}){
           let dependencyMapping=null;
           if(text(row.depends_on_tx_id)){
             dependencyMapping=await store.getMappingByTx(text(row.depends_on_tx_id));
-            if(!dependencyMapping)throw err('OFFLINE_V2_DEPENDENCY_MAPPING_MISSING','Acknowledged parent has no server mapping','protocol');
+            if(!dependencyMapping)throw err('OFFLINE_V2_DEPENDENCY_MAPPING_MISSING','Acknowledged parent has no server mapping','dependency');
           }
           const outbound=outboundEnvelope(row,fingerprint,dependencyMapping);
           const ack=validateAck({...row,...outbound},await transport.send(outbound));
@@ -119,15 +156,12 @@ function createSyncEngine(options={}){
           result.acked++;
         }catch(error){
           const c=classifyError(error);
-          if(c.kind==='conflict'){
-            await store.markConflict(row.client_tx_id,c);
-            result.conflicts++;
-          }else{
-            const delay=retryDelayMs(row.attempts,cfg,random);
-            await store.markRetryable(row.client_tx_id,c,iso(num(clock(),Date.now())+delay));
-            result.retried++;
-            if(c.kind==='protocol')result.protocol_errors++;
-          }
+          const outcome=await transitionFailure(row,c);
+          if(c.kind==='protocol')result.protocol_errors++;
+          if(outcome==='conflict')result.conflicts++;
+          else if(outcome==='blocked')result.blocked++;
+          else if(outcome==='dead_letter')result.dead_letters++;
+          else result.retried++;
         }
       }
       return result;
