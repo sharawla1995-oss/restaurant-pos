@@ -1,0 +1,82 @@
+name: Beta43 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta43-offline-core-closure
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.43') { throw "Unexpected Beta43 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify Beta43 source and acceptance gates
+        run: npm run check
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "x64 installer not found" }
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "ia32 installer not found" }
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+
+      - name: Create or update Beta43 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes "Beta43 Offline Core Closure candidate. SH-0007 only; Production remains read-only."
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -F prerelease=true -f make_latest=false | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" --clobber
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
