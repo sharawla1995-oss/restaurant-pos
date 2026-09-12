@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.44",
+  "version": "10.5.4-beta.45",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Offline Storage Recovery hotfix: recover queue from IndexedDB when Desktop SQLite has no value, mirror queue writes to both stores, harden the legacy SQLite temp-file path against Windows EPERM, and preserve Beta43 dependency-aware sync/reconcile behavior. Beta-only; SH-0007 test target only."
+  "notes": "Offline Engine V2 complete beta: multi-industry local-first Native SQLite/WAL, durable Outbox/Inbox, explicit ACK/idempotency, dependency-aware sync, conflict/retry/DLQ, inventory ledger and stock policies, website/customer/order events, offline authorization, guards/backups/recovery, diagnostics, support bundle and acceptance harness. SH-0007 beta acceptance only; Production remains unchanged."
 }
