@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs');
+const diag=fs.readFileSync('beta45-offline-v2-diagnostics.js','utf8');
+const preload=fs.readFileSync('preload.js','utf8');
+const need=(src,t,msg=t)=>{if(!src.includes(t))throw new Error(`Beta45 diagnostics gate missing: ${msg}`)};
+const forbid=(src,t,msg=t)=>{if(src.includes(t))throw new Error(`Beta45 diagnostics gate forbidden: ${msg}`)};
+new Function(diag);new Function(preload);
+for(const t of ['takeoverState','active===true','migration_verified===true','transport_ready===true','OFFLINE_V2_LEGACY_PRESERVED','manualRetry','syncNow','dead_letter','conflict','retryable','blocked','data-v2-retry','data-legacy-retry','stopImmediatePropagation','offlineQueue'])need(diag,t);
+for(const t of ['beta45PendingSyncClickGuard','z-index:2147483000!important','pointer-events:auto!important','opacity:1!important','data-offline-v2-diagnostics','beta45-offline-v2-diagnostics.js'])need(preload,t);
+forbid(diag,'removeQueuedOperation(','diagnostics must never delete queued work');
+forbid(diag,'.filter(x=>x.client_tx_id!==','diagnostics must never prune outbox');
+console.log('Beta45 Offline V2 diagnostics / safe retry / physical click gate PASS');
