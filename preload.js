@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  paths:()=>ipcRenderer.invoke('desktop:paths'),
  device:{info:()=>ipcRenderer.invoke('device:info')},
  external:{open:url=>ipcRenderer.invoke('external:open',url)},
+ acceptance:{networkSet:x=>ipcRenderer.invoke('acceptance:network-set',x||{}),networkState:()=>ipcRenderer.invoke('acceptance:network-state'),networkDisable:r=>ipcRenderer.invoke('acceptance:network-disable',r||'renderer'),restart:x=>ipcRenderer.invoke('acceptance:restart',x||{})},
  licenseState:{get:()=>ipcRenderer.invoke('license-state:get'),set:v=>ipcRenderer.invoke('license-state:set',v),clear:()=>ipcRenderer.invoke('license-state:clear')}
 });
 
