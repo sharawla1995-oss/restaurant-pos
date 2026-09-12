@@ -62,14 +62,9 @@ jobs:
       - name: Save x64 installer
         shell: pwsh
         run: |
-          $expected = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
-          if (Test-Path $expected) {
-            Copy-Item $expected "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
-          } else {
-            $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if (-not $exe) { throw "x64 installer not found" }
-            Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
-          }
+          $source = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}.exe"
+          if (-not (Test-Path $source)) { throw "x64 installer source not found: $source" }
+          Copy-Item $source "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe" -Force
 
       - name: Build Windows ia32
         shell: pwsh
@@ -78,14 +73,9 @@ jobs:
       - name: Save ia32 installer
         shell: pwsh
         run: |
-          $expected = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
-          if (Test-Path $expected) {
-            Copy-Item $expected "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
-          } else {
-            $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -match "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if (-not $exe) { throw "ia32 installer not found" }
-            Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
-          }
+          $source = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}.exe"
+          if (-not (Test-Path $source)) { throw "ia32 installer source not found: $source" }
+          Copy-Item $source "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe" -Force
 
       - name: Compute installer hashes
         id: hash
@@ -93,6 +83,7 @@ jobs:
         run: |
           $x64 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe" -Algorithm SHA256).Hash.ToLower()
           $ia32 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
           "x64=$x64" >> $env:GITHUB_OUTPUT
           "ia32=$ia32" >> $env:GITHUB_OUTPUT
           "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe  $x64" | Set-Content beta45-sha256.txt -Encoding ascii
