@@ -5,6 +5,7 @@ const FILES=[
  ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.36'],
  ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.36'],
  ['printing-v2','printing-v2.js?v=10.5.4-beta.36'],
+ ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.36'],
  ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.36'],
  ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.36'],
  ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.36'],
