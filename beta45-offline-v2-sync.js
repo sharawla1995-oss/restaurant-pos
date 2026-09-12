@@ -98,7 +98,9 @@ function createSyncEngine(options={}){
   const clock=typeof options.clock==='function'?options.clock:()=>Date.now();
   const random=typeof options.random==='function'?options.random:Math.random;
   const identityProvider=typeof options.identityProvider==='function'?options.identityProvider:async()=>({});
-  const cfg={...DEFAULTS,...(options.retry||{}),...(options.config||{})};
+  const retryOptions=options.retry||{};
+  const cfg={...DEFAULTS,...retryOptions,...(options.config||{})};
+  if(retryOptions.baseRetryMs!=null&&retryOptions.retryDelaysMs==null)cfg.retryDelaysMs=null;
   if(!store||typeof store.claimNextDue!=='function'||typeof store.markAcked!=='function')throw new Error('Offline V2 sync requires a durable store adapter');
   if(!transport||typeof transport.send!=='function')throw new Error('Offline V2 sync requires an injected transport');
   let running=false;
