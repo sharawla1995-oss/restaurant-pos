@@ -32,7 +32,7 @@ must(!main44.includes("require('./main.js')"),'Beta44 wrapper must preserve Beta
 
 const finance=read('beta44-finance-b2b-inject-shim.js');
 new vm.Script(finance,{filename:'beta44-finance-b2b-inject-shim.js'});
-for(const token of ['finance.credit','finance.receivables','finance.collections','finance.aging','commerce.price_tiers','commerce.b2b_orders','__SharawlaFinanceB2B','data-beta44-finance-b2b'])must(finance.includes(token),`Finance shim contract missing: ${token}`);
+for(const token of ['finance.credit','finance.receivables','finance.collections','finance.aging','commerce.price_tiers','commerce.b2b_orders','__SharawlaFinanceB2B','beta44FinanceB2b'])must(finance.includes(token),`Finance shim contract missing: ${token}`);
 
 const index=read('index.html');
 const shim=index.indexOf('beta44-finance-b2b-inject-shim.js?v=');
