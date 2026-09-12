@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   record:(t,id)=>ipcRenderer.invoke('offline-v2:record',t,id),
   health:()=>ipcRenderer.invoke('offline-v2:health'),
   syncStats:()=>ipcRenderer.invoke('offline-v2:sync-stats'),
+  syncNow:x=>ipcRenderer.invoke('offline-v2:sync-now',x),
+  manualRetry:x=>ipcRenderer.invoke('offline-v2:manual-retry',x),
+  transportAttest:x=>ipcRenderer.invoke('offline-v2:transport-attest',x),
   takeoverState:()=>ipcRenderer.invoke('offline-v2:takeover-state'),
   takeoverArm:x=>ipcRenderer.invoke('offline-v2:takeover-arm',x),
   takeoverPrepare:x=>ipcRenderer.invoke('offline-v2:takeover-prepare',x),
@@ -32,6 +35,11 @@ window.addEventListener('DOMContentLoaded',()=>{
  // so takeover wrappers always capture the protected legacy runtime as fallback.
  setTimeout(()=>{
   if(document.querySelector('script[data-offline-v2-phase4]'))return;
-  const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev';s.dataset.offlineV2Phase4='1';document.body.appendChild(s);
+  const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev';s.dataset.offlineV2Phase4='1';
+  s.onload=()=>{
+   if(document.querySelector('script[data-offline-v2-phase5]'))return;
+   const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.45-dev';t.dataset.offlineV2Phase5='1';document.body.appendChild(t);
+  };
+  document.body.appendChild(s);
  },0);
 });
