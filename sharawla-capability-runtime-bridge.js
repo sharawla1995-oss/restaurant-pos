@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.33';
+const VERSION='10.5.4-beta.39';
 const base=global.SharawlaRuntimeCore;
 const capabilities=global.SharawlaCapabilities;
 if(!base)throw new Error('Sharawla Runtime Core must load before capability bridge.');
@@ -17,6 +17,7 @@ function prepareConfig(raw){
     features_configured:featuresConfigured,
     enabled_features:[...resolved.features],
     capability_version:capabilityVersion,
+    capability_catalog_version:Number(capabilities.CATALOG_VERSION||0)||0,
     capability_source:String(resolved.source||''),
     runtime_contract:capabilityVersion>=1?'v2':'legacy'
   };
