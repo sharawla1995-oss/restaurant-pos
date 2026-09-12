@@ -9,18 +9,22 @@ const channel=version.includes('-')?'beta':'stable';
 if(!version)throw new Error('package.json has no version');
 if(String(ver.version||'').trim()!==version)throw new Error(`Version mismatch: package=${version}; version.json=${ver.version}`);
 if(String(ver.channel||'').trim()!==channel)throw new Error(`Channel mismatch: expected ${channel}; got ${ver.channel}`);
-if(pkg.main!=='main-beta23.js')throw new Error('Protected updater recovery wrapper main-beta23.js must remain package main');
+if(pkg.main!=='main-beta44.js')throw new Error('Protected Beta44 storage wrapper must remain package main');
 if(!Array.isArray(pkg.build?.files)||!pkg.build.files.includes('!**/*.zip'))throw new Error('Build must exclude nested ZIP files');
 
-const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),main=read('main.js'),preload=read('preload.js'),updateUi=read('update-ui.js');
+const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),main=read('main.js'),main44=read('main-beta44.js'),preload=read('preload.js'),updateUi=read('update-ui.js');
+if(!main44.includes("require('./main-beta23.js')"))throw new Error('Beta44 wrapper must preserve Beta23 updater recovery chain');
+for(const token of ['topburger-pos\\.sqlite\\.tmp','crypto.randomBytes(4)','active.set(file,unique)'])if(!main44.includes(token))throw new Error(`Beta44 SQLite persistence invariant missing: ${token}`);
 if(!/id="appVersionBadge">V—<\/small>/.test(index))throw new Error('Version badge must remain runtime-driven');
-const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js','restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js','pharmacy-ui.js'];
+const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js','sharawla-runtime-core.js','sharawla-capabilities.js','restaurant-engine.js','retail-engine.js','pharmacy-engine.js','app.js','profile-parity-ui.js','owner-diagnostics.js','pharmacy-ui.js','beta43-offline-core.js','beta44-finance-b2b-inject-shim.js','beta44-offline-storage-recovery.js'];
 for(const asset of direct){if(!index.includes(`${asset}?v=${version}`))throw new Error(`index cache version mismatch: ${asset}`);if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW shell version mismatch: ${asset}`)}
 for(const asset of ['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js'])if(!sw.includes(`./${asset}?v=${version}`))throw new Error(`SW dynamic Retail asset mismatch: ${asset}`);
 if(!sw.includes(`const CACHE='sharawla-pos-v${version}';`))throw new Error('Service worker cache name not synchronized');
 if(index.includes('beta-self-test.js?v='))throw new Error('Public Beta Self-Test must not auto-load');
 if(!index.includes(`owner-diagnostics.js?v=${version}`))throw new Error('Owner diagnostics must be loaded globally');
 if(!(index.indexOf(`sharawla-runtime-core.js?v=${version}`)<index.indexOf(`sharawla-capabilities.js?v=${version}`)&&index.indexOf(`sharawla-capabilities.js?v=${version}`)<index.indexOf(`restaurant-engine.js?v=${version}`)))throw new Error('Capability registry must load after Runtime Core and before profile engines');
+if(!(index.indexOf(`beta44-finance-b2b-inject-shim.js?v=${version}`)<index.indexOf(`beta36-integration-loader.js?v=${version}`)))throw new Error('Beta44 Finance shim must load before Beta36 integration loader');
+if(!(index.indexOf(`beta43-offline-core.js?v=${version}`)<index.indexOf(`beta44-offline-storage-recovery.js?v=${version}`)))throw new Error('Beta44 storage recovery must load after Beta43 offline core');
 
 for(const token of ["const canonical=String(st.device_fingerprint||'').trim();",'if(canonical)return [canonical];',"cloudRpc('verify_sharawla_device'","cloudRpc('get_sharawla_business_connection'","if(String(d.business_id)!==String(st.business_id))"])if(!app.includes(token))throw new Error(`Canonical/Business Connection invariant missing: ${token}`);
 if(app.includes('MachineGuid'))throw new Error('MachineGuid fallback must not be reintroduced into app runtime');
