@@ -9,6 +9,7 @@ const runtime=read('beta45-offline-v2-runtime-takeover.js');
 const main=read('main-beta44.js');
 const preload=read('preload.js');
 const pkg=JSON.parse(read('package.json'));
+const version=String(pkg.version||'');
 
 // Syntax only; do not execute Electron/browser modules here.
 new Function(manager);
@@ -97,7 +98,7 @@ need(runtime,"return base.syncOfflineQueue?.(...args)");
 for(const token of [
   'takeoverState:()=>ipcRenderer.invoke', 'takeoverArm:x=>ipcRenderer.invoke',
   'takeoverPrepare:x=>ipcRenderer.invoke','takeoverActivate:x=>ipcRenderer.invoke',
-  'beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev',
+  `beta45-offline-v2-runtime-takeover.js?v=${version}`,
   "setTimeout(()=>{"
 ])need(preload,token);
 for(const token of [
