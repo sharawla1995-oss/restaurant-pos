@@ -13,13 +13,13 @@ for(const token of [
  "const KEY='sharawlaRuntimeConfigV1'",
  "includes('commerce.variants')",
  "global.__SharawlaRetailVariantsV1",
- "retail-variants-ui.js?v=10.5.4-beta.37-runtime-retry",
+ "retail-variants-ui.js?v=${VERSION}",
  "setInterval",
- "data-retail-variants-startup-hotfix"
+ "retail-variants-runtime-retry"
 ])if(!hotfix.includes(token))throw new Error(`Variants startup invariant missing: ${token}`);
-if(!loader.includes("retail-variants-startup-hotfix.js?v="))throw new Error('Beta37 loader does not load Variants startup hotfix');
+if(!loader.includes("retail-variants-startup-hotfix.js?v="))throw new Error('Beta37+ loader does not load Variants startup hotfix');
 if(!sw.includes("./retail-variants-startup-hotfix.js?v="))throw new Error('Service worker does not cache Variants startup hotfix');
 if(!sw.includes("url.pathname.endsWith('/retail-variants-startup-hotfix.js')"))throw new Error('Service worker fetch policy missing Variants startup hotfix');
 if(!sync.includes("'retail-variants-startup-hotfix.js'"))throw new Error('Version sync does not include Variants startup hotfix');
 if(/function start\(\)\{\s*if\(!ready\(\)\)return/.test(hotfix))throw new Error('Hotfix must poll instead of permanently exiting before runtime config is ready');
-console.log(`Beta37 Variants startup gate OK on ${pkg.version}`);
+console.log(`Beta37+ Variants startup gate OK on ${pkg.version}`);
