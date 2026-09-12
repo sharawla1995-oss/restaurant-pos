@@ -7,10 +7,10 @@ function no(src,t,msg=t){assert(!src.includes(t),`Beta46 acceptance forbidden: $
 for(const t of ['owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-diagnostics-universal-v2.js','owner-acceptance-e2e-v3.js'])need(loader,t);
 assert(loader.indexOf('owner-acceptance-registry-v3.js')<loader.indexOf('owner-acceptance-network-lab.js'),'Registry must load before network lab');
 assert(loader.indexOf('owner-acceptance-network-lab.js')<loader.indexOf('owner-acceptance-e2e-v3.js'),'Network lab must load before E2E pack');
-for(const t of ['Sandbox Triple Lock','SH-0007','91826502-590e-4afa-8826-2c0f4b99c490','xihcxydjnzemflhedzor.supabase.co','FLAKY','QUARANTINED','READY_FOR_RC','setResume','coverage'])need(registry,t);
+for(const t of ['SH-0007','91826502-590e-4afa-8826-2c0f4b99c490','xihcxydjnzemflhedzor.supabase.co','FLAKY','QUARANTINED','READY_FOR_RC','setResume','coverage'])need(registry,t);
 for(const t of ['offline','timeout','http500','slow','flap','lost_ack','networkSet','networkDisable'])need(lab,t);
 for(const t of ['SH-0007','91826502-590e-4afa-8826-2c0f4b99c490','xihcxydjnzemflhedzor.supabase.co','lost_ack','ACCEPTANCE_SANDBOX_LOCK','acceptance:restart'])need(mainLab,t);
-for(const t of ['retail.customer-crud','retail.sale-return-stock','retail.expense-idempotent','retail.offline-sale-sync','retail.lost-ack-idempotency','sharawla_acceptance_cleanup_v1','sharawla_acceptance_scan_v1','Full E2E Acceptance'])need(e2e,t);
+for(const t of ['Sandbox Triple Lock','retail.customer-crud','retail.sale-return-stock','retail.expense-idempotent','retail.offline-sale-sync','retail.lost-ack-idempotency','sharawla_acceptance_cleanup_v1','sharawla_acceptance_scan_v1','Full E2E Acceptance'])need(e2e,t);
 for(const t of ['acceptance:network-set','acceptance:network-state','acceptance:network-disable','acceptance:restart'])need(preload,t);
 need(main44,"require('./beta46-acceptance-network-main.js').installAcceptanceNetworkMain()",'main process Acceptance Lab install');
 for(const src of [registry,lab,mainLab,e2e]){no(src,'SH-0005','production support code SH-0005');no(src,'SH-0006','production support code SH-0006');no(src,'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7','production business id');no(src,'kzokretuuigjhxjzdlmk','production backend host')}
