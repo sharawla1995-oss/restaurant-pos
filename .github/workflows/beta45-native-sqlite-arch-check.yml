@@ -1,0 +1,54 @@
+name: Beta45 Native SQLite Architecture Check
+
+on:
+  push:
+    branches:
+      - beta45-offline-v2-complete
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-sqlite:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            node_arch: x64
+          - label: ia32
+            node_arch: x86
+    runs-on: windows-latest
+    name: sqlite3-${{ matrix.label }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 16 ${{ matrix.node_arch }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          architecture: ${{ matrix.node_arch }}
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Verify process architecture and sqlite3 native binding
+        shell: node {0}
+        run: |
+          const sqlite3=require('sqlite3');
+          const expected='${{ matrix.label }}'==='ia32'?'ia32':'x64';
+          if(process.arch!==expected)throw new Error(`Expected ${expected}, got ${process.arch}`);
+          const db=new sqlite3.Database(':memory:');
+          db.serialize(()=>{
+            db.run('PRAGMA foreign_keys=ON');
+            db.run('CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT NOT NULL)');
+            db.run('BEGIN IMMEDIATE');
+            db.run('INSERT INTO t(v) VALUES(?)',['ok']);
+            db.run('COMMIT');
+            db.get('SELECT COUNT(*) c FROM t',(err,row)=>{
+              if(err)throw err;
+              if(Number(row.c)!==1)throw new Error('sqlite3 transaction probe failed');
+              db.close(e=>{if(e)throw e; console.log(`sqlite3 native probe PASS on ${process.arch}`)});
+            });
+          });
+      - name: Run source gates
+        run: npm run check
