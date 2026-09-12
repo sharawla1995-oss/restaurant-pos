@@ -26,4 +26,12 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  licenseState:{get:()=>ipcRenderer.invoke('license-state:get'),set:v=>ipcRenderer.invoke('license-state:set',v),clear:()=>ipcRenderer.invoke('license-state:clear')}
 });
 
-window.addEventListener('DOMContentLoaded',()=>{ipcRenderer.invoke('app:info').then(info=>{const el=document.getElementById('appVersionBadge')||document.querySelector('.version-badge');if(el){el.textContent=`V${info.version} • ${String(info.channel||'stable').toUpperCase()}`;el.title=`Sharawla POS ${info.version} — ${info.channel}`}}).catch(()=>{})});
+window.addEventListener('DOMContentLoaded',()=>{
+ ipcRenderer.invoke('app:info').then(info=>{const el=document.getElementById('appVersionBadge')||document.querySelector('.version-badge');if(el){el.textContent=`V${info.version} • ${String(info.channel||'stable').toUpperCase()}`;el.title=`Sharawla POS ${info.version} — ${info.channel}`}}).catch(()=>{});
+ // Run after the page's DOMContentLoaded installers (Beta43 + V2 foundation),
+ // so takeover wrappers always capture the protected legacy runtime as fallback.
+ setTimeout(()=>{
+  if(document.querySelector('script[data-offline-v2-phase4]'))return;
+  const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.45-dev';s.dataset.offlineV2Phase4='1';document.body.appendChild(s);
+ },0);
+});
