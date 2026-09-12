@@ -8,7 +8,7 @@ const SHELL=[
  './app.js?v=10.5.4-beta.39','./beta34-feature-ui.js?v=10.5.4-beta.39','./beta35-feature-behavior.js?v=10.5.4-beta.39','./beta36-integration-loader.js?v=10.5.4-beta.39',
  './profile-parity-ui.js?v=10.5.4-beta.39','./beta28-runtime-fixes.js?v=10.5.4-beta.39','./owner-diagnostics.js?v=10.5.4-beta.39','./beta29-retail-functional-finalization.js?v=10.5.4-beta.39','./pharmacy-ui.js?v=10.5.4-beta.39',
  './retail-website-pos.js?v=10.5.4-beta.39','./beta22-runtime-fixes.js?v=10.5.4-beta.39','./beta23-full-retail.js?v=10.5.4-beta.39','./retail-finalization-ui.js?v=10.5.4-beta.39',
- './retail-variants-runtime-bridge.js?v=10.5.4-beta.39','./retail-variants-ui.js?v=10.5.4-beta.39','./retail-variants-startup-hotfix.js?v=10.5.4-beta.39','./advanced-purchasing-v1.js?v=10.5.4-beta.39',
+ './retail-variants-runtime-bridge.js?v=10.5.4-beta.39','./retail-variants-ui.js?v=10.5.4-beta.39','./retail-variants-startup-hotfix.js?v=10.5.4-beta.39','./advanced-purchasing-runtime-bridge.js?v=10.5.4-beta.39','./advanced-purchasing-v1.js?v=10.5.4-beta.39',
  './food-recipe-runtime-bridge.js?v=food-recipe-runtime-v1.0','./food-recipe-ui-v1.js?v=food-recipe-ui-v1.0','./food-advanced-ui-v1.js?v=food-advanced-ui-v1.0',
  './beta36-offline-v2.js?v=10.5.4-beta.39','./permissions-v2-ui.js?v=10.5.4-beta.39','./printing-v2.js?v=10.5.4-beta.39','./landed-cost-posting-v1.js?v=10.5.4-beta.39','./commerce-orders-v2-ui.js?v=10.5.4-beta.39','./reports-v2-ui.js?v=10.5.4-beta.39','./finance-b2b-ui.js?v=10.5.4-beta.39','./service-v1-ui.js?v=10.5.4-beta.39','./warehouse-v1-ui.js?v=10.5.4-beta.39','./membership-v1-ui.js?v=10.5.4-beta.39','./logistics-v1-ui.js?v=10.5.4-beta.39',
  './manifest.json','./icon-192.png','./icon-512.png'
