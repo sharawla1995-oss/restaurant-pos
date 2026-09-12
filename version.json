@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.35",
+  "version": "10.5.4-beta.36",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Beta35 Feature Behavior Gates: consume Cloud Capability V1 for food.modifiers and food.tables without changing Production data. Modifiers gate Extras/removable-components behavior while preserving item notes/variants; tables currently gates dine-in/sala availability only and does not claim table assignment. Legacy runtime fallback preserves historical behavior."
+  "notes": "Beta36 Multi-Engine Integration RC: Variants, Advanced Purchasing, Recipe Basic/Advanced and Food Cost, Orders V2, Reports V2, Finance/B2B, Service, Warehouse, Membership, Logistics, action permissions, safe idempotent Offline V2, Printing V2 and profile-aware Web/PWA. Production Top Burger remains outside Beta rollout."
 }
