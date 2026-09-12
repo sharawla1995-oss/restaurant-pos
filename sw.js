@@ -10,7 +10,7 @@ const SHELL=[
  './retail-website-pos.js?v=10.5.4-beta.36','./beta22-runtime-fixes.js?v=10.5.4-beta.36','./beta23-full-retail.js?v=10.5.4-beta.36','./retail-finalization-ui.js?v=10.5.4-beta.36',
  './retail-variants-runtime-bridge.js?v=10.5.4-beta.36','./retail-variants-ui.js?v=10.5.4-beta.36','./advanced-purchasing-v1.js?v=10.5.4-beta.36',
  './food-recipe-runtime-bridge.js?v=food-recipe-runtime-v1.0','./food-recipe-ui-v1.js?v=food-recipe-ui-v1.0','./food-advanced-ui-v1.js?v=food-advanced-ui-v1.0',
- './beta36-offline-v2.js?v=10.5.4-beta.36','./permissions-v2-ui.js?v=10.5.4-beta.36','./printing-v2.js?v=10.5.4-beta.36','./commerce-orders-v2-ui.js?v=10.5.4-beta.36','./reports-v2-ui.js?v=10.5.4-beta.36','./finance-b2b-ui.js?v=10.5.4-beta.36','./service-v1-ui.js?v=10.5.4-beta.36','./warehouse-v1-ui.js?v=10.5.4-beta.36','./membership-v1-ui.js?v=10.5.4-beta.36','./logistics-v1-ui.js?v=10.5.4-beta.36',
+ './beta36-offline-v2.js?v=10.5.4-beta.36','./permissions-v2-ui.js?v=10.5.4-beta.36','./printing-v2.js?v=10.5.4-beta.36','./landed-cost-posting-v1.js?v=10.5.4-beta.36','./commerce-orders-v2-ui.js?v=10.5.4-beta.36','./reports-v2-ui.js?v=10.5.4-beta.36','./finance-b2b-ui.js?v=10.5.4-beta.36','./service-v1-ui.js?v=10.5.4-beta.36','./warehouse-v1-ui.js?v=10.5.4-beta.36','./membership-v1-ui.js?v=10.5.4-beta.36','./logistics-v1-ui.js?v=10.5.4-beta.36',
  './manifest.json','./icon-192.png','./icon-512.png'
 ];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
