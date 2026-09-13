@@ -6,6 +6,12 @@ insert into public.permission_actions_v2(code,name_ar,domain,legacy_permission,s
  ('hr.adjustments.view','عرض الخصومات والمكافآت','hr','financialSettings',1185)
 on conflict(code) do update set name_ar=excluded.name_ar,domain=excluded.domain,legacy_permission=excluded.legacy_permission,sort_order=excluded.sort_order,active=true;
 
+drop policy if exists hr_employee_adjustments_read_v1 on public.hr_employee_adjustments;
+create policy hr_employee_adjustments_read_v1 on public.hr_employee_adjustments for select to authenticated using(
+ (public.has_action_permission_v2('hr.adjustments.view') or public.has_action_permission_v2('hr.payroll.view') or public.has_action_permission_v2('hr.adjustments.manage'))
+ and public.has_branch_access(branch_id)
+);
+
 create or replace function public.hr_employee_update_v1(
  p_employee_id bigint,
  p_name text,
