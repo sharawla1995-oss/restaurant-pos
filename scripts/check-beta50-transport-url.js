@@ -3,7 +3,8 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const src=read('beta45-offline-v2-transport.js');
 const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
-assert.strictEqual(pkg.version,'10.5.4-beta.50');
+const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+assert(m&&Number(m[1])>=50,'package version must be Beta50+');
 assert.strictEqual(ver.version,pkg.version);
 assert.strictEqual(ver.channel,'beta');
 assert(src.includes("||(u.pathname!==''&&u.pathname!=='/')"),'Beta50 root-path validator fix missing');
@@ -11,4 +12,4 @@ assert(!src.includes("||u.pathname!==''"),'Beta50 old root-path rejection still 
 assert(src.includes("u.protocol!=='https:'"),'HTTPS guard missing');
 assert(src.includes("\\.supabase\\.co$/i.test(u.hostname)"),'Supabase host guard missing');
 assert(src.includes("const info=await postRpc(ctx,INFO_RPC,{})"),'transport attestation RPC missing');
-console.log('Beta50 Transport URL gate PASS — valid Supabase root URL accepted without weakening HTTPS/host attestation guards');
+console.log(`Beta50+ Transport URL gate PASS on ${pkg.version} — valid Supabase root URL accepted without weakening HTTPS/host attestation guards`);
