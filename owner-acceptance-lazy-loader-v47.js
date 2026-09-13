@@ -5,6 +5,7 @@ const VERSION='10.5.4-beta.55';
 // 'owner-acceptance-registry-v3.js?v=10.5.4-beta.55'
 const FILES=[
  ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-beta55-restaurant-compat-v55','owner-acceptance-beta55-restaurant-compat-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.55'],
  ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.55'],
  ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.55'],
