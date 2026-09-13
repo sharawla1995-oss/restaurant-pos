@@ -92,7 +92,7 @@ async function restaurantRoundtrip(ctx){
    const transferPayload={p_from_branch_id:b1,p_to_branch_id:b2,p_items:[{ingredient_id:main,quantity:600}],p_notes:marker(run),p_client_tx_id:tx(run,'TRANSFER')};
    const tr=Number(await global.rpc('food_stock_transfer_create_v1',transferPayload));
    const tr2=Number(await global.rpc('food_stock_transfer_create_v1',transferPayload));
-   let trRows=await global.rest('stock_transfers',`select=id,status& id=eq.${tr}`.replace('& ', '&'));
+   let trRows=await global.rest('stock_transfers',`select=id,status&id=eq.${tr}`);
    if(!tr||tr!==tr2||trRows?.[0]?.status!=='sent'||!eq((await stock(b1,main)).quantity,5800)||!eq((await stock(b2,main)).quantity,1000))throw new Error(`Transfer dispatch/in-transit failed: ${JSON.stringify(trRows?.[0])}`);
    await global.rpc('food_stock_transfer_receive_v1',{p_transfer_id:tr});
    await global.rpc('food_stock_transfer_receive_v1',{p_transfer_id:tr});
@@ -132,7 +132,7 @@ async function restaurantRoundtrip(ctx){
    if(!tableSession||tableSession!==tableSession2)throw new Error('Table session idempotency failed');
 
    const salePayload={
-     p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'takeaway',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:tx(run,'SALE'),notes:marker(run)},
+     p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'dinein',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:tx(run,'SALE'),notes:marker(run)},
      p_items:[{product_id:product,product_name:`B55 Restaurant ${run}`,quantity:1,unit_price:100,cost:0,total:100,notes:null,modifiers:[],removed:[]}],
      p_payments:[{method:'cash',amount:100}]
    };
