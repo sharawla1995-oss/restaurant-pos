@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.46",
+  "version": "10.5.4-beta.47",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Universal Owner Acceptance beta for SH-0007 only: Offline Engine V2 runtime validation, sandbox E2E packs, backend fault/network lab, exactly-once concurrency, reconciliation, SQLite migration compatibility, abrupt-restart recovery, backup/restore verification, corruption detection, clock-drift ordering, role/permission matrix, feature coverage and profile-specific acceptance. Production remains unchanged."
+  "notes": "Performance/sync hotfix for SH-0007 Beta: lazy-load Owner Acceptance only after owner unlock, event-driven acceptance UI, and quarantine permanent legacy stock conflicts so they are not auto-retried every 30 seconds. Production remains unchanged."
 }
