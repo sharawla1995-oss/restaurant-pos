@@ -6,7 +6,18 @@ const branch=()=>Number(global.currentBranchId?.()||0);
 function ensure(){if(typeof global.rpc!=='function'||typeof global.rest!=='function')throw new Error('Runtime RPC/REST unavailable');if(!branch())throw new Error('Active branch missing')}
 function conn(){try{return {url:String(cfg?.url||'').replace(/\/$/,''),key:String(cfg?.key||''),token:String(session?.access_token||'')}}catch{return {url:'',key:'',token:''}}}
 function encodedPath(p){return String(p||'').split('/').map(encodeURIComponent).join('/')}
-async function cleanup(run){const out=await global.rpc('sharawla_beta54_purchase_attachment_cleanup_v1',{p_run_id:run});if(out?.ok!==true||Number(out?.residue||0)!==0)throw new Error(`Attachment cleanup failed: ${JSON.stringify(out)}`);return out}
+async function removeObject(bucket,path){
+ const c=conn();if(!c.url||!c.key||!c.token)throw new Error('Storage session unavailable');
+ const r=await fetch(`${c.url}/storage/v1/object/${encodeURIComponent(bucket)}`,{method:'DELETE',headers:{apikey:c.key,Authorization:`Bearer ${c.token}`,'Content-Type':'application/json'},body:JSON.stringify({prefixes:[String(path||'')]})});
+ let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error||`Storage delete failed (${r.status})`);return true;
+}
+async function cleanup(run){
+ const manifest=await global.rpc('sharawla_beta54_purchase_attachment_cleanup_manifest_v1',{p_run_id:run});
+ if(manifest?.ok!==true)throw new Error(`Attachment cleanup manifest failed: ${JSON.stringify(manifest)}`);
+ for(const o of (manifest?.objects||[])){if(o?.bucket&&o?.path)await removeObject(o.bucket,o.path)}
+ const out=await global.rpc('sharawla_beta54_purchase_attachment_cleanup_v1',{p_run_id:run});
+ if(out?.ok!==true||Number(out?.residue||0)!==0||Number(out?.storage_residue||0)!==0)throw new Error(`Attachment cleanup failed: ${JSON.stringify(out)}`);return out;
+}
 async function uploadObject(bucket,path,bytes){
  const c=conn();if(!c.url||!c.key||!c.token)throw new Error('Storage session unavailable');
  const body=new Blob([bytes],{type:'image/png'});
@@ -15,7 +26,7 @@ async function uploadObject(bucket,path,bytes){
 }
 async function readObject(bucket,path){
  const c=conn();if(!c.url||!c.key||!c.token)throw new Error('Storage session unavailable');
- const r=await fetch(`${c.url}/storage/v1/object/authenticated/${encodedPath(path)}`,{headers:{apikey:c.key,Authorization:`Bearer ${c.token}`}});
+ const r=await fetch(`${c.url}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${encodedPath(path)}`,{headers:{apikey:c.key,Authorization:`Bearer ${c.token}`}});
  if(!r.ok)throw new Error(`Authenticated attachment read failed (${r.status})`);
  return new Uint8Array(await r.arrayBuffer());
 }
@@ -62,7 +73,7 @@ async function purchasingAttachmentRoundtrip(ctx){
  }catch(e){originalError=e}
  let clean=null;try{clean=await cleanup(run)}catch(e){if(!originalError)originalError=e}
  if(originalError)throw originalError;
- return {status:'PASS',detail:`supplier=${evidence.supplier_id}; upload=ok; finalize=idempotent; archive=supplier+date+reference; authenticated_read=ok; soft_delete=hidden; audit=${evidence.audit_rows}; cleanup=zero`,evidence:{...evidence,cleanup_zero:Number(clean?.residue||0)===0}};
+ return {status:'PASS',detail:`supplier=${evidence.supplier_id}; upload=ok; finalize=idempotent; archive=supplier+date+reference; authenticated_read=ok; soft_delete=hidden; audit=${evidence.audit_rows}; cleanup=zero`,evidence:{...evidence,cleanup_zero:Number(clean?.residue||0)===0&&Number(clean?.storage_residue||0)===0}};
 }
 function register(){const reg=R();if(!reg||global.__SharawlaPurchasingAttachmentsAcceptanceV54Registered)return false;global.__SharawlaPurchasingAttachmentsAcceptanceV54Registered=true;reg.registerMany([
  {id:'purchasing.attachments-runtime-roundtrip',name:'Purchasing Attachment → Private Storage → Archive Filter → Read → Soft Delete → Cleanup',pack:'shared-core',profile:'retail',level:'full',mode:'write',features:['inventory.purchase_orders'],run:purchasingAttachmentRoundtrip}

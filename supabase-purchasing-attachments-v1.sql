@@ -87,6 +87,28 @@ for insert to authenticated with check(
  and public.has_branch_access(((storage.foldername(name))[1])::bigint)
 );
 
+drop policy if exists purchase_documents_delete_v1 on storage.objects;
+create policy purchase_documents_delete_v1 on storage.objects
+for delete to authenticated using(
+ bucket_id='purchase-documents'
+ and (storage.foldername(name))[1] ~ '^[0-9]+$'
+ and public.has_branch_access(((storage.foldername(name))[1])::bigint)
+ and (
+   public.has_action_permission_v2('purchasing.attachments.delete')
+   or (
+     public.has_action_permission_v2('purchasing.attachments.upload')
+     and exists(
+       select 1 from public.purchase_attachments a
+       where a.storage_bucket='purchase-documents'
+         and a.storage_path=storage.objects.name
+         and a.status='pending'
+         and a.deleted_at is null
+         and a.uploaded_by_employee_id=public.current_employee_id()
+     )
+   )
+ )
+);
+
 create or replace function public.purchase_attachment_prepare_v1(
  p_branch_id bigint,
  p_supplier_id bigint,
@@ -161,7 +183,7 @@ declare a public.purchase_attachments%rowtype;e bigint;begin
 end;$$;
 
 create or replace function public.purchase_attachment_abort_v1(p_attachment_id bigint,p_reason text default null)
-returns boolean language plpgsql security definer set search_path=public,storage
+returns boolean language plpgsql security definer set search_path=public
 as $$
 declare a public.purchase_attachments%rowtype;e bigint;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
@@ -171,8 +193,9 @@ declare a public.purchase_attachments%rowtype;e bigint;begin
  if a.status='ready' then raise exception 'لا يمكن إلغاء مرفق مكتمل';end if;
  if a.uploaded_by_employee_id is distinct from e and not public.has_action_permission_v2('purchasing.attachments.delete') then raise exception 'ليس لديك صلاحية إلغاء هذا المرفق';end if;
  if not public.has_branch_access(a.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
- delete from storage.objects where bucket_id=a.storage_bucket and name=a.storage_path;
  update public.purchase_attachments set status='failed',note=concat_ws(E'\n',note,nullif(trim(coalesce(p_reason,'')),'')),updated_at=now() where id=a.id;
+ insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details)
+ values(e,a.branch_id,'purchase_attachment_abort','purchase_attachment',a.id,jsonb_build_object('storage_path',a.storage_path,'reason',p_reason));
  return true;
 end;$$;
 

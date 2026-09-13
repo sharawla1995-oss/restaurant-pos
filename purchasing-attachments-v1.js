@@ -19,6 +19,11 @@ async function uploadObject(bucket,path,file){
  const r=await fetch(`${c.url}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath(path)}`,{method:'POST',headers:{apikey:c.key,Authorization:`Bearer ${c.token}`,'Content-Type':file.type,'x-upsert':'false'},body:file});
  let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error||`فشل رفع الملف (${r.status})`);return d;
 }
+async function removeObject(bucket,path){
+ const c=conn();if(!c.url||!c.key||!c.token)throw new Error('جلسة الاتصال غير جاهزة');
+ const r=await fetch(`${c.url}/storage/v1/object/${encodeURIComponent(bucket)}`,{method:'DELETE',headers:{apikey:c.key,Authorization:`Bearer ${c.token}`,'Content-Type':'application/json'},body:JSON.stringify({prefixes:[String(path||'')]})});
+ let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error||`فشل تنظيف الملف (${r.status})`);return d;
+}
 async function openObject(bucket,path,mime){
  const c=conn();if(!c.url||!c.key||!c.token)throw new Error('جلسة الاتصال غير جاهزة');
  const r=await fetch(`${c.url}/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${encodedPath(path)}`,{headers:{apikey:c.key,Authorization:`Bearer ${c.token}`}});
@@ -57,7 +62,17 @@ async function openUpload(){
  const refill=()=>{const sid=Number(sEl.value);const rows=invoices.filter(x=>Number(x.supplier_id)===sid);iEl.innerHTML='<option value="">بدون ربط بفاتورة مسجلة</option>'+rows.map(x=>`<option value="${x.id}">#${esc(x.invoice_number)} — ${esc(x.invoice_date||'')}</option>`).join('')};
  refill();sEl.onchange=refill;iEl.onchange=()=>{const x=invoices.find(v=>String(v.id)===iEl.value);if(x){dEl.value=x.invoice_date||today();if(!rEl.value)rEl.value=x.invoice_number||''}};
  m.querySelector('[data-pa-save]').onclick=async e=>{const btn=e.currentTarget,files=[...(m.querySelector('[data-f="files"]').files||[])];if(!files.length)return toast('اختر صورة أو PDF');if(files.length>8)return toast('يمكن رفع 8 ملفات كحد أقصى في المرة الواحدة');btn.disabled=true;const progress=m.querySelector('[data-pa-progress]');let ok=0;try{
-   for(let idx=0;idx<files.length;idx++){const file=files[idx];progress.textContent=`جاري رفع ${idx+1} من ${files.length}: ${file.name}`;if(file.size>15728640)throw new Error(`${file.name}: أكبر من 15MB`);const prep=await rpc('purchase_attachment_prepare_v1',{p_branch_id:b,p_supplier_id:Number(sEl.value),p_supplier_invoice_id:Number(iEl.value)||null,p_document_type:m.querySelector('[data-f="type"]').value,p_document_date:dEl.value||today(),p_reference_number:rEl.value.trim()||null,p_note:m.querySelector('[data-f="note"]').value.trim()||null,p_original_file_name:file.name,p_mime_type:file.type,p_file_size:file.size});const id=Number(prep?.attachment_id||0);try{await uploadObject(prep.bucket,prep.path,file);await rpc('purchase_attachment_finalize_v1',{p_attachment_id:id});ok++}catch(err){if(id)await rpc('purchase_attachment_abort_v1',{p_attachment_id:id,p_reason:err.message}).catch(()=>{});throw err}}
+   for(let idx=0;idx<files.length;idx++){
+    const file=files[idx];progress.textContent=`جاري رفع ${idx+1} من ${files.length}: ${file.name}`;if(file.size>15728640)throw new Error(`${file.name}: أكبر من 15MB`);
+    const prep=await rpc('purchase_attachment_prepare_v1',{p_branch_id:b,p_supplier_id:Number(sEl.value),p_supplier_invoice_id:Number(iEl.value)||null,p_document_type:m.querySelector('[data-f="type"]').value,p_document_date:dEl.value||today(),p_reference_number:rEl.value.trim()||null,p_note:m.querySelector('[data-f="note"]').value.trim()||null,p_original_file_name:file.name,p_mime_type:file.type,p_file_size:file.size});
+    const id=Number(prep?.attachment_id||0);
+    try{await uploadObject(prep.bucket,prep.path,file);await rpc('purchase_attachment_finalize_v1',{p_attachment_id:id});ok++}
+    catch(err){
+      let storageErr=null;if(id&&prep?.bucket&&prep?.path){try{await removeObject(prep.bucket,prep.path)}catch(x){storageErr=x}}
+      if(id)await rpc('purchase_attachment_abort_v1',{p_attachment_id:id,p_reason:storageErr?`${err.message}; storage_cleanup=${storageErr.message}`:err.message}).catch(()=>{});
+      if(storageErr)throw new Error(`${err.message} — وتعذر تنظيف الملف المرفوع: ${storageErr.message}`);throw err;
+    }
+   }
    toast(`تم حفظ ${ok} مرفق`);m.remove();renderArchive();
  }catch(err){toast(err.message||String(err));btn.disabled=false;progress.textContent='تعذر إكمال الرفع. لم يتم اعتماد الملف غير المكتمل.'}}
 }
