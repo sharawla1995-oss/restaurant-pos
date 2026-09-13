@@ -10,6 +10,7 @@ for(const token of [
  "const REQUIRED_RESTAURANT_KEYS=['page:foodIngredients','page:foodRecipes','page:foodOperations','page:tables']",
  "'beta54:treasury'","'group:hr'","'custom:supply'",
  "node.matches?.('[data-beta55-hr-group]')","Object.prototype.hasOwnProperty.call(b.dataset,'beta55SupplyPage')",
+ 'function fallbackKey(b)','return fallbackKey(b)','function fallbackMeta(entry)',
  'function topLevelEntries()','function syncHomeCards()','function contractAudit()','function audit()',
  "document.addEventListener('click',clickGuard,true)","observer.observe(document.body",
  "global.__SharawlaBeta55NavigationParity=Object.freeze"
