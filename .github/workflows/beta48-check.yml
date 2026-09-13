@@ -1,0 +1,33 @@
+name: Beta48 Acceptance Harness Check
+
+on:
+  push:
+    branches:
+      - beta48-acceptance-harness-fix
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Syntax check Beta48 acceptance runtime
+        run: |
+          node --check owner-acceptance-registry-v3.js
+          node --check owner-acceptance-e2e-v3.js
+          node --check owner-acceptance-advanced-v4.js
+          node --check owner-acceptance-lazy-loader-v47.js
+          node --check owner-acceptance-ui-v47.js
+          node --check beta36-integration-loader.js
+          node --check scripts/sync-version.js
+          node --check scripts/check-beta48-acceptance-harness.js
+      - name: Run source and acceptance gates
+        run: npm run check
