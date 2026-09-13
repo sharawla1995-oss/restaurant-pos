@@ -1,6 +1,11 @@
 'use strict';
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const pkg=JSON.parse(read('package.json'));
+const version=String(pkg.version||'');
+const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+assert(m&&Number(m[1])>=54,`Beta54+ package version required; got ${version}`);
+const versionQuery=`?v=${version}`;
 const sql=read('supabase-purchasing-attachments-v1.sql');
 const cleanup=read('supabase-beta54-acceptance-purchase-attachments-cleanup.sql');
 const hotfix=read('supabase-beta54-purchasing-attachments-storage-api-cleanup-fix.sql');
@@ -79,9 +84,9 @@ for(const token of [
  "purchase_attachment_prepare'","purchase_attachment_finalize'",'purchase_attachment_soft_delete_v1',"purchase_attachment_soft_delete'",'cleanup=zero'
 ])assert(acceptance.includes(token),`Attachment runtime acceptance invariant missing: ${token}`);
 
-assert(loader.includes("['purchasing-attachments-v1','purchasing-attachments-v1.js?v=10.5.4-beta.54']"),'Attachment runtime must be wired after permissions/shared core');
+assert(loader.includes(`['purchasing-attachments-v1','purchasing-attachments-v1.js${versionQuery}']`),'Attachment runtime must be wired after permissions/shared core');
 assert(loader.indexOf("['permissions-v2'")<loader.indexOf("['purchasing-attachments-v1'"),'Attachment runtime load order must follow permissions');
-assert(ownerLazy.includes("['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.54']"),'Owner lazy runtime must actually load purchasing attachment acceptance');
+assert(ownerLazy.includes(`['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js${versionQuery}']`),'Owner lazy runtime must actually load purchasing attachment acceptance');
 assert(ownerLazy.indexOf("['owner-acceptance-shared-core-v54'")<ownerLazy.indexOf("['owner-acceptance-purchasing-attachments-v54'"),'Attachment acceptance runtime must load after shared-core acceptance');
 assert(sync.includes("'purchasing-attachments-v1.js'"),'Version sync must own attachment runtime');
 assert(sync.includes("'owner-acceptance-purchasing-attachments-v54.js'"),'Version sync must own purchasing attachment runtime acceptance');
@@ -90,4 +95,4 @@ assert(syntax.includes("'purchasing-attachments-v1.js'"),'Runtime syntax gate mu
 assert(syntax.includes("'owner-acceptance-purchasing-attachments-v54.js'"),'Runtime syntax gate must include attachment acceptance runtime');
 assert(blueprint.includes('Supplier invoices'),'Functional Blueprint must retain supplier invoice attachments scope');
 
-console.log('Purchasing Attachments V1 gate PASS — private Storage + Storage API cleanup + runtime upload/read/archive/delete roundtrip + exact cleanup + permissions/audit + owner acceptance wiring');
+console.log(`Purchasing Attachments V1 regression gate PASS on ${version} — private Storage + Storage API cleanup + runtime upload/read/archive/delete roundtrip + exact cleanup + permissions/audit + owner acceptance wiring`);
