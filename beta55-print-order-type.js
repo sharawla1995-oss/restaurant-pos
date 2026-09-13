@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55-print-order-type.1';
+const VERSION='10.5.4-beta.55-print-order-type.2';
 if(global.__SharawlaBeta55PrintOrderTypeV1?.active)return;
 const originalCustomer=global.receiptHTML;
 const originalPrep=global.prepReceiptHTML;
@@ -17,7 +17,7 @@ function banner(type,prep=false){const m=meta(type),size=prep?30:23,en=prep?18:1
 function insertBanner(html,type,prep=false){const b=banner(type,prep);return String(html||'').replace('<div class="receipt">',`<div class="receipt">${b}`)}
 function currencySuffixFromPrep(html){const m=String(html||'').match(/<span>إجمالي الأصناف<\/span><b>([^<]*)<\/b>/);if(!m)return 'ج.م';const raw=String(m[1]||'').trim(),suffix=raw.replace(/^-?[\d.,]+\s*/,'').trim();return suffix||'ج.م'}
 function fmt(v,suffix){return `${Number(v||0).toFixed(2)} ${E(suffix)}`}
-function addPrepTotals(html,o){let out=String(html||''),suffix=currencySuffixFromPrep(out);const delivery=String(o?.order_type||'').toLowerCase()==='delivery';const feeLine=delivery?`<div class="prep-delivery-fee"><span>رسوم التوصيل</span><b>${fmt(o?.delivery_fee,suffix)}</b></div>`:'';const grand=`<div class="grand-print"><span>الإجمالي</span><b>${fmt(o?.total,suffix)}</b></div>`;out=out.replace(/(<div class="r-totals"><div><span>إجمالي الأصناف<\/span><b>[^<]*<\/b><\/div>)(<\/div>)/,`$1${feeLine}${grand}$2`);if(o?.notes){const note=`<div class="prep-order-note" style="border:1px dashed #000;padding:3px;margin:3px 0"><b>ملاحظات الطلب:</b> ${E(o.notes)}</div>`;out=out.replace('<hr><div class="r-totals">',`<hr>${note}<div class="r-totals">`)}return out}
+function addPrepTotals(html,o){let out=String(html||''),suffix=currencySuffixFromPrep(out);const delivery=String(o?.order_type||'').toLowerCase()==='delivery';const feeLine=delivery?`<div class="prep-delivery-fee"><span>رسوم التوصيل</span><b>${fmt(o?.delivery_fee,suffix)}</b></div>`:'';const grand=`<div class="grand-print"><span>الإجمالي</span><b>${fmt(o?.total,suffix)}</b></div>`;out=out.replace(/(<div class="r-totals"><div><span>إجمالي الأصناف<\/span><b>[^<]*<\/b><\/div>)(<\/div>)/,`$1${feeLine}${grand}$2`);if(o?.notes){const note=`<div class="prep-order-note" style="border:1px dashed #000;padding:3px;margin:3px 0"><b>ملاحظات الطلب:</b> ${E(o.notes)}</div>`;out=out.replace('<div class="r-totals">',`${note}<div class="r-totals">`)}return out}
 function decorateCustomer(html,o){return insertBanner(html,o?.order_type,false)}
 function decoratePrep(html,o){return addPrepTotals(insertBanner(html,o?.order_type,true),o)}
 global.receiptHTML=function(o,items,isCopy=false){return decorateCustomer(originalCustomer.call(this,o,items,isCopy),o)};
