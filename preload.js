@@ -57,7 +57,11 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   sqliteCompatibility:()=>ipcRenderer.invoke('acceptance:sqlite-compatibility'),
   crashMarker:()=>ipcRenderer.invoke('acceptance:crash-marker'),
   crashMarkerClear:()=>ipcRenderer.invoke('acceptance:crash-marker-clear'),
-  crashRestart:x=>ipcRenderer.invoke('acceptance:crash-restart',x||{})
+  crashRestart:x=>ipcRenderer.invoke('acceptance:crash-restart',x||{}),
+  backupRestoreProbe:()=>ipcRenderer.invoke('acceptance:backup-restore-probe'),
+  corruptionProbe:()=>ipcRenderer.invoke('acceptance:corruption-probe'),
+  clockSequenceProbe:()=>ipcRenderer.invoke('acceptance:clock-sequence-probe'),
+  tempRestoreCycle:()=>ipcRenderer.invoke('acceptance:temp-restore-cycle')
  },
  licenseState:{get:()=>ipcRenderer.invoke('license-state:get'),set:v=>ipcRenderer.invoke('license-state:set',v),clear:()=>ipcRenderer.invoke('license-state:clear')}
 });
