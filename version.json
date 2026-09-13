@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.51",
+  "version": "10.5.4-beta.52",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta50 SH-0007 Offline V2 transport hotfix: accept a valid Supabase project root URL whose WHATWG pathname is /, while preserving HTTPS + *.supabase.co origin validation, prepared migration state, historical conflict preservation, canonical identity, and production isolation."
+  "notes": "Beta52 Acceptance Coverage Closure: preserve Beta51 Offline V2 runtime behavior while adding durable guided Crash Test PASS evidence, clear already-completed status, and final Deep Chaos reporting on isolated SH-0007 only. Production SH-0005/SH-0006 and Top Burger remain unchanged."
 }
