@@ -14,13 +14,14 @@ const FILES=[
  ['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-v55','owner-acceptance-beta55-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-permissions-v55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-beta55-restaurant-v55','owner-acceptance-beta55-restaurant-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.55'],
  ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.55'],
  ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.55']
 ];
 let loading=null,loaded=false;
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-owner-lazy-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-owner-lazy-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta55 owner lazy load failed: ${src}`));document.head.appendChild(s)})}
-async function loadAll(){if(loaded)return true;if(loading)return loading;loading=(async()=>{for(const [k,s] of FILES)await load(k,s);loaded=true;for(const name of ['sharawla-beta47-acceptance-ready','sharawla-beta48-acceptance-ready','sharawla-beta54-acceptance-ready','sharawla-beta55-acceptance-ready'])global.dispatchEvent(new CustomEvent(name,{detail:{version:VERSION}}));return true})().finally(()=>{loading=null});return loading}
+async function loadAll(){if(loaded)return true;if(loading)return loading;loading=(async()=>{for(const [k,s] of FILES)await load(k,s);loaded=true;for(const name of ['sharawla-beta47-acceptance-ready','sharawla-beta48-acceptance-ready','sharawla-beta54-acceptance-ready','sharawla-beta55-acceptance-ready','sharawla-beta55-restaurant-acceptance-ready'])global.dispatchEvent(new CustomEvent(name,{detail:{version:VERSION}}));return true})().finally(()=>{loading=null});return loading}
 function onOwner(e){if(e?.detail?.unlocked===true)loadAll().catch(err=>console.error(err))}
 document.addEventListener('sharawla-owner-diagnostics-change',onOwner);
 if(global.__SharawlaOwnerDiagnostics?.isUnlocked?.())loadAll().catch(err=>console.error(err));
