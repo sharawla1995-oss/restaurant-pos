@@ -9,21 +9,31 @@ on:
       - package.json
       - version.json
       - beta36-integration-loader.js
+      - restaurant-engine.js
+      - beta55-restaurant-closure-ui.js
       - beta55-ui-workflow-fixes.js
       - beta55-ui-hardening.js
       - beta55-central-warehouse-ui.js
       - beta55-central-warehouse-v2.js
       - owner-acceptance-registry-v55.js
       - owner-acceptance-beta55-v55.js
+      - owner-acceptance-beta55-restaurant-v55.js
       - owner-acceptance-lazy-loader-v47.js
       - owner-acceptance-ui-v47.js
       - supabase-beta55-central-warehouse-visibility-shortages.sql
       - supabase-beta55-branch-request-read-model.sql
       - supabase-beta55-shortages-allocation-hardening.sql
       - supabase-beta55-acceptance-supply.sql
+      - supabase-beta55-restaurant-operations.sql
+      - supabase-beta55-restaurant-permissions-runtime.sql
+      - supabase-beta55-restaurant-direct-dml-hardening.sql
+      - supabase-beta55-restaurant-acceptance.sql
+      - supabase-beta55-restaurant-acceptance-anon-hardening.sql
       - advanced-purchasing-v1.js
       - scripts/check-beta54-shared-core.js
       - scripts/check-beta55-shared-workflows.js
+      - scripts/check-beta55-restaurant-closure.js
+      - scripts/check-beta55-restaurant-acceptance.js
       - scripts/check-runtime-syntax.js
       - scripts/sync-version.js
       - scripts/check-version.js
@@ -135,9 +145,7 @@ jobs:
 
           Branch replenishment now uses a smart read model: only the branch-assigned catalog is visible, exact central stock is not exposed without permission, and suggested quantity accounts for current branch stock, open commitments and stock already in transit.
 
-          The same Full Acceptance Center is promoted to Beta55 and now includes a dedicated Beta55 pack covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, and an isolated warehouse shortage → reservation guard → partial dispatch → receive → cleanup roundtrip.
-
-          The build retains the large single-screen purchase-order workspace and the products.sku regression guard, grouped HR navigation with permission-driven children, and Treasury as a separate module.
+          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, and Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption and Tables.
 
           Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Beta55 is for SH-0007 only. Accepted Beta54/Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No Offline V2 migration/takeover replay is introduced.
 
