@@ -38,8 +38,8 @@ for(const token of [
  'food_apply_ingredient_delta_internal_v1','food_purchase_order_create_v1','food_purchase_receive_v1','food_supplier_return_create_v1','food_stock_count_post_v1',
  'food_stock_transfer_create_v1','food_stock_transfer_receive_v1','food_stock_transfer_cancel_v1','restaurant_floors','restaurant_tables','restaurant_table_sessions','restaurant_table_session_orders'
 ])need(ops,token,`operations contract ${token}`);
-need(ops,"status='sent'",'transfer in-transit state');
-need(ops,"status='received'",'transfer receive state');
+need(ops,"values(p_from_branch_id,p_to_branch_id,'sent'",'transfer in-transit state');
+need(ops,"set status='received'",'transfer receive state');
 need(ops,"if v_new<0 then raise exception 'مخزون الخامة غير كافٍ'",'negative ingredient stock guard');
 need(ops,'pg_advisory_xact_lock','idempotency/concurrency lock');
 
