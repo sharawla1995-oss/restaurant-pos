@@ -1,7 +1,7 @@
 # Sharawla POS V1 — 22-Step Execution Tracker
 
-Branch: `beta36-multi-engine-integration`
-Production safety: SH-0005 / SH-0006 / Top Burger are read-only until final owner acceptance.
+Branch: `beta52-acceptance-coverage-closure`
+Production safety: SH-0005 / SH-0006 / Top Burger remain read-only until final owner acceptance.
 Experimental target: SH-0007 / business `تجريبي` only.
 
 Legend: DONE / IN PROGRESS / READY FOR ACCEPTANCE / BLOCKED BY MANUAL RUNTIME / PLANNED V1.1
@@ -40,14 +40,21 @@ Legend: DONE / IN PROGRESS / READY FOR ACCEPTANCE / BLOCKED BY MANUAL RUNTIME / 
 12. Profile rollout — Restaurant/Retail/Pharmacy implemented baseline; Warehouse/Service/Membership/Logistics stay disabled until runtime-ready
 13. Website/PWA per profile — existing Restaurant/Retail foundations preserved; capability-gated expansion IN PROGRESS
 14. Permissions & Roles V2 — IN PROGRESS
-15. Offline V2 — existing idempotent queue preserved; new engines must pass separate gates
+15. Offline V2 — DONE / ACCEPTED ON SH-0007
+   - Beta51 accepted runtime SHA: `5aca3a591c7210d8dd292148b77c639998f54c83`
+   - Full Sandbox: READY_FOR_RC / 100%
+   - Deep Chaos automated checks: PASS
+   - Lost ACK exactly-once: PASS
+   - Guided crash after local commit + restart + resume + return + reconciliation: PASS
+   - Two historical legacy conflicts intentionally preserved
+   - Beta52 changes crash acceptance evidence/reporting only; no Offline V2 sale/sync semantic change
 16. Printing V2 — existing direct print preserved; new documents IN PROGRESS
-17. Full Regression — static + automated suite IN PROGRESS
-18. Final Beta Release — IN PROGRESS (target beta.36 candidate)
-19. Production Migration Plan — DOCUMENTATION ONLY until owner runtime acceptance
-20. Sharawla Admin Production — NO MERGE until preview/UI acceptance
+17. Full Regression — static + automated suite IN PROGRESS; Beta52 closes enabled-feature acceptance coverage
+18. Final Beta Release — IN PROGRESS (`10.5.4-beta.52` acceptance coverage closure)
+19. Production Migration Plan — DOCUMENTATION ONLY until broader owner/runtime acceptance
+20. Sharawla Admin Production — NO MERGE until preview/UI acceptance and Cloud permission hardening
 21. Documentation + Support — IN PROGRESS
-22. Production V1 Freeze — BLOCKED until manual beta acceptance
+22. Production V1 Freeze — BLOCKED until enabled-feature coverage, Cloud hardening, profile acceptance, and production pilot gates are complete
 
 ## Non-negotiable gates
 - No write to Top Burger / SH-0005 / SH-0006 before final acceptance.
