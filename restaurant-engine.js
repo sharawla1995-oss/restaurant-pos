@@ -24,7 +24,15 @@
     deliverySettings:'delivery',
     delivery:'delivery',
     kitchen:'kitchen',
+    tables:'tables',
     inventory:'inventory',
+    foodIngredients:'inventory',
+    foodRecipes:'inventory',
+    foodOperations:'inventory',
+    stockCount:'inventory',
+    transfers:'inventory',
+    suppliers:'inventory',
+    purchasing:'inventory',
     expenses:'expenses',
     promoCodes:'promocodes',
     reports:'reports',
@@ -38,28 +46,33 @@
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',
     deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
-    kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',
-    promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',
+    kitchen:'المطبخ',tables:'الصالات والترابيزات',shifts:'الشيفت',inventory:'المخزون',
+    foodIngredients:'الخامات',foodRecipes:'الوصفات وFood Cost',foodOperations:'الإنتاج والهالك',
+    stockCount:'جرد الخامات',transfers:'تحويلات الخامات',suppliers:'الموردين',purchasing:'مشتريات الخامات',
+    expenses:'المصروفات',products:'الأصناف',promoCodes:'البرومو كود',
+    branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',
     websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',websitePayments:'طرق الدفع على الموقع',
     websiteAppearance:'تصميم وقائمة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'
   });
 
   const ALL_PAGES=Object.freeze([
-    'home','pos','orders','returns','customers','deliveryOrders','deliverySettings','delivery','kitchen',
-    'shifts','inventory','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
+    'home','pos','orders','returns','customers','deliveryOrders','deliverySettings','delivery','kitchen','tables',
+    'shifts','inventory','foodIngredients','foodRecipes','foodOperations','stockCount','transfers','suppliers','purchasing',
+    'expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
     admin:ALL_PAGES,
-    cashier:Object.freeze(['home','pos','orders','returns','customers','deliveryOrders','delivery','shifts']),
+    cashier:Object.freeze(['home','pos','orders','returns','customers','deliveryOrders','delivery','tables','shifts']),
     callcenter:Object.freeze(['home','pos','orders','returns','customers','deliveryOrders','delivery']),
     delivery:Object.freeze(['home','pos','orders','returns','customers','deliveryOrders','delivery'])
   });
 
   const PERMISSION_DEFS=Object.freeze([
-    ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],
+    ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],['tables','🪑 الصالات والترابيزات'],
     ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['promoCodes','🎟️ البرومو كود'],['deliverySettings','إعدادات الدليفري'],
-    ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
+    ['kitchen','المطبخ'],['inventory','المخزون'],['foodIngredients','🧪 الخامات'],['foodRecipes','🍲 الوصفات وFood Cost'],['foodOperations','🏭 الإنتاج والهالك'],
+    ['stockCount','🧮 جرد الخامات'],['transfers','🔄 تحويلات الخامات'],['suppliers','🚚 الموردين'],['purchasing','📥 مشتريات الخامات'],['settings','الإعدادات'],
     ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
     ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],
     ['branchManagement','🏪 إدارة الفروع'],
@@ -71,9 +84,9 @@
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
-    ['🧾 المبيعات',['pos','orders','returns','customers','deliveryOrders','shifts']],
+    ['🧾 المبيعات',['pos','orders','returns','customers','deliveryOrders','shifts','tables']],
+    ['🍽️ تشغيل المطعم',['kitchen','inventory','foodIngredients','foodRecipes','foodOperations','stockCount','transfers','suppliers','purchasing','deliverySettings']],
     ['📊 الإدارة',['expenses','reports','products','promoCodes','settings']],
-    ['🚚 التشغيل',['deliverySettings','kitchen','inventory']],
     ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']]
@@ -83,7 +96,14 @@
     deliveryOrders:'enable_delivery',
     delivery:'enable_delivery',
     kitchen:'enable_kitchen',
-    inventory:'enable_inventory'
+    inventory:'enable_inventory',
+    foodIngredients:'enable_inventory',
+    foodRecipes:'enable_inventory',
+    foodOperations:'enable_inventory',
+    stockCount:'enable_inventory',
+    transfers:'enable_inventory',
+    suppliers:'enable_inventory',
+    purchasing:'enable_inventory'
   });
 
   const REPORT_ORDER_TYPES=Object.freeze([
