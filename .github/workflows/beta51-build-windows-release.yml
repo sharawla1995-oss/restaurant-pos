@@ -1,0 +1,155 @@
+name: Beta51 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta51-final-offline-acceptance-fix
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Setup Python 3.11 for node-gyp
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+          python --version
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.51') { throw "Unexpected Beta51 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Synchronize versioned source
+        id: sync
+        shell: pwsh
+        run: |
+          node scripts/sync-version.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if (git status --porcelain) {
+            git add -A
+            git commit -m "Beta51: synchronize versioned runtime source"
+            git push origin HEAD:beta51-final-offline-acceptance-fix
+            "changed=true" >> $env:GITHUB_OUTPUT
+          } else {
+            "changed=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Install dependencies
+        if: steps.sync.outputs.changed != 'true'
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta51 source and acceptance gates
+        if: steps.sync.outputs.changed != 'true'
+        run: npm run check
+
+      - name: Verify source stayed synchronized
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: |
+          if (git status --porcelain) { git status --short; throw "Beta51 source changed during checks" }
+
+      - name: Stamp update repository
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Build Windows x64
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-x64.exe" -Force
+          Remove-Item dist -Recurse -Force
+
+      - name: Build Windows ia32
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "ia32 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
+
+      - name: Compute installer hashes
+        if: steps.sync.outputs.changed != 'true'
+        id: hash
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content beta51-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta51-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta51 prerelease
+        if: steps.sync.outputs.changed != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $notes = @"
+          Beta51 Final Offline Acceptance Fix for isolated SH-0007 testing.
+
+          Fixes the final Full Sandbox blockers found after Offline V2 takeover activation: the POS sale fallback now reuses the already-durable V2 sale event instead of attempting a second commit with the same client_tx_id, and the experimental backend contains a strictly Acceptance-tagged customer-delete cleanup guard for Offline V2 customer merge receipts.
+
+          Production SH-0005 / SH-0006 and Top Burger remain read-only and unchanged. Canonical device identity is unchanged. The two preserved historical conflicts remain intact. No automatic takeover, migration replay, or production data mutation is introduced.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta51 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta51-sha256.txt --clobber
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
