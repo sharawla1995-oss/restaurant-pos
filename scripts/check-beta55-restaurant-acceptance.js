@@ -35,7 +35,14 @@ for(const token of [
  'delete from public.food_production_batches','delete from public.food_waste_events','delete from public.stock_movements',
  "grant execute on function public.sharawla_beta55_restaurant_acceptance_fixture_v1(text,bigint) to authenticated"
 ])need(sql,token,`acceptance SQL ${token}`);
-for(const src of [pack,sql]){
+
+const hardening=read('supabase-beta55-restaurant-acceptance-anon-hardening.sql');
+need(hardening,'revoke execute on function public.sharawla_beta55_restaurant_acceptance_fixture_v1(text,bigint) from anon','fixture anon revoke');
+need(hardening,'revoke execute on function public.sharawla_beta55_restaurant_acceptance_cleanup_v1(text) from anon','cleanup anon revoke');
+need(hardening,'grant execute on function public.sharawla_beta55_restaurant_acceptance_fixture_v1(text,bigint) to authenticated','fixture authenticated grant');
+need(hardening,'grant execute on function public.sharawla_beta55_restaurant_acceptance_cleanup_v1(text) to authenticated','cleanup authenticated grant');
+
+for(const src of [pack,sql,hardening]){
  forbid(src,'SH-0005','production device isolation');
  forbid(src,'SH-0006','production device isolation');
 }
