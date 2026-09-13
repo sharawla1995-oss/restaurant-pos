@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Beta52: synchronize runtime versions')
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -107,11 +106,11 @@ jobs:
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
           $notes = @"
-          Beta52 Acceptance Coverage Closure for isolated SH-0007 testing.
+          Beta52 Crash Acceptance Evidence checkpoint for isolated SH-0007 testing.
 
-          This release preserves the accepted Beta51 Offline V2 runtime semantics and adds durable guided Crash Test PASS evidence. A completed crash drill now records exactly-once order count, sale/return sync state, stock restore, reconciliation and zero-residue cleanup before the crash marker/state are cleared. Reopening the Owner center can show an already-completed PASS instead of a misleading missing-state error, and a subsequent Deep Chaos report can consume the durable PASS evidence.
+          This release preserves the accepted Beta51 Offline V2 runtime semantics and adds durable guided Crash Test PASS evidence. A completed crash drill records exactly-once order count, sale/return sync state, stock restore, reconciliation and zero-residue cleanup before the crash marker/state are cleared. Reopening the Owner center can show an already-completed PASS instead of a misleading missing-state error, and a subsequent Deep Chaos report can consume the durable PASS evidence.
 
-          Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Canonical device identity, Offline V2 takeover semantics and the two preserved historical conflicts are unchanged.
+          Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Canonical device identity, Offline V2 takeover semantics and the two preserved historical conflicts are unchanged. Broader enabled-feature coverage remains a later Beta52 acceptance stage and is not claimed complete by this checkpoint.
 
           SHA256 x64: ${{ steps.hash.outputs.x64 }}
           SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
