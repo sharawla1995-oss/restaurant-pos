@@ -49,7 +49,16 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
  paths:()=>ipcRenderer.invoke('desktop:paths'),
  device:{info:()=>ipcRenderer.invoke('device:info')},
  external:{open:url=>ipcRenderer.invoke('external:open',url)},
- acceptance:{networkSet:x=>ipcRenderer.invoke('acceptance:network-set',x||{}),networkState:()=>ipcRenderer.invoke('acceptance:network-state'),networkDisable:r=>ipcRenderer.invoke('acceptance:network-disable',r||'renderer'),restart:x=>ipcRenderer.invoke('acceptance:restart',x||{})},
+ acceptance:{
+  networkSet:x=>ipcRenderer.invoke('acceptance:network-set',x||{}),
+  networkState:()=>ipcRenderer.invoke('acceptance:network-state'),
+  networkDisable:r=>ipcRenderer.invoke('acceptance:network-disable',r||'renderer'),
+  restart:x=>ipcRenderer.invoke('acceptance:restart',x||{}),
+  sqliteCompatibility:()=>ipcRenderer.invoke('acceptance:sqlite-compatibility'),
+  crashMarker:()=>ipcRenderer.invoke('acceptance:crash-marker'),
+  crashMarkerClear:()=>ipcRenderer.invoke('acceptance:crash-marker-clear'),
+  crashRestart:x=>ipcRenderer.invoke('acceptance:crash-restart',x||{})
+ },
  licenseState:{get:()=>ipcRenderer.invoke('license-state:get'),set:v=>ipcRenderer.invoke('license-state:set',v),clear:()=>ipcRenderer.invoke('license-state:clear')}
 });
 
