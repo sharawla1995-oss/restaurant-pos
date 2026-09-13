@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55-navigation-parity.1';
+const VERSION='10.5.4-beta.55-navigation-parity.2';
 const REQUIRED_RESTAURANT_KEYS=['page:foodIngredients','page:foodRecipes','page:foodOperations','page:tables'];
 const META=Object.freeze({
  'page:pos':{icon:'🧾',label:'الكاشير',description:'بيع وإنشاء أوردر جديد',tone:'mint'},
@@ -38,12 +38,18 @@ function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfig
 function isRestaurant(){return String(cfg().pos_profile||'').trim().toLowerCase()==='restaurant'}
 function visible(el){return !!el&&!el.classList.contains('hidden')&&el.getAttribute('aria-hidden')!=='true'}
 function isHomeActive(){const b=document.querySelector('#nav button[data-page="home"]');return !!b&&b.classList.contains('active')}
+function fallbackKey(b){
+ if(b.id)return `id:${b.id}`;
+ const attr=[...b.attributes].find(a=>a.name.startsWith('data-')&&!['data-nav-parity-key'].includes(a.name));
+ if(attr)return `custom:${attr.name}:${attr.value||'1'}`;
+ return `custom:text:${String(b.textContent||'section').trim().replace(/\s+/g,'-')}`;
+}
 function keyForButton(b){
  if(!b)return null;
  if(b.dataset.page)return b.dataset.page==='home'?null:`page:${b.dataset.page}`;
  if(b.dataset.beta54Page)return `beta54:${b.dataset.beta54Page}`;
  if(Object.prototype.hasOwnProperty.call(b.dataset,'beta55SupplyPage'))return 'custom:supply';
- return null;
+ return fallbackKey(b);
 }
 function topLevelEntries(){
  const nav=document.querySelector('#nav');if(!nav)return [];
@@ -63,8 +69,12 @@ function topLevelEntries(){
  return out;
 }
 function currentKeys(){return topLevelEntries().map(x=>x.key)}
+function fallbackMeta(entry){
+ const raw=String(entry.button?.textContent||entry.key).trim(),parts=raw.split(/\s+/),icon=parts.length>1?parts.shift():'📌';
+ return {icon,label:parts.join(' ')||raw,description:'فتح القسم',tone:'slate'};
+}
 function createCard(entry){
- const m=entry.meta||{icon:'📌',label:(entry.button?.textContent||entry.key).trim(),description:'فتح القسم',tone:'slate'};
+ const m=entry.meta||fallbackMeta(entry);
  const b=document.createElement('button');b.type='button';b.className=`home-card tone-${m.tone||'slate'}`;b.dataset.navParityKey=entry.key;
  if(entry.key.startsWith('page:'))b.dataset.homePage=entry.key.slice(5);
  b.innerHTML=`<span class="home-icon">${m.icon||'📌'}</span><span class="home-copy"><b>${m.label||entry.key}</b><small>${m.description||'فتح القسم'}</small></span><span class="home-arrow">‹</span>`;
@@ -93,7 +103,7 @@ function contractAudit(){
  const entries=topLevelEntries(),keys=entries.map(x=>x.key),missingMetadata=entries.filter(x=>!x.meta).map(x=>x.key);
  const duplicateKeys=keys.filter((x,i)=>keys.indexOf(x)!==i);
  const missingRequiredRegistry=REQUIRED_RESTAURANT_KEYS.filter(x=>!META[x]);
- return {ok:isRestaurant()&&entries.length>0&&!missingMetadata.length&&!duplicateKeys.length&&!missingRequiredRegistry.length,profile:isRestaurant()?'restaurant':String(cfg().pos_profile||''),keys,missing_metadata:missingMetadata,duplicate_keys:[...new Set(duplicateKeys)],missing_required_registry:missingRequiredRegistry};
+ return {ok:isRestaurant()&&entries.length>0&&!duplicateKeys.length&&!missingRequiredRegistry.length,profile:isRestaurant()?'restaurant':String(cfg().pos_profile||''),keys,missing_metadata:missingMetadata,duplicate_keys:[...new Set(duplicateKeys)],missing_required_registry:missingRequiredRegistry};
 }
 function syncHomeCards(){
  if(!isRestaurant()||!isHomeActive())return {skipped:true,reason:'not-restaurant-home'};
