@@ -52,7 +52,8 @@ jobs:
           node scripts/sync-version.js
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if (git status --porcelain) {
+          $changes = git status --porcelain
+          if ($changes) {
             git add -A
             git commit -m "Beta51: synchronize versioned runtime source"
             git push origin HEAD:beta51-final-offline-acceptance-fix
@@ -73,7 +74,8 @@ jobs:
         if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: |
-          if (git status --porcelain) { git status --short; throw "Beta51 source changed during checks" }
+          $changes = git status --porcelain
+          if ($changes) { git status --short; throw "Beta51 source changed during checks" }
 
       - name: Stamp update repository
         if: steps.sync.outputs.changed != 'true'
