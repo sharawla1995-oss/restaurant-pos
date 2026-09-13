@@ -11,13 +11,10 @@ const preload=read('preload.js');
 const pkg=JSON.parse(read('package.json'));
 const version=String(pkg.version||'');
 
-// Syntax only; do not execute Electron/browser modules here.
 new Function(manager);
 new Function(runtime);
 new Function(preload);
 
-// Takeover is fail-safe, disabled by default, and cannot activate before the
-// later explicit-ACK transport phase attests itself ready.
 for(const token of [
   "mode:'disabled'","armed:false","active:false","migration_verified:false","transport_ready:false","legacy_retired:false",
   "input?.approved!==true","OFFLINE_V2_APPROVAL_REQUIRED","OFFLINE_V2_TRANSPORT_NOT_READY",
@@ -32,16 +29,18 @@ const activeWrite=manager.indexOf("mode:'active'",activation);
 if(!(activation>=0&&transportGate>activation&&activeWrite>transportGate))throw new Error('Runtime takeover can activate before transport readiness');
 need(runtime,"s?.transport_ready===true");
 
-// Controlled migration is copy -> block V2 duplicate -> re-read -> exact verify
-// -> marker last. The legacy source may never be cleared or rewritten.
+// Controlled migration is copy -> protect legacy-authoritative V2 duplicate ->
+// re-read -> exact verify -> marker last. Beta49 may preserve pre-existing
+// terminal legacy conflicts as conflict instead of degrading them to blocked.
 for(const token of [
   'uniqueLegacySnapshot','protectLegacyEvents',"status:'blocked'","legacy_authority:true",
   "migration_source:'legacy_queue_v1'","OFFLINE_V2_LEGACY_PRESERVED",
-  'await store.importShadow','await forceLegacyCopiesBlocked','const durable=await store.listOutbox()',
+  'await store.importShadow','const durable=await store.listOutbox()',
   "JSON.stringify(row.envelope?.legacy_payload)!==JSON.stringify(job)",
   'OFFLINE_V2_MIGRATION_VERIFY_FAILED','snapshot_digest:digest(legacySnapshot)',
   'legacy_source_untouched:true'
 ])need(manager,token);
+if(!(manager.includes('await forceLegacyCopiesBlocked')||manager.includes('await enforceLegacyCopiesProtected')))throw new Error('Beta45 takeover gate missing: durable legacy duplicate protection');
 const importAt=manager.indexOf('await store.importShadow');
 const rereadAt=manager.indexOf('const durable=await store.listOutbox()',importAt);
 const verifyAt=manager.indexOf('if(errors.length)',rereadAt);
@@ -49,8 +48,6 @@ const markerAt=manager.indexOf("mode:'prepared'",verifyAt);
 if(!(importAt>=0&&rereadAt>importAt&&verifyAt>rereadAt&&markerAt>verifyAt))throw new Error('Migration marker ordering is not copy -> reread -> verify -> mark');
 for(const bad of ["setOfflineQueue(","removeQueuedOperation(","odbSet('queue'","DELETE FROM local_operations","DROP TABLE local_operations"]){forbid(manager,bad);forbid(runtime,bad)}
 
-// One generic core for every activity. Business profiles register operation
-// handlers/RPC aliases; the offline state machine itself must not inspect profile.
 for(const op of ['sale','return','expense','shift_open','shift_close','customer_create','inventory_movement','order_status'])need(runtime,`registerOperation('${op}'`);
 for(const token of ['function registerOperation','function registerRpc','rpcToOperation','operationTypes:()=>[...registry.keys()]'])need(runtime,token);
 forbid(runtime,'isRetailProfile(');
@@ -58,8 +55,6 @@ forbid(runtime,'.pos_profile');
 forbid(runtime,"=== 'restaurant'");
 forbid(runtime,"=== 'retail'");
 
-// When takeover is active, durable V2 COMMIT must complete before the original
-// operational RPC is allowed to touch the network/server.
 const rpcFn=runtime.indexOf('async function rpcTakeover');
 const commitAt=runtime.indexOf("const entry=await ensureCommitted(type,payload,tx)",rpcFn);
 const networkAt=runtime.indexOf('try{return await base.rpc(name,payload)}',commitAt);
@@ -67,9 +62,6 @@ if(!(rpcFn>=0&&commitAt>rpcFn&&networkAt>commitAt))throw new Error('Active takeo
 need(runtime,'OFFLINE_V2_CLIENT_TX_REQUIRED');
 need(runtime,'committedThisSession');
 
-// Never persist Number(local-id)=>NaN dependencies. Expense/shift-close/return
-// fall back before commit so their caller can commit from the original local
-// entity. A sale on an unsynced local shift commits first, then waits for parent.
 for(const token of [
   'function mustFallbackBeforeCommit','function mustDeferAfterCommit',
   "type==='expense'||type==='shift_close'","type==='return'","type==='sale'",
@@ -82,7 +74,6 @@ for(const token of [
 const badDep=runtime.indexOf('if(mustFallbackBeforeCommit(type,payload))');
 if(!(badDep>rpcFn&&badDep<commitAt))throw new Error('Invalid local dependency can be committed before fallback');
 
-// Migration lock snapshots legacy queue while operational RPCs are paused.
 const prep=runtime.indexOf('async function prepareLegacyMigration');
 const lock=runtime.indexOf('migrationLock=true',prep);
 const snap=runtime.indexOf('const legacy=clone(await offlineQueue())',lock);
@@ -93,8 +84,6 @@ if(!(prep>=0&&lock>prep&&snap>lock&&shadow>snap&&nativePrepare>shadow&&unlock>na
 need(runtime,"OFFLINE_V2_MIGRATION_LOCK");
 need(runtime,"return base.syncOfflineQueue?.(...args)");
 
-// Explicit bridge only. Runtime script loads after legacy DOMContentLoaded
-// installers and does not automatically arm/prepare/activate takeover.
 for(const token of [
   'takeoverState:()=>ipcRenderer.invoke', 'takeoverArm:x=>ipcRenderer.invoke',
   'takeoverPrepare:x=>ipcRenderer.invoke','takeoverActivate:x=>ipcRenderer.invoke',
