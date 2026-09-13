@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55-navigation-parity.2';
+const VERSION='10.5.4-beta.55-navigation-parity.3';
 const REQUIRED_RESTAURANT_KEYS=['page:foodIngredients','page:foodRecipes','page:foodOperations','page:tables'];
 const META=Object.freeze({
  'page:pos':{icon:'🧾',label:'الكاشير',description:'بيع وإنشاء أوردر جديد',tone:'mint'},
@@ -91,13 +91,15 @@ function route(key){
 function audit(){
  const expected=currentKeys();
  const grid=isHomeActive()?document.querySelector('#page .home-grid'):null;
- const actual=grid?[...grid.querySelectorAll(':scope > .home-card[data-nav-parity-key]')].map(cardKey).filter(Boolean):[];
+ const allCards=grid?[...grid.querySelectorAll(':scope > .home-card:not([data-home-logout])')]:[];
+ const actual=allCards.filter(x=>x.dataset.navParityKey).map(cardKey).filter(Boolean);
+ const untracked=allCards.filter(x=>!x.dataset.navParityKey).map(x=>x.dataset.homePage||x.textContent.trim().slice(0,60));
  const missing=grid?expected.filter(x=>!actual.includes(x)):[];
  const extra=grid?actual.filter(x=>!expected.includes(x)):[];
  const orderMatch=!grid||expected.length===actual.length&&expected.every((x,i)=>actual[i]===x);
  const logoutSidebar=!!document.querySelector('#logoutMenuBtn');
  const logoutHome=!grid||!!grid.querySelector(':scope > [data-home-logout]');
- return {ok:(!grid||(!missing.length&&!extra.length&&orderMatch&&logoutSidebar===logoutHome)),home_present:!!grid,expected,actual,missing,extra,order_match:orderMatch,logout_match:logoutSidebar===logoutHome};
+ return {ok:(!grid||(!missing.length&&!extra.length&&!untracked.length&&orderMatch&&logoutSidebar===logoutHome)),home_present:!!grid,expected,actual,missing,extra,untracked,order_match:orderMatch,logout_match:logoutSidebar===logoutHome};
 }
 function contractAudit(){
  const entries=topLevelEntries(),keys=entries.map(x=>x.key),missingMetadata=entries.filter(x=>!x.meta).map(x=>x.key);
@@ -108,14 +110,14 @@ function contractAudit(){
 function syncHomeCards(){
  if(!isRestaurant()||!isHomeActive())return {skipped:true,reason:'not-restaurant-home'};
  const grid=document.querySelector('#page .home-grid');if(!grid)return {skipped:true,reason:'home-grid-missing'};
- const entries=topLevelEntries(),desired=entries.map(x=>x.key),existing=[...grid.querySelectorAll(':scope > .home-card[data-home-page],:scope > .home-card[data-nav-parity-key]')];
+ const entries=topLevelEntries(),desired=entries.map(x=>x.key),existing=[...grid.querySelectorAll(':scope > .home-card:not([data-home-logout])')];
  const byKey=new Map();
- for(const c of existing){const key=cardKey(c);if(!key)continue;if(!byKey.has(key))byKey.set(key,c);else c.remove()}
- const current=[...grid.querySelectorAll(':scope > .home-card[data-nav-parity-key],:scope > .home-card[data-home-page]')].map(cardKey).filter(Boolean);
+ for(const c of existing){const key=cardKey(c);if(!key){c.remove();continue}if(!byKey.has(key))byKey.set(key,c);else c.remove()}
+ const current=[...grid.querySelectorAll(':scope > .home-card:not([data-home-logout])')].map(cardKey).filter(Boolean);
  const extras=current.filter(x=>!desired.includes(x));
  const exact=!extras.length&&current.length===desired.length&&desired.every((x,i)=>current[i]===x)&&desired.every(x=>byKey.has(x)&&byKey.get(x)?.dataset?.navParityKey===x);
  if(exact)return audit();
- for(const c of [...grid.querySelectorAll(':scope > .home-card[data-home-page],:scope > .home-card[data-nav-parity-key]')]){const key=cardKey(c);if(key&&!desired.includes(key))c.remove()}
+ for(const c of [...grid.querySelectorAll(':scope > .home-card:not([data-home-logout])')]){const key=cardKey(c);if(!key||!desired.includes(key))c.remove()}
  const logout=grid.querySelector(':scope > [data-home-logout]');
  const frag=document.createDocumentFragment();
  for(const entry of entries){
