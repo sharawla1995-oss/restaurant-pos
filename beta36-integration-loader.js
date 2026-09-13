@@ -1,22 +1,22 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.51';
+const VERSION='10.5.4-beta.52';
 const FILES=[
- ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.51'],
- ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.51'],
- ['printing-v2','printing-v2.js?v=10.5.4-beta.51'],
- ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.51'],
- ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.51'],
- ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.51'],
- ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.51'],
- ['service-v1','service-v1-ui.js?v=10.5.4-beta.51'],
- ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.51'],
- ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.51'],
- ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.51'],
- ['beta47-performance-sync-hotfix','beta47-performance-sync-hotfix.js?v=10.5.4-beta.51'],
- ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.51'],
+ ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.52'],
+ ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.52'],
+ ['printing-v2','printing-v2.js?v=10.5.4-beta.52'],
+ ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.52'],
+ ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.52'],
+ ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.52'],
+ ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.52'],
+ ['service-v1','service-v1-ui.js?v=10.5.4-beta.52'],
+ ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.52'],
+ ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.52'],
+ ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.52'],
+ ['beta47-performance-sync-hotfix','beta47-performance-sync-hotfix.js?v=10.5.4-beta.52'],
+ ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.52'],
  ['beta51-final-offline-acceptance-fix',`beta51-final-offline-acceptance-fix.js?v=${VERSION}`],
- ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.51']
+ ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.52']
 ];
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta51 failed to load ${src}`));document.head.appendChild(s)})}
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}
