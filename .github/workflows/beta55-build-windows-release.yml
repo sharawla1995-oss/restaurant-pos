@@ -1,0 +1,142 @@
+name: Beta55 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta55-restaurant-closure
+    paths:
+      - .github/workflows/beta55-build-windows-release.yml
+      - package.json
+      - version.json
+      - beta36-integration-loader.js
+      - beta55-ui-workflow-fixes.js
+      - beta55-ui-hardening.js
+      - beta55-central-warehouse-ui.js
+      - advanced-purchasing-v1.js
+      - scripts/check-beta55-shared-workflows.js
+      - scripts/check-runtime-syntax.js
+      - scripts/sync-version.js
+      - scripts/check-version.js
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Setup Python 3.11 for node-gyp
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+          python --version
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.55') { throw "Unexpected Beta55 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Synchronize runtime version in build workspace
+        run: node scripts/sync-version.js
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta55 source and regression gates
+        run: npm run check
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-x64.exe" -Force
+          Remove-Item dist -Recurse -Force
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "ia32 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
+
+      - name: Compute installer hashes
+        id: hash
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content beta55-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta55-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta55 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $notes = @"
+          Beta55 Restaurant Closure workbench for isolated SH-0007 testing.
+
+          This build adds the first Shared Central Warehouse / Branch Replenishment runtime: branch-vs-central-warehouse location type, branch-to-warehouse routes, per-branch request catalog, request/approval/preparation/dispatch/in-transit/receiving flow, partial fulfillment, backorder, damaged/shortage variance capture, branch scope, action permissions and audit logging.
+
+          It also includes the Beta55 workflow UX fixes discussed during runtime review: grouped HR navigation with child visibility driven by permissions, purchasing-panel duplicate hardening, and a large single-screen purchase-order workspace with supplier details, item search, stock visibility, quantities, costs and totals instead of chained small prompts.
+
+          Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Beta55 is for SH-0007 only. Accepted Beta54/Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No Offline V2 migration/takeover replay is introduced.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta55 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta55-sha256.txt --clobber
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
