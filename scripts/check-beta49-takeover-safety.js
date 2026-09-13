@@ -21,5 +21,5 @@ for(const t of ['isLegacyConflictEvent','legacy_conflict_tx_ids',"status:'confli
 need(manager,"if(!current.armed||!current.migration_verified)");need(manager,"if(current.transport_ready!==true)");need(manager,'legacy_source_untouched:true');
 need(ui,`const VERSION='${pkg.version}'`);
 need(loader,'beta49-takeover-activation-safety.js');need(loader,'owner-acceptance-lazy-loader-v47.js');assert(loader.indexOf('beta49-takeover-activation-safety.js')<loader.indexOf('owner-acceptance-lazy-loader-v47.js'),'Beta49 safety must load before owner acceptance lazy loader');
-need(sync,"'beta49-takeover-activation-safety.js'");need(sync,"Beta49 takeover activation safety");
+need(sync,"'beta49-takeover-activation-safety.js'");
 console.log('Beta49 Takeover Safety gate PASS — SH-0007-only explicit activation / canonical acceptance context / conflict-preserving migration verified');
