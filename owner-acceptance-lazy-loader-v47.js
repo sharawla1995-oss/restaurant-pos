@@ -13,6 +13,7 @@ const FILES=[
  ['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js?v=10.5.4-beta.55'],
  ['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-v55','owner-acceptance-beta55-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-beta55-permissions-v55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.55'],
  ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.55'],
  ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.55']
