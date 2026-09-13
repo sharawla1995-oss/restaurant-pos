@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const STATE_KEY='sharawlaAcceptanceNetworkLabV1';
 const TEST_HOST='xihcxydjnzemflhedzor.supabase.co',CLOUD_HOST='ikppryeavoabnugcijeq.supabase.co';
 const TARGETS=new Set([TEST_HOST,CLOUD_HOST]);

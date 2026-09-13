@@ -80,22 +80,22 @@ window.addEventListener('DOMContentLoaded',()=>{
  // so takeover wrappers always capture the protected legacy runtime as fallback.
  setTimeout(()=>{
   if(document.querySelector('script[data-offline-v2-phase4]'))return;
-  const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.50';s.dataset.offlineV2Phase4='1';
+  const s=document.createElement('script');s.src='beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.51';s.dataset.offlineV2Phase4='1';
   s.onload=()=>{
    if(document.querySelector('script[data-offline-v2-phase6-inventory]'))return;
-   const i=document.createElement('script');i.src='beta45-offline-v2-inventory-runtime.js?v=10.5.4-beta.50';i.dataset.offlineV2Phase6Inventory='1';
+   const i=document.createElement('script');i.src='beta45-offline-v2-inventory-runtime.js?v=10.5.4-beta.51';i.dataset.offlineV2Phase6Inventory='1';
    i.onload=()=>{
     if(document.querySelector('script[data-offline-v2-phase5]'))return;
-    const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.50';t.dataset.offlineV2Phase5='1';
+    const t=document.createElement('script');t.src='beta45-offline-v2-transport-runtime.js?v=10.5.4-beta.51';t.dataset.offlineV2Phase5='1';
     t.onload=()=>{
      if(document.querySelector('script[data-offline-v2-phase7-inbox]'))return;
-     const n=document.createElement('script');n.src='beta45-offline-v2-inbox-runtime.js?v=10.5.4-beta.50';n.dataset.offlineV2Phase7Inbox='1';
+     const n=document.createElement('script');n.src='beta45-offline-v2-inbox-runtime.js?v=10.5.4-beta.51';n.dataset.offlineV2Phase7Inbox='1';
      n.onload=()=>{
       if(document.querySelector('script[data-offline-v2-phase8-safety]'))return;
-      const g=document.createElement('script');g.src='beta45-offline-v2-safety-runtime.js?v=10.5.4-beta.50';g.dataset.offlineV2Phase8Safety='1';
+      const g=document.createElement('script');g.src='beta45-offline-v2-safety-runtime.js?v=10.5.4-beta.51';g.dataset.offlineV2Phase8Safety='1';
       g.onload=()=>{
        if(document.querySelector('script[data-offline-v2-diagnostics]'))return;
-       const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.50';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
+       const d=document.createElement('script');d.src='beta45-offline-v2-diagnostics.js?v=10.5.4-beta.51';d.dataset.offlineV2Diagnostics='1';document.body.appendChild(d);
       };
       document.body.appendChild(g);
      };

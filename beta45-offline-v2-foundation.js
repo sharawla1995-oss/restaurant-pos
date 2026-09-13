@@ -4,7 +4,7 @@
 // Sharawla Offline Engine V2 — Phase 1 foundation.
 // This layer is intentionally shadow-only: it defines the durable contract and
 // a copy+verify legacy migration, but it does NOT replace Beta43 sync yet.
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const PROTOCOL_VERSION=2;
 const SCHEMA_VERSION=2;
 const FOUNDATION_MODE='shadow-foundation';

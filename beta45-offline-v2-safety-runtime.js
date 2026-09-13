@@ -5,7 +5,7 @@
 // Offline authorization is independent from a live Supabase access token but is
 // bound to the canonical device identity, cached employee permissions and
 // license grace. Destructive actions are blocked while durable work is unresolved.
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 let installed=false;
 let lastOnlineCredentials=null;
 let offlineVerifiedUntil=0;

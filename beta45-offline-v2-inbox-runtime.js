@@ -4,7 +4,7 @@
 // Sharawla Offline Engine V2 — Phase 7 renderer Inbox + Customer/Order events.
 // Cloud/domain events are received durably before compatibility caches are
 // touched. Cursor advances only after the event is locally applied.
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const CURSOR_PREFIX='sharawlaOfflineV2InboxCursor';
 const PULL_RPC='offline_v2_pull_events_v1';
 const ORDER_STATUSES=new Set(['new','preparing','ready','out_for_delivery','completed','delivered','cancelled']);

@@ -80,7 +80,7 @@ global.__SharawlaFeatureConsumption=Object.freeze({VERSION,PAGE_FEATURES,feature
 // by Restaurant/Retail/Pharmacy engines. Runtime entitlements decide what loads.
 if(typeof document!=='undefined'&&!document.querySelector('script[data-sharawla-capability-module-registry]')){
   const s=document.createElement('script');
-  s.src='sharawla-capability-module-registry.js?v=10.5.4-beta.50';
+  s.src='sharawla-capability-module-registry.js?v=10.5.4-beta.51';
   s.defer=true;
   s.dataset.sharawlaCapabilityModuleRegistry='1';
   document.head.appendChild(s);

@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const ACCESS_TTL_MS=30*60*1000;
 const RUNTIME_KEY='sharawlaRuntimeConfigV1';
 const CONNECTION_KEY='sharawlaBusinessConnectionV1';

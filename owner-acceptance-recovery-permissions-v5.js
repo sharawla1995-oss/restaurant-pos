@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const PROFILES=['restaurant','retail','pharmacy','logistics','membership','service','warehouse'];
 const ROLES=['admin','cashier','callcenter','delivery'];
 const text=v=>String(v??'').trim();

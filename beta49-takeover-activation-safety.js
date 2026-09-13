@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const EXPECTED_SUPPORT='SH-0007';
 const EXPECTED_BUSINESS='91826502-590e-4afa-8826-2c0f4b99c490';
 const EXPECTED_HOST='xihcxydjnzemflhedzor.supabase.co';

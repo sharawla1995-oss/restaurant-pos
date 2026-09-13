@@ -1,7 +1,7 @@
 (function(global){
 'use strict';
 
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const RUNTIME_KEY='sharawlaRuntimeConfigV1';
 
 const MODULES=Object.freeze([
@@ -11,7 +11,7 @@ const MODULES=Object.freeze([
     featuresAny:Object.freeze(['food.recipes']),
     permission:'inventory',
     contracts:Object.freeze(['create_food_pos_order_atomic_v1','create_food_order_return_idempotent_v1']),
-    assets:Object.freeze(['food-recipe-runtime-bridge.js?v=10.5.4-beta.50'])
+    assets:Object.freeze(['food-recipe-runtime-bridge.js?v=10.5.4-beta.51'])
   }),
   Object.freeze({
     code:'food.recipe.ui',
@@ -19,7 +19,7 @@ const MODULES=Object.freeze([
     featuresAny:Object.freeze(['food.ingredients','food.recipes']),
     permission:'inventory',
     contracts:Object.freeze(['food_ingredient_save_v1','food_recipe_save_draft_v1','food_recipe_activate_version_v1']),
-    assets:Object.freeze(['food-recipe-ui-v1.js?v=10.5.4-beta.50']),
+    assets:Object.freeze(['food-recipe-ui-v1.js?v=10.5.4-beta.51']),
     cleanupSelectors:Object.freeze(['[data-food-center]','[data-food-inventory-btn]'])
   }),
   Object.freeze({
@@ -28,7 +28,7 @@ const MODULES=Object.freeze([
     featuresAny:Object.freeze(['food.prep','food.production','food.waste','food.costing']),
     permission:'inventory',
     contracts:Object.freeze(['food_prep_item_save_v1','food_production_batch_start_v1','food_production_batch_complete_v1','food_waste_post_v1']),
-    assets:Object.freeze(['food-advanced-ui-v1.js?v=10.5.4-beta.50']),
+    assets:Object.freeze(['food-advanced-ui-v1.js?v=10.5.4-beta.51']),
     cleanupSelectors:Object.freeze(['[data-food-advanced]'])
   })
 ]);

@@ -4,7 +4,7 @@
 // Sharawla Offline Engine V2 — Phase 6 inventory ledger + offline stock policy.
 // Generic by item kind. Food/recipe adapters may emit server-derived movements;
 // Retail/Pharmacy/Warehouse/other profiles may emit product/variant/batch/etc.
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const POLICY_VALUES=Object.freeze(['legacy_behavior','allow_offline_oversell','warn_only','strict_cloud_stock','device_reservation_pool']);
 const LEDGER_RECORD='inventory_ledger';
 let installed=false;

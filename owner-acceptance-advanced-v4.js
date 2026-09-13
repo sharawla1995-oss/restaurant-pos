@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.50';
+const VERSION='10.5.4-beta.51';
 const CRASH_KEY='sharawlaAcceptanceCrashV4';
 const text=v=>String(v??'').trim();
 const num=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
