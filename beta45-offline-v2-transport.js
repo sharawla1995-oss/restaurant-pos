@@ -41,7 +41,7 @@ async function writeTakeoverState(state){await ready();const now=nowIso();await 
 function validateContext(input,requireToken=true){
   const url=text(input?.url).replace(/\/$/,'');
   let u;try{u=new URL(url)}catch{throw fail('OFFLINE_V2_BACKEND_URL_INVALID','Offline V2 backend URL is invalid')}
-  if(u.protocol!=='https:'||!/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname)||u.pathname!=='')throw fail('OFFLINE_V2_BACKEND_URL_INVALID','Offline V2 backend URL must be a Supabase HTTPS project URL');
+  if(u.protocol!=='https:'||!/^[a-z0-9-]+\.supabase\.co$/i.test(u.hostname)||(u.pathname!==''&&u.pathname!=='/'))throw fail('OFFLINE_V2_BACKEND_URL_INVALID','Offline V2 backend URL must be a Supabase HTTPS project URL');
   const key=text(input?.key),accessToken=text(input?.access_token),identity={device_id:text(input?.device_id),business_id:text(input?.business_id),device_fingerprint:text(input?.device_fingerprint)};
   if(!key)throw fail('OFFLINE_V2_BACKEND_KEY_REQUIRED','Offline V2 backend publishable key is required');
   if(requireToken&&!accessToken)throw fail('OFFLINE_V2_SESSION_REQUIRED','Offline V2 requires an authenticated employee session','auth',401);
