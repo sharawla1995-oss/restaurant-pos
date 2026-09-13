@@ -1,0 +1,124 @@
+name: Beta46 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta46-universal-owner-diagnostics
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Setup Python 3.11 for node-gyp
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+          python --version
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.46') { throw "Unexpected Beta46 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta46 source and acceptance gates
+        run: npm run check
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $source = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}.exe"
+          if (-not (Test-Path $source)) { throw "x64 installer source not found: $source" }
+          Copy-Item $source "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe" -Force
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $source = "dist/Sharawla-POS-Setup-${{ steps.ver.outputs.version }}.exe"
+          if (-not (Test-Path $source)) { throw "ia32 installer source not found: $source" }
+          Copy-Item $source "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe" -Force
+
+      - name: Compute installer hashes
+        id: hash
+        shell: pwsh
+        run: |
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe  $x64" | Set-Content beta46-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe  $ia32" | Add-Content beta46-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta46 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $notes = @"
+          Beta46 Universal Owner Acceptance / Offline Engine V2 Runtime Validation.
+
+          Scope: hidden Owner Acceptance Center for SH-0007 only, sandbox E2E packs, backend fault/network lab, exactly-once concurrency, financial/inventory reconciliation, Beta45-to-Beta46 SQLite compatibility, abrupt restart recovery, backup/restore verification, corruption detection, clock-drift ordering, role/permission matrix, feature coverage, and profile-specific acceptance packs.
+
+          Acceptance target: SH-0007 / experimental business only. Production Stable SH-0005 / SH-0006 and Top Burger remain unchanged.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta46 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta46-sha256.txt --clobber
+          $actualTarget = gh api "repos/${{ github.repository }}/releases/$releaseId" --jq ".target_commitish"
+          if ($actualTarget -ne "${{ github.sha }}") { throw "Beta46 release target mismatch: $actualTarget" }
+          $assets = gh api "repos/${{ github.repository }}/releases/$releaseId/assets" --jq ".[].name"
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-x64.exe") { throw "Beta46 x64 release asset missing" }
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-ia32.exe") { throw "Beta46 ia32 release asset missing" }
+          if ($assets -notcontains "beta46-sha256.txt") { throw "Beta46 SHA256 asset missing" }
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
