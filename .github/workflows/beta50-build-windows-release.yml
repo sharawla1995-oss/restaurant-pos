@@ -87,8 +87,9 @@ jobs:
 
           git config user.name "sharawla1995-oss"
           git config user.email "sharawla1995@gmail.com"
-          git add beta45-offline-v2-transport.js package.json version.json scripts/check-beta49-takeover-safety.js scripts/check-beta50-transport-url.js scripts/sync-version.js beta49-takeover-activation-safety.js index.html sw.js preload.js beta36-integration-loader.js owner-acceptance-lazy-loader-v47.js owner-acceptance-ui-v47.js owner-diagnostics.js owner-acceptance-registry-v3.js owner-acceptance-network-lab.js owner-acceptance-e2e-v3.js owner-acceptance-profile-packs-v3.js owner-acceptance-advanced-v4.js owner-acceptance-recovery-permissions-v5.js beta47-performance-sync-hotfix.js beta45-offline-v2-foundation.js beta45-offline-v2-runtime-takeover.js beta45-offline-v2-inventory-runtime.js beta45-offline-v2-transport-runtime.js beta45-offline-v2-inbox-runtime.js beta45-offline-v2-safety-runtime.js beta45-offline-v2-diagnostics.js sharawla-capability-module-registry.js retail-engine.js retail-variants-startup-hotfix.js sharawla-feature-consumption.js
-          if (-not (git diff --cached --quiet)) {
+          git add beta45-offline-v2-transport.js package.json version.json scripts/check-beta49-takeover-safety.js scripts/check-beta50-transport-url.js scripts/sync-version.js beta49-takeover-activation-safety.js index.html sw.js preload.js beta36-integration-loader.js owner-acceptance-lazy-loader-v47.js owner-acceptance-ui-v47.js owner-diagnostics.js owner-acceptance-registry-v3.js owner-acceptance-network-lab.js owner-acceptance-e2e-v3.js owner-acceptance-profile-packs-v3.js owner-acceptance-advanced-v4.js owner-acceptance-recovery-permissions-v5.js beta47-performance-sync-hotfix.js beta45-offline-v2-foundation.js beta-self-test.js beta45-offline-v2-runtime-takeover.js beta45-offline-v2-inventory-runtime.js beta45-offline-v2-transport-runtime.js beta45-offline-v2-inbox-runtime.js beta45-offline-v2-safety-runtime.js beta45-offline-v2-diagnostics.js sharawla-capability-module-registry.js retail-engine.js retail-variants-startup-hotfix.js sharawla-feature-consumption.js
+          $staged = git diff --cached --name-only
+          if ($staged) {
             git commit -m "Beta50: fix Offline V2 Supabase root URL validation"
             git push origin HEAD:beta50-offline-v2-transport-url-hotfix
           }
@@ -132,7 +133,7 @@ jobs:
       - name: Ensure source remains synchronized after checks
         shell: pwsh
         run: |
-          git diff --exit-code -- . ':!update-config.json' ':!package-lock.json'
+          git diff --exit-code -- . ':!update-config.json'
 
       - name: Build Windows x64
         shell: pwsh
@@ -205,4 +206,5 @@ jobs:
           if ($assets -notcontains "Sharawla-POS-Setup-$version-ia32.exe") { throw "Beta50 ia32 release asset missing" }
           if ($assets -notcontains "beta50-sha256.txt") { throw "Beta50 SHA256 asset missing" }
           $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
-          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag"
+          }
