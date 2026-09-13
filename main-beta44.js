@@ -82,6 +82,8 @@ require('./beta45-offline-v2-takeover-manager.js').installOfflineV2TakeoverManag
 require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store);
 
 // Beta46 Acceptance Labs are fail-closed to SH-0007 + the experimental business.
-// They can simulate backend faults and abrupt process restart without cutting Windows/AnyDesk connectivity.
+// They can simulate backend faults, abrupt restart and recovery probes without
+// cutting Windows/AnyDesk or mutating the live database during corruption tests.
 require('./beta46-acceptance-network-main.js').installAcceptanceNetworkMain();
 require('./beta46-acceptance-advanced-main.js').installAcceptanceAdvancedMain();
+require('./beta46-acceptance-recovery-main.js').installAcceptanceRecoveryMain();
