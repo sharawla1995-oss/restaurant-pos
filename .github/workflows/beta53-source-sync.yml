@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   sync:
-    if: github.event.head_commit.message == 'Beta53: add one-shot source synchronization workflow'
+    if: "${{ github.event.head_commit.message == 'Beta53 - fix source sync workflow trigger' }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
