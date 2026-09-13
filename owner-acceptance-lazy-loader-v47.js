@@ -7,13 +7,14 @@ const FILES=[
  ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.54'],
  ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.54'],
  ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-shared-core-v54','owner-acceptance-shared-core-v54.js?v=10.5.4-beta.54'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.54'],
  ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.54'],
  ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.54']
 ];
 let loading=null,loaded=false;
-function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-owner-lazy-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-owner-lazy-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta53 owner lazy load failed: ${src}`));document.head.appendChild(s)})}
-async function loadAll(){if(loaded)return true;if(loading)return loading;loading=(async()=>{for(const [k,s] of FILES)await load(k,s);loaded=true;for(const name of ['sharawla-beta47-acceptance-ready','sharawla-beta48-acceptance-ready'])global.dispatchEvent(new CustomEvent(name,{detail:{version:VERSION}}));return true})().finally(()=>{loading=null});return loading}
+function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-owner-lazy-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-owner-lazy-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta54 owner lazy load failed: ${src}`));document.head.appendChild(s)})}
+async function loadAll(){if(loaded)return true;if(loading)return loading;loading=(async()=>{for(const [k,s] of FILES)await load(k,s);loaded=true;for(const name of ['sharawla-beta47-acceptance-ready','sharawla-beta48-acceptance-ready','sharawla-beta54-acceptance-ready'])global.dispatchEvent(new CustomEvent(name,{detail:{version:VERSION}}));return true})().finally(()=>{loading=null});return loading}
 function onOwner(e){if(e?.detail?.unlocked===true)loadAll().catch(err=>console.error(err))}
 document.addEventListener('sharawla-owner-diagnostics-change',onOwner);
 if(global.__SharawlaOwnerDiagnostics?.isUnlocked?.())loadAll().catch(err=>console.error(err));
