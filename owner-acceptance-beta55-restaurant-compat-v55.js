@@ -10,11 +10,11 @@ function transform(t){
  if(!t||String(t.id)!=='restaurant.sale-return')return t;
  const original=t.run;
  return {...t,run:async ctx=>{
-  if(foodRuntimeActive())return {status:'PASS',detail:'Superseded by beta55.restaurant-full-roundtrip isolated recipe fixture',evidence:{superseded_by:'beta55.restaurant-full-roundtrip',reason:'Food recipe/ingredient inventory is active; Beta55 critical roundtrip owns real Sale/Return coverage'}};
+  if(foodRuntimeActive())return {status:'SKIPPED',detail:'Superseded by beta55.restaurant-full-roundtrip isolated recipe fixture',evidence:{superseded_by:'beta55.restaurant-full-roundtrip',reason:'Food recipe/ingredient inventory is active; Beta55 critical roundtrip owns real Sale/Return coverage'}};
   return original(ctx);
  }};
 }
 const api=Object.freeze({...base,register:t=>base.register(transform(t)),registerMany:rows=>(rows||[]).map(t=>base.register(transform(t)))});
 global.__SharawlaAcceptanceRegistry=api;
-global.__SharawlaBeta55RestaurantCompatRegistry=Object.freeze({version:VERSION,active:true,target:'restaurant.sale-return',supersededBy:'beta55.restaurant-full-roundtrip'});
+global.__SharawlaBeta55RestaurantCompatRegistry=Object.freeze({version:VERSION,active:true,target:'restaurant.sale-return',supersededBy:'beta55.restaurant-full-roundtrip',status:'SKIPPED'});
 })(window);

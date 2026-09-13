@@ -12,6 +12,7 @@ on:
       - restaurant-engine.js
       - beta55-restaurant-closure-ui.js
       - beta55-navigation-parity.js
+      - beta55-delivery-settlement-shift-cash.js
       - beta55-ui-workflow-fixes.js
       - beta55-ui-hardening.js
       - beta55-central-warehouse-ui.js
@@ -19,6 +20,8 @@ on:
       - owner-acceptance-registry-v55.js
       - owner-acceptance-beta55-v55.js
       - owner-acceptance-beta55-restaurant-v55.js
+      - owner-acceptance-beta55-restaurant-compat-v55.js
+      - owner-acceptance-beta55-delivery-settlement-v55.js
       - owner-acceptance-beta55-navigation-v55.js
       - owner-acceptance-lazy-loader-v47.js
       - owner-acceptance-ui-v47.js
@@ -31,6 +34,10 @@ on:
       - supabase-beta55-restaurant-direct-dml-hardening.sql
       - supabase-beta55-restaurant-acceptance.sql
       - supabase-beta55-restaurant-acceptance-anon-hardening.sql
+      - supabase-beta55-delivery-settlement-shift-cash.sql
+      - supabase-beta55-delivery-settlement-offline-bridge.sql
+      - supabase-beta55-delivery-settlement-acceptance.sql
+      - supabase-beta55-delivery-settlement-anon-hardening.sql
       - advanced-purchasing-v1.js
       - scripts/check-beta54-shared-core.js
       - scripts/check-beta55-shared-workflows.js
@@ -150,7 +157,9 @@ jobs:
 
           Restaurant navigation parity now treats the live permission-filtered Sidebar as the top-level navigation model and synchronizes the Home/Dashboard cards to the same visible entries and order, including Restaurant closure pages, grouped HR, Treasury and internal supply when enabled. Home-card clicks route through the same Sidebar targets, and a critical Owner Acceptance gate fails on missing metadata or Sidebar/Dashboard drift.
 
-          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, and Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption, Tables and Sidebar ↔ Dashboard parity.
+          Delivery cash now remains a driver custody balance after delivery until an atomic per-order or bulk settlement is received into an open shift. The shift separates gross cash sales, unsettled driver custody, settlements received and actual expected drawer cash; final payment method can be corrected at delivery, settlement retries are idempotent, source-shift sales remain separate from receiving-shift cash, and financial driver settlement is Online-only in this Beta while the existing offline delivery path remains compatible.
+
+          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption, Tables and Sidebar ↔ Dashboard parity, plus Delivery Settlement + Shift Cash cross-shift/idempotency coverage.
 
           Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Beta55 is for SH-0007 only. Accepted Beta54/Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No Offline V2 migration/takeover replay is introduced.
 
