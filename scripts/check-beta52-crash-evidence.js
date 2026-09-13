@@ -5,7 +5,8 @@ const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const src=read('owner-acceptance-advanced-v4.js');
 const pkg=JSON.parse(read('package.json'));
 const ver=JSON.parse(read('version.json'));
-assert.strictEqual(pkg.version,'10.5.4-beta.52');
+const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+assert(betaMatch&&Number(betaMatch[1])>=52,'Package version must be Beta52+');
 assert.strictEqual(ver.version,pkg.version);
 assert.strictEqual(ver.channel,'beta');
 for(const marker of [
@@ -29,4 +30,4 @@ assert(src.includes("if(done?.status==='PASS')"),'Completed crash resume must be
 assert(src.includes("if(synced?.status!=='synced')"),'Crash sale synced assertion missing');
 assert(src.includes("if(returnEv?.status!=='synced')"),'Crash return synced assertion missing');
 assert(src.includes("if(!cleanupZero)throw new Error"),'Crash cleanup zero-residue assertion missing');
-console.log('Beta52 Crash Evidence gate PASS — guided crash completion is durable, reportable, idempotently readable, and zero-residue verified');
+console.log(`Beta52+ Crash Evidence regression gate PASS on ${pkg.version} — guided crash completion remains durable, reportable, idempotently readable, and zero-residue verified`);
