@@ -14,8 +14,13 @@ need(ui,[
  'retail_purchase_order_create_v2',
  "keys=['employees','advances','adjustments','payroll']",
  'data-beta55-hr-group',
- "querySelectorAll('[data-advanced-purchasing]')"
+ "querySelectorAll('[data-advanced-purchasing]')",
+ "rest('products','select=id,name,barcode,cost,price,active&active=eq.true&order=name')",
+ "sku:v.sku||''",
+ "sku:''"
 ],'Beta55 UI workflow');
+if(ui.includes('select=id,name,sku,barcode,cost,price,active&active=eq.true&order=name'))throw new Error('Beta55 purchase workspace must not query nonexistent products.sku');
+if(ui.includes('v.sku||p.sku')||ui.includes('sku:p.sku'))throw new Error('Beta55 purchase workspace must not reference products.sku fallback');
 
 const hard=read('beta55-ui-hardening.js');
 need(hard,[
