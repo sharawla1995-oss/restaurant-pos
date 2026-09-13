@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.53",
-  "description": "Sharawla POS V10.5.4 Beta 53 - Offline Engine V2 / Acceptance Coverage Stage 2 / Retail Variants + Advanced Purchasing",
+  "version": "10.5.4-beta.54",
+  "description": "Sharawla POS V10.5.4 Beta 54 - Offline Engine V2 / Shared Business Core / Customers + HR + Payroll + Treasury / Permission-Gated",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
