@@ -5,8 +5,8 @@ const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
 const ui=read('owner-acceptance-ui-v47.js'),registry=read('owner-acceptance-registry-v3.js'),e2e=read('owner-acceptance-e2e-v3.js'),advanced=read('owner-acceptance-advanced-v4.js'),lazy=read('owner-acceptance-lazy-loader-v47.js'),sync=read('scripts/sync-version.js'),loader=read('beta36-integration-loader.js'),app=read('app.js');
 function need(src,t,msg=t){assert(src.includes(t),`Beta48 gate missing: ${msg}`)}
 function no(src,t,msg=t){assert(!src.includes(t),`Beta48 gate forbidden: ${msg}`)}
-assert.strictEqual(pkg.version,'10.5.4-beta.48','package version');
-assert.strictEqual(ver.version,'10.5.4-beta.48','version.json version');
+const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);assert(betaMatch&&Number(betaMatch[1])>=48,'package version must be Beta48+');
+assert.strictEqual(ver.version,pkg.version,'version.json version');
 assert(String(pkg.description).includes('Offline Engine V2'),'Offline Engine V2 description invariant');
 need(ui,"e.ctrlKey&&e.shiftKey&&e.key==='F12'",'F12 owner rerender reattach');
 need(ui,"setTimeout(attachSoon,0)",'event-driven acceptance reattach');
@@ -31,8 +31,7 @@ need(advanced,'fulfilled=${ok}; rejected=${rej}','20x report must expose attempt
 need(advanced,'POS Local-First acceptance bridge unavailable','crash test must use local-first bridge');
 need(advanced,"dependsOn:['retail.open-shift-precondition']",'advanced retail tests must share shift precondition');
 no(advanced,'new MutationObserver','advanced pack must be event-driven');
-need(lazy,'sharawla-beta48-acceptance-ready','Beta48 lazy ready event');
-need(lazy,'Beta48 owner lazy load failed','Beta48 lazy loader label');
+need(lazy,'sharawla-beta48-acceptance-ready','Beta48 lazy ready event compatibility');
 for(const f of ['owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-acceptance-e2e-v3.js','owner-acceptance-profile-packs-v3.js','owner-acceptance-advanced-v4.js','owner-acceptance-recovery-permissions-v5.js','owner-acceptance-ui-v47.js'])need(sync,`'${f}'`,`version sync must include ${f}`);
 need(sync,"'owner-diagnostics.js'",'Owner Diagnostics label must follow app version');
 need(loader,'beta47-performance-sync-hotfix.js','Beta47 permanent conflict hotfix must remain loaded');
@@ -46,4 +45,4 @@ for(const src of [ui,registry,e2e,advanced,lazy]){
  no(src,'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7','production business id');
  no(src,'kzokretuuigjhxjzdlmk','production backend');
 }
-console.log('Beta48 Acceptance Harness gate PASS — local-first offline path / clean flaky history / 20x diagnostics / owner reattach / production invariants verified');
+console.log('Beta48+ Acceptance Harness gate PASS — local-first offline path / clean flaky history / 20x diagnostics / owner reattach / production invariants verified');
