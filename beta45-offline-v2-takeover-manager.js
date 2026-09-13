@@ -9,7 +9,7 @@ const crypto=require('crypto');
 const sqlite3=require('sqlite3');
 
 const STATE_KEY='takeover_state_v1';
-const TAKEOVER_VERSION='4.0';
+const TAKEOVER_VERSION='4.1-beta49';
 let metaDb=null;
 let metaReadyPromise=null;
 let installed=false;
@@ -35,6 +35,7 @@ function defaultState(){return {
   identity:null,
   legacy_count:0,
   legacy_tx_ids:[],
+  legacy_conflict_tx_ids:[],
   snapshot_digest:null,
   armed_at:null,
   prepared_at:null,
@@ -92,31 +93,40 @@ function uniqueLegacySnapshot(snapshot){
   }
   return [...seen];
 }
+function isLegacyConflictEvent(event){return text(event?.status).toLowerCase()==='conflict'||text(event?.legacy_payload?._sync?.status).toLowerCase()==='conflict'}
 function protectLegacyEvents(events,legacyTxIds){
   if(!Array.isArray(events)){const e=new Error('Offline V2 migration events must be an array');e.code='OFFLINE_V2_MIGRATION_EVENTS_INVALID';throw e}
   const byTx=new Map(events.map(e=>[text(e?.client_tx_id),e]));
   return legacyTxIds.map(tx=>{
     const event=byTx.get(tx);
     if(!event){const e=new Error(`Missing normalized V2 migration event: ${tx}`);e.code='OFFLINE_V2_MIGRATION_EVENT_MISSING';throw e}
+    if(isLegacyConflictEvent(event))return {
+      ...clone(event),status:'conflict',next_retry_at:null,
+      last_error_code:'OFFLINE_V2_LEGACY_CONFLICT_PRESERVED',
+      last_error_message:text(event?.last_error_message||event?.legacy_payload?._sync?.last_error)||'Legacy conflict preserved during V2 migration',
+      migration_source:'legacy_queue_v1',legacy_authority:true
+    };
     return {
-      ...clone(event),
-      status:'blocked',
-      next_retry_at:null,
+      ...clone(event),status:'blocked',next_retry_at:null,
       last_error_code:'OFFLINE_V2_LEGACY_PRESERVED',
       last_error_message:'Legacy authority preserved until explicit retirement',
-      migration_source:'legacy_queue_v1',
-      legacy_authority:true
+      migration_source:'legacy_queue_v1',legacy_authority:true
     };
   });
 }
-async function forceLegacyCopiesBlocked(txIds){
-  if(!txIds.length)return;
-  await metaReady();
-  await dbExec('BEGIN IMMEDIATE TRANSACTION');
+async function enforceLegacyCopiesProtected(protectedEvents){
+  if(!protectedEvents.length)return;
+  await metaReady();await dbExec('BEGIN IMMEDIATE TRANSACTION');
   try{
     const now=nowIso();
-    for(const tx of txIds){
-      await dbRun(`UPDATE offline_v2_outbox SET status='blocked',next_retry_at=NULL,last_error_code='OFFLINE_V2_LEGACY_PRESERVED',last_error_message='Legacy authority preserved until explicit retirement',updated_at=? WHERE client_tx_id=?`,[now,tx]);
+    for(const event of protectedEvents){
+      const conflict=event.status==='conflict';
+      await dbRun(`UPDATE offline_v2_outbox SET status=?,next_retry_at=NULL,last_error_code=?,last_error_message=?,updated_at=? WHERE client_tx_id=?`,[
+        conflict?'conflict':'blocked',
+        conflict?'OFFLINE_V2_LEGACY_CONFLICT_PRESERVED':'OFFLINE_V2_LEGACY_PRESERVED',
+        conflict?text(event.last_error_message||'Legacy conflict preserved during V2 migration'):'Legacy authority preserved until explicit retirement',
+        now,text(event.client_tx_id)
+      ]);
     }
     await dbExec('COMMIT');
   }catch(e){try{await dbExec('ROLLBACK')}catch{}throw e}
@@ -146,21 +156,22 @@ function installOfflineV2TakeoverManager(store){
     const legacySnapshot=clone(input.legacy_snapshot||[]);
     const legacyTxIds=uniqueLegacySnapshot(legacySnapshot);
     const protectedEvents=protectLegacyEvents(clone(input.events||[]),legacyTxIds);
+    const legacyConflictTxIds=protectedEvents.filter(e=>e.status==='conflict').map(e=>text(e.client_tx_id));
 
-    // Copy only. Never mutate/delete the legacy queue. Existing shadow duplicates
-    // are explicitly blocked too, preventing double-send after takeover.
+    // Copy only. Never mutate/delete the legacy queue. Conflict fixtures remain
+    // terminal conflicts; other historical jobs remain blocked under legacy authority.
     await store.importShadow({outbox:protectedEvents,mappings:clone(input.mappings||[]),inbox:[]});
-    await forceLegacyCopiesBlocked(legacyTxIds);
+    await enforceLegacyCopiesProtected(protectedEvents);
 
-    // Re-read from durable SQLite and verify every exact legacy payload before
+    // Re-read durable SQLite and verify every exact legacy payload and status before
     // writing the migration marker. Marker creation is intentionally last.
     const durable=await store.listOutbox();
     const byTx=new Map(durable.map(row=>[text(row?.client_tx_id),row]));
     const errors=[];
     for(const job of legacySnapshot){
-      const tx=text(job.client_tx_id),row=byTx.get(tx);
+      const tx=text(job.client_tx_id),row=byTx.get(tx),expected=text(job?._sync?.status).toLowerCase()==='conflict'?'conflict':'blocked';
       if(!row){errors.push(`missing:${tx}`);continue}
-      if(row.status!=='blocked')errors.push(`not_blocked:${tx}`);
+      if(row.status!==expected)errors.push(`status:${tx}:${row.status}->${expected}`);
       if(JSON.stringify(row.envelope?.legacy_payload)!==JSON.stringify(job))errors.push(`payload_mismatch:${tx}`);
     }
     if(errors.length){const e=new Error(`Offline V2 migration verification failed: ${errors.join(';')}`);e.code='OFFLINE_V2_MIGRATION_VERIFY_FAILED';throw e}
@@ -169,7 +180,7 @@ function installOfflineV2TakeoverManager(store){
     return writeState({
       ...current,
       mode:'prepared',armed:true,active:false,migration_verified:true,legacy_retired:false,
-      identity,legacy_count:legacySnapshot.length,legacy_tx_ids:legacyTxIds,
+      identity,legacy_count:legacySnapshot.length,legacy_tx_ids:legacyTxIds,legacy_conflict_tx_ids:legacyConflictTxIds,
       snapshot_digest:digest(legacySnapshot),prepared_at:verifiedAt,verified_at:verifiedAt,
       legacy_source_untouched:true
     });
@@ -200,8 +211,6 @@ function installOfflineV2TakeoverManager(store){
   ipcMain.handle('offline-v2:takeover-deactivate',(_e,input)=>deactivate(input));
 
   // NO automatic arm/prepare/activate call here by design.
-  // Phase 4 intentionally cannot become active until a later phase installs
-  // and attests the explicit-ACK V2 transport by setting transport_ready.
   metaReady().catch(e=>console.error('Offline V2 takeover metadata init failed',e));
   return {state:readState,arm,prepare,activate,deactivate};
 }
