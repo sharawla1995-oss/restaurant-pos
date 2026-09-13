@@ -1,5 +1,6 @@
 -- Sharawla POS 10.5.4-beta.55 — Restaurant acceptance helper privilege hardening
 -- Sandbox-only acceptance helpers must never be callable by anon.
+-- Final candidate gate: anon=false, authenticated=true for both helper RPCs.
 
 begin;
 
