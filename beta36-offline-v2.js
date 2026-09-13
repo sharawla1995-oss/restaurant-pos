@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.36-offline-v2.1';
+const VERSION='10.5.4-beta.49-offline-v2.2';
 const KEY='sharawlaOfflineActionsV2';
 const SAFE=new Set([
  'commerce_order_document_create_v2','commerce_order_document_record_payment_v2',
@@ -8,6 +8,7 @@ const SAFE=new Set([
  'membership_subscribe_v1','membership_renew_v1','membership_checkin_v1','membership_book_class_v1',
  'logistics_shipment_create_v1','logistics_pickup_request_create_v1','logistics_cod_collect_v1','logistics_settlement_create_v1'
 ]);
+const foundation=global.SharawlaOfflineV2||null;
 const baseRpc=typeof global.rpc==='function'?global.rpc.bind(global):null;
 if(!baseRpc){console.error('Offline V2: rpc is not ready');return}
 function parse(){try{const q=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(q)?q:[]}catch{return[]}}
@@ -51,9 +52,31 @@ async function sync(){
  }finally{syncing=false}
 }
 function pending(){return parse().length}
+async function migrateLegacyQueuePreservingConflict(){
+ if(!foundation?.migrateLegacyQueue||!foundation?.transitionOutbox)throw new Error('Offline V2 foundation migration API unavailable');
+ const result=await foundation.migrateLegacyQueue();
+ let legacy=[];try{legacy=Array.isArray(await global.odbGet?.('queue'))?await global.odbGet('queue'):[]}catch{}
+ let preserved=0;
+ for(const job of legacy){
+  if(String(job?._sync?.status||'').toLowerCase()!=='conflict')continue;
+  try{
+   await foundation.transitionOutbox(String(job.client_tx_id),'conflict',{
+    last_error_code:'OFFLINE_V2_LEGACY_CONFLICT_PRESERVED',
+    last_error_message:String(job?._sync?.last_error||'Legacy conflict preserved during V2 migration')
+   });
+   preserved++;
+  }catch(e){
+   const msg=String(e?.message||e||'');
+   if(!/conflict\s*->\s*conflict|Invalid Offline V2 transition conflict/i.test(msg))throw e;
+  }
+ }
+ return {...result,preserved_conflicts:preserved};
+}
 // Wrap rpc only for the explicitly safe idempotent RPC set. All legacy calls pass through untouched.
 global.rpc=async function(name,payload={}){return call(name,payload)};
-global.SharawlaOfflineV2=Object.freeze({version:VERSION,safe:[...SAFE],call,sync,pending});
+const api={...(foundation||{}),engineWrapperVersion:VERSION,safe:[...SAFE],call,sync,pending};
+if(foundation?.migrateLegacyQueue)api.migrateLegacyQueue=migrateLegacyQueuePreservingConflict;
+global.SharawlaOfflineV2=Object.freeze(api);
 global.addEventListener('online',()=>setTimeout(()=>sync().catch(()=>{}),500));
 setInterval(()=>{if(navigator.onLine)sync().catch(()=>{})},30000);
 setTimeout(()=>{if(navigator.onLine)sync().catch(()=>{})},1500);
