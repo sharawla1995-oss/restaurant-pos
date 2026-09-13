@@ -1,0 +1,23 @@
+name: Beta55 V2 Source Validation
+
+on:
+  push:
+    branches:
+      - beta55-restaurant-closure-v2-work
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-gates:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Run Beta55 source and regression gates
+        run: npm run check
