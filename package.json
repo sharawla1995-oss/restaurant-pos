@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
   "version": "10.5.4-beta.52",
-  "description": "Sharawla POS V10.5.4 Beta 52 - Acceptance Coverage Closure / Durable Crash Evidence",
+  "description": "Sharawla POS V10.5.4 Beta 52 - Offline Engine V2 / Acceptance Coverage Closure / Durable Crash Evidence",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
