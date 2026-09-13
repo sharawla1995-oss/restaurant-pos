@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.48",
+  "version": "10.5.4-beta.49",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Acceptance harness hardening for SH-0007 Beta: real POS local-first offline sale path, lost-ACK local fallback, version-scoped flaky detection, stronger 20x idempotency diagnostics, automatic Full Acceptance reattach after Owner Diagnostics rerender, and synchronized acceptance version labels. Production remains unchanged."
+  "notes": "SH-0007-only Offline V2 takeover activation safety: canonical employee acceptance context, explicit owner-only takeover preflight/activation, acceptance residue archival, legacy conflict preservation through migration, and preserved production isolation."
 }
