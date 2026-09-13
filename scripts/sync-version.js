@@ -13,7 +13,8 @@ const beta45Shell=['beta45-offline-v2-foundation.js','beta-self-test.js'];
 const beta45Dynamic=['beta45-offline-v2-runtime-takeover.js','beta45-offline-v2-inventory-runtime.js','beta45-offline-v2-transport-runtime.js','beta45-offline-v2-inbox-runtime.js','beta45-offline-v2-safety-runtime.js','beta45-offline-v2-diagnostics.js'];
 const direct=['styles.css','update-indicators.css','version-ui.js','update-ui.js',...runtimeChain,'retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js','app.js','beta34-feature-ui.js','beta35-feature-behavior.js','beta44-finance-b2b-inject-shim.js','beta36-integration-loader.js','profile-parity-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js','beta43-offline-core.js','beta44-offline-storage-recovery.js','beta45-offline-v2-foundation.js'];
 const retailDynamic=['retail-website-pos.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js','retail-variants-runtime-bridge.js','retail-variants-ui.js','retail-variants-startup-hotfix.js','advanced-purchasing-runtime-bridge.js','advanced-purchasing-v1.js'];
-const beta36Dynamic=['beta36-offline-v2.js','permissions-v2-ui.js','printing-v2.js','landed-cost-posting-v1.js','commerce-orders-v2-ui.js','reports-v2-ui.js','finance-b2b-ui.js','service-v1-ui.js','warehouse-v1-ui.js','membership-v1-ui.js','logistics-v1-ui.js','retail-variants-startup-hotfix.js','owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-diagnostics-universal-v2.js','owner-acceptance-e2e-v3.js','owner-acceptance-profile-packs-v3.js','owner-acceptance-advanced-v4.js','owner-acceptance-recovery-permissions-v5.js'];
+const beta36Dynamic=['beta36-offline-v2.js','permissions-v2-ui.js','printing-v2.js','landed-cost-posting-v1.js','commerce-orders-v2-ui.js','reports-v2-ui.js','finance-b2b-ui.js','service-v1-ui.js','warehouse-v1-ui.js','membership-v1-ui.js','logistics-v1-ui.js','retail-variants-startup-hotfix.js','beta47-performance-sync-hotfix.js','owner-acceptance-lazy-loader-v47.js'];
+const ownerLazyDynamic=['owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-acceptance-e2e-v3.js','owner-acceptance-profile-packs-v3.js','owner-acceptance-advanced-v4.js','owner-acceptance-recovery-permissions-v5.js','owner-acceptance-ui-v47.js'];
 const capabilityRegistry='sharawla-capability-module-registry.js';
 const capabilityDynamic=['food-recipe-runtime-bridge.js','food-recipe-ui-v1.js','food-advanced-ui-v1.js'];
 let index=fs.readFileSync(p('index.html'),'utf8');
@@ -22,47 +23,16 @@ for(const a of direct)if(!index.includes(`${a}?v=`))throw new Error(`Source shel
 let previous=-1;for(const a of runtimeChain){const pos=index.indexOf(`${a}?v=`);if(pos<=previous)throw new Error(`Unsafe Capability V3 source load order at ${a}`);previous=pos}
 for(const a of [...direct,'beta-self-test.js'])index=index.replace(new RegExp(`${esc(a)}\\?v=[^"]+`,'g'),`${a}?v=${version}`);
 fs.writeFileSync(p('index.html'),index,'utf8');
-
 let consumption=fs.readFileSync(p('sharawla-feature-consumption.js'),'utf8');
 if(!consumption.includes(`${capabilityRegistry}?v=`))throw new Error('Feature consumption does not bootstrap capability module registry');
-consumption=consumption.replace(new RegExp(`${esc(capabilityRegistry)}\\?v=[^']+`,'g'),`${capabilityRegistry}?v=${version}`);
-fs.writeFileSync(p('sharawla-feature-consumption.js'),consumption,'utf8');
-
-let registry=fs.readFileSync(p(capabilityRegistry),'utf8');
-registry=registry.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
-for(const a of capabilityDynamic)registry=registry.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);
-fs.writeFileSync(p(capabilityRegistry),registry,'utf8');
-
-let retail=fs.readFileSync(p('retail-engine.js'),'utf8');
-for(const a of retailDynamic)retail=retail.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);
-fs.writeFileSync(p('retail-engine.js'),retail,'utf8');
-
-let loader=fs.readFileSync(p('beta36-integration-loader.js'),'utf8');
-for(const a of beta36Dynamic)loader=loader.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);
-loader=loader.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
-fs.writeFileSync(p('beta36-integration-loader.js'),loader,'utf8');
-
-let variantsHotfix=fs.readFileSync(p('retail-variants-startup-hotfix.js'),'utf8');
-variantsHotfix=variantsHotfix.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
-fs.writeFileSync(p('retail-variants-startup-hotfix.js'),variantsHotfix,'utf8');
-
-// Historical Beta44 runtime constants remain Beta44 by design. Only their shell
-// cache query is bumped so the protected implementation is not semantically rewritten.
-for(const file of beta45Shell.concat(beta45Dynamic)){
-  let src=fs.readFileSync(p(file),'utf8');
-  src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);
-  fs.writeFileSync(p(file),src,'utf8');
-}
-
-let preload=fs.readFileSync(p('preload.js'),'utf8');
-for(const a of beta45Dynamic)preload=preload.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);
-fs.writeFileSync(p('preload.js'),preload,'utf8');
-
-let sw=fs.readFileSync(p('sw.js'),'utf8');
-sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);
-for(const a of beta45Shell.concat(beta45Dynamic)){
-  if(!sw.includes(`./${a}?v=`))sw=sw.replace(" './manifest.json'",` './${a}?v=${version}',\n './manifest.json'`);
-}
-for(const a of [...direct,...retailDynamic,...beta36Dynamic,capabilityRegistry,...capabilityDynamic,...beta45Shell,...beta45Dynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);
-fs.writeFileSync(p('sw.js'),sw,'utf8');
-console.log(`Version sync OK: ${version} (${channel}) — Beta46 acceptance integration wiring synchronized`);
+consumption=consumption.replace(new RegExp(`${esc(capabilityRegistry)}\\?v=[^']+`,'g'),`${capabilityRegistry}?v=${version}`);fs.writeFileSync(p('sharawla-feature-consumption.js'),consumption,'utf8');
+let registry=fs.readFileSync(p(capabilityRegistry),'utf8');registry=registry.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);for(const a of capabilityDynamic)registry=registry.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);fs.writeFileSync(p(capabilityRegistry),registry,'utf8');
+let retail=fs.readFileSync(p('retail-engine.js'),'utf8');for(const a of retailDynamic)retail=retail.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);fs.writeFileSync(p('retail-engine.js'),retail,'utf8');
+let loader=fs.readFileSync(p('beta36-integration-loader.js'),'utf8');for(const a of beta36Dynamic)loader=loader.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);loader=loader.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);fs.writeFileSync(p('beta36-integration-loader.js'),loader,'utf8');
+let lazy=fs.readFileSync(p('owner-acceptance-lazy-loader-v47.js'),'utf8');lazy=lazy.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);for(const a of ownerLazyDynamic)lazy=lazy.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);fs.writeFileSync(p('owner-acceptance-lazy-loader-v47.js'),lazy,'utf8');
+for(const file of ['beta47-performance-sync-hotfix.js','owner-acceptance-ui-v47.js']){let src=fs.readFileSync(p(file),'utf8');src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);fs.writeFileSync(p(file),src,'utf8')}
+let variantsHotfix=fs.readFileSync(p('retail-variants-startup-hotfix.js'),'utf8');variantsHotfix=variantsHotfix.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);fs.writeFileSync(p('retail-variants-startup-hotfix.js'),variantsHotfix,'utf8');
+for(const file of beta45Shell.concat(beta45Dynamic)){let src=fs.readFileSync(p(file),'utf8');src=src.replace(/const VERSION='[^']+';/,`const VERSION='${version}';`);fs.writeFileSync(p(file),src,'utf8')}
+let preload=fs.readFileSync(p('preload.js'),'utf8');for(const a of beta45Dynamic)preload=preload.replace(new RegExp(`${esc(a)}\\?v=[^']+`,'g'),`${a}?v=${version}`);fs.writeFileSync(p('preload.js'),preload,'utf8');
+let sw=fs.readFileSync(p('sw.js'),'utf8');sw=sw.replace(/const CACHE='sharawla-pos-v[^']+';/,`const CACHE='sharawla-pos-v${version}';`);for(const a of beta45Shell.concat(beta45Dynamic)){if(!sw.includes(`./${a}?v=`))sw=sw.replace(" './manifest.json'",` './${a}?v=${version}',\n './manifest.json'`)}for(const a of [...direct,...retailDynamic,...beta36Dynamic,capabilityRegistry,...capabilityDynamic,...beta45Shell,...beta45Dynamic])sw=sw.replace(new RegExp(`\\./${esc(a)}\\?v=[^']+`,'g'),`./${a}?v=${version}`);fs.writeFileSync(p('sw.js'),sw,'utf8');
+console.log(`Version sync OK: ${version} (${channel}) — Beta47 lazy acceptance / sync hotfix wiring synchronized`);
