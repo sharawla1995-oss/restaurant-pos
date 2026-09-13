@@ -2,7 +2,7 @@
 'use strict';
 const VERSION='10.5.4-beta.55';
 // Legacy static/sync compatibility marker only; runtime registry is v55:
-// owner-acceptance-registry-v3.js?v=10.5.4-beta.55
+// 'owner-acceptance-registry-v3.js?v=10.5.4-beta.55'
 const FILES=[
  ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.55'],
