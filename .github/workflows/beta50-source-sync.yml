@@ -1,0 +1,90 @@
+name: Beta50 Source Sync
+
+on:
+  push:
+    branches:
+      - beta50-offline-v2-transport-url-hotfix
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Apply Beta50 source hotfix and synchronize versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const transportPath='beta45-offline-v2-transport.js';
+          let transport=fs.readFileSync(transportPath,'utf8');
+          const old="||u.pathname!==''";
+          const fixed="||(u.pathname!==''&&u.pathname!=='/')";
+          const oldCount=transport.split(old).length-1;
+          const fixedCount=transport.split(fixed).length-1;
+          if(fixedCount===0){
+            if(oldCount!==1)throw new Error(`Expected one old pathname validator, found ${oldCount}`);
+            transport=transport.replace(old,fixed);
+            fs.writeFileSync(transportPath,transport);
+          }else if(fixedCount!==1){throw new Error(`Expected one fixed pathname validator, found ${fixedCount}`)}
+
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          pkg.version='10.5.4-beta.50';
+          pkg.description='Sharawla POS V10.5.4 Beta 50 - Offline Engine V2 / Transport URL Validator Hotfix';
+          if(!String(pkg.scripts.check||'').includes('check-beta50-transport-url.js')){
+            pkg.scripts.check=String(pkg.scripts.check).replace(' && node scripts/check-version.js',' && node scripts/check-beta50-transport-url.js && node scripts/check-version.js');
+          }
+          fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+
+          const ver=JSON.parse(fs.readFileSync('version.json','utf8'));
+          ver.version='10.5.4-beta.50';
+          ver.channel='beta';
+          ver.notes='Beta50 SH-0007 Offline V2 transport hotfix: accept a valid Supabase project root URL whose WHATWG pathname is /, while preserving HTTPS + *.supabase.co origin validation, prepared migration state, historical conflict preservation, canonical identity, and production isolation.';
+          fs.writeFileSync('version.json',JSON.stringify(ver,null,2)+'\n');
+
+          let gate=fs.readFileSync('scripts/check-beta49-takeover-safety.js','utf8');
+          gate=gate.replace("assert.strictEqual(pkg.version,'10.5.4-beta.49');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline Engine V2');",
+            "const betaMatch=String(pkg.version||'').match(/^10\\.5\\.4-beta\\.(\\d+)$/);assert(betaMatch&&Number(betaMatch[1])>=49,'package version must be Beta49+');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline Engine V2');");
+          gate=gate.replace("need(ui,\"const VERSION='10.5.4-beta.49'\");","need(ui,`const VERSION='${pkg.version}'`);");
+          fs.writeFileSync('scripts/check-beta49-takeover-safety.js',gate);
+
+          let sync=fs.readFileSync('scripts/sync-version.js','utf8');
+          sync=sync.replace('Version sync OK: ${version} (${channel}) — Beta49 takeover activation safety / canonical acceptance context synchronized','Version sync OK: ${version} (${channel}) — Beta50 transport URL validator hotfix / Beta49 takeover safety synchronized');
+          fs.writeFileSync('scripts/sync-version.js',sync);
+
+          let safety=fs.readFileSync('beta49-takeover-activation-safety.js','utf8');
+          safety=safety.replace('Beta49 • SH-0007 فقط • لا يوجد تفعيل تلقائي','Beta50 • SH-0007 فقط • لا يوجد تفعيل تلقائي');
+          fs.writeFileSync('beta49-takeover-activation-safety.js',safety);
+
+          const check=`'use strict';\nconst fs=require('fs'),path=require('path'),assert=require('assert');\nconst root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');\nconst src=read('beta45-offline-v2-transport.js');\nconst pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));\nassert.strictEqual(pkg.version,'10.5.4-beta.50');\nassert.strictEqual(ver.version,pkg.version);\nassert.strictEqual(ver.channel,'beta');\nassert(src.includes(\"||(u.pathname!==''&&u.pathname!=='/')\"),'Beta50 root-path validator fix missing');\nassert(!src.includes(\"||u.pathname!==''\"),'Beta50 old root-path rejection still present');\nassert(src.includes(\"u.protocol!=='https:'\"),'HTTPS guard missing');\nassert(src.includes(\"\\\\.supabase\\\\.co$/i.test(u.hostname)\"),'Supabase host guard missing');\nassert(src.includes(\"const info=await postRpc(ctx,INFO_RPC,{})\"),'transport attestation RPC missing');\nconsole.log('Beta50 Transport URL gate PASS — valid Supabase root URL accepted without weakening HTTPS/host attestation guards');\n`;
+          fs.writeFileSync('scripts/check-beta50-transport-url.js',check);
+          NODE
+
+          node scripts/sync-version.js
+          node scripts/check-beta49-takeover-safety.js
+          node scripts/check-beta50-transport-url.js
+
+      - name: Commit synchronized Beta50 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sharawla1995-oss"
+          git config user.email "sharawla1995@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Beta50: fix Offline V2 Supabase root URL validation"
+            git push origin HEAD:beta50-offline-v2-transport-url-hotfix
+          fi
