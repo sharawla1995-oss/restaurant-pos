@@ -1,0 +1,208 @@
+name: Beta50 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta50-offline-v2-transport-url-hotfix
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Prepare Beta50 source and commit synchronized source
+        id: source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $transportPath = 'beta45-offline-v2-transport.js'
+          $transport = Get-Content $transportPath -Raw
+          $oldPathCheck = "||u.pathname!==''"
+          $newPathCheck = "||(u.pathname!==''&&u.pathname!=='/')"
+          $oldCount = ([regex]::Matches($transport, [regex]::Escape($oldPathCheck))).Count
+          $newCount = ([regex]::Matches($transport, [regex]::Escape($newPathCheck))).Count
+          if ($newCount -eq 0) {
+            if ($oldCount -ne 1) { throw "Expected exactly one old Offline V2 pathname validator, found $oldCount" }
+            $transport = $transport.Replace($oldPathCheck, $newPathCheck)
+            Set-Content $transportPath $transport -Encoding UTF8
+          } elseif ($newCount -ne 1) {
+            throw "Expected exactly one fixed Offline V2 pathname validator, found $newCount"
+          }
+
+          @'
+          const fs=require('fs');
+          const pkgPath='package.json';
+          const verPath='version.json';
+          const gatePath='scripts/check-beta49-takeover-safety.js';
+          const syncPath='scripts/sync-version.js';
+          const safetyPath='beta49-takeover-activation-safety.js';
+
+          const pkg=JSON.parse(fs.readFileSync(pkgPath,'utf8'));
+          pkg.version='10.5.4-beta.50';
+          pkg.description='Sharawla POS V10.5.4 Beta 50 - Offline Engine V2 / Transport URL Validator Hotfix';
+          if(!String(pkg.scripts.check||'').includes('check-beta50-transport-url.js')){
+            pkg.scripts.check=String(pkg.scripts.check).replace(' && node scripts/check-version.js',' && node scripts/check-beta50-transport-url.js && node scripts/check-version.js');
+          }
+          fs.writeFileSync(pkgPath,JSON.stringify(pkg,null,2)+'\n');
+
+          const ver=JSON.parse(fs.readFileSync(verPath,'utf8'));
+          ver.version='10.5.4-beta.50';
+          ver.channel='beta';
+          ver.notes='Beta50 SH-0007 Offline V2 transport hotfix: accept a valid Supabase project root URL whose WHATWG pathname is /, while preserving HTTPS + *.supabase.co origin validation, prepared migration state, historical conflict preservation, canonical identity, and production isolation.';
+          fs.writeFileSync(verPath,JSON.stringify(ver,null,2)+'\n');
+
+          let gate=fs.readFileSync(gatePath,'utf8');
+          gate=gate.replace("assert.strictEqual(pkg.version,'10.5.4-beta.49');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline Engine V2');",
+            "const betaMatch=String(pkg.version||'').match(/^10\\.5\\.4-beta\\.(\\d+)$/);assert(betaMatch&&Number(betaMatch[1])>=49,'package version must be Beta49+');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline Engine V2');");
+          gate=gate.replace("need(ui,\"const VERSION='10.5.4-beta.49'\");","need(ui,`const VERSION='${pkg.version}'`);");
+          fs.writeFileSync(gatePath,gate);
+
+          let sync=fs.readFileSync(syncPath,'utf8');
+          sync=sync.replace('Version sync OK: ${version} (${channel}) — Beta49 takeover activation safety / canonical acceptance context synchronized','Version sync OK: ${version} (${channel}) — Beta50 transport URL validator hotfix / Beta49 takeover safety synchronized');
+          fs.writeFileSync(syncPath,sync);
+
+          let safety=fs.readFileSync(safetyPath,'utf8');
+          safety=safety.replace('Beta49 • SH-0007 فقط • لا يوجد تفعيل تلقائي','Beta50 • SH-0007 فقط • لا يوجد تفعيل تلقائي');
+          fs.writeFileSync(safetyPath,safety);
+
+          const check=`'use strict';\nconst fs=require('fs'),path=require('path'),assert=require('assert');\nconst root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');\nconst src=read('beta45-offline-v2-transport.js');\nconst pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));\nassert.strictEqual(pkg.version,'10.5.4-beta.50');\nassert.strictEqual(ver.version,pkg.version);\nassert.strictEqual(ver.channel,'beta');\nassert(src.includes(\"||(u.pathname!==''&&u.pathname!=='/')\"),'Beta50 root-path validator fix missing');\nassert(!src.includes(\"||u.pathname!==''\"),'Beta50 old root-path rejection still present');\nassert(src.includes(\"u.protocol!=='https:'\"),'HTTPS guard missing');\nassert(src.includes(\"\\\\.supabase\\\\.co$/i.test(u.hostname)\"),'Supabase host guard missing');\nassert(src.includes(\"const info=await postRpc(ctx,INFO_RPC,{})\"),'transport attestation RPC missing');\nconsole.log('Beta50 Transport URL gate PASS — valid Supabase root URL accepted without weakening HTTPS/host attestation guards');\n`;
+          fs.writeFileSync('scripts/check-beta50-transport-url.js',check);
+          '@ | node
+
+          node scripts/sync-version.js
+
+          git config user.name "sharawla1995-oss"
+          git config user.email "sharawla1995@gmail.com"
+          git add beta45-offline-v2-transport.js package.json version.json scripts/check-beta49-takeover-safety.js scripts/check-beta50-transport-url.js scripts/sync-version.js beta49-takeover-activation-safety.js index.html sw.js preload.js beta36-integration-loader.js owner-acceptance-lazy-loader-v47.js owner-acceptance-ui-v47.js owner-diagnostics.js owner-acceptance-registry-v3.js owner-acceptance-network-lab.js owner-acceptance-e2e-v3.js owner-acceptance-profile-packs-v3.js owner-acceptance-advanced-v4.js owner-acceptance-recovery-permissions-v5.js beta47-performance-sync-hotfix.js beta45-offline-v2-foundation.js beta45-offline-v2-runtime-takeover.js beta45-offline-v2-inventory-runtime.js beta45-offline-v2-transport-runtime.js beta45-offline-v2-inbox-runtime.js beta45-offline-v2-safety-runtime.js beta45-offline-v2-diagnostics.js sharawla-capability-module-registry.js retail-engine.js retail-variants-startup-hotfix.js sharawla-feature-consumption.js
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Beta50: fix Offline V2 Supabase root URL validation"
+            git push origin HEAD:beta50-offline-v2-transport-url-hotfix
+          }
+          $buildSha = (git rev-parse HEAD).Trim()
+          "build_sha=$buildSha" >> $env:GITHUB_OUTPUT
+
+      - name: Setup Python 3.11 for node-gyp
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+          python --version
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.50') { throw "Unexpected Beta50 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta50 source and all inherited gates
+        run: npm run check
+
+      - name: Ensure source remains synchronized after checks
+        shell: pwsh
+        run: |
+          git diff --exit-code -- . ':!update-config.json' ':!package-lock.json'
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-x64.exe" -Force
+          Remove-Item dist -Recurse -Force
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "ia32 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
+
+      - name: Compute installer hashes
+        id: hash
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content beta50-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta50-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta50 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $target = "${{ steps.source.outputs.build_sha }}"
+          $notes = @"
+          Beta50 Offline V2 Transport URL Validator Hotfix for isolated SH-0007 testing.
+
+          Fixes the fail-closed Transport Attestation blocker found after Beta49 migration preparation: WHATWG URL parsing returns '/' for a valid Supabase project root URL, so the previous validator incorrectly rejected the correct backend origin. Beta50 accepts only an empty/root pathname while retaining HTTPS and *.supabase.co host validation.
+
+          The existing SH-0007 prepared migration state and the two preserved historical conflicts remain intact; no migration replay or automatic takeover is introduced. Production SH-0005 / SH-0006 and Top Burger remain read-only and unchanged. Canonical device identity remains immutable.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target $target --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta50 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="$target" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta50-sha256.txt --clobber
+          $actualTarget = gh api "repos/${{ github.repository }}/releases/$releaseId" --jq ".target_commitish"
+          if ($actualTarget -ne $target) { throw "Beta50 release target mismatch: $actualTarget vs $target" }
+          $assets = gh api "repos/${{ github.repository }}/releases/$releaseId/assets" --jq ".[].name"
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-x64.exe") { throw "Beta50 x64 release asset missing" }
+          if ($assets -notcontains "Sharawla-POS-Setup-$version-ia32.exe") { throw "Beta50 ia32 release asset missing" }
+          if ($assets -notcontains "beta50-sha256.txt") { throw "Beta50 SHA256 asset missing" }
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }
