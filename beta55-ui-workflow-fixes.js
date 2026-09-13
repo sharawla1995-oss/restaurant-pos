@@ -44,7 +44,7 @@ function ensureHrGroup(){
 async function loadCatalog(){
  const useVariants=hasFeature('commerce.variants');
  const [products,variants,balances,vBalances]=await Promise.all([
-   rest('products','select=id,name,sku,barcode,cost,price,active&active=eq.true&order=name'),
+   rest('products','select=id,name,barcode,cost,price,active&active=eq.true&order=name'),
    useVariants?rest('product_variants','select=id,product_id,name,sku,barcode,cost,price,active,is_stock_unit&active=eq.true&is_stock_unit=eq.true&order=product_id,id').catch(()=>[]):Promise.resolve([]),
    rest('retail_inventory_balances',`select=product_id,quantity,average_unit_cost,last_purchase_cost&branch_id=eq.${branch()}`).catch(()=>[]),
    useVariants?rest('retail_variant_inventory_balances',`select=variant_id,quantity,average_unit_cost,last_purchase_cost&branch_id=eq.${branch()}`).catch(()=>[]):Promise.resolve([])
@@ -54,8 +54,8 @@ async function loadCatalog(){
  for(const p of products||[]){
    const pv=(variants||[]).filter(v=>String(v.product_id)===String(p.id));
    if(pv.length){
-     for(const v of pv){const b=vbMap.get(String(v.id));rows.push({product_id:Number(p.id),variant_id:Number(v.id),name:`${p.name} — ${v.name}`,sku:v.sku||p.sku||'',barcode:v.barcode||p.barcode||'',stock:Number(b?.quantity||0),cost:Number(b?.last_purchase_cost??b?.average_unit_cost??v.cost??p.cost??0)})}
-   }else{const b=bMap.get(String(p.id));rows.push({product_id:Number(p.id),variant_id:null,name:p.name,sku:p.sku||'',barcode:p.barcode||'',stock:Number(b?.quantity||0),cost:Number(b?.last_purchase_cost??b?.average_unit_cost??p.cost??0)})}
+     for(const v of pv){const b=vbMap.get(String(v.id));rows.push({product_id:Number(p.id),variant_id:Number(v.id),name:`${p.name} — ${v.name}`,sku:v.sku||'',barcode:v.barcode||p.barcode||'',stock:Number(b?.quantity||0),cost:Number(b?.last_purchase_cost??b?.average_unit_cost??v.cost??p.cost??0)})}
+   }else{const b=bMap.get(String(p.id));rows.push({product_id:Number(p.id),variant_id:null,name:p.name,sku:'',barcode:p.barcode||'',stock:Number(b?.quantity||0),cost:Number(b?.last_purchase_cost??b?.average_unit_cost??p.cost??0)})}
  }
  return rows;
 }
