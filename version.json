@@ -1,8 +1,8 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.47",
+  "version": "10.5.4-beta.48",
   "channel": "beta",
   "source": "github",
   "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
-  "notes": "Performance/sync hotfix for SH-0007 Beta: lazy-load Owner Acceptance only after owner unlock, event-driven acceptance UI, and quarantine permanent legacy stock conflicts so they are not auto-retried every 30 seconds. Production remains unchanged."
+  "notes": "Acceptance harness hardening for SH-0007 Beta: real POS local-first offline sale path, lost-ACK local fallback, version-scoped flaky detection, stronger 20x idempotency diagnostics, automatic Full Acceptance reattach after Owner Diagnostics rerender, and synchronized acceptance version labels. Production remains unchanged."
 }
