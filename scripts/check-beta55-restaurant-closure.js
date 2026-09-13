@@ -42,9 +42,17 @@ need(ops,"status='sent'",'transfer in-transit state');
 need(ops,"status='received'",'transfer receive state');
 need(ops,"if v_new<0 then raise exception 'مخزون الخامة غير كافٍ'",'negative ingredient stock guard');
 need(ops,'pg_advisory_xact_lock','idempotency/concurrency lock');
-forbid(ops,'SH-0005','production device isolation');
-forbid(ops,'SH-0006','production device isolation');
-forbid(perm,'SH-0005','production device isolation');
-forbid(perm,'SH-0006','production device isolation');
+
+const dml=read('supabase-beta55-restaurant-direct-dml-hardening.sql');
+need(dml,'revoke insert,update,delete,truncate on','direct DML revoke');
+for(const table of ['public.ingredients','public.ingredient_stock','public.suppliers','public.purchases','public.purchase_items','public.stock_transfers','public.stock_transfer_items'])need(dml,table,`protected direct-DML table ${table}`);
+need(dml,'beta55_food_ingredients_select','ingredient page read policy');
+need(dml,'beta55_food_ingredient_stock_select','branch-scoped ingredient stock read policy');
+need(dml,"public.has_branch_access(branch_id)",'ingredient stock branch scope');
+
+for(const src of [ops,perm,dml]){
+ forbid(src,'SH-0005','production device isolation');
+ forbid(src,'SH-0006','production device isolation');
+}
 
 console.log('Beta55 Restaurant Closure source gate OK');
