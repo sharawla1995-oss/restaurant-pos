@@ -13,6 +13,7 @@ on:
       - beta55-ui-hardening.js
       - beta55-central-warehouse-ui.js
       - advanced-purchasing-v1.js
+      - scripts/check-beta54-shared-core.js
       - scripts/check-beta55-shared-workflows.js
       - scripts/check-runtime-syntax.js
       - scripts/sync-version.js
