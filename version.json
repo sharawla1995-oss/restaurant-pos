@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.54",
+  "version": "10.5.4-beta.55",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta54 SH-0007 Shared Business Core: permission-gated customer creation plus separate HR employee records, salary setup, employee advances, deductions/bonuses/overtime, payroll and treasury movements with branch scope and audit logging. Preserves accepted Beta53/Beta52/Beta51 Offline V2 runtime semantics, canonical identity and the two historical conflicts. Production remains untouched."
+  "notes": "Beta55 WIP on isolated SH-0007: Restaurant Closure stage with Shared Central Warehouse / Branch Replenishment foundation and runtime, purchasing workflow UX improvements, HR submenu permission organization, atomic dispatch/receiving with in-transit and variance capture. Production SH-0005/SH-0006 remains untouched on 10.5.3."
 }
