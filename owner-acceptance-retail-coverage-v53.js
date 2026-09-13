@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.53';
+const VERSION='10.5.4-beta.54';
 const RUNTIME_KEY='sharawlaRuntimeConfigV1';
 const text=v=>String(v??'').trim();
 const eq=(a,b,eps=.0005)=>Math.abs(Number(a||0)-Number(b||0))<=eps;

@@ -1,15 +1,15 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.53';
+const VERSION='10.5.4-beta.54';
 const FILES=[
- ['owner-acceptance-registry-v3','owner-acceptance-registry-v3.js?v=10.5.4-beta.53'],
- ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.53'],
- ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.53'],
- ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.53'],
- ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.53'],
- ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.53'],
- ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.53'],
- ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.53']
+ ['owner-acceptance-registry-v3','owner-acceptance-registry-v3.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.54']
 ];
 let loading=null,loaded=false;
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-owner-lazy-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-owner-lazy-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta53 owner lazy load failed: ${src}`));document.head.appendChild(s)})}
