@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.52",
+  "version": "10.5.4-beta.53",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta52 Acceptance Coverage Closure: preserve Beta51 Offline V2 runtime behavior while adding durable guided Crash Test PASS evidence, clear already-completed status, and final Deep Chaos reporting on isolated SH-0007 only. Production SH-0005/SH-0006 and Top Burger remain unchanged."
+  "notes": "Beta53 SH-0007 Acceptance Coverage Stage 2: live Retail products/variants contract plus sandbox-safe PO → approval → GRN → supplier-return roundtrip, replenishment read-model validation, transfer atomic guard and stock-count rollback guard. Preserves accepted Beta52/Beta51 Offline V2 runtime semantics, canonical identity and the two historical conflicts."
 }
