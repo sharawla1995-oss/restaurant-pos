@@ -15,6 +15,7 @@ const FILES=[
  ['food-recipe-runtime-v1','food-recipe-runtime-bridge.js?v=10.5.4-beta.55'],
  ['beta55-restaurant-closure-ui','beta55-restaurant-closure-ui.js?v=10.5.4-beta.55'],
  ['beta55-navigation-parity','beta55-navigation-parity.js?v=10.5.4-beta.55'],
+ ['beta55-delivery-settlement-shift-cash','beta55-delivery-settlement-shift-cash.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-navigation','owner-acceptance-beta55-navigation-v55.js?v=10.5.4-beta.55'],
  ['printing-v2','printing-v2.js?v=10.5.4-beta.55'],
  ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.55'],
@@ -34,7 +35,7 @@ function load(key,src){return new Promise((resolve,reject)=>{if(document.querySe
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}
 async function loadAll(){
  for(const [k,s] of FILES)await load(k,s);
- global.__SharawlaBeta36Integration=Object.freeze({version:VERSION,files:FILES.map(x=>x[1]),loaded:true,ownerAcceptance:'lazy',takeoverSafety:'explicit-owner-only',beta51FinalOfflineAcceptanceFix:true,sharedBusinessCoreV1:true,beta54SharedCoreUI:true,purchasingAttachmentsV1:true,beta55UiWorkflowFixes:true,beta55UiHardening:true,beta55CentralWarehouse:true,beta55CentralWarehouseV2:true,beta55EmergencyPermissionHardening:true,foodRecipeRuntimeV1:true,beta55RestaurantClosureUI:true,beta55NavigationParity:true,beta55NavigationAcceptance:true});
+ global.__SharawlaBeta36Integration=Object.freeze({version:VERSION,files:FILES.map(x=>x[1]),loaded:true,ownerAcceptance:'lazy',takeoverSafety:'explicit-owner-only',beta51FinalOfflineAcceptanceFix:true,sharedBusinessCoreV1:true,beta54SharedCoreUI:true,purchasingAttachmentsV1:true,beta55UiWorkflowFixes:true,beta55UiHardening:true,beta55CentralWarehouse:true,beta55CentralWarehouseV2:true,beta55EmergencyPermissionHardening:true,foodRecipeRuntimeV1:true,beta55RestaurantClosureUI:true,beta55NavigationParity:true,beta55DeliverySettlementShiftCash:true,beta55NavigationAcceptance:true});
  for(const name of ['sharawla-beta36-integrations-ready','sharawla-beta37-integrations-ready','sharawla-beta38-integrations-ready','sharawla-beta39-integrations-ready','sharawla-beta47-integrations-ready','sharawla-beta48-integrations-ready','sharawla-beta49-integrations-ready','sharawla-beta51-integrations-ready','sharawla-beta54-integrations-ready','sharawla-beta55-integrations-ready'])global.dispatchEvent(new CustomEvent(name));
 }
 function start(){let tries=0;const t=setInterval(()=>{tries++;if(ready()){clearInterval(t);loadAll().catch(e=>console.error(e));return}if(tries>=100){clearInterval(t);console.error('Beta55 integration loader: app runtime not ready')}},50)}
