@@ -6,6 +6,13 @@ on:
       - beta54-functional-core
     paths:
       - .github/workflows/beta54-build-windows-release.yml
+      - package.json
+      - version.json
+      - beta36-integration-loader.js
+      - purchasing-attachments-v1.js
+      - scripts/check-purchasing-attachments-v1.js
+      - scripts/check-runtime-syntax.js
+      - scripts/sync-version.js
   workflow_dispatch:
 
 permissions:
@@ -110,7 +117,9 @@ jobs:
           $notes = @"
           Beta54 Shared Business Core for isolated SH-0007 testing.
 
-          Adds permission-gated customer creation; separate HR employee records; salary setup; employee advances with approve/disburse workflow; deductions, bonuses and overtime; monthly payroll; and treasury movements. Sensitive actions are enforced by backend action permissions, branch scope and audit logging. A dedicated sandbox acceptance roundtrip validates HR employee idempotency, advance disbursement, payroll calculation/payment, treasury posting, audit evidence and exact cleanup.
+          Adds permission-gated customer creation; separate HR employee records; salary setup; employee advances with approve/disburse workflow; deductions, bonuses and overtime; monthly payroll; and treasury movements. Sensitive actions are enforced by backend action permissions, branch scope and audit logging.
+
+          Also adds Purchasing Attachments V1: private supplier invoice/receipt archive with image/PDF upload, historical attachment to existing supplier invoices, supplier/date/reference search, authenticated document viewing, branch-scoped permissions, soft delete and audit history.
 
           Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Accepted Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No migration/takeover replay is introduced.
 
