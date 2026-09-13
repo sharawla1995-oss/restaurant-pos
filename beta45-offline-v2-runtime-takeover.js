@@ -5,7 +5,7 @@
 // Generic by operation type, not by business profile. Restaurant/Retail/
 // Pharmacy/Logistics/Warehouse/Service/Membership can register handlers without
 // changing the Offline V2 core.
-const VERSION='10.5.4-beta.52';
+const VERSION='10.5.4-beta.53';
 const FALLBACK_CONTEXT_MS=30_000;
 const registry=new Map();
 const rpcToOperation=new Map();

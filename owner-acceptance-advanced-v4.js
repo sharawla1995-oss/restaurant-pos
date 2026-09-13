@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.52';
+const VERSION='10.5.4-beta.53';
 const CRASH_KEY='sharawlaAcceptanceCrashV4';
 const CRASH_RESULT_KEY='sharawlaAcceptanceCrashResultV6';
 const text=v=>String(v??'').trim();
