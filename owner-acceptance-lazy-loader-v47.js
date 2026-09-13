@@ -8,6 +8,7 @@ const FILES=[
  ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.54'],
  ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.54'],
  ['owner-acceptance-shared-core-v54','owner-acceptance-shared-core-v54.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js?v=10.5.4-beta.54'],
  ['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.54'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.54'],
  ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.54'],
