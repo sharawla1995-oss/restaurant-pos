@@ -37,3 +37,6 @@ Two legacy conflicts intentionally remain preserved as historical evidence. They
 
 ## Freeze decision
 Offline V2 runtime semantics from Beta51 are accepted for the SH-0007 sandbox gate. Beta52 may improve acceptance evidence/reporting and broaden feature coverage, but must not silently change accepted Offline V2 sale, sync, canonical identity, migration, or conflict-preservation behavior.
+
+## Beta52 handoff
+The Beta52 source-sync gate completed before the Windows build trigger. Beta52 is intentionally limited to acceptance evidence/reporting hardening at this checkpoint; broader enabled-feature coverage remains the next acceptance stage and is not treated as complete by this record.
