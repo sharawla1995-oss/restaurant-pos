@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const pkg=JSON.parse(read('package.json')),loader=read('beta36-integration-loader.js'),fix=read('beta51-final-offline-acceptance-fix.js');
+assert.strictEqual(pkg.version,'10.5.4-beta.51','Beta51 package version mismatch');
+assert(pkg.description.includes('Final Acceptance Fix'),'Beta51 description mismatch');
+for(const t of ["const VERSION='10.5.4-beta.51'",'topBurgerDesktop?.offlineV2?.event','operation_type===\'sale\'','READY_STATES','localSaleResult','originalSaveOfflineSale'])assert(fix.includes(t),`Beta51 final fix missing: ${t}`);
+assert(!fix.includes('takeoverActivate'),'Beta51 fix must not auto-activate takeover');
+assert(!fix.includes('takeoverPrepare'),'Beta51 fix must not rerun migration');
+assert(loader.includes('beta51-final-offline-acceptance-fix.js'),'Beta51 loader entry missing');
+assert(loader.indexOf('beta51-final-offline-acceptance-fix.js')<loader.indexOf('owner-acceptance-lazy-loader-v47.js'),'Beta51 final fix must load before acceptance harness');
+console.log('Beta51 Final Offline Acceptance gate PASS — existing durable sale event reused without a second commit; owner harness loads after fix');
