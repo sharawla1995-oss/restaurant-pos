@@ -11,6 +11,7 @@ on:
       - beta36-integration-loader.js
       - restaurant-engine.js
       - beta55-restaurant-closure-ui.js
+      - beta55-navigation-parity.js
       - beta55-ui-workflow-fixes.js
       - beta55-ui-hardening.js
       - beta55-central-warehouse-ui.js
@@ -18,6 +19,7 @@ on:
       - owner-acceptance-registry-v55.js
       - owner-acceptance-beta55-v55.js
       - owner-acceptance-beta55-restaurant-v55.js
+      - owner-acceptance-beta55-navigation-v55.js
       - owner-acceptance-lazy-loader-v47.js
       - owner-acceptance-ui-v47.js
       - supabase-beta55-central-warehouse-visibility-shortages.sql
@@ -34,6 +36,7 @@ on:
       - scripts/check-beta55-shared-workflows.js
       - scripts/check-beta55-restaurant-closure.js
       - scripts/check-beta55-restaurant-acceptance.js
+      - scripts/check-beta55-navigation-parity.js
       - scripts/check-runtime-syntax.js
       - scripts/sync-version.js
       - scripts/check-version.js
@@ -145,7 +148,9 @@ jobs:
 
           Branch replenishment now uses a smart read model: only the branch-assigned catalog is visible, exact central stock is not exposed without permission, and suggested quantity accounts for current branch stock, open commitments and stock already in transit.
 
-          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, and Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption and Tables.
+          Restaurant navigation parity now treats the live permission-filtered Sidebar as the top-level navigation model and synchronizes the Home/Dashboard cards to the same visible entries and order, including Restaurant closure pages, grouped HR, Treasury and internal supply when enabled. Home-card clicks route through the same Sidebar targets, and a critical Owner Acceptance gate fails on missing metadata or Sidebar/Dashboard drift.
+
+          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, and Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption, Tables and Sidebar ↔ Dashboard parity.
 
           Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Beta55 is for SH-0007 only. Accepted Beta54/Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No Offline V2 migration/takeover replay is introduced.
 
