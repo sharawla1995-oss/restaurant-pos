@@ -3,6 +3,10 @@
   "version": "10.5.4-beta.50",
   "channel": "beta",
   "source": "github",
-  "windows": {"supported": "Windows 7 x64","electron": "22.3.27","electronBuilder": "22.10.5"},
+  "windows": {
+    "supported": "Windows 7 x64",
+    "electron": "22.3.27",
+    "electronBuilder": "22.10.5"
+  },
   "notes": "Beta50 SH-0007 Offline V2 transport hotfix: accept a valid Supabase project root URL whose WHATWG pathname is /, while preserving HTTPS + *.supabase.co origin validation, prepared migration state, historical conflict preservation, canonical identity, and production isolation."
 }

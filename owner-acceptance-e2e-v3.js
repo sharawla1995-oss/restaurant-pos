@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.48-e2e-v4';
+const VERSION='10.5.4-beta.50';
 const RUNTIME_KEY='sharawlaRuntimeConfigV1';
 const PROFILE_CODES=['restaurant','retail','pharmacy','logistics','membership','service','warehouse'];
 const $=(s,r=document)=>r.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms)),text=v=>String(v??'').trim();

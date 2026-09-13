@@ -11,16 +11,50 @@
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
   },
-  "dependencies": {"sql.js":"1.8.0","sqlite3":"5.1.7"},
-  "devDependencies": {"electron": "22.3.27","electron-builder": "22.10.5"},
+  "dependencies": {
+    "sql.js": "1.8.0",
+    "sqlite3": "5.1.7"
+  },
+  "devDependencies": {
+    "electron": "22.3.27",
+    "electron-builder": "22.10.5"
+  },
   "build": {
     "appId": "com.topburger.pos",
     "productName": "Sharawla POS",
     "asar": true,
-    "files": ["**/*","!dist/**","!node_modules/.cache/**","!README*","!legacy-sql/**","!*.sql","!**/*.zip","!.github/**","!scripts/**"],
-    "directories": {"output": "dist"},
-    "win": {"target": [{"target":"nsis","arch":["x64","ia32"]}]},
-    "nsis": {"oneClick":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"shortcutName":"Sharawla POS"},
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!node_modules/.cache/**",
+      "!README*",
+      "!legacy-sql/**",
+      "!*.sql",
+      "!**/*.zip",
+      "!.github/**",
+      "!scripts/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sharawla POS"
+    },
     "artifactName": "Sharawla-POS-Setup-${version}-${arch}.${ext}"
   }
 }

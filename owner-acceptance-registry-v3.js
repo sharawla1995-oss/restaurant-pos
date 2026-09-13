@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.48-acceptance-registry-v4';
+const VERSION='10.5.4-beta.50';
 const RUNTIME_KEY='sharawlaRuntimeConfigV1',CONNECTION_KEY='sharawlaBusinessConnectionV1';
 const ACTIVE_KEY='sharawlaAcceptanceActiveV3',HISTORY_KEY='sharawlaAcceptanceHistoryV3',RESUME_KEY='sharawlaAcceptanceResumeV3';
 const BETA_BUSINESS_ID='91826502-590e-4afa-8826-2c0f4b99c490',BETA_HOST='xihcxydjnzemflhedzor.supabase.co',BETA_SUPPORT='SH-0007';

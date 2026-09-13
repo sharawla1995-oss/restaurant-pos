@@ -5,7 +5,7 @@
 // Once controlled takeover is active, mapped operational RPCs use the V2
 // outbox/explicit-ACK transport as their only network authority. Inactive mode
 // delegates unchanged to the protected Phase 4/legacy runtime.
-const VERSION='10.5.4-beta.45-dev-phase5';
+const VERSION='10.5.4-beta.50';
 const CONNECTION_KEY='sharawlaBusinessConnectionV1';
 const FALLBACK_CONTEXT_MS=30_000;
 const adaptersByType=new Map();

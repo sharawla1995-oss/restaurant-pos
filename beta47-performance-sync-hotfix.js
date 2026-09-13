@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.47';
+const VERSION='10.5.4-beta.50';
 let syncBusy47=false;
 const text=v=>String(v??'').trim();
 const permanentError=e=>/المخزون غير كاف|insufficient stock|negative stock|stock.*insufficient|inventory.*insufficient|oversell|لا يمكن.*المخزون/i.test(text(e?.message||e));

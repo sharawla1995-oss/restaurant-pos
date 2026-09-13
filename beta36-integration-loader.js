@@ -1,21 +1,21 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.49';
+const VERSION='10.5.4-beta.50';
 const FILES=[
- ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.49'],
- ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.49'],
- ['printing-v2','printing-v2.js?v=10.5.4-beta.49'],
- ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.49'],
- ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.49'],
- ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.49'],
- ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.49'],
- ['service-v1','service-v1-ui.js?v=10.5.4-beta.49'],
- ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.49'],
- ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.49'],
- ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.49'],
- ['beta47-performance-sync-hotfix','beta47-performance-sync-hotfix.js?v=10.5.4-beta.49'],
- ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.49'],
- ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.49']
+ ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.50'],
+ ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.50'],
+ ['printing-v2','printing-v2.js?v=10.5.4-beta.50'],
+ ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.50'],
+ ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.50'],
+ ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.50'],
+ ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.50'],
+ ['service-v1','service-v1-ui.js?v=10.5.4-beta.50'],
+ ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.50'],
+ ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.50'],
+ ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.50'],
+ ['beta47-performance-sync-hotfix','beta47-performance-sync-hotfix.js?v=10.5.4-beta.50'],
+ ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.50'],
+ ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.50']
 ];
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta49 failed to load ${src}`));document.head.appendChild(s)})}
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}

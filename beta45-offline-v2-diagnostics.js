@@ -3,7 +3,7 @@
 
 // Sharawla Offline Engine V2 — Phase 9 diagnostics + support bundle.
 // Active takeover only. Legacy mode remains owned by the Beta43 center.
-const VERSION='10.5.4-beta.45-dev-phase9-diagnostics';
+const VERSION='10.5.4-beta.50';
 const LEGACY_PRESERVED='OFFLINE_V2_LEGACY_PRESERVED';
 const STATUS_ORDER=['pending','syncing','retryable','blocked','conflict','dead_letter'];
 let refreshing=false,timer=null,activeCached=false;

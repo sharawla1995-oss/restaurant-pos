@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.46-profile-packs-v3';
+const VERSION='10.5.4-beta.50';
 const $=(s,r=document)=>r.querySelector(s),text=v=>String(v??'').trim(),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const R=()=>global.__SharawlaAcceptanceRegistry;
 const branch=()=>Number(global.currentBranchId?.()||0);
