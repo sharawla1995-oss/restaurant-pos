@@ -2,23 +2,23 @@
 'use strict';
 const VERSION='10.5.4-beta.54';
 const FILES=[
- ['offline-v2',`beta36-offline-v2.js?v=${VERSION}`],
- ['permissions-v2',`permissions-v2-ui.js?v=${VERSION}`],
- ['shared-business-core-v1',`shared-business-core-v1.js?v=${VERSION}`],
- ['beta54-shared-core-ui',`beta54-shared-core-ui.js?v=${VERSION}`],
- ['printing-v2',`printing-v2.js?v=${VERSION}`],
- ['landed-cost-v1',`landed-cost-posting-v1.js?v=${VERSION}`],
- ['orders-v2',`commerce-orders-v2-ui.js?v=${VERSION}`],
- ['reports-v2',`reports-v2-ui.js?v=${VERSION}`],
- ['finance-b2b',`finance-b2b-ui.js?v=${VERSION}`],
- ['service-v1',`service-v1-ui.js?v=${VERSION}`],
- ['warehouse-v1',`warehouse-v1-ui.js?v=${VERSION}`],
- ['membership-v1',`membership-v1-ui.js?v=${VERSION}`],
- ['logistics-v1',`logistics-v1-ui.js?v=${VERSION}`],
- ['beta47-performance-sync-hotfix',`beta47-performance-sync-hotfix.js?v=${VERSION}`],
- ['beta49-takeover-activation-safety',`beta49-takeover-activation-safety.js?v=${VERSION}`],
- ['beta51-final-offline-acceptance-fix',`beta51-final-offline-acceptance-fix.js?v=${VERSION}`],
- ['owner-acceptance-lazy-v47',`owner-acceptance-lazy-loader-v47.js?v=${VERSION}`]
+ ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.54'],
+ ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.54'],
+ ['shared-business-core-v1','shared-business-core-v1.js?v=10.5.4-beta.54'],
+ ['beta54-shared-core-ui','beta54-shared-core-ui.js?v=10.5.4-beta.54'],
+ ['printing-v2','printing-v2.js?v=10.5.4-beta.54'],
+ ['landed-cost-v1','landed-cost-posting-v1.js?v=10.5.4-beta.54'],
+ ['orders-v2','commerce-orders-v2-ui.js?v=10.5.4-beta.54'],
+ ['reports-v2','reports-v2-ui.js?v=10.5.4-beta.54'],
+ ['finance-b2b','finance-b2b-ui.js?v=10.5.4-beta.54'],
+ ['service-v1','service-v1-ui.js?v=10.5.4-beta.54'],
+ ['warehouse-v1','warehouse-v1-ui.js?v=10.5.4-beta.54'],
+ ['membership-v1','membership-v1-ui.js?v=10.5.4-beta.54'],
+ ['logistics-v1','logistics-v1-ui.js?v=10.5.4-beta.54'],
+ ['beta47-performance-sync-hotfix','beta47-performance-sync-hotfix.js?v=10.5.4-beta.54'],
+ ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.54'],
+ ['beta51-final-offline-acceptance-fix','beta51-final-offline-acceptance-fix.js?v=10.5.4-beta.54'],
+ ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.54']
 ];
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta54 failed to load ${src}`));document.head.appendChild(s)})}
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}
