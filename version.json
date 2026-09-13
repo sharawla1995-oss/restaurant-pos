@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.53",
+  "version": "10.5.4-beta.54",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta53 SH-0007 Acceptance Coverage Stage 2: live Retail products/variants contract plus sandbox-safe PO → approval → GRN → supplier-return roundtrip, replenishment read-model validation, transfer atomic guard and stock-count rollback guard. Preserves accepted Beta52/Beta51 Offline V2 runtime semantics, canonical identity and the two historical conflicts."
+  "notes": "Beta54 SH-0007 Shared Business Core: permission-gated customer creation plus separate HR employee records, salary setup, employee advances, deductions/bonuses/overtime, payroll and treasury movements with branch scope and audit logging. Preserves accepted Beta53/Beta52/Beta51 Offline V2 runtime semantics, canonical identity and the two historical conflicts. Production remains untouched."
 }
