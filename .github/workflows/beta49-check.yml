@@ -1,0 +1,32 @@
+name: Beta49 Takeover Safety Check
+
+on:
+  push:
+    branches:
+      - beta49-takeover-activation-safety
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Syntax check Beta49 takeover safety runtime
+        run: |
+          node --check beta49-takeover-activation-safety.js
+          node --check beta36-offline-v2.js
+          node --check beta45-offline-v2-takeover-manager.js
+          node --check owner-acceptance-ui-v47.js
+          node --check beta36-integration-loader.js
+          node --check scripts/sync-version.js
+          node --check scripts/check-beta49-takeover-safety.js
+      - name: Run source and acceptance gates
+        run: npm run check
