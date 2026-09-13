@@ -1,6 +1,11 @@
 'use strict';
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const pkg=JSON.parse(read('package.json'));
+const version=String(pkg.version||'');
+const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+assert(m&&Number(m[1])>=54,`Beta54+ package version required; got ${version}`);
+const versionQuery=`?v=${version}`;
 const cleanup=read('supabase-beta54-acceptance-shared-core-extra-cleanup.sql');
 const acceptance=read('owner-acceptance-shared-core-extra-v54.js');
 const lazy=read('owner-acceptance-lazy-loader-v47.js');
@@ -45,9 +50,9 @@ for(const token of [
 ])assert(acceptance.includes(token),`Beta54 shared-core runtime coverage invariant missing: ${token}`);
 assert(!acceptance.includes("features:['core.users']"),'Shared Core extra acceptance must not fake capability coverage');
 
-assert(lazy.includes("['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js?v=10.5.4-beta.54']"),'Extended shared-core acceptance must be lazy-loaded');
+assert(lazy.includes(`['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js${versionQuery}']`),'Extended shared-core acceptance must be lazy-loaded');
 assert(lazy.indexOf('owner-acceptance-shared-core-v54.js')<lazy.indexOf('owner-acceptance-shared-core-extra-v54.js')&&lazy.indexOf('owner-acceptance-shared-core-extra-v54.js')<lazy.indexOf('owner-acceptance-purchasing-attachments-v54.js'),'Extended shared-core acceptance load order is unsafe');
 assert(sync.includes("'owner-acceptance-shared-core-extra-v54.js'"),'Version sync must own extended shared-core acceptance');
 assert(syntax.includes("'owner-acceptance-shared-core-extra-v54.js'"),'Runtime syntax gate must cover extended shared-core acceptance');
 
-console.log('Beta54 Shared Core Runtime Coverage gate PASS — customer create/duplicate/audit/cleanup + manual treasury idempotency/audit/cleanup + permission-gated UI visibility');
+console.log(`Beta54 Shared Core Runtime Coverage regression gate PASS on ${version} — customer create/duplicate/audit/cleanup + manual treasury idempotency/audit/cleanup + permission-gated UI visibility`);
