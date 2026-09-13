@@ -45,52 +45,26 @@ jobs:
           "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
           "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
 
-      - name: Synchronize versioned source
-        id: sync
-        shell: pwsh
-        run: |
-          node scripts/sync-version.js
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          $changes = git status --porcelain
-          if ($changes) {
-            git add -A
-            git commit -m "Beta51: synchronize versioned runtime source"
-            git push origin HEAD:beta51-final-offline-acceptance-fix
-            "changed=true" >> $env:GITHUB_OUTPUT
-          } else {
-            "changed=false" >> $env:GITHUB_OUTPUT
-          }
+      - name: Synchronize runtime version in build workspace
+        run: node scripts/sync-version.js
 
       - name: Install dependencies
-        if: steps.sync.outputs.changed != 'true'
         run: npm install --ignore-scripts=false --no-audit --no-fund
 
       - name: Verify Beta51 source and acceptance gates
-        if: steps.sync.outputs.changed != 'true'
         run: npm run check
 
-      - name: Verify source stayed synchronized
-        if: steps.sync.outputs.changed != 'true'
-        shell: pwsh
-        run: |
-          $changes = git status --porcelain
-          if ($changes) { git status --short; throw "Beta51 source changed during checks" }
-
       - name: Stamp update repository
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: |
           $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
           $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
 
       - name: Build Windows x64
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: npm run dist -- --win --x64 --publish never
 
       - name: Save x64 installer
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: |
           $version = "${{ steps.ver.outputs.version }}"
@@ -100,12 +74,10 @@ jobs:
           Remove-Item dist -Recurse -Force
 
       - name: Build Windows ia32
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: npm run dist -- --win --ia32 --publish never
 
       - name: Save ia32 installer
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         run: |
           $version = "${{ steps.ver.outputs.version }}"
@@ -114,7 +86,6 @@ jobs:
           Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
 
       - name: Compute installer hashes
-        if: steps.sync.outputs.changed != 'true'
         id: hash
         shell: pwsh
         run: |
@@ -128,7 +99,6 @@ jobs:
           "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta51-sha256.txt -Encoding ascii
 
       - name: Create or update Beta51 prerelease
-        if: steps.sync.outputs.changed != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
