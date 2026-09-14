@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.55",
+  "version": "10.5.4-beta.55.1",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta55 SH-0007 runtime candidate: Restaurant Closure with Shared Central Warehouse V2, central branch-shortage reporting, Min/Target smart replenishment, exact/availability/hidden source-stock visibility, approval reservations, internal replenishment plus product shortage-to-purchase-request integration, purchasing UX and grouped HR permissions, and a dedicated Beta55 Full Acceptance pack. Accepted Offline Engine V2 behavior and historical conflicts remain unchanged. Production SH-0005/SH-0006 remains untouched on 10.5.3."
+  "notes": "Beta55.1 SH-0007-only sandbox candidate for the signed Runtime Access Snapshot consumer. Adds verified Ed25519/hash checking, anti-rollback high-water mark, atomic Last Known Safe Snapshot cache, fail-closed feature decisions, and renderer IPC refresh hooks. Production SH-0005/SH-0006 and legacy 10.5.3 runtime contracts remain untouched."
 }
