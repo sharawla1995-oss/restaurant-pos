@@ -12,6 +12,7 @@ const SNAPSHOT_PATH='/functions/v1/runtime-access-snapshot-v1';
 const CLOUD_PUBLISHABLE_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const BETA_SUPPORT='SH-0007';
 const BETA_BUSINESS_ID='91826502-590e-4afa-8826-2c0f4b99c490';
+const OFFLINE_ELIGIBLE_CODES=new Set(['SNAPSHOT_TIMEOUT','ETIMEDOUT','ECONNRESET','ECONNREFUSED','ENOTFOUND','EAI_AGAIN','EHOSTUNREACH','ENETUNREACH','ENETDOWN']);
 let installed=false;
 
 function licensePath(){return path.join(app.getPath('userData'),'data','sharawla-license-state.json')}
@@ -29,6 +30,11 @@ function sandbox(){
 }
 function store(){return consumer.createRuntimeSnapshotStore(path.join(app.getPath('userData'),'runtime-snapshot-v1'))}
 function expectedFrom(gate){return {device_id:text(gate.license.device_id),business_id:text(gate.license.business_id),device_fingerprint:text(gate.license.device_fingerprint),runtime_environment:'beta'}}
+function offlineEligible(error){
+  const code=text(error?.code).toUpperCase();
+  const status=Number(error?.status||0);
+  return OFFLINE_ELIGIBLE_CODES.has(code)||status>=500;
+}
 
 function requestSnapshot(gate,timeoutMs=12000){
   return new Promise((resolve,reject)=>{
@@ -57,17 +63,25 @@ async function refresh(options={}){
   const gate=sandbox();
   if(!gate.ok){const e=new Error(`Runtime snapshot sandbox lock failed: ${gate.reasons.join(',')}`);e.code='RUNTIME_SNAPSHOT_SANDBOX_LOCK';throw e}
   const s=store(),expected=expectedFrom(gate);
+  let snap;
   try{
-    const snap=await requestSnapshot(gate,options.timeout_ms);
-    const accepted=s.acceptOnline(snap,expected);
-    return {ok:true,version:VERSION,mode:'online',sequence:accepted.sequence,snapshot_id:text(snap.snapshot_id),expires_at:snap.expires_at,baseline_version:snap.baseline_version,policy_version:snap.policy_version,runtime_environment:snap.runtime_environment};
+    snap=await requestSnapshot(gate,options.timeout_ms);
   }catch(error){
+    if(!offlineEligible(error)){
+      return {ok:false,version:VERSION,mode:'fail-closed',reason_code:String(error?.code||'SNAPSHOT_ONLINE_REJECTED'),error:String(error?.message||error)};
+    }
     try{
       const cached=s.loadOffline(expected);
       return {ok:true,version:VERSION,mode:'offline-cache',sequence:cached.sequence,snapshot_id:text(cached.snapshot.snapshot_id),expires_at:cached.snapshot.expires_at,baseline_version:cached.snapshot.baseline_version,policy_version:cached.snapshot.policy_version,runtime_environment:cached.snapshot.runtime_environment,network_error:String(error?.code||error?.message||error)};
     }catch(cacheError){
       return {ok:false,version:VERSION,mode:'fail-closed',reason_code:String(cacheError?.code||error?.code||'SNAPSHOT_UNAVAILABLE'),error:String(cacheError?.message||error?.message||cacheError||error),network_error:String(error?.code||error?.message||error)};
     }
+  }
+  try{
+    const accepted=s.acceptOnline(snap,expected);
+    return {ok:true,version:VERSION,mode:'online',sequence:accepted.sequence,snapshot_id:text(snap.snapshot_id),expires_at:snap.expires_at,baseline_version:snap.baseline_version,policy_version:snap.policy_version,runtime_environment:snap.runtime_environment};
+  }catch(error){
+    return {ok:false,version:VERSION,mode:'fail-closed',reason_code:String(error?.code||'SNAPSHOT_VERIFICATION_FAILED'),error:String(error?.message||error)};
   }
 }
 function state(){
@@ -87,5 +101,5 @@ function installRuntimeSnapshotMain(){
   return module.exports.api;
 }
 
-module.exports.api=Object.freeze({version:VERSION,installRuntimeSnapshotMain,sandbox,refresh,state,feature,requestSnapshot});
+module.exports.api=Object.freeze({version:VERSION,installRuntimeSnapshotMain,sandbox,refresh,state,feature,requestSnapshot,offlineEligible});
 module.exports.installRuntimeSnapshotMain=installRuntimeSnapshotMain;
