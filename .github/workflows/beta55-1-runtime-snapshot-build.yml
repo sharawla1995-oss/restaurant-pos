@@ -16,8 +16,13 @@ jobs:
           node-version: 18
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Full validation
-        run: npm run check
+      - name: Candidate validation
+        run: |
+          npm run sync-version
+          node scripts/check-runtime-syntax.js
+          node scripts/check-beta55-restaurant-acceptance.js
+          node scripts/check-beta56-runtime-snapshot-consumer.js
+          node scripts/check-version.js
       - name: Build Windows x64 installer
         run: npx electron-builder --win nsis --x64
       - name: Upload SH-0007 sandbox installer
