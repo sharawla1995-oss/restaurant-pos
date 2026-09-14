@@ -8,7 +8,7 @@ const SNAPSHOT_VERSION=1;
 const CANONICALIZATION_VERSION=1;
 const SIGNATURE_SCHEME='ed25519-v1';
 const TRUSTED_PUBLIC_KEYS=Object.freeze({
-  'sharawla-snapshot-2026-01':'MCowBQYDK2VwAyEAkc/POo2GOBlTMZh2vwZ/MQOyk3m8B2ce0IeRNfScGxU='
+  'sharawla-snapshot-2026-09-final':'MCowBQYDK2VwAyEAESbdbfUuawLv+tY5d6pioNpLV4aYVeNl9f4pJmE6vWA='
 });
 
 function fail(code,message,extra={}){
