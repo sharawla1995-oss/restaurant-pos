@@ -53,6 +53,13 @@ try{
   expectCode(()=>store.loadOffline(expected,{keyRing:signed.ring,nowMs:now}),'SNAPSHOT_ROLLBACK');
 }finally{fs.rmSync(temp,{recursive:true,force:true})}
 
+const mainWrapper=fs.readFileSync(path.join(__dirname,'..','main-beta44.js'),'utf8');
+const preload=fs.readFileSync(path.join(__dirname,'..','preload.js'),'utf8');
+assert.ok(mainWrapper.includes("require('./beta56-runtime-snapshot-main.js').installRuntimeSnapshotMain()"),'main wrapper must install Beta56 runtime snapshot main consumer');
+for(const token of ["runtimeSnapshot:{","runtime-snapshot:refresh","runtime-snapshot:state","runtime-snapshot:feature","st?.sandbox?.ok===true"]){assert.ok(preload.includes(token),`preload integration missing: ${token}`)}
+assert.ok(preload.includes("window.addEventListener('online',refreshRuntimeSnapshot)"),'online refresh hook missing');
+assert.ok(preload.includes("loginForm.addEventListener('submit'"),'login refresh hook missing');
+
 assert.strictEqual(c.TRUSTED_PUBLIC_KEYS['sharawla-snapshot-2026-01'],'MCowBQYDK2VwAyEAkc/POo2GOBlTMZh2vwZ/MQOyk3m8B2ce0IeRNfScGxU=');
 console.log('Beta56 Runtime Snapshot Consumer Static Acceptance: PASS');
 console.log('signature/hash............... PASS');
@@ -63,3 +70,6 @@ console.log('expiry....................... PASS');
 console.log('identity binding............. PASS');
 console.log('atomic safe cache............ PASS');
 console.log('offline last-known-safe...... PASS');
+console.log('main IPC integration......... PASS');
+console.log('preload renderer bridge...... PASS');
+console.log('login/online refresh hooks... PASS');
