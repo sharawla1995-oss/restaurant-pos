@@ -45,12 +45,19 @@ try{
   const store=c.createRuntimeSnapshotStore(temp);
   const accepted=store.acceptOnline(signed.snapshot,expected,{keyRing:signed.ring,nowMs:now});
   assert.strictEqual(accepted.sequence,6);assert.strictEqual(store.highWater(),6);
-  assert.ok(fs.existsSync(store.snapshotPath));assert.ok(fs.existsSync(store.sequencePath));
+  assert.ok(fs.existsSync(store.statePath));
+  const persisted=JSON.parse(fs.readFileSync(store.statePath,'utf8'));
+  assert.strictEqual(persisted.schema,2);assert.strictEqual(persisted.highest_trusted_sequence,6);assert.strictEqual(persisted.snapshot.snapshot_sequence,6);
   const offline=store.loadOffline(expected,{keyRing:signed.ring,nowMs:now});
   assert.strictEqual(offline.sequence,6);assert.strictEqual(offline.source,'offline-cache');
   expectCode(()=>store.acceptOnline(signed.snapshot,expected,{keyRing:signed.ring,nowMs:now}),'SNAPSHOT_ROLLBACK');
-  const seq=JSON.parse(fs.readFileSync(store.sequencePath,'utf8'));seq.highest_trusted_sequence=7;fs.writeFileSync(store.sequencePath,JSON.stringify(seq));
+
+  const state=JSON.parse(fs.readFileSync(store.statePath,'utf8'));state.highest_trusted_sequence=7;fs.writeFileSync(store.statePath,JSON.stringify(state));
   expectCode(()=>store.loadOffline(expected,{keyRing:signed.ring,nowMs:now}),'SNAPSHOT_ROLLBACK');
+
+  state.highest_trusted_sequence=6;fs.writeFileSync(store.statePath+'.bak',JSON.stringify(state));fs.unlinkSync(store.statePath);
+  const recovered=store.loadOffline(expected,{keyRing:signed.ring,nowMs:now});
+  assert.strictEqual(recovered.sequence,6);assert.ok(fs.existsSync(store.statePath));
 }finally{fs.rmSync(temp,{recursive:true,force:true})}
 
 const mainWrapper=fs.readFileSync(path.join(__dirname,'..','main-beta44.js'),'utf8');
@@ -65,8 +72,9 @@ for(const token of ["function offlineEligible(error)","OFFLINE_ELIGIBLE_CODES","
   assert.ok(mainRuntime.includes(token),`main runtime fail-closed guard missing: ${token}`);
 }
 assert.ok(!/acceptOnline\(snap,expected\)[\s\S]{0,500}loadOffline\(expected\)/.test(mainRuntime),'verification failure must never fall back to offline cache');
+assert.ok(fs.readFileSync(path.join(__dirname,'..','beta56-runtime-snapshot-consumer.js'),'utf8').includes('atomicReplaceJson(statePath,next)'),'single atomic state journal must be authoritative');
 
-assert.strictEqual(c.TRUSTED_PUBLIC_KEYS['sharawla-snapshot-2026-01'],'MCowBQYDK2VwAyEAkc/POo2GOBlTMZh2vwZ/MQOyk3m8B2ce0IeRNfScGxU=');
+assert.strictEqual(c.TRUSTED_PUBLIC_KEYS['sharawla-snapshot-2026-09-final'],'MCowBQYDK2VwAyEAESbdbfUuawLv+tY5d6pioNpLV4aYVeNl9f4pJmE6vWA=');
 console.log('Beta56 Runtime Snapshot Consumer Static Acceptance: PASS');
 console.log('signature/hash............... PASS');
 console.log('tamper....................... PASS');
@@ -74,7 +82,8 @@ console.log('unknown signing key.......... PASS');
 console.log('anti-rollback................ PASS');
 console.log('expiry....................... PASS');
 console.log('identity binding............. PASS');
-console.log('atomic safe cache............ PASS');
+console.log('atomic state journal......... PASS');
+console.log('crash recovery backup........ PASS');
 console.log('offline last-known-safe...... PASS');
 console.log('network-only fallback........ PASS');
 console.log('verifier fail-closed......... PASS');
