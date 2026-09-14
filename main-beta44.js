@@ -87,3 +87,7 @@ require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2S
 require('./beta46-acceptance-network-main.js').installAcceptanceNetworkMain();
 require('./beta46-acceptance-advanced-main.js').installAcceptanceAdvancedMain();
 require('./beta46-acceptance-recovery-main.js').installAcceptanceRecoveryMain();
+
+// Beta56 signed Runtime Access Snapshot consumer. The module itself is hard-locked
+// to SH-0007 + the experimental business and remains fail-closed everywhere else.
+require('./beta56-runtime-snapshot-main.js').installRuntimeSnapshotMain();
