@@ -104,46 +104,72 @@ function verifySnapshot(snapshot,expected={},options={}){
   return {ok:true,sequence,payloadHash:computedHash,unsigned,canonical,expiresAt:new Date(expMs).toISOString(),signingKeyId:text(snapshot.signing_key_id)};
 }
 
-function atomicWriteJson(target,value){
-  fs.mkdirSync(path.dirname(target),{recursive:true});
-  const tmp=`${target}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-  let exists=false;
-  try{
-    fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',flag:'wx'});exists=true;
-    try{const fd=fs.openSync(tmp,'r');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}
-    fs.copyFileSync(tmp,target);
-    try{const fd=fs.openSync(target,'r+');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}
-    const check=JSON.parse(fs.readFileSync(target,'utf8'));
-    if(!check||typeof check!=='object')fail('ATOMIC_WRITE_VERIFY_FAILED','Atomic JSON verification failed');
-    return check;
-  }finally{if(exists)try{fs.unlinkSync(tmp)}catch{}}
+function fsyncFile(p){try{const fd=fs.openSync(p,'r');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}}
+function fsyncDir(p){try{const fd=fs.openSync(p,'r');try{fs.fsyncSync(fd)}finally{fs.closeSync(fd)}}catch{}}
+function readJson(p){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch{return null}}
+function recoverableReadJson(target){
+  const direct=readJson(target);
+  if(direct)return direct;
+  const backup=readJson(target+'.bak');
+  if(!backup)return null;
+  try{if(!fs.existsSync(target))fs.renameSync(target+'.bak',target)}catch{}
+  return backup;
 }
 
-function readJson(p){try{return JSON.parse(fs.readFileSync(p,'utf8'))}catch{return null}}
+function atomicReplaceJson(target,value){
+  fs.mkdirSync(path.dirname(target),{recursive:true});
+  const tmp=`${target}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  const bak=target+'.bak';
+  let oldMoved=false;
+  try{
+    fs.writeFileSync(tmp,JSON.stringify(value,null,2)+'\n',{encoding:'utf8',flag:'wx'});
+    fsyncFile(tmp);
+    try{if(fs.existsSync(bak))fs.unlinkSync(bak)}catch{}
+    if(fs.existsSync(target)){fs.renameSync(target,bak);oldMoved=true}
+    fs.renameSync(tmp,target);
+    fsyncFile(target);fsyncDir(path.dirname(target));
+    const check=readJson(target);
+    if(!check||typeof check!=='object')fail('ATOMIC_WRITE_VERIFY_FAILED','Atomic JSON verification failed');
+    try{if(fs.existsSync(bak))fs.unlinkSync(bak)}catch{}
+    return check;
+  }catch(e){
+    try{if(!fs.existsSync(target)&&oldMoved&&fs.existsSync(bak))fs.renameSync(bak,target)}catch{}
+    throw e;
+  }finally{
+    try{if(fs.existsSync(tmp))fs.unlinkSync(tmp)}catch{}
+  }
+}
 
 function createRuntimeSnapshotStore(rootDir){
   const root=path.resolve(String(rootDir||'.'));
+  const statePath=path.join(root,'runtime-access-snapshot.state.json');
   const snapshotPath=path.join(root,'runtime-access-snapshot.safe.json');
   const sequencePath=path.join(root,'runtime-access-snapshot.high-water.json');
-  function highWater(){const s=readJson(sequencePath);const n=Number(s?.highest_trusted_sequence||0);return Number.isSafeInteger(n)&&n>=0?n:0}
+  function state(){return recoverableReadJson(statePath)}
+  function legacyHighWater(){const s=readJson(sequencePath);const n=Number(s?.highest_trusted_sequence||0);return Number.isSafeInteger(n)&&n>=0?n:0}
+  function highWater(){const s=state();const n=Number(s?.highest_trusted_sequence);return Number.isSafeInteger(n)&&n>=0?n:legacyHighWater()}
   function acceptOnline(snapshot,expected,options={}){
     const current=highWater();
     const verified=verifySnapshot(snapshot,expected,{...options,highWaterMark:current,allowEqualSequence:false});
-    const envelope={schema:1,accepted_at:new Date().toISOString(),snapshot};
-    atomicWriteJson(snapshotPath,envelope);
-    atomicWriteJson(sequencePath,{schema:1,highest_trusted_sequence:verified.sequence,updated_at:new Date().toISOString(),snapshot_id:text(snapshot.snapshot_id),business_id:text(snapshot.business_id),device_id:text(snapshot.device_id)});
+    const next={schema:2,accepted_at:new Date().toISOString(),highest_trusted_sequence:verified.sequence,snapshot_id:text(snapshot.snapshot_id),business_id:text(snapshot.business_id),device_id:text(snapshot.device_id),snapshot};
+    atomicReplaceJson(statePath,next);
     return {ok:true,source:'online',sequence:verified.sequence,snapshot};
   }
   function loadOffline(expected,options={}){
-    const envelope=readJson(snapshotPath);
-    if(!envelope?.snapshot)fail('SAFE_SNAPSHOT_MISSING','No last-known-safe snapshot');
-    const current=highWater();
-    const verified=verifySnapshot(envelope.snapshot,expected,{...options,highWaterMark:current,allowEqualSequence:true});
+    const s=state();
+    let snapshot=s?.snapshot||null;
+    let current=Number(s?.highest_trusted_sequence);
+    if(!snapshot){
+      const legacy=readJson(snapshotPath);snapshot=legacy?.snapshot||null;current=legacyHighWater();
+    }
+    if(!snapshot)fail('SAFE_SNAPSHOT_MISSING','No last-known-safe snapshot');
+    if(!Number.isSafeInteger(current)||current<=0)fail('SAFE_SNAPSHOT_HIGH_WATER_MISSING','No trusted high-water mark');
+    const verified=verifySnapshot(snapshot,expected,{...options,highWaterMark:current,allowEqualSequence:true});
     if(verified.sequence!==current)fail('SAFE_SNAPSHOT_SEQUENCE_MISMATCH','Cached snapshot does not match local high-water mark');
-    return {ok:true,source:'offline-cache',sequence:verified.sequence,snapshot:envelope.snapshot};
+    return {ok:true,source:'offline-cache',sequence:verified.sequence,snapshot};
   }
-  function clear(){for(const p of [snapshotPath,sequencePath])try{if(fs.existsSync(p))fs.unlinkSync(p)}catch{}return true}
-  return Object.freeze({root,snapshotPath,sequencePath,highWater,acceptOnline,loadOffline,clear});
+  function clear(){for(const p of [statePath,statePath+'.bak',snapshotPath,sequencePath])try{if(fs.existsSync(p))fs.unlinkSync(p)}catch{}return true}
+  return Object.freeze({root,statePath,snapshotPath,sequencePath,highWater,acceptOnline,loadOffline,clear});
 }
 
 module.exports=Object.freeze({
