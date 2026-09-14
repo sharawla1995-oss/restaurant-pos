@@ -1,0 +1,20 @@
+name: Beta56 Runtime Snapshot Consumer Check
+
+on:
+  push:
+    branches:
+      - beta56-runtime-snapshot-consumer
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Syntax
+        run: node --check beta56-runtime-snapshot-consumer.js && node --check scripts/check-beta56-runtime-snapshot-consumer.js
+      - name: Static acceptance
+        run: node scripts/check-beta56-runtime-snapshot-consumer.js
