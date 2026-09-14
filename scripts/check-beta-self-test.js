@@ -13,6 +13,7 @@ new Function(src);
 for(const token of ['Safe Read-Only Mode','safe_mode:true','read_only:true','Runtime Engine','Runtime Config','Business Connection','Multi-Industry Profile Isolation','Offline V2 API Surface','Offline V2 Native Store','Outbox Integrity','Takeover / Transport State','Inbox Exactly-Once','Inventory Ledger','Safety Guard','Startup Recovery','Diagnostics / Support Bundle','Update Safety V2','Capability / Food Runtime Readiness','Notification Sound','Printer Output']){
   if(!src.includes(token))throw new Error(`Self-Test invariant missing: ${token}`);
 }
+if(!src.includes("['received','acknowledged','applied','ignored_duplicate','conflict','error']"))throw new Error('Self-Test must accept acknowledged Inbox rows preserved by the active Offline V2 transport.');
 if(!src.includes(`const VERSION='${version}'`))throw new Error('Beta Self-Test version marker is not synchronized to current release version.');
 if(!index.includes(`beta-self-test.js?v=${version}`))throw new Error('Beta Self-Test is not wired into the current shell.');
 if(!sw.includes(`./beta-self-test.js?v=${version}`))throw new Error('Beta Self-Test is not cached by the current service worker.');
