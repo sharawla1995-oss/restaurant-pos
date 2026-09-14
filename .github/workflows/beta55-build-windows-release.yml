@@ -9,6 +9,7 @@ on:
       - package.json
       - version.json
       - beta36-integration-loader.js
+      - beta-self-test.js
       - restaurant-engine.js
       - beta55-restaurant-closure-ui.js
       - beta55-navigation-parity.js
@@ -39,6 +40,7 @@ on:
       - supabase-beta55-delivery-settlement-acceptance.sql
       - supabase-beta55-delivery-settlement-anon-hardening.sql
       - advanced-purchasing-v1.js
+      - scripts/check-beta-self-test.js
       - scripts/check-beta54-shared-core.js
       - scripts/check-beta55-shared-workflows.js
       - scripts/check-beta55-restaurant-closure.js
