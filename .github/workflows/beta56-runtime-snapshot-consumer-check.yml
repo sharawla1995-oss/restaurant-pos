@@ -15,6 +15,6 @@ jobs:
         with:
           node-version: 18
       - name: Syntax
-        run: node --check beta56-runtime-snapshot-consumer.js && node --check scripts/check-beta56-runtime-snapshot-consumer.js
+        run: node --check beta56-runtime-snapshot-consumer.js && node --check beta56-runtime-snapshot-main.js && node --check main-beta44.js && node --check scripts/check-beta56-runtime-snapshot-consumer.js
       - name: Static acceptance
         run: node scripts/check-beta56-runtime-snapshot-consumer.js
