@@ -35,11 +35,11 @@ jobs:
           node scripts/check-beta56-runtime-snapshot-consumer.js
           node scripts/check-version.js
       - name: Build Windows x64 installer without redundant native rebuild
-        run: npx electron-builder --win nsis --x64 --config.npmRebuild=false
+        run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
           name: sharawla-pos-10.5.4-beta.55.1-sh0007-x64
-          path: dist/*x64*.exe
+          path: dist/Sharawla-POS-Setup-10.5.4-beta.55.1.exe
           if-no-files-found: error
           retention-days: 7
