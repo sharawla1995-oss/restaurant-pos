@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
   takeoverActivate:x=>ipcRenderer.invoke('offline-v2:takeover-activate',x),
   takeoverDeactivate:x=>ipcRenderer.invoke('offline-v2:takeover-deactivate',x)
  },
+ runtimeSnapshot:{
+  refresh:x=>ipcRenderer.invoke('runtime-snapshot:refresh',x||{}),
+  state:()=>ipcRenderer.invoke('runtime-snapshot:state'),
+  feature:code=>ipcRenderer.invoke('runtime-snapshot:feature',code)
+ },
  backup:{create:r=>ipcRenderer.invoke('backup:create',r),saveJson:(j,r)=>ipcRenderer.invoke('backup:saveJson',j,r),list:()=>ipcRenderer.invoke('backup:list')},
  print:{list:()=>ipcRenderer.invoke('print:list'),current:o=>ipcRenderer.invoke('print:current',o),html:(h,o)=>ipcRenderer.invoke('print:html',h,o)},
  app:{info:()=>ipcRenderer.invoke('app:info')},
@@ -68,6 +73,20 @@ contextBridge.exposeInMainWorld('topBurgerDesktop',{
 
 window.addEventListener('DOMContentLoaded',()=>{
  ipcRenderer.invoke('app:info').then(info=>{const el=document.getElementById('appVersionBadge')||document.querySelector('.version-badge');if(el){el.textContent=`V${info.version} • ${String(info.channel||'stable').toUpperCase()}`;el.title=`Sharawla POS ${info.version} — ${info.channel}`}}).catch(()=>{});
+
+ // Beta56: refresh the signed runtime snapshot only when this installation is
+ // the SH-0007 sandbox. Production devices stay completely outside this path.
+ const refreshRuntimeSnapshot=async()=>{
+  try{
+   const st=await ipcRenderer.invoke('runtime-snapshot:state');
+   if(st?.sandbox?.ok===true)await ipcRenderer.invoke('runtime-snapshot:refresh',{});
+  }catch(e){console.warn('runtime snapshot refresh',e?.message||e)}
+ };
+ refreshRuntimeSnapshot();
+ window.addEventListener('online',refreshRuntimeSnapshot);
+ const loginForm=document.getElementById('loginForm');
+ if(loginForm)loginForm.addEventListener('submit',()=>{setTimeout(refreshRuntimeSnapshot,0)},true);
+
  // Beta45: a visible pending badge must always own its physical pointer hit.
  // This is injected from preload so stale stylesheet cache-busters cannot leave
  // the badge visually present but pointer-events:none behind form labels.
