@@ -1,7 +1,7 @@
 # Sharawla Platform — Master Status
 
 > Official continuation checkpoint for the Sharawla project.  
-> Last updated: 2026-09-15  
+> Last updated: 2026-09-16  
 > Rule: before continuing development in a new chat/session, verify this file against GitHub and Sharawla Cloud. Do not rely on chat memory alone.
 
 ## Production Safety Boundary
@@ -134,9 +134,7 @@ POS isolated integration branch:
 - Repository: `sharawla1995-oss/restaurant-pos`
 - Branch: `beta56-runtime-snapshot-consumer`
 - IMPORTANT: branch name is technical only. Official Roadmap Point 6 Beta56 Retail has NOT started.
-- Test build version: `10.5.4-beta.55.1`
-- Current verified branch HEAD at this checkpoint: `1bdfce8cc888013b1d708693bea96ecf697a20dd`
-- Commit: `test(runtime-snapshot): cover atomic state journal and final signing key`
+- Historical test build version at this checkpoint: `10.5.4-beta.55.1`
 
 Static Runtime Snapshot Acceptance:
 - GitHub Actions run: `34911093125`
@@ -150,7 +148,6 @@ Final Beta55.1 sandbox build:
 - Digest: `sha256:edb94c835a2039370c56ce3dfaec792af605a9f066b5adf9a919c35e31c3d8af`
 - This build is an Actions artifact, NOT a GitHub Release asset.
 - It must be installed on SH-0007 only.
-- Historical/obsolete runtime-snapshot build must NOT be installed.
 
 Runtime consumer protections implemented in isolated branch include:
 - deterministic canonicalization
@@ -166,20 +163,71 @@ Runtime consumer protections implemented in isolated branch include:
 - automatic high-water reset forbidden
 - network-only fallback policy
 
+### 3B — Offline Authentication Runtime Incident / 55.3 Corrective Checkpoint
+
+STATUS: OPEN / BLOCKED pending actual SH-0007 Acceptance.
+
+Actual runtime evidence after the original 55.1 snapshot integration:
+- `10.5.4-beta.55.1` installed on SH-0007.
+- Online login for the sandbox user succeeded.
+- Offline login with the same credentials failed, including online login → logout → disconnect internet → login.
+- The 55.1 monkey-patch direction was rejected and must not be retried.
+
+55.2 corrective attempt:
+- `10.5.4-beta.55.2` was built and installed on SH-0007.
+- Actual runtime result: same Offline Login failure.
+- Do not repeat the same 55.2 runtime test blindly.
+
+Authoritative 55.3 design decision:
+- `app.js` is the sole Authentication owner.
+- Runtime wrappers must not own Offline Authentication.
+- Official online flow: `signIn PASS → bootstrap complete/persisted → authEnroll() → authState() read-back → Offline READY`.
+- Enrollment/read-back failure must not invalidate a successful online login; instead expose `Offline NOT READY` with the exact reason.
+- Official offline flow: canonical identity → Main `authVerify()` fail-closed → verified bootstrap → `loadOfflineBootstrap()`.
+- `valid_until` comes from Main/Auth State.
+- Do not change Main `authVerify`, encrypted credential storage, canonical fingerprint, runtime snapshot security, or Production to solve this issue.
+
+Local 55.3 source checkpoint (IMPORTANT: not yet pushed to GitHub):
+- Local branch: `beta56-runtime-snapshot-consumer`.
+- Local commit: `f7a0018` — `fix(beta55.3): make app.js authoritative offline auth owner`.
+- Exactly 6 files changed: `.github/workflows/beta55-1-runtime-snapshot-build.yml`, `app.js`, `beta45-offline-v2-safety-runtime.js`, `package.json`, `scripts/check-beta28-fixes.js`, `version.json`.
+- `git diff --check`: PASS.
+- Offline Auth 55.3 Official app.js Gate: PASS.
+- Online Login + Bootstrap ownership: PASS.
+- `app.js → authEnroll → persisted credential → authState READY`: PASS.
+- Enrollment failure → Online remains valid + Offline NOT READY: PASS.
+- No competing enrollment wrapper/monkey patch: PASS.
+- Beta28 Owner/User/Home regression gate on `10.5.4-beta.55.3`: PASS.
+
+Local full-check environment blocker:
+- `npm run check` started and version sync passed for `10.5.4-beta.55.3`.
+- It then stopped in `scripts/check-runtime-syntax.js` while parsing pre-existing optional chaining such as `engine?.code` in `sharawla-runtime-core.js`.
+- Local machine has Node `v13.14.0` at `C:\Program Files\nodejs\node.exe`; no NVM and no second Node installation were found.
+- Treat this as an unresolved local toolchain/environment gate, not proof of a 55.3 source regression.
+- Do NOT modify `sharawla-runtime-core.js` merely to satisfy Node 13.
+
+Current truth at this checkpoint:
+- 55.3 source fix: COMMITTED LOCALLY.
+- Local commit `f7a0018`: NOT PUSHED / therefore not expected to exist on GitHub yet.
+- Full check: BLOCKED by local Node 13 parser/toolchain issue.
+- CI after `f7a0018`: NOT RUN.
+- 55.3 Build: NOT DONE.
+- SH-0007 55.3 Runtime Acceptance: NOT DONE.
+- Production SH-0005/SH-0006: UNTOUCHED / READ-ONLY.
+- Point 3B remains OPEN. Do not declare Offline Auth fixed until actual runtime Acceptance passes.
+
 ### 3B Exact Next Step
 
-Install `10.5.4-beta.55.1` on SH-0007 ONLY and perform actual Runtime Acceptance:
-1. Online signed snapshot fetch/acceptance.
-2. Verify Cloud device snapshot sequence state.
-3. Offline cached Last Known Safe Snapshot.
-4. Restart behavior.
-5. Tamper rejection.
-6. Unknown signing key rejection.
-7. Rollback rejection.
-8. Expiry behavior.
-9. Identity/business/fingerprint mismatch rejection.
-10. Actual atomic persistence/high-water recovery behavior.
-11. Read-only regression verification that SH-0005/SH-0006 remain unchanged on 10.5.3.
+When the Windows 7 test laptop is available again:
+1. Establish a compatible/safe check runtime for the repository; do not blindly replace Node without verifying Windows 7 compatibility.
+2. Re-run the full source check and inspect `git status` afterward because `sync-version` ran before the prior check failed.
+3. Preserve/review the exact six-file 55.3 diff and local commit `f7a0018`.
+4. Push only after review, then verify the remote diff/CI.
+5. Only after gates pass, build `10.5.4-beta.55.3`.
+6. Install/test it on SH-0007 only: online login → Offline READY evidence → logout/restart → disconnect internet → same-user offline login.
+7. Then cover ordering cases (login-first/bootstrap-later and bootstrap-ready/login) and later multi-user A/B.
+8. If runtime fails, identify the exact failure point before another build; do not repeat blind tests.
+9. Keep SH-0005/SH-0006 read-only on 10.5.3.
 
 Do NOT declare 3B closed until actual SH-0007 Runtime Acceptance passes.
 
