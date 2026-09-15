@@ -200,6 +200,98 @@ Rules:
 
 3C/3D/3E/3F remain pending.
 
+## Approved Architecture Direction — Customer-Specific Features & Release Channels
+
+STATUS: APPROVED ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
+
+Purpose: allow Sharawla to deliver a capability requested by one customer without creating a permanent customer-specific POS fork and without forcing every customer to receive/test every customer-specific build immediately.
+
+### One Codebase / No Customer Forks
+
+Canonical rule:
+`One Sharawla POS codebase → different Business Entitlements / Settings / Policies`
+
+Do not create permanent binaries/codebases such as `Sharawla-CustomerA.exe` or `Sharawla-CustomerB.exe` for normal customization.
+
+A customer-specific requirement should normally become one of:
+- a canonical Feature/Capability,
+- a configurable Setting,
+- a controlled Policy,
+- or an Entitlement to an existing capability.
+
+Do not scatter hard-coded checks such as `if business_id == X` through business logic. If a truly exceptional requirement cannot be modeled safely by capability/settings/policy, it requires an explicit architecture decision before any fork is allowed.
+
+### Separate Code Version from Feature Access
+
+Sharawla must treat these as separate axes:
+
+`Release Version` = what code is installed on the device.
+
+`Release Channel` = which release stream the device/business is allowed to receive.
+
+`Business Entitlements` = which commercially/operationally allowed capabilities the Business may use.
+
+A binary may contain code for a feature while the feature remains unavailable to businesses that are not entitled to it. Installing the same Stable version must not automatically grant every included feature.
+
+### Business Entitlements
+
+Customer-specific paid/exclusive capabilities should be granted through the Package/Entitlement architecture, not through a separate customer binary.
+
+Target flow:
+`Business → Package / Add-ons / Explicit Entitlements → Feature Readiness / Dependencies → Runtime Snapshot → Effective Access`
+
+If a feature already exists in the installed binary and only entitlement/configuration changes, enabling it for another eligible customer should not require a new POS update.
+
+The formal entitlement implementation belongs to Point 3C and must extend the existing capability engine rather than create a second feature system.
+
+### Release Channels
+
+Design the updater/control plane to support controlled channels, conceptually:
+- `Stable` — normal production customers.
+- `Beta` — isolated testing such as SH-0007.
+- `Pilot` — specifically selected customer/business/device rollout before broad Stable promotion.
+- `Internal` may be added later if operationally useful; it is not required yet.
+
+Exact channel names/schema are to be finalized during implementation. Do not alter current production update behavior merely because this design is recorded.
+
+### Device / Business Update Assignment
+
+Future update policy should allow the Cloud/Admin to determine which approved release channel/version a device or Business may receive, without exposing Beta/Pilot releases to unrelated Stable customers.
+
+A customer requesting a new feature may receive a Pilot build first while other customers remain on the existing Stable version. After Acceptance, the code can be promoted to Stable while the feature itself remains entitlement-gated.
+
+### Controlled Promotion
+
+Target lifecycle for customer-requested code changes:
+`Development → Beta → Pilot (when useful) → Acceptance → Stable`
+
+Promotion of the code and commercial entitlement to the feature are separate decisions.
+
+A feature may become part of the Stable codebase while remaining enabled only for the customer(s) that purchased/received the entitlement.
+
+### Feature Flags / Settings
+
+Changes that are purely entitlement/configuration/settings and are already supported by the installed code should be deliverable through trusted Cloud configuration/runtime mechanisms without creating a new binary release.
+
+Security-sensitive settings must remain backend-enforced where appropriate. Feature hiding in UI alone is never sufficient authorization.
+
+### Update Safety Rules
+
+- A customer-specific request must not force unrelated customers onto an unaccepted build.
+- Beta/Pilot release visibility must be isolated from Stable update discovery.
+- No feature entitlement may bypass Readiness Gate, dependency checks, permissions, or backend enforcement.
+- Customer-specific capability code must pass its own Acceptance before production use.
+- Stable promotion requires the appropriate regression/Acceptance evidence.
+- SH-0005 and SH-0006 remain on the existing protected production path until a separately approved production promotion.
+- Existing 10.5.3 update/runtime compatibility must not be broken while the new channel model is developed.
+
+### Roadmap placement
+
+This direction does NOT create an 18th roadmap point.
+- Business Entitlements belong under Point 3C — Package / Entitlement Engine.
+- Admin commercial controls belong with the Point 3 Admin V4 commercial work.
+- Pilot/controlled update-channel implementation is a required pre-RC capability and must be closed before RC/production promotion, without changing the official 17-point roadmap unless explicitly approved.
+
 ## Approved Design Direction — Multi-Tenant Website Engine
 
 STATUS: APPROVED DESIGN DIRECTION / DEFERRED IMPLEMENTATION.
