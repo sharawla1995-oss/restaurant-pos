@@ -15,6 +15,8 @@ jobs:
         with:
           node-version: 18
       - name: Syntax
-        run: node --check beta56-runtime-snapshot-consumer.js && node --check beta56-runtime-snapshot-main.js && node --check main-beta44.js && node --check preload.js && node --check scripts/check-beta56-runtime-snapshot-consumer.js
-      - name: Static acceptance
+        run: node --check beta56-runtime-snapshot-consumer.js && node --check beta56-runtime-snapshot-main.js && node --check main-beta44.js && node --check preload.js && node --check beta45-offline-v2-safety-runtime.js && node --check scripts/check-beta56-runtime-snapshot-consumer.js && node --check scripts/check-offline-auth-authoritative-order.js
+      - name: Runtime Snapshot Static acceptance
         run: node scripts/check-beta56-runtime-snapshot-consumer.js
+      - name: Offline Auth Authoritative Order acceptance
+        run: node scripts/check-offline-auth-authoritative-order.js
