@@ -3,7 +3,7 @@ const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
-if(!/^10\.5\.4-beta\.(?:2[89]|[3-9][0-9])$/.test(pkg.version))throw new Error(`Expected Beta28+ compatible version, got ${pkg.version}`);
+const versionMatch=pkg.version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);if(versionMatch===null||Number(versionMatch[1])<28)throw new Error(`Expected Beta28+ compatible version, got ${pkg.version}`);
 const index=read('index.html'),fix=read('beta28-runtime-fixes.js'),sync=read('scripts/sync-version.js'),sw=read('sw.js'),syntax=read('scripts/check-runtime-syntax.js'),app=read('app.js');
 for(const token of ['اسم المستخدم<input id="email" type="text"','beta28-runtime-fixes.js?v='])if(!index.includes(token))throw new Error(`Beta28 index invariant missing: ${token}`);
 for(const token of [

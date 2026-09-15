@@ -437,28 +437,18 @@ async function refreshSessionIfNeeded(force=false){
 async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc(job.engine==='retail'?'create_retail_pos_order_atomic':'create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc(job.engine==='retail'?'create_retail_order_return_idempotent':'create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
 window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
-function bytesHex(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
-async function offlinePasswordHash(password,saltHex){
-  const salt=new Uint8Array((saltHex.match(/.{1,2}/g)||[]).map(x=>parseInt(x,16)));
-  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
-  return bytesHex(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},key,256));
-}
-async function rememberOfflineLogin(email,password){
-  const salt=crypto.getRandomValues(new Uint8Array(16)),saltHex=bytesHex(salt);
-  const hash=await offlinePasswordHash(password,saltHex);
-  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),salt:saltHex,hash}));
-}
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
-  if(navigator.onLine){
-    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
-    session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
-    await rememberOfflineLogin(email,password);return d;
+  if(!navigator.onLine){
+    const e=new Error('Offline login requires Offline V2 verification');
+    e.code='OFFLINE_V2_AUTH_VERIFY_REQUIRED';
+    throw e;
   }
-  const v=JSON.parse(localStorage.getItem('offlineLoginVerifier')||'null');
-  if(!v||v.email!==email||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
-  if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
-  session=resumeSession;return session;
+  const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+  session=d;
+  resumeSession=d;
+  localStorage.setItem('sbResumeSession',JSON.stringify(d));
+  return d;
 }
 async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
@@ -697,7 +687,91 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
 });
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
+// SHARAWLA_OFFLINE_AUTH_55_3_OFFICIAL — authoritative Offline Auth ownership lives in app.js.
+let sharawlaOfflineAuthReadiness={ready:false,status:'NOT_READY',reason:'NOT_ENROLLED'};
+function setSharawlaOfflineAuthReadiness(ready,reason=null,extra={}){
+  sharawlaOfflineAuthReadiness={ready:ready===true,status:ready===true?'READY':'NOT_READY',reason,...extra};
+  try{window.dispatchEvent(new CustomEvent('sharawla:offline-auth-readiness',{detail:sharawlaOfflineAuthReadiness}))}catch{}
+  return sharawlaOfflineAuthReadiness;
+}
+async function enrollOfflineAuthAfterOfficialBootstrap(email,password){
+  const a=window.topBurgerDesktop?.offlineV2;
+  if(!a?.authEnroll||!a?.authState){const e=new Error('Offline V2 authorization غير متاح');e.code='OFFLINE_V2_AUTH_API_UNAVAILABLE';throw e}
+  const bootstrap=await odbGet('bootstrap');
+  if(!bootstrap?.employee?.id){const e=new Error('Offline bootstrap غير محفوظ');e.code='OFFLINE_V2_AUTH_BOOTSTRAP_REQUIRED';throw e}
+  const license=await loadLicenseState();
+  const identity={device_id:String(license?.device_id||'').trim(),business_id:String(license?.business_id||'').trim(),device_fingerprint:String(license?.device_fingerprint||'').trim()};
+  if(!identity.device_id||!identity.business_id||!identity.device_fingerprint){const e=new Error('Canonical identity غير مكتملة');e.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED';throw e}
+  const enrolled=await a.authEnroll({identity,license,bootstrap,email:String(email||'').trim().toLowerCase(),password:String(password||'')});
+  if(enrolled?.enrolled!==true){const e=new Error('Offline credential persistence failed');e.code=enrolled?.code||'OFFLINE_V2_AUTH_ENROLL_FAILED';throw e}
+  const authState=await a.authState({identity});
+  if(authState?.enrolled!==true||authState?.valid!==true){const e=new Error('Offline credential read-back failed');e.code=authState?.code||'OFFLINE_V2_AUTH_NOT_READY';e.auth_state=authState;throw e}
+  setSharawlaOfflineAuthReadiness(true,null,{enrolled:true,valid:true,valid_until:authState.valid_until});
+  return {ok:true,enrolled:true,valid:true};
+}
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=$('#email').value.trim(),password=$('#password').value;
+  try{
+    if(navigator.onLine){
+      await signIn(email,password);
+      await bootstrap();
+      try{
+        await enrollOfflineAuthAfterOfficialBootstrap(email,password);
+      }catch(authErr){
+        const reason=authErr?.code||authErr?.message||'OFFLINE_V2_AUTH_ENROLL_FAILED';
+        setSharawlaOfflineAuthReadiness(false,reason);
+        console.error('Offline NOT READY',reason,authErr);
+        try{toast('Offline NOT READY: '+reason)}catch{}
+      }
+    }else{
+      const a=window.topBurgerDesktop?.offlineV2;
+      if(!a?.authVerify){
+        const x=new Error('Offline V2 authorization غير متاح');
+        x.code='OFFLINE_V2_AUTH_API_UNAVAILABLE';
+        throw x;
+      }
+
+      const license=await loadLicenseState();
+      const identity={
+        device_id:String(license?.device_id||'').trim(),
+        business_id:String(license?.business_id||'').trim(),
+        device_fingerprint:String(license?.device_fingerprint||'').trim()
+      };
+
+      if(!identity.device_id||!identity.business_id||!identity.device_fingerprint){
+        const x=new Error('Canonical identity غير مكتملة');
+        x.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED';
+        throw x;
+      }
+
+      const verified=await a.authVerify({
+        identity,
+        email:String(email||'').trim().toLowerCase(),
+        password:String(password||'')
+      });
+
+      if(verified?.ok!==true||verified?.offline_authorized!==true||!verified?.bootstrap?.employee?.id){
+        const x=new Error('Offline authorization failed');
+        x.code='OFFLINE_V2_AUTH_VERIFY_FAILED';
+        throw x;
+      }
+
+      await odbSet('bootstrap',verified.bootstrap);
+
+      setSharawlaOfflineAuthReadiness(true,null,{
+        enrolled:true,
+        valid:true,
+        valid_until:verified.valid_until
+      });
+
+      session=null;
+      resumeSession=null;
+
+      await loadOfflineBootstrap();
+    }
+  }catch(err){session=null;toast(err.message)}
+});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
 function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.toggle('open',!!open)}
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
