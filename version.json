@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.55.1",
+  "version": "10.5.4-beta.55.2",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta55.1 SH-0007-only sandbox candidate for the signed Runtime Access Snapshot consumer. Adds verified Ed25519/hash checking, anti-rollback high-water mark, atomic Last Known Safe Snapshot cache, fail-closed feature decisions, and renderer IPC refresh hooks. Production SH-0005/SH-0006 and legacy 10.5.3 runtime contracts remain untouched."
+  "notes": "Beta55.2 SH-0007-only sandbox candidate. Keeps the signed Runtime Access Snapshot consumer and moves Offline Auth enrollment into the authoritative Online Login/Bootstrap flow, verifies readiness through authState, removes the superseded enrollment monkey patch, and adds deterministic order-gate CI coverage. Production SH-0005/SH-0006 and legacy 10.5.3 runtime contracts remain untouched."
 }
