@@ -30,167 +30,136 @@ STATUS: APPROVED PRODUCT/ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
 
 Purpose: provide a Sharawla-branded support experience inside the product where a customer can report a problem, receive safe diagnosis and resolution, and where Sharawla retains full commercial control over whether that support is free or paid.
 
-### Customer Experience
-
-- Customer enters a `Sharawla Support Center` / technical-support experience rather than a generic chatbot product.
-- The service may use automation/AI internally, but it must not falsely impersonate a named human employee or claim a human performed an action when that is not true.
-- If a real support employee takes over, the system may show the real support identity according to the final UX policy.
-- The customer reports the problem in normal language.
-- The system gathers only approved diagnostic context relevant to that Business/device/user and attempts to identify the exact failure point.
-- It should provide a clear status such as diagnosing, issue identified, resolution available, action completed, unresolved/escalated.
-- If automation cannot safely solve the issue, create/escalate a support case with the approved diagnostics so human support does not start from zero.
-
-### Diagnostic Scope Direction
-
-Potential approved diagnostic domains include, subject to permissions and later implementation gates:
-- POS/version/runtime health
-- Internet/Cloud connectivity
-- Business Connection
-- License/device status
-- Offline/Sync/Outbox health
-- Backup/update health
-- Printing/printer health
-- Shift/order operational blockers
-- Website/order integration health
-- Capability/entitlement availability
-
-The exact diagnostic/action catalog must be explicitly defined before implementation. The support engine must not receive unrestricted database/device access.
-
-### Safe Action Model
-
-Target flow:
-`Customer problem → scoped diagnostics → identified resolution → commercial policy → user approval where required → allow-listed action → verification → audit/result`
-
-- Support actions must go through a controlled Sharawla Support Gateway/action layer rather than unrestricted AI-generated database/system commands.
-- Every executable action must be allow-listed, permission-checked, Business-scoped and auditable.
-- High-risk actions such as Reset/Rebind, Canonical Fingerprint replacement, privileged database mutation, signing-key access or equivalent security-sensitive operations are not autonomous support actions.
-- Business isolation is mandatory; one Business must never expose another Business's diagnostics or data.
-- User role/permissions must constrain what support information/actions are available.
-- Private keys, passwords, service-role secrets and equivalent credentials must not be exposed to the AI/support conversation.
-
-### Commercial / Payment Policy
-
-The payment model is intentionally NOT fixed in code at this stage.
-
-Sharawla Admin/Cloud should ultimately be able to configure support commercially, for example:
-- Free support.
-- Paid support per incident/resolution.
-- Payment before resolution.
-- Payment after a verified successful resolution where the payment method/process safely supports it.
-- Included support in a Package/plan.
-- Customer-specific exemption/discount/promotion.
-- Different pricing by support service/problem class.
-- Human escalation as free or paid according to policy.
-
-Commercial policy must be configurable and separated from the diagnostic engine so Sharawla can change pricing/business rules without rebuilding the support architecture.
-
-Where a charge depends on successful resolution, the final implementation must define objective success/verification and refund/no-charge behavior. Product defects attributable to Sharawla should have an explicit policy rather than automatically charging customers for every reported failure.
-
-### Architecture Placement
-
-This direction does NOT create Roadmap Point 18.
-- Commercial/payment/package integration belongs with Point 3 commercial Package / Entitlement work where appropriate.
-- Support permissions/actions must align with Point 13 Permissions Final Closure.
-- Offline/Sync support actions must respect Point 15 Offline / Sync Final Closure.
-- Security of Support Gateway/actions/secrets is part of the required pre-RC Security / Source Protection Gate.
-- A minimum safe support architecture/decision set must be reviewed before RC1; full advanced automation may be delivered incrementally if it is not required for V1 acceptance.
-
-### Core Rule
-
-Sharawla sells/supports the outcome and service experience; AI/automation is an internal implementation tool. Commercial configuration stays under Sharawla's control, while customer-facing representations must not falsely claim that an automated response/action came from a specific human employee.
+Core direction:
+- Safe scoped diagnostics for POS/runtime, connectivity, Business Connection, license/device, Offline/Sync/Outbox, backup/update, printing, shifts/orders, website integration and entitlements.
+- Executable support actions go only through a controlled Sharawla Support Gateway: allow-listed, permission-checked, Business-scoped and audited.
+- No autonomous Reset/Rebind, Canonical Fingerprint replacement, privileged database mutation, signing-key access or unrestricted AI database/device access.
+- Tenant isolation and secret protection are mandatory.
+- Commercial support policy remains configurable: free, paid, package, per incident, before/after verified resolution, discounts/exemptions or human escalation.
+- This does not create Roadmap Point 18.
 
 ## C — Sharawla Smart Catalog Import & Migration Engine
 
 STATUS: APPROVED PRODUCT DIRECTION / DEFERRED IMPLEMENTATION.
 
-Purpose: make onboarding a new Business much faster by reducing manual entry of menus, products and catalogs into Sharawla.
+Purpose: reduce manual catalog/menu entry during onboarding.
 
-Target input direction may include:
-- Menu/product images and screenshots.
-- PDF menus/catalogs.
-- Excel/CSV product sheets.
-- Exports from a customer's previous POS/system.
-- Profile-specific structured imports where appropriate.
+Target flow:
+`Customer source → extraction/mapping → Sharawla profile/catalog structure → validation → preview → review → explicit approval → import`
 
-Target behavior:
-`Customer source → extraction/mapping → Sharawla profile/catalog structure → validation → preview → customer/operator review → explicit approval → import`
+Inputs may include images/screenshots, PDF, Excel/CSV, previous POS exports and profile-specific structured sources.
 
-Core safety rule:
-- Imported/extracted data must NOT be written directly into the live catalog merely because automated extraction succeeded.
-- Show a Preview/Validation stage first, including detected categories, products, prices, variants/sizes, add-ons and other supported fields.
-- Flag uncertain/invalid/conflicting rows for review.
-- Require explicit approval before final import.
-- Import must be Business-scoped and auditable, with protection against duplicate or partial destructive imports.
-
-Profile direction:
-- Restaurant: categories, menu items, prices, sizes/variants and add-ons where supported.
-- Retail/Supermarket: products, barcode/SKU, cost, sale price, stock and related supported catalog fields.
-- Clothing: products plus supported size/color/variant structure.
-- Other profiles should receive their own validated mapping rules rather than forcing one generic restaurant import format.
-
-Migration direction:
-- Sharawla should support controlled migration from previous POS systems when an export or readable data source is available.
-- Do not build permanent one-off customer forks for migration; use reusable adapters/mappings where practical.
-- Migration/import must respect the target profile, capability readiness, permissions and Business isolation.
-
-Commercial direction:
-- Pricing is intentionally undecided.
-- Sharawla may later choose to make simple imports free, charge for advanced migration, include migration in a Package, or price it per customer/data complexity.
-- Commercial policy must not be hard-coded into the import engine.
-
-Roadmap placement:
-- This does NOT create Roadmap Point 18.
-- Final implementation should be placed in the appropriate onboarding/catalog/profile work and commercial package/add-on model when scheduled.
-- Recording this direction must not interrupt the current Point 3B Offline Authentication work or modify Production.
+Safety:
+- Never write automated extraction directly to the live catalog without Preview/Validation and explicit approval.
+- Flag uncertain/conflicting rows.
+- Business-scoped, auditable and protected against duplicate/partial destructive imports.
+- Profile-specific mappings for Restaurant, Retail/Supermarket, Clothing and future profiles.
+- Commercial pricing remains configurable and separate from the import engine.
+- This does not create Roadmap Point 18 or interrupt current Point 3B.
 
 ## D — Sharawla Proactive Health Monitoring
 
 STATUS: APPROVED PRODUCT/ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
 
-Purpose: allow Sharawla to detect operational problems and warning signs before the customer reports them, while preserving Business isolation, privacy, permissions and safe-action boundaries.
+Purpose: detect operational problems and warning signs before the customer reports them.
 
-Target monitoring direction may include:
-- Offline/Sync/Outbox backlog or repeated sync failures.
-- Backup failures or stale backups.
-- Cloud/Business Connection health.
-- Repeated printer/printing failures where reliable telemetry is available.
-- Failed or unhealthy updates.
-- Device/runtime health signals.
-- Website/order integration health.
-- License/service expiry warnings where applicable.
-- Other explicitly approved health signals added through controlled monitoring contracts.
+Target signals include Offline/Sync/Outbox failures, backup health, Cloud/Business Connection, printing telemetry where reliable, update health, device/runtime health, website/order integration and license/service warnings.
 
 Target flow:
 `Health signal → scoped detection → severity/status → diagnosis → Support Center → safe resolution or support case → verification/audit`
 
-Sharawla Admin direction:
-- Provide an operational health view across customers/businesses/devices according to admin permissions.
-- Show healthy, warning, critical and unresolved states using objective system-health rules.
-- Allow support staff to identify affected Business/device/version and the safe diagnostic evidence without exposing unrelated customer data.
-- Track whether an issue was automatically resolved, requires customer action, or needs human escalation.
+Rules:
+- Monitoring does not grant permission for sensitive actions.
+- Corrective actions still require Support Gateway, permissions, scope, allow-list and audit.
+- Operational telemetry only through defined contracts; tenant isolation and secret protection mandatory.
+- Telemetry failure must never break POS selling/offline operation.
+- Commercial policy remains configurable.
+- This does not create Roadmap Point 18.
 
-Integration with Sharawla Support Center:
-- Proactive Health Monitoring detects and raises the problem.
-- Support Center performs the approved diagnosis/resolution workflow.
-- Detection does NOT automatically grant permission to execute a sensitive action.
-- Any corrective action must still pass the Support Gateway, permissions, Business scope, allow-list, confirmation requirements and Audit rules.
+## E — Sharawla Auto Onboarding
 
-Privacy / Security rules:
-- Monitor system/operational health only through explicitly defined telemetry contracts; do not treat monitoring as unrestricted access to customer business data.
-- Tenant isolation is mandatory.
-- Do not transmit private keys, passwords, service-role secrets or equivalent credentials through monitoring/support telemetry.
-- High-risk actions such as Reset/Rebind, Canonical Fingerprint replacement or privileged database mutation must never be triggered merely because a health alert fired.
-- Monitoring must be rate-limited and designed so telemetry failure cannot break POS selling/offline operation.
+STATUS: APPROVED PRODUCT DIRECTION / DEFERRED IMPLEMENTATION.
 
-Commercial direction:
-- Pricing is intentionally undecided and must remain configurable.
-- Sharawla may later provide basic health monitoring free, include advanced proactive support in a Package, sell it as an Add-on, or apply customer-specific commercial policies.
-- Commercial policy must remain separate from the core detection/health architecture.
+Purpose: let a new customer reach operational readiness with minimal manual Sharawla intervention.
 
-Roadmap placement:
+Target flow:
+`Register Business → choose activity/profile → create branches → Smart Catalog Import → add employees → configure printers/devices → readiness checks → start operation`
+
+Direction:
+- Sharawla Admin can show onboarding progress and the exact incomplete/blocking step.
+- Smart Catalog Import should be part of onboarding where appropriate.
+- If onboarding gets stuck, route the customer to Sharawla Support Center with safe scoped context.
+- After activation, Proactive Health Monitoring can watch operational health.
+- All setup remains Business-scoped, permission-controlled and auditable.
+- This does not create Roadmap Point 18 and must not interrupt current Point 3B.
+
+## F — Sharawla Business Coach / Business Insights
+
+STATUS: APPROVED PRODUCT DIRECTION / DEFERRED IMPLEMENTATION.
+
+Purpose: turn permitted business data into useful operational insights and recommendations, distinct from technical support.
+
+Examples may include:
+- Sales trends versus prior periods.
+- Strong/weak products and categories.
+- Peak selling hours.
+- Branch comparisons using supported sales/expense data.
+- Slow-moving inventory where inventory capabilities exist.
+- Customer retention/reactivation opportunities.
+
+Core rule:
+- The Coach may explain and recommend actions, but must not autonomously execute discounts, campaigns, purchases, price changes or other commercial decisions.
+- Recommendations must be grounded in the customer's own permitted data and respect permissions/profile/capability availability.
+- Standard reporting versus advanced smart insights may later be mapped to Core/Package/Add-on policy; pricing is intentionally undecided.
+- This does not create Roadmap Point 18.
+
+## G — Sharawla Customer Engagement & Campaigns
+
+STATUS: APPROVED PRODUCT/ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
+
+Purpose: allow a Business to turn customer insights into controlled, measurable customer re-engagement campaigns without depending on a single messaging provider or phone number.
+
+Target flow:
+`Customer data → consent/eligibility → segmentation → Business Coach insight or manual campaign → offer/promo → owner approval → approved channel → delivery/result tracking → attributed sales/ROI`
+
+Target channels are modular/provider-based and may include:
+- Website/PWA Push Notifications.
+- SMS.
+- Official WhatsApp/business messaging integrations where available and policy-compliant.
+- Email.
+- Future approved messaging providers through adapters/plugins.
+
+Examples of segmentation may include inactive customers, frequent customers, product/category affinity, high-value customers and other Business-defined/permission-approved segments.
+
+### Sender / Channel Continuity
+
+- Sharawla may support multiple configured sender identities/providers/channels for a Business.
+- Each sender/provider should have an explicit operational state such as Active, Limited, Disconnected or Unavailable according to provider signals available to Sharawla.
+- A failed/unavailable channel must not stop the entire engagement engine; an owner-configured compliant alternative such as Push/SMS/email or another properly authorized sender may be used according to policy.
+- The system must NOT be designed to rotate disposable phone numbers or automatically replace blocked WhatsApp numbers in order to evade provider enforcement or continue prohibited bulk messaging.
+- Provider rules, customer consent/opt-out and sending limits must be respected.
+
+### Safety / Control
+
+- Sharawla must not send marketing campaigns autonomously merely because the Coach detected an opportunity; campaign/send approval remains under the Business's control unless a future explicitly approved automation policy defines otherwise.
+- Maintain consent/opt-out/suppression controls where required.
+- Keep tenant isolation and permissions.
+- Campaign actions and important state changes should be auditable.
+- Credentials/tokens for messaging providers must be protected and not exposed to client-side AI/chat surfaces.
+
+### Measurement
+
+Where provider/data contracts allow, Sharawla should measure useful campaign outcomes such as delivery/interaction signals, redeemed promo codes, resulting orders/revenue and campaign cost/ROI, while clearly distinguishing measured attribution from estimates.
+
+### Commercial Direction
+
+Pricing is intentionally undecided. Campaign capabilities, messaging consumption and advanced targeting may later be Core, Package, Add-on, usage-based or customer-specific. Commercial policy must remain separate from the engagement engine.
+
+### Roadmap Placement
+
 - This does NOT create Roadmap Point 18.
-- Commercial/package mapping belongs with the Point 3 entitlement/package model where appropriate.
-- Permissions and monitoring access must align with Point 13.
-- Offline/Sync health behavior must align with Point 15.
-- Security/privacy/action boundaries must be reviewed as part of the pre-RC security/support gates.
-- Recording this direction must not interrupt Point 3B or modify Production.
+- Package/entitlement mapping belongs with Point 3 where appropriate.
+- Permissions must align with Point 13.
+- Reliable delivery/offline behavior must align with Point 15 where applicable.
+- Provider integrations should use controlled adapters/plugins rather than coupling Sharawla to one provider.
+- Recording this direction must not interrupt the current Point 3B or modify Production.
