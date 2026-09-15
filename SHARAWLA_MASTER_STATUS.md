@@ -200,6 +200,90 @@ Rules:
 
 3C/3D/3E/3F remain pending.
 
+## Approved Design Direction — Multi-Tenant Website Engine
+
+STATUS: APPROVED DESIGN DIRECTION / DEFERRED IMPLEMENTATION.
+
+This is a recorded product/architecture decision only. Do not interrupt Point 3B to implement it, and do not create a new numbered roadmap point unless explicitly approved later.
+
+### Core model
+
+Sharawla should have ONE multi-tenant Website Engine serving many businesses. Do not create or maintain a separate copied website codebase/project for every customer.
+
+Canonical resolution direction:
+`Incoming Domain / Host → Business ID → Business Profile → Enabled Website Capabilities → Business Data / Configuration → Theme → Rendered Website`
+
+Each website must remain business-scoped and must never leak data/configuration between tenants.
+
+### Customer without an existing website
+
+When Website is commercially entitled and enabled for a Business, Sharawla should be able to provision a Sharawla-hosted address such as:
+`business-name.<Sharawla-owned-domain>`
+
+The business can configure its logo, branding, branches, products/services, prices, hours, ordering options and other profile-relevant settings without creating a separate application deployment per customer.
+
+### Custom Domain
+
+A customer may connect its own domain, for example `www.customer.com`, to the same Sharawla Website Engine.
+
+Preferred ownership rule:
+- The customer owns its custom domain.
+- Sharawla may assist with setup/management as a service.
+- Sharawla should not require itself to own every customer's domain.
+- Domain verification and DNS connection must be explicit before activation.
+
+### Customer already has a website
+
+Do not force replacement.
+
+Support an Integration mode where the existing customer website can connect to Sharawla through a controlled API/Webhook integration, or use a Sharawla-powered commerce/ordering subdomain such as `order.customer.com` while retaining the main website.
+
+External integrations must use scoped authentication/authorization and must not expose business backend secrets or service-role credentials to browser/client code.
+
+### Profile-driven website behavior
+
+The Website Engine should adapt to the Business Profile and enabled capabilities rather than hard-code one Top Burger/restaurant experience.
+
+Examples of intended direction:
+- Restaurant: menu, cart, delivery, pickup, order tracking.
+- Retail / Clothing: catalog, variants, cart, stock-aware commerce.
+- Pharmacy: permitted pharmacy catalog/workflows according to applicable capabilities and rules.
+- Service: services and appointments.
+- Membership: plans/subscriptions/bookings where enabled.
+
+Top Burger's existing website is implementation/evidence to learn from, not the final architecture to clone for every business.
+
+### Shared operational data
+
+Website and POS should consume the same authoritative business configuration/data contracts where appropriate. Price, availability, branches, products, orders, customer data, delivery/pickup and status flows should not require manual duplicate maintenance between POS and Website.
+
+Any website-specific pricing or availability must be an explicit configured rule, not accidental data divergence.
+
+### Themes / Templates
+
+Support reusable profile-aware themes/templates so customers can choose presentation without creating a separate codebase. Branding configuration can include logo, colors, banners and supported layout options.
+
+### Commercial separation
+
+Do not overload a single `commerce.website` switch with every website capability forever. Before implementation, formally design how Website Engine, Online Ordering/Commerce, Custom Domain, and External Website/API Integration map into the existing capability + package/add-on architecture.
+
+Do not silently add new canonical Cloud feature keys during Point 3B. Any future feature/catalog additions require the normal controlled capability/readiness process and must preserve the frozen 3A baseline as historical evidence.
+
+Potential commercial direction (not yet implemented/priced):
+- Sharawla-hosted website/subdomain tier.
+- Advanced website/custom-domain tier.
+- Existing-site API/integration option.
+
+Exact package names, pricing and entitlement mapping remain deferred to the commercial/package design stage.
+
+### Security / operational rules
+
+- Domain must resolve to one verified Business before business data is served.
+- Business isolation is mandatory.
+- Website capability/entitlement decisions must follow the same Sharawla capability/readiness/commercial model rather than a parallel permission system.
+- Existing customer sites must integrate through controlled public integration contracts, never direct privileged database access.
+- Production deployment/update strategy should allow one Website Engine to be upgraded safely without manually redeploying a separate copy for every customer.
+
 ## Runtime Security Model — Plain Summary
 
 Device Identity → License → Business → Profile → Feature Readiness → Commercial Entitlement → Dependencies → User Permissions → Signed Runtime Snapshot → Anti-Rollback → Offline Safety → Audit → Acceptance before Production.
