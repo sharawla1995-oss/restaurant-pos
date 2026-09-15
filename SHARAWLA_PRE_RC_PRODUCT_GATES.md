@@ -142,3 +142,55 @@ Roadmap placement:
 - This does NOT create Roadmap Point 18.
 - Final implementation should be placed in the appropriate onboarding/catalog/profile work and commercial package/add-on model when scheduled.
 - Recording this direction must not interrupt the current Point 3B Offline Authentication work or modify Production.
+
+## D — Sharawla Proactive Health Monitoring
+
+STATUS: APPROVED PRODUCT/ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
+
+Purpose: allow Sharawla to detect operational problems and warning signs before the customer reports them, while preserving Business isolation, privacy, permissions and safe-action boundaries.
+
+Target monitoring direction may include:
+- Offline/Sync/Outbox backlog or repeated sync failures.
+- Backup failures or stale backups.
+- Cloud/Business Connection health.
+- Repeated printer/printing failures where reliable telemetry is available.
+- Failed or unhealthy updates.
+- Device/runtime health signals.
+- Website/order integration health.
+- License/service expiry warnings where applicable.
+- Other explicitly approved health signals added through controlled monitoring contracts.
+
+Target flow:
+`Health signal → scoped detection → severity/status → diagnosis → Support Center → safe resolution or support case → verification/audit`
+
+Sharawla Admin direction:
+- Provide an operational health view across customers/businesses/devices according to admin permissions.
+- Show healthy, warning, critical and unresolved states using objective system-health rules.
+- Allow support staff to identify affected Business/device/version and the safe diagnostic evidence without exposing unrelated customer data.
+- Track whether an issue was automatically resolved, requires customer action, or needs human escalation.
+
+Integration with Sharawla Support Center:
+- Proactive Health Monitoring detects and raises the problem.
+- Support Center performs the approved diagnosis/resolution workflow.
+- Detection does NOT automatically grant permission to execute a sensitive action.
+- Any corrective action must still pass the Support Gateway, permissions, Business scope, allow-list, confirmation requirements and Audit rules.
+
+Privacy / Security rules:
+- Monitor system/operational health only through explicitly defined telemetry contracts; do not treat monitoring as unrestricted access to customer business data.
+- Tenant isolation is mandatory.
+- Do not transmit private keys, passwords, service-role secrets or equivalent credentials through monitoring/support telemetry.
+- High-risk actions such as Reset/Rebind, Canonical Fingerprint replacement or privileged database mutation must never be triggered merely because a health alert fired.
+- Monitoring must be rate-limited and designed so telemetry failure cannot break POS selling/offline operation.
+
+Commercial direction:
+- Pricing is intentionally undecided and must remain configurable.
+- Sharawla may later provide basic health monitoring free, include advanced proactive support in a Package, sell it as an Add-on, or apply customer-specific commercial policies.
+- Commercial policy must remain separate from the core detection/health architecture.
+
+Roadmap placement:
+- This does NOT create Roadmap Point 18.
+- Commercial/package mapping belongs with the Point 3 entitlement/package model where appropriate.
+- Permissions and monitoring access must align with Point 13.
+- Offline/Sync health behavior must align with Point 15.
+- Security/privacy/action boundaries must be reviewed as part of the pre-RC security/support gates.
+- Recording this direction must not interrupt Point 3B or modify Production.
