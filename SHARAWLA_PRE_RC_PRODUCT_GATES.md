@@ -98,3 +98,47 @@ This direction does NOT create Roadmap Point 18.
 ### Core Rule
 
 Sharawla sells/supports the outcome and service experience; AI/automation is an internal implementation tool. Commercial configuration stays under Sharawla's control, while customer-facing representations must not falsely claim that an automated response/action came from a specific human employee.
+
+## C — Sharawla Smart Catalog Import & Migration Engine
+
+STATUS: APPROVED PRODUCT DIRECTION / DEFERRED IMPLEMENTATION.
+
+Purpose: make onboarding a new Business much faster by reducing manual entry of menus, products and catalogs into Sharawla.
+
+Target input direction may include:
+- Menu/product images and screenshots.
+- PDF menus/catalogs.
+- Excel/CSV product sheets.
+- Exports from a customer's previous POS/system.
+- Profile-specific structured imports where appropriate.
+
+Target behavior:
+`Customer source → extraction/mapping → Sharawla profile/catalog structure → validation → preview → customer/operator review → explicit approval → import`
+
+Core safety rule:
+- Imported/extracted data must NOT be written directly into the live catalog merely because automated extraction succeeded.
+- Show a Preview/Validation stage first, including detected categories, products, prices, variants/sizes, add-ons and other supported fields.
+- Flag uncertain/invalid/conflicting rows for review.
+- Require explicit approval before final import.
+- Import must be Business-scoped and auditable, with protection against duplicate or partial destructive imports.
+
+Profile direction:
+- Restaurant: categories, menu items, prices, sizes/variants and add-ons where supported.
+- Retail/Supermarket: products, barcode/SKU, cost, sale price, stock and related supported catalog fields.
+- Clothing: products plus supported size/color/variant structure.
+- Other profiles should receive their own validated mapping rules rather than forcing one generic restaurant import format.
+
+Migration direction:
+- Sharawla should support controlled migration from previous POS systems when an export or readable data source is available.
+- Do not build permanent one-off customer forks for migration; use reusable adapters/mappings where practical.
+- Migration/import must respect the target profile, capability readiness, permissions and Business isolation.
+
+Commercial direction:
+- Pricing is intentionally undecided.
+- Sharawla may later choose to make simple imports free, charge for advanced migration, include migration in a Package, or price it per customer/data complexity.
+- Commercial policy must not be hard-coded into the import engine.
+
+Roadmap placement:
+- This does NOT create Roadmap Point 18.
+- Final implementation should be placed in the appropriate onboarding/catalog/profile work and commercial package/add-on model when scheduled.
+- Recording this direction must not interrupt the current Point 3B Offline Authentication work or modify Production.
