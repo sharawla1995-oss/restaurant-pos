@@ -1,4 +1,4 @@
-name: Beta55.1 Runtime Snapshot Sandbox Build
+name: Beta55.2 Runtime Snapshot Sandbox Build
 
 on:
   push:
@@ -33,13 +33,14 @@ jobs:
           node scripts/check-runtime-syntax.js
           node scripts/check-beta55-restaurant-acceptance.js
           node scripts/check-beta56-runtime-snapshot-consumer.js
+          node scripts/check-offline-auth-authoritative-order.js
           node scripts/check-version.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
-          name: sharawla-pos-10.5.4-beta.55.1-sh0007-x64
-          path: dist/Sharawla-POS-Setup-10.5.4-beta.55.1.exe
+          name: sharawla-pos-10.5.4-beta.55.2-sh0007-x64
+          path: dist/Sharawla-POS-Setup-10.5.4-beta.55.2.exe
           if-no-files-found: error
           retention-days: 7
