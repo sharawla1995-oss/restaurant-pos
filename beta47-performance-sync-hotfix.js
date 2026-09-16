@@ -20,13 +20,13 @@ async function resolveOwnership47(jobOrTx){
   if(!tx)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'CLIENT_TX_ID_MISSING'};
   const api=global.topBurgerDesktop?.offlineV2;
   if(!api?.takeoverState||!api?.event)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'DURABLE_V2_EVIDENCE_UNAVAILABLE'};
-  let st;try{st=await api.takeoverState()}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'TAKEOVER_STATE_UNAVAILABLE',error:text(e?.message||e)}}
-  const active=st?.active===true&&st?.migration_verified===true&&st?.transport_ready===true;
-  if(!active)return {owner:OWN.LEGACY_FALLBACK,client_tx_id:tx,reason:'V2_NOT_ACTIVE'};
-  if(Array.isArray(st?.legacy_tx_ids)&&st.legacy_tx_ids.some(x=>text(x)===tx))return {owner:OWN.LEGACY_HISTORICAL,client_tx_id:tx,reason:'DURABLE_MIGRATION_SNAPSHOT'};
   let event=null;try{event=await api.event(tx)}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'V2_EVENT_LOOKUP_FAILED',error:text(e?.message||e)}}
   if(event)return {owner:OWN.V2_OPERATIONAL,client_tx_id:tx,reason:'DURABLE_NATIVE_EVENT'};
-  return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'ACTIVE_TAKEOVER_WITHOUT_DURABLE_OWNER_EVIDENCE'};
+  let st;try{st=await api.takeoverState()}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'TAKEOVER_STATE_UNAVAILABLE',error:text(e?.message||e)}}
+  if(Array.isArray(st?.legacy_tx_ids)&&st.legacy_tx_ids.some(x=>text(x)===tx))return {owner:OWN.LEGACY_HISTORICAL,client_tx_id:tx,reason:'DURABLE_MIGRATION_SNAPSHOT'};
+  const active=st?.active===true&&st?.migration_verified===true&&st?.transport_ready===true;
+  if(active)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'ACTIVE_TAKEOVER_WITHOUT_DURABLE_OWNER_EVIDENCE'};
+  return {owner:OWN.LEGACY_FALLBACK,client_tx_id:tx,reason:'V2_NOT_ACTIVE_WITHOUT_DURABLE_OWNER_EVIDENCE'};
 }
 function legacyMayOperate47(owner){return owner===OWN.LEGACY_HISTORICAL||owner===OWN.LEGACY_FALLBACK}
 async function mark47(job,status,e){
