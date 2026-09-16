@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - beta56-runtime-snapshot-consumer
+      - beta56-offline-ownership-consolidation
   workflow_dispatch:
 
 jobs:
