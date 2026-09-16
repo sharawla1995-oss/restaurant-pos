@@ -1,30 +1,46 @@
 # Sharawla Platform — Master Status
 
 > Official continuation checkpoint for the Sharawla project.  
-> Last updated: 2026-09-16  
-> Rule: before continuing development in a new chat/session, verify this file against GitHub and Sharawla Cloud. Do not rely on chat memory alone.
+> Last updated: 2026-09-17  
+> Rule: in every new chat/session, read this file first, then verify the relevant GitHub/Sharawla Cloud facts before any write. Do not continue from chat memory alone.  
+> Rule: execute only the **Exact Next Step** recorded here unless new verified evidence requires updating this checkpoint first.
 
-## Production Safety Boundary
+## Production Safety Boundary — FROZEN
 
 Production is READ-ONLY during Beta/development work.
 
 - Top Burger business: `3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7`
-- SH-0005 — Cash-PC — الدقي — Primary — POS 10.5.3
-- SH-0006 — SmartSystem-PC / Top burger — العشرين — Primary — POS 10.5.3
-- Top Burger business overrides: 0 at latest verified checkpoint.
-- Forbidden without explicit production approval after RC: Beta install, migration, profile/feature changes, business overrides, reset, takeover, rebind, device/license mutation.
+- SH-0005 — Cash-PC — الدقي — Primary — POS `10.5.3`
+- SH-0006 — SmartSystem-PC / Top Burger — العشرين — Primary — POS `10.5.3`
+- Forbidden without explicit post-RC Production approval: Beta install, migration, profile/feature changes, business overrides, commercial entitlements, reset, takeover, rebind, device/license mutation.
 - Read-only regression checks are allowed.
+- Latest Cloud verification on 2026-09-17: Top Burger has `0` Base Package rows, `0` active Base rows, `0` Paid Add-on rows, `0` active Add-ons, and `0` `commercial.%` Admin audit writes.
+- Production Commercial Isolation: **PASS**.
 
 ## Beta Sandbox
 
 - SH-0007 — FULL SANDBOX
 - Device ID: `8c580a23-8711-4540-b6ca-f5c1725d5fcf`
-- Business: تجريبي
+- Business: `تجريبي`
 - Business ID: `91826502-590e-4afa-8826-2c0f4b99c490`
 - Beta backend: `xihcxydjnzemflhedzor.supabase.co`
-- Last Cloud-verified installed POS before current runtime integration: `10.5.4-beta.55`
-- Profile: restaurant
-- Experimental writes are allowed only when explicitly scoped to this sandbox.
+- Profile may be changed for isolated acceptance only.
+- Experimental writes are allowed only when explicitly scoped to SH-0007 / `تجريبي`.
+- The user currently has one physical Windows 7 test device: SH-0007. A second physical device is not required for the current acceptance stage.
+- Remote access may be from the user's phone; do not require physically disconnecting the laptop internet if that would drop remote access. Use controlled test-only network/offline simulation when necessary, and remove test hooks after acceptance.
+
+## Canonical GitHub Checkpoint
+
+POS repository: `sharawla1995-oss/restaurant-pos`  
+Current integration branch: `beta56-runtime-snapshot-consumer`  
+Branch name is technical only; official Roadmap Point 6 Retail has NOT started.  
+HEAD immediately before this status refresh: `86f804f853a264a9427c6bb83f1956aff4442d17`.
+
+Important current source facts visible on this branch:
+- Runtime Snapshot consumer/main files exist.
+- Offline V2 / recovery / hardening layers from Beta43–Beta55 remain in source.
+- `scripts/apply-offline-auth-55.3.js`, `scripts/remove-offline-auth-wrapper-55.3.js`, and `scripts/check-offline-auth-authoritative-order.js` are present remotely.
+- Therefore the old statement that the 55.3 work is only local/unpushed is obsolete and must not be used as the continuation point.
 
 ## Official 17-Point Roadmap
 
@@ -46,9 +62,11 @@ Production is READ-ONLY during Beta/development work.
 16. ⬜ RC1
 17. ⬜ Pilot Production → Sharawla V1 Production Ready
 
+Do not reorder the official roadmap silently. In particular, Point 4 remains **Central Warehouse V2 + Financial Closure**. Commercial Admin management belongs inside Point 3.
+
 ## Point 1 — Beta55 Restaurant Closure
 
-CLOSED.
+**CLOSED.**
 
 Final Full Acceptance:
 - Run: `ACC-20260914-040227-QTTK4`
@@ -60,28 +78,43 @@ Known deferred non-blocking issue:
 
 ## Point 2 — Sharawla Cloud + Admin V4
 
-CLOSED.
+**CLOSED.**
 
-Admin repository: `sharawla1995-oss/sharawla-admin`
-- V4 branch: `v4-cloud-admin-work`
-- Last verified HEAD: `32b765d58b1ff83eabb28ebc4c37dba5b4f88891`
-- PR #1 `Sharawla Admin V4 Preview` remains DRAFT / UNMERGED intentionally.
-- Production SH-0005 / SH-0006 remain protected and read-only.
+Admin repository: `sharawla1995-oss/sharawla-admin`.
+Historical V4 branch: `v4-cloud-admin-work`.
+Production remains protected/read-only.
 
-Manual V4 Acceptance passed: Dashboard, Customers, Businesses, Activity detail, Capabilities read + sandbox write/restore, Search, Alerts, Audit functional, Archive, Cloud Security, Branches, Devices, Licenses.
-
-Deferred UI enhancement:
-- Audit Log should later show Actor + Before + After more clearly.
+Admin operating rule:
+- Admin is primarily used from the phone and must be treated as **mobile-first**.
+- Desktop remains supported.
+- The user is currently the sole Admin operator; simplify UX where useful, but never weaken authorization, audit, DB guards, or Production protection.
 
 ## Point 3 — Commercial Capabilities / Add-ons / Packages
 
-CURRENT.
+**CURRENT.**
+
+Canonical commercial flow:
+`Profile Defaults + Package Entitlements + Paid Add-ons + Business Overrides → Dependency Resolver → Readiness Gate → Final Enabled Features`
+
+Core rules:
+- `implemented=true` does not mean Accepted.
+- Accepted does not mean Production Ready.
+- Planned: DENY everywhere.
+- Implemented-Unaccepted: not commercially activatable.
+- Beta Ready: Beta/Test only.
+- Production Ready: eligible for Production commercial activation.
+- Core is included, not sold as a standalone add-on.
+- Dependencies are not granted for free.
+- Business overrides are DENY-only in the commercial model.
+- Exactly one effective Base Package at an instant; historical/future rows are allowed but active intervals cannot overlap.
+- Published package is immutable; changes require a new version.
+- Readiness/environment remains the final safety wall.
 
 ### 3A — Commercial Readiness Audit
 
-CLOSED.
+**CLOSED / FROZEN.**
 
-Frozen baseline: `3A-2026-09-14-frozen-v1`
+Frozen baseline: `3A-2026-09-14-frozen-v1`  
 Baseline ID: `96bd819f-05be-4e0c-a1a9-fb72d2c39ff4`
 
 Canonical reconciliation:
@@ -97,379 +130,255 @@ Frozen readiness distribution:
 - Planned: 22
 - Production Ready: 0
 
-Do not silently reclassify the frozen 3A baseline. New evidence is post-baseline evidence unless a controlled baseline amendment is explicitly approved.
+Do not silently reclassify the frozen baseline. New evidence is post-baseline evidence unless a controlled amendment is explicitly approved.
 
-### 3B — Readiness Gate / Runtime Consumer
+### 3B — Readiness Gate / Signed Runtime Snapshot
 
-CURRENT.
+**FOUNDATION CLOSED / FROZEN.**
 
-Cloud foundations CLOSED/PASS:
-- Readiness baseline schema + immutable sealed 107-row seed
-- Cloud readiness resolver
-- Trusted environment resolver
-- SH-0007 beta environment policy
-- Composition contract + RPC
-- Dependency cycle/depth protection
-- Runtime snapshot endpoint contract
-- Ed25519 signing architecture
-- Public/private key separation
-- Canonical payload/versioning
-- Per-device sequence state
-- Anti-rollback high-water design
-- Automatic sequence reset forbidden
-
-Runtime snapshot endpoint:
-- Edge Function: `runtime-access-snapshot-v1`
-- Last verified version: 9 ACTIVE
-- Last verified SHA256: `75db7dabf0c95bd571a9b39e881b293ec259f204aff179e09d80e5b8890558e5`
-- Signing key ID: `sharawla-snapshot-2026-09-final`
-- Private signing key must remain server-side only and must never be copied into GitHub/POS/chat.
-
-Fresh final-key cryptographic verification: PASS.
-- Verified snapshot sequence: 6
-- Payload hash: `0a7cb095fdc5f8d65be8e2d58e740c8d907ec3b239601d638d8c624345092688`
-- Ed25519 signature independently verified against trusted public key.
-
-POS isolated integration branch:
-- Repository: `sharawla1995-oss/restaurant-pos`
-- Branch: `beta56-runtime-snapshot-consumer`
-- IMPORTANT: branch name is technical only. Official Roadmap Point 6 Beta56 Retail has NOT started.
-- Historical test build version at this checkpoint: `10.5.4-beta.55.1`
-
-Static Runtime Snapshot Acceptance:
-- GitHub Actions run: `34911093125`
-- Result: SUCCESS
-
-Final Beta55.1 sandbox build:
-- Workflow run: `34911093130`
-- Result: SUCCESS
-- Artifact: `sharawla-pos-10.5.4-beta.55.1-sh0007-x64`
-- Artifact ID: `10374532576`
-- Digest: `sha256:edb94c835a2039370c56ce3dfaec792af605a9f066b5adf9a919c35e31c3d8af`
-- This build is an Actions artifact, NOT a GitHub Release asset.
-- It must be installed on SH-0007 only.
-
-Runtime consumer protections implemented in isolated branch include:
-- deterministic canonicalization
-- payload hash verification
-- Ed25519 signature verification
-- trusted signing key ID check
+Cloud foundations accepted:
+- readiness baseline schema + immutable sealed seed
+- readiness resolver
+- trusted environment resolver
+- SH-0007 Beta environment policy
+- composition contract
+- dependency cycle/depth protection
+- signed runtime snapshot endpoint
+- Ed25519 signing with private key server-side only
+- deterministic canonical payload
 - device/fingerprint/business binding
 - expiry checks
-- online monotonic sequence acceptance
-- offline equal-high-water Last Known Safe Snapshot use
-- rollback rejection
-- atomic authoritative state journal with recovery
+- per-device monotonic sequence/high-water
+- offline Last Known Good/Safe snapshot
+- anti-rollback
+- atomic authoritative state journal/recovery
 - automatic high-water reset forbidden
-- network-only fallback policy
 
-### 3B — Offline Authentication Runtime Incident / 55.3 Corrective Checkpoint
+Historical endpoint checkpoint:
+- Edge Function: `runtime-access-snapshot-v1`
+- signing key ID: `sharawla-snapshot-2026-09-final`
+- private signing key must never be copied to GitHub/POS/chat.
 
-STATUS: OPEN / BLOCKED pending actual SH-0007 Acceptance.
+Important distinction:
+- Runtime Snapshot security/readiness foundation is accepted.
+- Offline Authentication and broad Offline/Sync operational correctness are separate acceptance concerns and must not be confused with Snapshot acceptance.
+- Final Offline/Sync Closure remains Roadmap Point 15 and is a major pre-RC risk.
 
-Actual runtime evidence after the original 55.1 snapshot integration:
-- `10.5.4-beta.55.1` installed on SH-0007.
-- Online login for the sandbox user succeeded.
-- Offline login with the same credentials failed, including online login → logout → disconnect internet → login.
-- The 55.1 monkey-patch direction was rejected and must not be retried.
+### Historical Offline Authentication Incident
 
-55.2 corrective attempt:
-- `10.5.4-beta.55.2` was built and installed on SH-0007.
-- Actual runtime result: same Offline Login failure.
-- Do not repeat the same 55.2 runtime test blindly.
+55.1 and 55.2 had real SH-0007 Offline Login failures. The rejected monkey-patch direction must not be repeated blindly.
 
-Authoritative 55.3 design decision:
-- `app.js` is the sole Authentication owner.
+Authoritative design decision remains:
+- `app.js` is sole Authentication owner.
 - Runtime wrappers must not own Offline Authentication.
-- Official online flow: `signIn PASS → bootstrap complete/persisted → authEnroll() → authState() read-back → Offline READY`.
-- Enrollment/read-back failure must not invalidate a successful online login; instead expose `Offline NOT READY` with the exact reason.
-- Official offline flow: canonical identity → Main `authVerify()` fail-closed → verified bootstrap → `loadOfflineBootstrap()`.
-- `valid_until` comes from Main/Auth State.
-- Do not change Main `authVerify`, encrypted credential storage, canonical fingerprint, runtime snapshot security, or Production to solve this issue.
+- Online: sign-in → bootstrap persisted → `authEnroll()` → `authState()` read-back → Offline READY.
+- Enrollment/read-back failure must not invalidate a successful online login; expose Offline NOT READY with exact reason.
+- Offline: canonical identity → Main `authVerify()` fail-closed → verified bootstrap → `loadOfflineBootstrap()`.
+- Do not weaken `authVerify`, encrypted credential storage, canonical fingerprint, Runtime Snapshot security, or Production to solve offline issues.
 
-Local 55.3 source checkpoint (IMPORTANT: not yet pushed to GitHub):
-- Local branch: `beta56-runtime-snapshot-consumer`.
-- Local commit: `f7a0018` — `fix(beta55.3): make app.js authoritative offline auth owner`.
-- Exactly 6 files changed: `.github/workflows/beta55-1-runtime-snapshot-build.yml`, `app.js`, `beta45-offline-v2-safety-runtime.js`, `package.json`, `scripts/check-beta28-fixes.js`, `version.json`.
-- `git diff --check`: PASS.
-- Offline Auth 55.3 Official app.js Gate: PASS.
-- Online Login + Bootstrap ownership: PASS.
-- `app.js → authEnroll → persisted credential → authState READY`: PASS.
-- Enrollment failure → Online remains valid + Offline NOT READY: PASS.
-- No competing enrollment wrapper/monkey patch: PASS.
-- Beta28 Owner/User/Home regression gate on `10.5.4-beta.55.3`: PASS.
+The previous checkpoint claiming 55.3 was local-only/unpushed is obsolete: the current remote branch contains the 55.3 auth scripts/checks. Do not restart from the old Node-13/local-push checklist without fresh evidence.
 
-Local full-check environment blocker:
-- `npm run check` started and version sync passed for `10.5.4-beta.55.3`.
-- It then stopped in `scripts/check-runtime-syntax.js` while parsing pre-existing optional chaining such as `engine?.code` in `sharawla-runtime-core.js`.
-- Local machine has Node `v13.14.0` at `C:\Program Files\nodejs\node.exe`; no NVM and no second Node installation were found.
-- Treat this as an unresolved local toolchain/environment gate, not proof of a 55.3 source regression.
-- Do NOT modify `sharawla-runtime-core.js` merely to satisfy Node 13.
+### 3C — Commercial Package / Entitlement Engine
 
-Current truth at this checkpoint:
-- 55.3 source fix: COMMITTED LOCALLY.
-- Local commit `f7a0018`: NOT PUSHED / therefore not expected to exist on GitHub yet.
-- Full check: BLOCKED by local Node 13 parser/toolchain issue.
-- CI after `f7a0018`: NOT RUN.
-- 55.3 Build: NOT DONE.
-- SH-0007 55.3 Runtime Acceptance: NOT DONE.
-- Production SH-0005/SH-0006: UNTOUCHED / READ-ONLY.
-- Point 3B remains OPEN. Do not declare Offline Auth fixed until actual runtime Acceptance passes.
+**IMPLEMENTED / ACCEPTED FOUNDATION.**
 
-### 3B Exact Next Step
+Commercial tables:
+1. `commercial_packages`
+2. `commercial_package_features`
+3. `business_package_entitlements`
+4. `business_paid_addons`
 
-When the Windows 7 test laptop is available again:
-1. Establish a compatible/safe check runtime for the repository; do not blindly replace Node without verifying Windows 7 compatibility.
-2. Re-run the full source check and inspect `git status` afterward because `sync-version` ran before the prior check failed.
-3. Preserve/review the exact six-file 55.3 diff and local commit `f7a0018`.
-4. Push only after review, then verify the remote diff/CI.
-5. Only after gates pass, build `10.5.4-beta.55.3`.
-6. Install/test it on SH-0007 only: online login → Offline READY evidence → logout/restart → disconnect internet → same-user offline login.
-7. Then cover ordering cases (login-first/bootstrap-later and bootstrap-ready/login) and later multi-user A/B.
-8. If runtime fails, identify the exact failure point before another build; do not repeat blind tests.
-9. Keep SH-0005/SH-0006 read-only on 10.5.3.
+RLS/constraints/guards are in place. Old `subscriptions` remains frozen and must not be repurposed.
 
-Do NOT declare 3B closed until actual SH-0007 Runtime Acceptance passes.
+Commercial resolver/evaluator foundation accepted:
+- `resolve_sharawla_commercial_entitlement_cloud_v1`
+- `evaluate_sharawla_feature_access_cloud_v2`
 
-After 3B closes, proceed to:
-### 3C — Package / Entitlement Engine
+Snapshot/Composition V2 integration was implemented for the isolated SH-0007 Beta path while preserving Production/legacy behavior. Test-only offline simulation used during this work was removed after acceptance.
 
-Commercial model direction:
-`Profile Defaults + Package Entitlements + Paid Add-ons + Business Overrides → Dependency Resolver → Readiness Gate → Final Enabled Features`
+### 3C-4A — Controlled Commercial Admin RPC Foundation
 
-Rules:
-- Planned cannot be enabled.
-- Implemented-Unaccepted cannot enter production packages.
-- Beta Ready is Beta/Test only.
-- Production Ready is commercially eligible.
-- Core is included and not separately billable.
-- Packages/add-ons must extend the existing capability engine, not create a parallel runtime feature engine.
-- Business overrides are operational/admin exceptions, not the primary commercial entitlement system.
+**CLOSED.**
 
-3C/3D/3E/3F remain pending.
+Hard rule: Admin must NOT directly mutate the four Commercial tables.
 
-## Approved Architecture Direction — Customer-Specific Features & Release Channels
+Architecture:
+`Admin UI → Controlled Admin RPC → Frozen Commercial Engine → Composition/Readiness`
 
-STATUS: APPROVED ARCHITECTURE DIRECTION / DEFERRED IMPLEMENTATION.
+Admin helper/read/mutation RPC foundation is implemented with:
+- active Admin authorization
+- SECURITY DEFINER + fixed search_path
+- server-side audit in the same transaction
+- rollback if audit fails
+- package lifecycle/overlap/add-on validation guards
 
-Purpose: allow Sharawla to deliver a capability requested by one customer without creating a permanent customer-specific POS fork and without forcing every customer to receive/test every customer-specific build immediately.
+3C-4A acceptance: **16/16 PASS**.
 
-### One Codebase / No Customer Forks
+### 3C-4B — Commercial Management Admin UI
+
+**RUNTIME ACCEPTANCE SUBSTANTIALLY PASS; FINAL CLOSE PENDING PROVENANCE + FULL E2E.**
+
+Admin repo: `sharawla1995-oss/sharawla-admin`  
+Working branch: `v3.7-commercial-management-ui`.
+
+UI/runtime rules:
+- mobile-first
+- visually integrated into existing Sharawla Admin shell
+- no browser alert/confirm/prompt for commercial lifecycle
+- no direct Commercial REST mutations
+- fixed Top Burger Production ID defense-in-depth read-only guard
+- business-level Inspector must be named/understood as **Commercial Entitlement Inspector**, not final device/readiness access.
+
+Runtime acceptance completed on `تجريبي`:
+- Create Draft Package: PASS
+- Set Package Features: PASS
+- Publish Package: PASS
+- Base Package Assign: PASS
+- Base Suspend: PASS
+- Base Resume: PASS
+- Base Cancel: PASS
+- Paid Add-on Grant: PASS
+- Paid Add-on Suspend: PASS
+- Paid Add-on Cancel from suspended: PASS
+- Commercial Entitlement Inspector: PASS
+- cancelled add-on resolves `NOT_ENTITLED`: PASS
+- historical lifecycle preserved: PASS
+- server-side Admin Audit: PASS
+- mobile human-readable Inspector + technical details: PASS
+- Production UI read-only behavior observed: PASS
+
+Runtime test fixture:
+- Package code: `ACC_RUNTIME`
+- Package V1 / Runtime Test Package
+- Base entitlement entity ID: `312554d0-c3a5-4899-ad2c-04b1c6ec382c`
+- Paid Add-on `commerce.delivery` entity ID: `097cb030-16db-4e38-8cdd-12554fce1b6a`
+
+Latest Cloud audit evidence on sandbox:
+- Base assign → active
+- Base active → suspended
+- Base suspended → active (resume)
+- Base active → cancelled
+- Add-on grant → active
+- Add-on active → suspended
+- Add-on suspended → cancelled
+- same Base entity ID/start timestamp preserved through lifecycle.
+
+Latest Production isolation verification:
+- Top Burger Base Package rows: 0
+- Top Burger active Base rows: 0
+- Top Burger Paid Add-on rows: 0
+- Top Burger active Add-ons: 0
+- Top Burger `commercial.%` audit rows: 0
+- Result: **PASS — Production untouched by Commercial runtime testing.**
+
+Do not recreate these lifecycle tests unless new evidence requires it.
+
+### 3C-4B Remaining Close Gates
+
+Before declaring 3C-4B CLOSED:
+1. Re-fetch `sharawla-admin` branch `v3.7-commercial-management-ui`; verify exact current HEAD and current `commercial-management.html` source/provenance. Do not trust abbreviated historical SHAs blindly.
+2. Verify the latest Vercel Preview maps to that exact Admin commit and the mobile shell integration is the deployed source.
+3. Perform only necessary minor mobile polish if still present (historically: Build R7/Back clipping or floating button overlap); no global Admin redesign.
+4. Reconfirm no direct Commercial table mutation path and Production fixed-ID read-only guard in current source.
+5. Then mark 3C-4B CLOSED.
+
+### Point 3 Final E2E Gate
+
+Point 3 is NOT closed merely because Admin lifecycle passed.
+
+Required final commercial E2E on SH-0007:
+`Admin commercial decision → Commercial resolver → Composition V2 → Signed Runtime Snapshot → POS consumer → Readiness Gate → effective feature access`
+
+Must prove both allow and deny behavior with device context. The business-only Commercial Entitlement Inspector is not a substitute for final device-aware readiness/effective access.
+
+After successful E2E, reverify Production read-only/untouched and then Point 3 may be closed if no remaining Point-3 blocker exists.
+
+## Offline / Sync — Critical Pre-RC Priority
+
+Official Roadmap Point 15 remains the final formal Offline/Sync closure, but Offline is a **critical operational risk now** and must be protected during all current work.
+
+Do not declare Sharawla Production Ready until robust Offline Acceptance passes.
+
+Target invariant:
+`local transaction first → durable Outbox → stable unique client_tx_id → background retry → server idempotency → explicit ACK → mark Synced`
+
+Required properties:
+- selling must not wait for internet
+- each sale/return/expense/shift/order-status movement is committed locally atomically first
+- power loss/restart must not lose a locally accepted movement
+- retrying the same `client_tx_id` must not duplicate server effects
+- Outbox entry must not disappear before explicit server ACK
+- Inbox/remote replay must be idempotent
+- conflicts/recovery must preserve evidence
+- no silent data loss and no duplicate financial/stock effects
+
+Acceptance scope must include at minimum:
+- sale
+- return
+- expense
+- shift open/close
+- order/status movement
+- restart before sync
+- application crash/restart
+- repeated sync/retry
+- partial server failure
+- pending queue recovery
+- return online and reconcile
+- Commercial Signed Snapshot/LKG behavior while offline, including anti-rollback.
+
+Source currently contains multiple historical Offline layers (Beta43/44/45/47/49/51 plus later recovery/hardening). Before adding another patch, review ownership and determine whether multiple overlapping layers are creating risk. Prefer one authoritative Offline owner/flow over another wrapper stacked on top.
+
+Because SH-0007 may be remotely controlled, offline acceptance should use a safe controlled network simulation where possible rather than physically cutting the connection and losing remote control.
+
+## Approved Architecture — Customer-Specific Features / Release Channels
+
+**APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
 
 Canonical rule:
 `One Sharawla POS codebase → different Business Entitlements / Settings / Policies`
 
-Do not create permanent binaries/codebases such as `Sharawla-CustomerA.exe` or `Sharawla-CustomerB.exe` for normal customization.
+Do not create permanent customer-specific binaries for normal customization.
 
-A customer-specific requirement should normally become one of:
-- a canonical Feature/Capability,
-- a configurable Setting,
-- a controlled Policy,
-- or an Entitlement to an existing capability.
+Separate:
+- Release Version = installed code
+- Release Channel = Stable/Beta/Pilot stream eligibility
+- Business Entitlements = allowed capabilities
 
-Do not scatter hard-coded checks such as `if business_id == X` through business logic. If a truly exceptional requirement cannot be modeled safely by capability/settings/policy, it requires an explicit architecture decision before any fork is allowed.
+Customer-specific capability flow:
+`Business → Package/Add-ons/Entitlements → Dependencies → Readiness → Runtime Snapshot → Effective Access`
 
-### Separate Code Version from Feature Access
+A feature already present in the installed binary should not require a new POS update merely to grant an eligible business entitlement.
 
-Sharawla must treat these as separate axes:
+Beta/Pilot visibility must remain isolated from Stable customers. Code promotion and commercial entitlement are separate decisions.
 
-`Release Version` = what code is installed on the device.
+This architecture does NOT create an 18th roadmap point.
 
-`Release Channel` = which release stream the device/business is allowed to receive.
+## Immutable / Safety Rules
 
-`Business Entitlements` = which commercially/operationally allowed capabilities the Business may use.
+- Production 10.5.3 remains protected until separately approved promotion.
+- No Beta tests on SH-0005/SH-0006.
+- No automatic rebind.
+- Canonical device fingerprint must not be silently replaced.
+- No deletion/disable of the live restaurant POS/Sharawla Cloud path.
+- Do not change Activation/Verification/Business Connection without a justified architecture reason.
+- Do not break printing, offline operation, Windows 32/64 compatibility, website, users/permissions, reports, backups, or update behavior.
+- On regression, preserve evidence first; do not immediately clean/restart/retry blindly.
+- During runtime acceptance: one command/action at a time.
 
-A binary may contain code for a feature while the feature remains unavailable to businesses that are not entitled to it. Installing the same Stable version must not automatically grant every included feature.
+## EXACT NEXT STEP — AUTHORITATIVE
 
-### Business Entitlements
+**Do not resume the obsolete 55.3 local-push checklist. Do not start Point 4. Do not rerun completed Commercial lifecycle tests.**
 
-Customer-specific paid/exclusive capabilities should be granted through the Package/Entitlement architecture, not through a separate customer binary.
+Exact next step:
 
-Target flow:
-`Business → Package / Add-ons / Explicit Entitlements → Feature Readiness / Dependencies → Runtime Snapshot → Effective Access`
+1. Perform the **3C-4B Final Static/Provenance Close** on `sharawla1995-oss/sharawla-admin` branch `v3.7-commercial-management-ui`:
+   - fetch exact current branch HEAD;
+   - inspect current `commercial-management.html` and confirm RPC-only Commercial mutations + fixed Production read-only guard + mobile-first shell integration;
+   - verify the currently deployed Vercel Preview provenance against that exact commit;
+   - make no Cloud/POS/Production change during this verification.
+2. If that gate PASSes, mark 3C-4B CLOSED in this file.
+3. Then perform the **Point 3 Full Commercial Device-Aware E2E on SH-0007 only** through Composition V2 + Signed Snapshot + Readiness Gate.
+4. After Point 3 E2E, move immediately to a focused **Offline ownership/architecture audit** before adding any new Offline patch, because Offline/Sync is a critical pre-RC risk.
+5. Keep SH-0005/SH-0006 and Top Burger read-only throughout.
 
-If a feature already exists in the installed binary and only entitlement/configuration changes, enabling it for another eligible customer should not require a new POS update.
-
-The formal entitlement implementation belongs to Point 3C and must extend the existing capability engine rather than create a second feature system.
-
-### Release Channels
-
-Design the updater/control plane to support controlled channels, conceptually:
-- `Stable` — normal production customers.
-- `Beta` — isolated testing such as SH-0007.
-- `Pilot` — specifically selected customer/business/device rollout before broad Stable promotion.
-- `Internal` may be added later if operationally useful; it is not required yet.
-
-Exact channel names/schema are to be finalized during implementation. Do not alter current production update behavior merely because this design is recorded.
-
-### Device / Business Update Assignment
-
-Future update policy should allow the Cloud/Admin to determine which approved release channel/version a device or Business may receive, without exposing Beta/Pilot releases to unrelated Stable customers.
-
-A customer requesting a new feature may receive a Pilot build first while other customers remain on the existing Stable version. After Acceptance, the code can be promoted to Stable while the feature itself remains entitlement-gated.
-
-### Controlled Promotion
-
-Target lifecycle for customer-requested code changes:
-`Development → Beta → Pilot (when useful) → Acceptance → Stable`
-
-Promotion of the code and commercial entitlement to the feature are separate decisions.
-
-A feature may become part of the Stable codebase while remaining enabled only for the customer(s) that purchased/received the entitlement.
-
-### Feature Flags / Settings
-
-Changes that are purely entitlement/configuration/settings and are already supported by the installed code should be deliverable through trusted Cloud configuration/runtime mechanisms without creating a new binary release.
-
-Security-sensitive settings must remain backend-enforced where appropriate. Feature hiding in UI alone is never sufficient authorization.
-
-### Update Safety Rules
-
-- A customer-specific request must not force unrelated customers onto an unaccepted build.
-- Beta/Pilot release visibility must be isolated from Stable update discovery.
-- No feature entitlement may bypass Readiness Gate, dependency checks, permissions, or backend enforcement.
-- Customer-specific capability code must pass its own Acceptance before production use.
-- Stable promotion requires the appropriate regression/Acceptance evidence.
-- SH-0005 and SH-0006 remain on the existing protected production path until a separately approved production promotion.
-- Existing 10.5.3 update/runtime compatibility must not be broken while the new channel model is developed.
-
-### Roadmap placement
-
-This direction does NOT create an 18th roadmap point.
-- Business Entitlements belong under Point 3C — Package / Entitlement Engine.
-- Admin commercial controls belong with the Point 3 Admin V4 commercial work.
-- Pilot/controlled update-channel implementation is a required pre-RC capability and must be closed before RC/production promotion, without changing the official 17-point roadmap unless explicitly approved.
-
-## Approved Design Direction — Multi-Tenant Website Engine
-
-STATUS: APPROVED DESIGN DIRECTION / DEFERRED IMPLEMENTATION.
-
-This is a recorded product/architecture decision only. Do not interrupt Point 3B to implement it, and do not create a new numbered roadmap point unless explicitly approved later.
-
-### Core model
-
-Sharawla should have ONE multi-tenant Website Engine serving many businesses. Do not create or maintain a separate copied website codebase/project for every customer.
-
-Canonical resolution direction:
-`Incoming Domain / Host → Business ID → Business Profile → Enabled Website Capabilities → Business Data / Configuration → Theme → Rendered Website`
-
-Each website must remain business-scoped and must never leak data/configuration between tenants.
-
-### Customer without an existing website
-
-When Website is commercially entitled and enabled for a Business, Sharawla should be able to provision a Sharawla-hosted address such as:
-`business-name.<Sharawla-owned-domain>`
-
-The business can configure its logo, branding, branches, products/services, prices, hours, ordering options and other profile-relevant settings without creating a separate application deployment per customer.
-
-### Custom Domain
-
-A customer may connect its own domain, for example `www.customer.com`, to the same Sharawla Website Engine.
-
-Preferred ownership rule:
-- The customer owns its custom domain.
-- Sharawla may assist with setup/management as a service.
-- Sharawla should not require itself to own every customer's domain.
-- Domain verification and DNS connection must be explicit before activation.
-
-### Customer already has a website
-
-Do not force replacement.
-
-Support an Integration mode where the existing customer website can connect to Sharawla through a controlled API/Webhook integration, or use a Sharawla-powered commerce/ordering subdomain such as `order.customer.com` while retaining the main website.
-
-External integrations must use scoped authentication/authorization and must not expose business backend secrets or service-role credentials to browser/client code.
-
-### Profile-driven website behavior
-
-The Website Engine should adapt to the Business Profile and enabled capabilities rather than hard-code one Top Burger/restaurant experience.
-
-Examples of intended direction:
-- Restaurant: menu, cart, delivery, pickup, order tracking.
-- Retail / Clothing: catalog, variants, cart, stock-aware commerce.
-- Pharmacy: permitted pharmacy catalog/workflows according to applicable capabilities and rules.
-- Service: services and appointments.
-- Membership: plans/subscriptions/bookings where enabled.
-
-Top Burger's existing website is implementation/evidence to learn from, not the final architecture to clone for every business.
-
-### Shared operational data
-
-Website and POS should consume the same authoritative business configuration/data contracts where appropriate. Price, availability, branches, products, orders, customer data, delivery/pickup and status flows should not require manual duplicate maintenance between POS and Website.
-
-Any website-specific pricing or availability must be an explicit configured rule, not accidental data divergence.
-
-### Themes / Templates
-
-Support reusable profile-aware themes/templates so customers can choose presentation without creating a separate codebase. Branding configuration can include logo, colors, banners and supported layout options.
-
-### Commercial separation
-
-Do not overload a single `commerce.website` switch with every website capability forever. Before implementation, formally design how Website Engine, Online Ordering/Commerce, Custom Domain, and External Website/API Integration map into the existing capability + package/add-on architecture.
-
-Do not silently add new canonical Cloud feature keys during Point 3B. Any future feature/catalog additions require the normal controlled capability/readiness process and must preserve the frozen 3A baseline as historical evidence.
-
-Potential commercial direction (not yet implemented/priced):
-- Sharawla-hosted website/subdomain tier.
-- Advanced website/custom-domain tier.
-- Existing-site API/integration option.
-
-Exact package names, pricing and entitlement mapping remain deferred to the commercial/package design stage.
-
-### Security / operational rules
-
-- Domain must resolve to one verified Business before business data is served.
-- Business isolation is mandatory.
-- Website capability/entitlement decisions must follow the same Sharawla capability/readiness/commercial model rather than a parallel permission system.
-- Existing customer sites must integrate through controlled public integration contracts, never direct privileged database access.
-- Production deployment/update strategy should allow one Website Engine to be upgraded safely without manually redeploying a separate copy for every customer.
-
-## Runtime Security Model — Plain Summary
-
-Device Identity → License → Business → Profile → Feature Readiness → Commercial Entitlement → Dependencies → User Permissions → Signed Runtime Snapshot → Anti-Rollback → Offline Safety → Audit → Acceptance before Production.
-
-Fail-closed rule: if a new security/runtime decision cannot be trusted or verified, deny it rather than infer permission.
-
-Legacy POS 10.5.3 compatibility is mandatory. Do not modify or force the new readiness consumer through legacy runtime RPCs:
-- `get_sharawla_business_runtime_config`
-- `get_sharawla_business_runtime_config_v2`
-- `get_sharawla_business_connection`
-
-## Offline V2 Core Principle
-
-Local device is the operational source during sale; server is aggregation/sharing.
-- Each transaction has a stable unique `client_tx_id`.
-- Save locally first in a transaction; only then report success to cashier.
-- Outbox retains pending operations until explicit server ACK.
-- Retry must be idempotent: same `client_tx_id` applies once server-side.
-- Power loss/restart must not lose acknowledged-local operations.
-- Exactly 2 legacy unresolved conflicts are intentionally retained; do not rerun migration/takeover/resolve/reset on them.
-
-## Canonical Fingerprint Rule
-
-If local `st.device_fingerprint` exists, it is the sole canonical identity. No MachineGuid fallback/replacement. Migration is only for absence of canonical fingerprint. Any later identity change requires explicit administrative Reset/Rebind; no automatic rebind.
-
-## Deferred Bugs / Improvements
-
-1. Multiple Instance / Startup: Production 10.5.3 once accumulated many `Sharawla POS.exe` processes and UI did not open. Killing all processes then launching once restored normal operation. Root cause not proven. Future Beta fix should inspect single-instance locking/startup/relaunch while preserving Windows 7, ia32/x64, Offline and Printing. Do not patch Production 10.5.3 directly.
-2. Admin V4 Audit UI: expose Actor + Before + After clearly.
-3. Beta test/navigation duplicate/mirrored UI entry: inspect before fixing.
-
-## Continuation Protocol
-
-At the start of a future session/chat:
-1. Read this file.
-2. Check current GitHub branch/HEAD/build status.
-3. Check Sharawla Cloud read-only state where relevant.
-4. Compare reality with this checkpoint.
-5. Continue from the first uncompleted exact next step.
-
-Never mark something CLOSED because it was planned, coded, or statically checked. Close only after its required Acceptance passes.
-
-## Final Project Hand-off Requirement
-
-Before Sharawla V1 Production Ready hand-off, create an extremely simple colloquial Arabic operating/integration guide for the owner. It must explain, beginner-proof, how Sharawla Admin, Sharawla Cloud, business backends, POS, devices, licenses, profiles, packages/add-ons, permissions, updates, Offline/Sync, backups/recovery and support connect together; how to add a customer/business/branch/device/license; how to diagnose common problems; and what must never be changed directly in Production.
-
-## Shortcut
-
-When Mohamed says `(بلح)`, use this file plus live GitHub/Cloud verification to report: official roadmap, current point/subpoint, current version, Production/Beta status, latest Acceptance, latest actual result, closed gates, blockers, deferred bugs, and exact next step.
+If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
