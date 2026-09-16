@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.55.4",
+  "version": "10.5.4-beta.55.5",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta55.4 SH-0007-only recovery candidate. Preserves app.js as the sole Offline Auth owner and adds a narrow runtime recovery layer for offline read fallbacks, open-shift continuity, reconnect shift reconciliation, pending movement preservation, and offline bon sequencing. Production SH-0005/SH-0006 and legacy 10.5.3 runtime contracts remain untouched."
+  "notes": "Beta55.5 SH-0007-only hardening candidate. Keeps Beta55.4 recovery, formalizes offline page behavior for shifts, expenses, delivery settings, and products, prevents raw administrative mutations on cache-read pages while offline, and shields Website Management/sub-pages from Navigation Parity card leakage. Production SH-0005/SH-0006 and legacy 10.5.3 remain untouched."
 }
