@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55.4';
+const VERSION='10.5.4-beta.55.5';
 const FILES=[
  ['offline-v2','beta36-offline-v2.js?v=10.5.4-beta.55'],
  ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.55'],
@@ -31,15 +31,16 @@ const FILES=[
  ['beta49-takeover-activation-safety','beta49-takeover-activation-safety.js?v=10.5.4-beta.55'],
  ['beta51-final-offline-acceptance-fix','beta51-final-offline-acceptance-fix.js?v=10.5.4-beta.55'],
  ['beta55-4-runtime-recovery','beta55-4-runtime-recovery.js?v=10.5.4-beta.55.4'],
+ ['beta55-5-runtime-hardening','beta55-5-runtime-hardening.js?v=10.5.4-beta.55.5'],
  ['owner-acceptance-lazy-v47','owner-acceptance-lazy-loader-v47.js?v=10.5.4-beta.55']
 ];
-function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta55.4 failed to load ${src}`));document.head.appendChild(s)})}
+function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-beta36-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-beta36-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta55.5 failed to load ${src}`));document.head.appendChild(s)})}
 function ready(){return typeof global.rpc==='function'&&typeof global.rest==='function'&&global.SharawlaRuntimeCore}
 async function loadAll(){
  for(const [k,s] of FILES)await load(k,s);
- global.__SharawlaBeta36Integration=Object.freeze({version:VERSION,files:FILES.map(x=>x[1]),loaded:true,ownerAcceptance:'lazy',takeoverSafety:'explicit-owner-only',beta51FinalOfflineAcceptanceFix:true,beta554RuntimeRecovery:true,sharedBusinessCoreV1:true,beta54SharedCoreUI:true,purchasingAttachmentsV1:true,beta55UiWorkflowFixes:true,beta55UiHardening:true,beta55CentralWarehouse:true,beta55CentralWarehouseV2:true,beta55EmergencyPermissionHardening:true,foodRecipeRuntimeV1:true,beta55RestaurantClosureUI:true,beta55NavigationParity:true,beta55DeliverySettlementShiftCash:true,beta55PrintOrderType:true,beta55NavigationAcceptance:true});
- for(const name of ['sharawla-beta36-integrations-ready','sharawla-beta37-integrations-ready','sharawla-beta38-integrations-ready','sharawla-beta39-integrations-ready','sharawla-beta47-integrations-ready','sharawla-beta48-integrations-ready','sharawla-beta49-integrations-ready','sharawla-beta51-integrations-ready','sharawla-beta54-integrations-ready','sharawla-beta55-integrations-ready','sharawla-beta55-4-integrations-ready'])global.dispatchEvent(new CustomEvent(name));
+ global.__SharawlaBeta36Integration=Object.freeze({version:VERSION,files:FILES.map(x=>x[1]),loaded:true,ownerAcceptance:'lazy',takeoverSafety:'explicit-owner-only',beta51FinalOfflineAcceptanceFix:true,beta554RuntimeRecovery:true,beta555RuntimeHardening:true,sharedBusinessCoreV1:true,beta54SharedCoreUI:true,purchasingAttachmentsV1:true,beta55UiWorkflowFixes:true,beta55UiHardening:true,beta55CentralWarehouse:true,beta55CentralWarehouseV2:true,beta55EmergencyPermissionHardening:true,foodRecipeRuntimeV1:true,beta55RestaurantClosureUI:true,beta55NavigationParity:true,beta55DeliverySettlementShiftCash:true,beta55PrintOrderType:true,beta55NavigationAcceptance:true});
+ for(const name of ['sharawla-beta36-integrations-ready','sharawla-beta37-integrations-ready','sharawla-beta38-integrations-ready','sharawla-beta39-integrations-ready','sharawla-beta47-integrations-ready','sharawla-beta48-integrations-ready','sharawla-beta49-integrations-ready','sharawla-beta51-integrations-ready','sharawla-beta54-integrations-ready','sharawla-beta55-integrations-ready','sharawla-beta55-4-integrations-ready','sharawla-beta55-5-integrations-ready'])global.dispatchEvent(new CustomEvent(name));
 }
-function start(){let tries=0;const t=setInterval(()=>{tries++;if(ready()){clearInterval(t);loadAll().catch(e=>console.error(e));return}if(tries>=100){clearInterval(t);console.error('Beta55.4 integration loader: app runtime not ready')}},50)}
+function start(){let tries=0;const t=setInterval(()=>{tries++;if(ready()){clearInterval(t);loadAll().catch(e=>console.error(e));return}if(tries>=100){clearInterval(t);console.error('Beta55.5 integration loader: app runtime not ready')}},50)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
