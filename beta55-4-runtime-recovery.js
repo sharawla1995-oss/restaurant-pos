@@ -114,8 +114,12 @@ async function restRecovery(table,query='',opt={}){
 }
 
 async function pendingLocalShift(){
- const q=await getQueue(),bid=branchId(),eid=employeeId();
- return q.filter(x=>x.type==='shift_open'&&x.local_shift&&Number(x.local_shift.branch_id)===bid&&Number(x.local_shift.employee_id)===eid).map(x=>x.local_shift).sort((a,b)=>new Date(b.opened_at||0)-new Date(a.opened_at||0))[0]||null;
+ const q=await getQueue(),bid=branchId(),eid=employeeId(),eligible=[];
+ for(const j of q){
+  if(j.type!=='shift_open'||!j.local_shift||Number(j.local_shift.branch_id)!==bid||Number(j.local_shift.employee_id)!==eid)continue;
+  const own=await ownership55(j);if(legacyMayOperate55(own.owner))eligible.push(j.local_shift);else if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; pending shift read fail-closed',j.client_tx_id,own.reason);
+ }
+ return eligible.sort((a,b)=>new Date(b.opened_at||0)-new Date(a.opened_at||0))[0]||null;
 }
 let baseGetOpenShift=null;
 async function getOpenShiftRecovery(employee=employeeId(),branch=branchId()){
@@ -167,7 +171,11 @@ function runtimeBusiness(){try{return text(sharawlaRuntimeConfig?.business_id)}c
 function bonKey(shiftId){return `${BON_PREFIX}${runtimeBusiness()||'business'}:${branchId()}:${text(shiftId)||'shift'}`}
 async function numericBonFloor(shiftId){
  let max=Number(localStorage.getItem(bonKey(shiftId))||0);const q=await getQueue();
- for(const j of q.filter(x=>x.type==='sale'&&String(x.p_order?.shift_id||x.local_order?.shift_id)===String(shiftId))){const m=String(j.local_order?.bon_number||'').match(/^OFF-(\d+)$/);if(m)max=Math.max(max,Number(m[1]||0))}
+ for(const j of q){
+  if(j.type!=='sale'||String(j.p_order?.shift_id||j.local_order?.shift_id)!==String(shiftId))continue;
+  const own=await ownership55(j);if(!legacyMayOperate55(own.owner)){if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; bon floor read fail-closed',j.client_tx_id,own.reason);continue}
+  const m=String(j.local_order?.bon_number||'').match(/^OFF-(\d+)$/);if(m)max=Math.max(max,Number(m[1]||0));
+ }
  return max;
 }
 async function nextOfflineBon(shiftId,commit=false){const floor=await numericBonFloor(shiftId),n=floor+1;if(commit)localStorage.setItem(bonKey(shiftId),String(n));return n}
