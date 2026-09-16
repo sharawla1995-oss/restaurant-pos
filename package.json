@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.55.3",
-  "description": "Sharawla POS V10.5.4 Beta 55.3 - Official app.js Offline Auth Enrollment + Signed Runtime Snapshot Sandbox Candidate",
+  "version": "10.5.4-beta.55.4",
+  "description": "Sharawla POS V10.5.4 Beta 55.4 - SH-0007 Offline Runtime Regression Recovery Candidate",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
