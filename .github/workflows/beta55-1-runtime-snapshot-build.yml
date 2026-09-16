@@ -1,4 +1,4 @@
-name: Beta55.2 Runtime Snapshot Sandbox Build
+name: Beta55.4 Runtime Recovery Sandbox Build
 
 on:
   push:
@@ -40,7 +40,7 @@ jobs:
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
-          name: sharawla-pos-10.5.4-beta.55.3-sh0007-x64
-          path: dist/Sharawla-POS-Setup-10.5.4-beta.55.3.exe
+          name: sharawla-pos-10.5.4-beta.55.4-sh0007-x64
+          path: dist/Sharawla-POS-Setup-10.5.4-beta.55.4.exe
           if-no-files-found: error
           retention-days: 7
