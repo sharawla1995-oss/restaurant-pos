@@ -32,7 +32,7 @@ async function canonicalIdentity(){
     const e=new Error('Offline V2 requires canonical device identity before migration/takeover');e.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED';throw e;
   }
   try{
-    const runtimeBusiness=text(state?.business?.id||global.sharawlaRuntimeConfig?.business_id);
+    const runtimeBusiness=text(global.sharawlaRuntimeConfig?.business_id);
     if(runtimeBusiness&&runtimeBusiness!==identity.business_id){const e=new Error('Offline V2 business identity mismatch');e.code='OFFLINE_V2_BUSINESS_IDENTITY_MISMATCH';throw e}
   }catch(e){if(e?.code)throw e}
   return identity;

@@ -321,8 +321,6 @@ function friendlyOfflineFetch43(){
 }
 
 function install43(){
-  try{cacheBootstrap=cacheBootstrap43}catch{};try{global.cacheBootstrap=cacheBootstrap43}catch{};
-  try{loadOfflineBootstrap=loadOfflineBootstrap43}catch{};try{global.loadOfflineBootstrap=loadOfflineBootstrap43}catch{};
   try{logout=logout43}catch{};try{global.logout=logout43}catch{};
   try{saveOfflineSale=saveOfflineSale43}catch{};try{global.saveOfflineSale=saveOfflineSale43}catch{};
   try{saveOfflineExpense=saveOfflineExpense43}catch{};try{global.saveOfflineExpense=saveOfflineExpense43}catch{};
@@ -336,8 +334,8 @@ function install43(){
   try{updatePendingSyncBadge=updatePendingSyncBadge43}catch{};try{global.updatePendingSyncBadge=updatePendingSyncBadge43}catch{};
   try{offlineOrderNo=offlineOrderNo43}catch{};try{global.offlineOrderNo=offlineOrderNo43}catch{};
   try{setOfflineOrderNo=setOfflineOrderNo43}catch{};try{global.setOfflineOrderNo=setOfflineOrderNo43}catch{};
-  installSignIn43();friendlyOfflineFetch43();
-  const obs=new MutationObserver(()=>installSignIn43());obs.observe(document.body,{childList:true,subtree:true});
+  // Beta55.3+: app.js is the sole owner of signIn/cacheBootstrap/loadOfflineBootstrap.
+  friendlyOfflineFetch43();
   global.__SharawlaBeta43OfflineCore=Object.freeze({version:VERSION,offlineLoginV2:true,perUserBootstrap:true,syncLock:true,dependencyAwareSync:true,shiftReconcile:true,pendingCenter:true,ordersMerge:true,scopedBonCounter:true});
   setTimeout(()=>refreshPendingSyncBadge().catch(()=>{}),500);
 }
