@@ -14,7 +14,7 @@ Production is READ-ONLY during Beta/development work.
 - SH-0006 — SmartSystem-PC / Top Burger — العشرين — Primary — POS `10.5.3`
 - Forbidden without explicit post-RC Production approval: Beta install, migration, profile/feature changes, business overrides, commercial entitlements, reset, takeover, rebind, device/license mutation.
 - Read-only regression checks are allowed.
-- Latest Cloud verification on 2026-09-17: Top Burger has `0` Base Package rows, `0` active Base rows, `0` Paid Add-on rows, `0` active Add-ons, and `0` `commercial.%` Admin audit writes.
+- Latest Cloud verification on 2026-09-17 after Point 3 device-aware E2E: Top Burger has `0` Base Package rows, `0` active Base rows, `0` Paid Add-on rows, `0` active Add-ons, and `0` `commercial.%` Admin audit writes.
 - Production Commercial Isolation: **PASS**.
 
 ## Beta Sandbox
@@ -23,7 +23,8 @@ Production is READ-ONLY during Beta/development work.
 - Device ID: `8c580a23-8711-4540-b6ca-f5c1725d5fcf`
 - Business: `تجريبي`
 - Business ID: `91826502-590e-4afa-8826-2c0f4b99c490`
-- Beta backend: `xihcxydjnzemflhedzor.supabase.co`
+- Authoritative current Runtime Snapshot / Commercial Cloud path for SH-0007: `ikppryeavoabnugcijeq.supabase.co`.
+- Historical Beta backend references to `xihcxydjnzemflhedzor.supabase.co` must not be assumed to describe the current Runtime Snapshot path; verify subsystem scope before use.
 - Profile may be changed for isolated acceptance only.
 - Experimental writes are allowed only when explicitly scoped to SH-0007 / `تجريبي`.
 - The user currently has one physical Windows 7 test device: SH-0007. A second physical device is not required for the current acceptance stage.
@@ -34,7 +35,7 @@ Production is READ-ONLY during Beta/development work.
 POS repository: `sharawla1995-oss/restaurant-pos`  
 Current integration branch: `beta56-runtime-snapshot-consumer`  
 Branch name is technical only; official Roadmap Point 6 Retail has NOT started.  
-HEAD immediately before this status refresh: `86f804f853a264a9427c6bb83f1956aff4442d17`.
+Verified branch checkpoint before this status update: `2d3c2ccd836e0cfe07037e84fae3632444245407`.
 
 Important current source facts visible on this branch:
 - Runtime Snapshot consumer/main files exist.
@@ -46,7 +47,7 @@ Important current source facts visible on this branch:
 
 1. ✅ Beta55 — Restaurant Closure: CLOSED
 2. ✅ Sharawla Cloud + Admin V4: CLOSED
-3. 🟡 Commercial Capabilities / Add-ons / Packages: CURRENT
+3. ✅ Commercial Capabilities / Add-ons / Packages: CLOSED
 4. ⬜ Central Warehouse V2 + Financial Closure
 5. ⬜ Commercial Warehouse Acceptance
 6. ⬜ Beta56 — Retail / Supermarket / Clothing
@@ -62,7 +63,7 @@ Important current source facts visible on this branch:
 16. ⬜ RC1
 17. ⬜ Pilot Production → Sharawla V1 Production Ready
 
-Do not reorder the official roadmap silently. In particular, Point 4 remains **Central Warehouse V2 + Financial Closure**. Commercial Admin management belongs inside Point 3.
+Do not reorder the official roadmap silently. In particular, Point 4 remains **Central Warehouse V2 + Financial Closure**. The focused Offline ownership/architecture audit immediately after Point 3 is a critical pre-Point-4 safety audit, not a renumbering of Roadmap Point 15.
 
 ## Point 1 — Beta55 Restaurant Closure
 
@@ -91,7 +92,7 @@ Admin operating rule:
 
 ## Point 3 — Commercial Capabilities / Add-ons / Packages
 
-**CURRENT.**
+**CLOSED.**
 
 Canonical commercial flow:
 `Profile Defaults + Package Entitlements + Paid Add-ons + Business Overrides → Dependency Resolver → Readiness Gate → Final Enabled Features`
@@ -159,6 +160,11 @@ Historical endpoint checkpoint:
 - signing key ID: `sharawla-snapshot-2026-09-final`
 - private signing key must never be copied to GitHub/POS/chat.
 
+Current SH-0007 path additionally verified:
+- Cloud endpoint `runtime-access-snapshot-v2` is active on `ikppryeavoabnugcijeq`.
+- It builds through `reserve_and_build_sharawla_runtime_snapshot_cloud_v2` and requires `composition_version=2`.
+- POS source routes SH-0007 / `تجريبي` to the V2 endpoint.
+
 Important distinction:
 - Runtime Snapshot security/readiness foundation is accepted.
 - Offline Authentication and broad Offline/Sync operational correctness are separate acceptance concerns and must not be confused with Snapshot acceptance.
@@ -216,18 +222,18 @@ Admin helper/read/mutation RPC foundation is implemented with:
 
 ### 3C-4B — Commercial Management Admin UI
 
-**RUNTIME ACCEPTANCE SUBSTANTIALLY PASS; FINAL CLOSE PENDING PROVENANCE + FULL E2E.**
+**CLOSED.**
 
 Admin repo: `sharawla1995-oss/sharawla-admin`  
 Working branch: `v3.7-commercial-management-ui`.
 
-UI/runtime rules:
-- mobile-first
-- visually integrated into existing Sharawla Admin shell
-- no browser alert/confirm/prompt for commercial lifecycle
-- no direct Commercial REST mutations
-- fixed Top Burger Production ID defense-in-depth read-only guard
-- business-level Inspector must be named/understood as **Commercial Entitlement Inspector**, not final device/readiness access.
+Final static/provenance close evidence:
+- exact verified Admin HEAD: `ce6897dc1147e520784c2ee2c40ee6aaecbeb7e4`
+- commit: `fix(admin): align commercial page with existing admin mobile shell`
+- `commercial-management.html` blob: `778a9719b4756f07b9538457343aa46abd4f72bd`
+- deployed Vercel Preview deployment: `dpl_9HpDRfQHqPyVr6NN3z17ZGQXAw1e`
+- deployed Preview branch/SHA matched the exact Admin branch HEAD above.
+- current source confirmed mobile-first shell integration, custom confirmation dialog, RPC-only Commercial mutation paths, and fixed Production business-ID read-only guard.
 
 Runtime acceptance completed on `تجريبي`:
 - Create Draft Package: PASS
@@ -263,35 +269,41 @@ Latest Cloud audit evidence on sandbox:
 - Add-on suspended → cancelled
 - same Base entity ID/start timestamp preserved through lifecycle.
 
-Latest Production isolation verification:
+Do not recreate these lifecycle tests unless new evidence requires it.
+
+### Point 3 Final Device-Aware E2E — CLOSED
+
+Required path was proven on SH-0007:
+`Admin commercial decision → Commercial resolver → Composition V2 → Signed Runtime Snapshot → POS consumer → Readiness Gate → effective feature access`
+
+Runtime Snapshot state proof on installed `10.5.4-beta.55.5`:
+- consumer active through `topBurgerDesktop.runtimeSnapshot`
+- mode: `safe-cache`
+- sequence: `101`
+- high-water: `101`
+- snapshot ID: `95f91d80-7e2b-46a6-b6e7-d8cce91b6825`
+- baseline: `3A-2026-09-14-frozen-v1`
+- runtime environment: `beta`
+- composition version: `2`
+- decision count: `107`
+- sandbox binding: SH-0007 / `91826502-590e-4afa-8826-2c0f4b99c490`
+
+Final device-aware feature decisions:
+- `core.offline` → `allowed=true`, `reason_code=ALLOWED`, `readiness_status=beta_ready`
+- `commerce.delivery` → `allowed=false`, `reason_code=NOT_ENTITLED`
+- `commerce.variants` → `allowed=false`, `reason_code=PROFILE_INELIGIBLE`
+
+This proves both ALLOW and DENY behavior through the signed device-aware Runtime Snapshot rather than only the business-level Inspector.
+
+Final Production isolation recheck after E2E:
 - Top Burger Base Package rows: 0
 - Top Burger active Base rows: 0
 - Top Burger Paid Add-on rows: 0
 - Top Burger active Add-ons: 0
 - Top Burger `commercial.%` audit rows: 0
-- Result: **PASS — Production untouched by Commercial runtime testing.**
+- Result: **PASS — Production untouched.**
 
-Do not recreate these lifecycle tests unless new evidence requires it.
-
-### 3C-4B Remaining Close Gates
-
-Before declaring 3C-4B CLOSED:
-1. Re-fetch `sharawla-admin` branch `v3.7-commercial-management-ui`; verify exact current HEAD and current `commercial-management.html` source/provenance. Do not trust abbreviated historical SHAs blindly.
-2. Verify the latest Vercel Preview maps to that exact Admin commit and the mobile shell integration is the deployed source.
-3. Perform only necessary minor mobile polish if still present (historically: Build R7/Back clipping or floating button overlap); no global Admin redesign.
-4. Reconfirm no direct Commercial table mutation path and Production fixed-ID read-only guard in current source.
-5. Then mark 3C-4B CLOSED.
-
-### Point 3 Final E2E Gate
-
-Point 3 is NOT closed merely because Admin lifecycle passed.
-
-Required final commercial E2E on SH-0007:
-`Admin commercial decision → Commercial resolver → Composition V2 → Signed Runtime Snapshot → POS consumer → Readiness Gate → effective feature access`
-
-Must prove both allow and deny behavior with device context. The business-only Commercial Entitlement Inspector is not a substitute for final device-aware readiness/effective access.
-
-After successful E2E, reverify Production read-only/untouched and then Point 3 may be closed if no remaining Point-3 blocker exists.
+**Point 3 result: CLOSED.**
 
 ## Offline / Sync — Critical Pre-RC Priority
 
@@ -367,18 +379,17 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Do not resume the obsolete 55.3 local-push checklist. Do not start Point 4. Do not rerun completed Commercial lifecycle tests.**
+**Point 3 is CLOSED. Do not rerun completed Commercial lifecycle or device-aware E2E tests. Do not start Point 4 until the focused Offline ownership/architecture audit below is complete.**
 
 Exact next step:
 
-1. Perform the **3C-4B Final Static/Provenance Close** on `sharawla1995-oss/sharawla-admin` branch `v3.7-commercial-management-ui`:
-   - fetch exact current branch HEAD;
-   - inspect current `commercial-management.html` and confirm RPC-only Commercial mutations + fixed Production read-only guard + mobile-first shell integration;
-   - verify the currently deployed Vercel Preview provenance against that exact commit;
-   - make no Cloud/POS/Production change during this verification.
-2. If that gate PASSes, mark 3C-4B CLOSED in this file.
-3. Then perform the **Point 3 Full Commercial Device-Aware E2E on SH-0007 only** through Composition V2 + Signed Snapshot + Readiness Gate.
-4. After Point 3 E2E, move immediately to a focused **Offline ownership/architecture audit** before adding any new Offline patch, because Offline/Sync is a critical pre-RC risk.
-5. Keep SH-0005/SH-0006 and Top Burger read-only throughout.
+1. Perform a **read-only Offline Ownership / Architecture Audit** on the current POS branch before adding any new Offline patch.
+2. Map every active Offline layer from the base app through Beta43/44/45/47/49/51 and later recovery/hardening/auth layers, including loader order and which layer currently owns each operation.
+3. For each operation — sale, return, expense, shift open/close, order/status, auth/bootstrap, Outbox/Sync — identify the authoritative writer, local transaction boundary, `client_tx_id` ownership, ACK/removal rule, retry/idempotency path, and recovery behavior.
+4. Explicitly identify overlapping owners, monkey patches, duplicate queues/listeners/wrappers, or paths that can bypass the intended `local transaction → durable Outbox → explicit ACK` invariant.
+5. Produce the smallest consolidation plan toward one authoritative Offline owner/flow. **Do not implement the plan during the audit.**
+6. No SH-0007 runtime action is required for this audit unless source evidence is genuinely insufficient; do not ask for repetitive Console checks.
+7. Keep SH-0005/SH-0006 and Top Burger read-only throughout.
+8. After the audit is documented and blockers are understood, update this checkpoint and only then proceed to Point 4 / any approved Offline consolidation work.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
