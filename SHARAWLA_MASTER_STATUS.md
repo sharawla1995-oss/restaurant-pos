@@ -492,6 +492,33 @@ Remaining before Final Offline/Sync Closure:
 
 No Backfill or Cutover is authorized while Point 4B-2 genuine committed concurrency remains unresolved.
 
+### Point 4B-4 — Legacy Writer Cutover Hooks & Workflow Barriers
+
+**SOURCE COMPLETE / LOCAL COMMIT — NOT DEPLOYED / NOT ACTIVATED.**
+
+- Source baseline: `74d44a738b092f0483aa2a2ef725898a17a8cc29` (`feat: add controlled canonical stock cutover contract`).
+- The hook contract is derived only from the approved 4B-3A `approved_auditor_evidence`; it does not accept or maintain an independent writer list.
+- Required coverage remains exactly:
+  - `35` direct physical stock writers;
+  - `15` proven transitive stock callers;
+  - `50` total stock-writer paths;
+  - `6` document/in-flight workflow barriers.
+- Direct writers are the physical mutation boundary. Transitive callers retain their proven direct-root lineage and cannot apply a second stock effect.
+- The six Central Supply document lifecycle functions remain document/in-flight barriers, not stock writers. Dispatch and receive remain genuine stock-mutating workflows within the 50-writer inventory.
+- Routing contract:
+  - `NOT_CUT_OVER` → `LEGACY_ONLY` while no protected/committed candidate contradicts it;
+  - `CUT_OVER_ZERO` → `CANONICAL_ONLY`, independent of V2 balance existence;
+  - `CANONICAL_ACTIVE` → `CANONICAL_ONLY`;
+  - `FORWARD_RECOVERY_REQUIRED`, protected, missing, unknown, or contradictory ownership → fail closed/manual recovery;
+  - canonical ownership never tries V2 and then falls back to Legacy.
+- 4B-4 introduces no Canonical adapter and calls no stock writer. The approved direct Legacy guard denies canonical ownership with `INVENTORY_STOCK_V2_LEGACY_OWNER_DENIED`; a separately approved workflow adapter will be required before Canonical execution can replace that fail-closed result.
+- Hook verification compares all staged signatures, deployed definitions, definition digests, direct/transitive roots, and document guards. An unknown direct stock writer fails closed with `INVENTORY_STOCK_HOOKS_UNKNOWN_DIRECT_WRITER`.
+- Runtime activation is impossible while `inventory_stock_point4b2_concurrency_closed_v2()=false`; the activation function checks this before any verification-state mutation.
+- Existing Legacy runtime remains unchanged because no operational function is modified and every contract begins `DECLARED_NOT_INSTALLED`.
+- Static source result: Point 4B-4 gate **PASS**. The source and this checkpoint are committed locally as `feat: add canonical stock cutover hooks`; no hook was installed or activated and no Backfill/Cutover, Beta write, Production access, or Push occurred.
+
+Point 4B-4 source readiness does not close Point 4B-2 and does not authorize deployment, hook activation, Backfill, or Cutover.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -529,10 +556,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B source is committed locally but remains NOT DEPLOYED / NOT EXECUTED.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED.**
 
 Exact next step:
 
-Obtain an approved disposable PostgreSQL environment capable of two genuinely independent committed sessions and complete the three remaining Point 4B-2 concurrency scenarios. Do not replace them with sequential simulation. Only after Point 4B-2 concurrency is PASS may Point 4B-3B proceed to a separate explicit deployment preflight; Backfill/Cutover remains unauthorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Continue Point 4 source-only architecture with the next dependency-safe contract after Canonical Stock: Central Supply transfer consolidation. Treat Central Supply as the future canonical transfer lifecycle and Legacy Retail Transfers as compatibility-only after controlled cutover, but do not route, deploy, activate, Backfill, or Cutover anything while Point 4B-2 concurrency is OPEN. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
