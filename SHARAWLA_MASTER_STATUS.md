@@ -519,6 +519,21 @@ No Backfill or Cutover is authorized while Point 4B-2 genuine committed concurre
 
 Point 4B-4 source readiness does not close Point 4B-2 and does not authorize deployment, hook activation, Backfill, or Cutover.
 
+### Point 4C-1 — Canonical Transfer Consolidation Contract
+
+**SOURCE COMPLETE / LOCAL REVIEW — NOT DEPLOYED / NOT CONNECTED.**
+
+- Central Supply (`inventory_supply_requests`) is the sole future canonical transfer document identity. Legacy Retail/ingredient transfers remain historical compatibility paths and are not a second authoritative lifecycle.
+- The additive companion contract models requested/approved/reserved/preparing/in-transit/partial/final receipt states without changing the existing Central Supply runtime.
+- Dispatch and receive remain the future physical mutation boundaries. This source contract calls neither Legacy stock writers nor `inventory_stock_apply_movement_v2`; no real transfer is routed or dual-written.
+- Transfer lines preserve deterministic quantity and unit-cost snapshots. Generated dispatched/received/damaged/shortage/in-transit values enforce conservation of the dispatched value; accounting disposition of damage/shortage remains a later Financial Journal decision rather than an invented posting.
+- Each workflow event uses deterministic `(operation_type, client_tx_id)` identity. Same identity/digest replays; a changed canonical payload fails closed with `INVENTORY_TRANSFER_V2_IDEMPOTENCY_CONFLICT`.
+- The internal activation guard requires Point 4B-2 concurrency closure and canonical ownership at both source and destination for every line. Both activation evidence and the existing concurrency evidence remain `false`, so activation is currently impossible.
+- Tables are RLS-enabled with all client privileges revoked. Internal functions are not executable by `PUBLIC`, `anon`, or `authenticated`; there is no generic client transfer mutation RPC and no Offline adapter/fake-success path.
+- Source validation: Point 4C-1 static gate **PASS**; earlier Point 4B gates and runtime syntax remain required regressions before commit. No Beta write, deployment, workflow connection, Production access, or Push occurred.
+
+Point 4C-1 source readiness does not close Point 4B-2 and does not authorize transfer routing, deployment, or stock cutover.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -556,10 +571,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer source is complete locally but NOT DEPLOYED / NOT CONNECTED.**
 
 Exact next step:
 
-Continue Point 4 source-only architecture with the next dependency-safe contract after Canonical Stock: Central Supply transfer consolidation. Treat Central Supply as the future canonical transfer lifecycle and Legacy Retail Transfers as compatibility-only after controlled cutover, but do not route, deploy, activate, Backfill, or Cutover anything while Point 4B-2 concurrency is OPEN. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Continue Point 4 source-only architecture with Purchasing/AP discovery and the minimum canonical contract: Supplier → PR → PO → GRN → Supplier Invoice → 3-way Match → Approved Payable → Payment → Allocation/Settlement, including supplier-return and landed-cost lineage. Preserve existing runtime behavior and do not deploy or connect any workflow. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover or transfer activation is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
