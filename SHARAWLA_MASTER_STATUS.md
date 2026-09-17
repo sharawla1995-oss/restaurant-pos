@@ -33,9 +33,10 @@ Production is READ-ONLY during Beta/development work.
 ## Canonical GitHub Checkpoint
 
 POS repository: `sharawla1995-oss/restaurant-pos`  
-Current integration branch: `beta56-runtime-snapshot-consumer`  
+Current integration branch: `beta56-offline-ownership-consolidation`  
 Branch name is technical only; official Roadmap Point 6 Retail has NOT started.  
-Verified branch checkpoint before this status update: `2d3c2ccd836e0cfe07037e84fae3632444245407`.
+Current accepted source HEAD: `443e5b2ec4013ba7d1589ec472a4d77012edf708` (`fix: expose authoritative runtime config to offline v2`).
+Previous routing fix: `a4c8a9d7bc6e631d42af44a6b01c13193ded81a4`.
 
 Important current source facts visible on this branch:
 - Runtime Snapshot consumer/main files exist.
@@ -342,6 +343,55 @@ Source currently contains multiple historical Offline layers (Beta43/44/45/47/49
 
 Because SH-0007 may be remotely controlled, offline acceptance should use a safe controlled network simulation where possible rather than physically cutting the connection and losing remote control.
 
+### Offline Ownership Consolidation — Current Runtime Gate
+
+**Core Crash/Recovery Runtime Gate: PASS.**
+
+This is a focused pre-Point-4 safety gate. It does **not** close Roadmap Point 15 — Offline / Sync Final Closure, and it does **not** mean that all Offline Acceptance is complete.
+
+Safety scope and environment:
+- Test environment: SH-0007 / Business `تجريبي` only.
+- SH-0007 authoritative `pos_profile` was changed to `retail` for isolated acceptance.
+- Production SH-0005 / SH-0006 / Top Burger remained untouched and read-only.
+
+Accepted source and routing evidence:
+- Current accepted source HEAD: `443e5b2ec4013ba7d1589ec472a4d77012edf708`.
+- Commit: `fix: expose authoritative runtime config to offline v2`.
+- Previous routing fix: `a4c8a9d7bc6e631d42af44a6b01c13193ded81a4`.
+- `app.js` now explicitly exposes the loaded Runtime Config through the read-only interface `window.SharawlaRuntimeConfig.current()`.
+- Offline V2 uses the authoritative Runtime Config `pos_profile` only; there is no `isRetailProfile()` fallback, guessed profile, or default Restaurant route.
+- Missing profile fails closed with `OFFLINE_V2_POS_PROFILE_REQUIRED`.
+- Invalid profile fails closed with `OFFLINE_V2_INVALID_POS_PROFILE`.
+- Static transport regression: **PASS**.
+- Runtime syntax: **PASS**.
+- `git diff --check`: **PASS**.
+
+Root cause and repair history:
+- The first failure proved that Retail + Food could be persisted with the wrong RPC, `create_food_pos_order_atomic_v1`, because routing depended on optional `isRetailProfile()`.
+- `a4c8a9d7bc6e631d42af44a6b01c13193ded81a4` made Runtime Config `pos_profile` the sole routing authority and changed missing/invalid profile handling to fail closed instead of guessing.
+- The first runtime after that fix still returned `OFFLINE_V2_POS_PROFILE_REQUIRED` despite Runtime Config being loaded. The cause was that `app.js` kept it in top-level lexical `let sharawlaRuntimeConfig`, while Offline V2 attempted to read it as a `window` property.
+- `443e5b2ec4013ba7d1589ec472a4d77012edf708` added the explicit read-only interface and moved Offline V2 to that interface.
+- The crash/recovery runtime evidence below proves the repair end-to-end.
+
+Runtime acceptance evidence:
+- Restart + Login after Retail profile change: **PASS**.
+- Takeover observed: **ACTIVE**, `migration=yes`, `transport=yes`.
+- Preflight: **PASS**.
+- Fresh crash acceptance run: `ACC-20260917-071449-3FUH`.
+- Durable local commit existed before abrupt restart: **PASS**.
+- Actual application relaunch occurred after local commit: **PASS**.
+- Pending crash state survived restart/login: **PASS**.
+- Resume/recovery: **PASS**.
+- Exactly-once server effect: `exactly-once=1`.
+- Stock proof: `23 → 22 → 23`.
+- Final cleanup: `cleanup=zero`.
+- Final UI result: `Last crash PASS`.
+
+Remaining before Final Offline/Sync Closure:
+- Complete structured verification of the remaining operational movements and Master scenarios, including expense, shift open/close, order/status, retry, partial failure, pending recovery, and the other required Offline/Sync cases recorded above.
+- Do not repeat already proven tests unless a regression or new source evidence requires them.
+- Identify and consolidate any remaining Legacy Queue writers, deleters, or reconcilers that can still compete with Native V2 while takeover is ACTIVE.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -383,13 +433,6 @@ This architecture does NOT create an 18th roadmap point.
 
 Exact next step:
 
-1. Perform a **read-only Offline Ownership / Architecture Audit** on the current POS branch before adding any new Offline patch.
-2. Map every active Offline layer from the base app through Beta43/44/45/47/49/51 and later recovery/hardening/auth layers, including loader order and which layer currently owns each operation.
-3. For each operation — sale, return, expense, shift open/close, order/status, auth/bootstrap, Outbox/Sync — identify the authoritative writer, local transaction boundary, `client_tx_id` ownership, ACK/removal rule, retry/idempotency path, and recovery behavior.
-4. Explicitly identify overlapping owners, monkey patches, duplicate queues/listeners/wrappers, or paths that can bypass the intended `local transaction → durable Outbox → explicit ACK` invariant.
-5. Produce the smallest consolidation plan toward one authoritative Offline owner/flow. **Do not implement the plan during the audit.**
-6. No SH-0007 runtime action is required for this audit unless source evidence is genuinely insufficient; do not ask for repetitive Console checks.
-7. Keep SH-0005/SH-0006 and Top Burger read-only throughout.
-8. After the audit is documented and blockers are understood, update this checkpoint and only then proceed to Point 4 / any approved Offline consolidation work.
+Complete the remaining read-only ownership/consolidation assessment against the now-proven Native V2 crash/recovery path, identify any remaining operational Legacy Queue writers/deleters/reconcilers that can still compete with Native V2 while takeover is ACTIVE, and determine the minimum remaining consolidation scope before returning to Roadmap Point 4. Do not run another SH-0007 crash test unless new source evidence requires it.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
