@@ -95,7 +95,11 @@ for(const legacy of [
 
 const approvedV2Files=new Set([
   'supabase-point4-stock-v2-foundation.sql',
-  'supabase-point4-stock-v2-writer.sql'
+  'supabase-point4-stock-v2-writer.sql',
+  // Point 4B-3B is the reviewed internal cutover coordinator, not an
+  // operational workflow or second stock writer. Its dedicated gate proves
+  // that it is client-inaccessible and hard-blocked by 4B-2 concurrency.
+  'supabase-point4-stock-v2-controlled-cutover.sql'
 ]);
 for(const name of fs.readdirSync(root)){
   if(!/\.(?:js|sql)$/.test(name)||approvedV2Files.has(name))continue;

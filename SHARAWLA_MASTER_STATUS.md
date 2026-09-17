@@ -35,7 +35,9 @@ Production is READ-ONLY during Beta/development work.
 POS repository: `sharawla1995-oss/restaurant-pos`  
 Current integration branch: `beta56-offline-ownership-consolidation`  
 Branch name is technical only; official Roadmap Point 6 Retail has NOT started.  
-Current accepted source HEAD: `443e5b2ec4013ba7d1589ec472a4d77012edf708` (`fix: expose authoritative runtime config to offline v2`).
+Accepted source baseline entering Point 4B-3B: `0a58333d79b89cb1d319be2481ac9c04809e7083` (`feat: add legacy stock reconciliation auditor`).
+Current Point 4B-3B source checkpoint: local commit `feat: add controlled canonical stock cutover contract`, containing this Master update; use repository `HEAD` as its exact SHA.
+Accepted Offline runtime/source ancestor: `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`.
 Previous routing fix: `a4c8a9d7bc6e631d42af44a6b01c13193ded81a4`.
 
 Important current source facts visible on this branch:
@@ -418,6 +420,78 @@ Remaining before Final Offline/Sync Closure:
 - Do not repeat already proven tests unless a regression or new source evidence requires them.
 - The ownership architecture blocker before Point 4 is closed; this does **not** close Roadmap Point 15 — Offline / Sync Final Closure and does **not** mean all Offline Acceptance is complete.
 
+## Point 4 — Central Warehouse V2 + Financial Closure
+
+**IN PROGRESS. Point 15 Offline / Sync Final Closure remains OPEN.**
+
+### Point 4B-1 — Canonical Location + Stock V2 Foundation
+
+**CLOSED.**
+
+- Source commit: `c7534b9311ad511d07aae97ed84da85ec1c3c482` (`feat: add canonical stock v2 foundation`).
+- Canonical physical location remains `branches.id`; `branches.location_type` distinguishes `branch` and `central_warehouse`.
+- Canonical V2 balance and immutable movement foundations were deployed only to isolated Beta and passed database-contract acceptance.
+- No operational writer was cut over by 4B-1.
+
+### Point 4B-2 — Canonical Stock Writer
+
+**OPEN / INFRASTRUCTURE BLOCKED.**
+
+- Source commit: `0c63b6a3ba99554f2c769681769cef419d8d3610` (`feat: add canonical stock v2 writer`).
+- Source review, source commit, Beta deployment preflight, Beta migration apply, and non-concurrent database-contract acceptance: **PASS**.
+- Non-concurrent contract acceptance: `33/33 PASS`; rollback/cleanup proof: **PASS**.
+- Persistent isolated Beta remained at `inventory_stock_balances_v2=0` and `inventory_stock_movements_v2=0` after rollback.
+- Acceptance marker: `P4B2-ACC-20260917-1640-ROLLBACK`.
+- Genuine committed concurrency remains **NOT TESTED / NOT PASS**. Required scenarios remain:
+  - different `client_tx_id` operations concurrently against the same stock identity;
+  - concurrent same-idempotency-key replay;
+  - concurrent reversal.
+- Verified infrastructure blockers:
+  - Supabase Database Branching requires Pro;
+  - Free-plan additional project capacity is unavailable;
+  - Work has no Docker or Podman;
+  - PostgreSQL `16.15` binaries were installed in Work, but Work exposes only root UID;
+  - PostgreSQL correctly refuses `initdb` as root;
+  - setuid and user namespaces are prohibited.
+- Do not weaken committed-session concurrency into a sequential simulation and do not mark 4B-2 CLOSED until genuine independent-session evidence exists.
+
+### Point 4B-3A — Legacy Stock Reconciliation Auditor
+
+**CLOSED / COMMITTED SOURCE.**
+
+- Commit: `0a58333d79b89cb1d319be2481ac9c04809e7083` (`feat: add legacy stock reconciliation auditor`).
+- Candidates: `3`; READY: `3`; QUARANTINED: `0`; current-state blockers: `0`.
+- Physical/direct stock writers: `35`; proven transitive writers: `15`; total stock writers: `50`.
+- Document/in-flight workflow barriers: `6`.
+- Historical warnings remain evidence and were not rewritten or promoted into invented facts:
+  - `MOVEMENT_CHAIN_DISCONTINUITY: 1`
+  - `MOVEMENT_COST_EVIDENCE_MISSING: 2`
+  - `UNMAPPED_LEGACY_MOVEMENT_TYPE: 1`
+  - `UNRESOLVED_ADJUSTMENT_COSTING: 1`
+- Deterministic digests:
+  - source: `44d29b548400ca80870d1418968945a2ef3154cc5e8ae688dbabd3ee018567fc`
+  - candidate plan: `d54c6e5cbd75a79e6b2fcb9ddc862b68dc1330fb8eee4f2263987f31a048196d`
+  - writer inventory: `26e720760b6b4d2ddf6d45470b6092dab81c15a4fb1e98c5e76043551fb0d88d`
+- Auditor result remains `candidate_state_ready=true`, `ready_for_cutover=false`, and `blocked_by_point4b2_concurrency=true`.
+
+### Point 4B-3B — Controlled Canonical Opening & Cutover
+
+**SOURCE COMMITTED / NOT DEPLOYED / NOT EXECUTED — EXECUTION BLOCKED BY POINT 4B-2 CONCURRENCY.**
+
+- Adopted zero-quantity decision: a READY identity with authoritative quantity exactly zero receives deterministic Canonical Ownership/Lineage state `CUT_OVER_ZERO`; it receives no fake balance, no zero-delta movement, and no synthetic physical opening.
+- Canonical ownership is independent of positive V2 balance existence. `NOT_CUT_OVER` and `CUT_OVER_ZERO` are distinct; future physical mutations for `CUT_OVER_ZERO` must route to Canonical V2 and may never fall back to Legacy.
+- Positive READY quantities continue to require the approved 4B-2 immutable `opening` movement with deterministic cutover identity independent of Legacy `client_tx_id`.
+- The committed source adds internal-only plan, candidate, exact boundary, ownership, and immutable ownership-event contracts. All tables use RLS and revoke client mutation access; all control functions revoke execution from `PUBLIC`, `anon`, and `authenticated`.
+- The exact approved 4B-3A source/candidate/writer digests and counts `3 / 50 / 6` are pinned by the staging contract.
+- Future cutover order is: revalidate watermark → acquire deterministic identity/document locks → freeze exact verified Legacy writer/document boundaries → revalidate under protection → establish canonical ownership → create positive openings only → verify → switch exact workflow ownership → commit.
+- The 50 physical/transitive writers and 6 document barriers must all have verified enforcement hooks before execution. No real writer is frozen or switched by this source candidate.
+- Before ownership-switch commit, PostgreSQL transaction rollback leaves Legacy authoritative. After canonical commit, rollback to Legacy and deletion of immutable V2 movements are forbidden; incidents enter `FORWARD_RECOVERY_REQUIRED` for explicit manual forward recovery.
+- Current execution is intentionally fail-closed with `INVENTORY_STOCK_CUTOVER_POINT4B2_CONCURRENCY_REQUIRED` because the Point 4B-2 concurrency evidence function returns `false`.
+- Static source results: 4B-3B gate **PASS**; 4B-3A gate **PASS**; 4B-2 writer gate **PASS**; 4B-1 foundation gate **PASS**; runtime syntax **PASS**; `git diff --check` **PASS**.
+- No opening, backfill, cutover, Legacy freeze, workflow switch, Beta write, Production access, or Push was performed during this source gate. The source and this checkpoint were committed locally only.
+
+No Backfill or Cutover is authorized while Point 4B-2 genuine committed concurrency remains unresolved.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -455,10 +529,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 is CLOSED. The pre-Point-4 Offline Ownership Consolidation Source Gate is CLOSED. Do not rerun completed Commercial lifecycle, device-aware E2E, or crash/recovery tests without new regression evidence.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B source is committed locally but remains NOT DEPLOYED / NOT EXECUTED.**
 
 Exact next step:
 
-Return to the official roadmap and begin Point 4 — Central Warehouse V2 + Financial Closure — from accepted source HEAD `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`.
+Obtain an approved disposable PostgreSQL environment capable of two genuinely independent committed sessions and complete the three remaining Point 4B-2 concurrency scenarios. Do not replace them with sequential simulation. Only after Point 4B-2 concurrency is PASS may Point 4B-3B proceed to a separate explicit deployment preflight; Backfill/Cutover remains unauthorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
