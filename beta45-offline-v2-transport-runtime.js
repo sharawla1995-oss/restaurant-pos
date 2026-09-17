@@ -8,6 +8,7 @@
 const VERSION='10.5.4-beta.54';
 const CONNECTION_KEY='sharawlaBusinessConnectionV1';
 const FALLBACK_CONTEXT_MS=30_000;
+const POS_PROFILES=new Set(['restaurant','retail','pharmacy','service','warehouse','membership','logistics']);
 const adaptersByType=new Map();
 const typeByRpc=new Map();
 const fallbackByType=new Map();
@@ -20,7 +21,7 @@ function nowIso(){return new Date().toISOString()}
 function uid(){try{return typeof uuid==='function'?uuid():crypto.randomUUID()}catch{return `${Date.now()}-${Math.random().toString(16).slice(2)}`}}
 function runtimeBranch(){try{return num(typeof currentBranchId==='function'?currentBranchId():state?.activeBranchId)}catch{return 0}}
 function runtimeEmployee(){try{return num(state?.employee?.id)}catch{return 0}}
-function retailProfile(){try{return typeof isRetailProfile==='function'&&isRetailProfile()}catch{return false}}
+function authoritativeProfile(){const profile=text(global.sharawlaRuntimeConfig?.pos_profile).toLowerCase();if(!profile){const e=new Error('Offline V2 pos_profile is required');e.code='OFFLINE_V2_POS_PROFILE_REQUIRED';throw e}if(!POS_PROFILES.has(profile)){const e=new Error(`Offline V2 pos_profile is invalid: ${profile}`);e.code='OFFLINE_V2_INVALID_POS_PROFILE';throw e}return profile}
 function localShiftTx(v){const s=text(v);return s.startsWith('offline-shift-')?s.slice('offline-shift-'.length):null}
 function localOrderTx(v){const s=text(v);if(!s.startsWith('offline-')||s.startsWith('offline-shift-')||s.startsWith('offline-ret-')||s.startsWith('offline-exp-')||s.startsWith('offline-movement-'))return null;return s.slice('offline-'.length)||null}
 function deterministicLocalId(type,tx){
@@ -41,18 +42,18 @@ function enrichSaleItems(items){
   try{if(foodOn()&&typeof foodApi()?.enrich==='function')out=foodApi().enrich(out)}catch{}
   return out;
 }
-function resolveSale(payload={}){
+function resolveSale(payload={},profile=authoritativeProfile()){
   const p=clone(payload||{});p.p_items=enrichSaleItems(p.p_items||[]);
-  if(retailProfile()){
+  if(profile==='retail'){
     if(foodOn())return {rpc_name:'create_food_retail_pos_order_atomic_v1',rpc_payload:{...p,p_use_variants:variantsOn()||foodApi()?.variantsOperational?.()===true}};
     if(variantsOn())return {rpc_name:'create_retail_variant_pos_order_atomic_v1',rpc_payload:p};
     return {rpc_name:'create_retail_pos_order_atomic',rpc_payload:p};
   }
   return foodOn()?{rpc_name:'create_food_pos_order_atomic_v1',rpc_payload:p}:{rpc_name:'create_pos_order_atomic',rpc_payload:p};
 }
-function resolveReturn(payload={}){
+function resolveReturn(payload={},profile=authoritativeProfile()){
   const p=clone(payload||{});
-  if(retailProfile()){
+  if(profile==='retail'){
     if(foodOn())return {rpc_name:'create_food_retail_order_return_idempotent_v1',rpc_payload:{...p,p_use_variants:variantsOn()||foodApi()?.variantsOperational?.()===true}};
     if(variantsOn())return {rpc_name:'create_retail_variant_order_return_idempotent_v1',rpc_payload:p};
     return {rpc_name:'create_retail_order_return_idempotent',rpc_payload:p};
@@ -60,8 +61,9 @@ function resolveReturn(payload={}){
   return foodOn()?{rpc_name:'create_food_order_return_idempotent_v1',rpc_payload:p}:{rpc_name:'create_order_return_idempotent',rpc_payload:p};
 }
 function resolveOperation(type,payload){
-  if(type==='sale')return resolveSale(payload);
-  if(type==='return')return resolveReturn(payload);
+  const profile=authoritativeProfile();
+  if(type==='sale')return resolveSale(payload,profile);
+  if(type==='return')return resolveReturn(payload,profile);
   if(type==='expense')return {rpc_name:'create_pos_expense_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_open')return {rpc_name:'open_pos_shift_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_close')return {rpc_name:'close_pos_shift_idempotent',rpc_payload:clone(payload)};

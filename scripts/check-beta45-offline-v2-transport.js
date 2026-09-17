@@ -20,7 +20,7 @@ new Function(transportSource);new Function(runtimeSource);
 
 for(const t of ['retryDelaysMs','maxProtocolAttempts','maxTransientAttempts','markBlocked','markDeadLetter','OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'])need(syncSource,t);
 for(const t of ['sharawla_offline_v2_apply_event','sharawla_offline_v2_transport_info','offline-v2:event','offline-v2:sync-now','offline-v2:manual-retry','offline-v2:transport-attest','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','employee_id=?','device_id=?','business_id=?','recoverStaleScoped','status=\'syncing\''])need(transportSource,t);
-for(const t of ['create_food_pos_order_atomic_v1','create_food_retail_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_food_order_return_idempotent_v1','create_retail_variant_order_return_idempotent_v1','rpc_name','rpc_payload','depends_on_tx_id','transportAttest','manualRetry','authoritativeRpc','ensureEvent','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','networkDeferred','unwrapResult','bridge.rpc(name,payload)','rpc=authoritativeRpc'])need(runtimeSource,t);
+for(const t of ['create_food_pos_order_atomic_v1','create_food_retail_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_food_order_return_idempotent_v1','create_retail_variant_order_return_idempotent_v1','rpc_name','rpc_payload','depends_on_tx_id','transportAttest','manualRetry','authoritativeRpc','ensureEvent','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','OFFLINE_V2_POS_PROFILE_REQUIRED','OFFLINE_V2_INVALID_POS_PROFILE','sharawlaRuntimeConfig?.pos_profile','networkDeferred','unwrapResult','bridge.rpc(name,payload)','rpc=authoritativeRpc'])need(runtimeSource,t);
 for(const t of ['event:tx=>ipcRenderer.invoke','syncNow:x=>ipcRenderer.invoke','manualRetry:x=>ipcRenderer.invoke','transportAttest:x=>ipcRenderer.invoke','data-offline-v2-phase5'])need(preloadSource,t);
 need(mainSource,"require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store)");
 for(const t of ['offline_v2_server_receipts','enable row level security','security definer','sharawla_offline_v2_apply_event','sharawla_offline_v2_transport_info','authenticated','client_tx_id','payload_digest','server_event_id','idempotent_replay','operation/RPC binding','RPC client_tx_id mismatch','device_sequence is distinct from v_sequence'])need(sqlSource,t);
@@ -34,6 +34,7 @@ forbid(transportSource,'service_role','transport must never carry service-role c
 forbid(transportSource,'xihcxydjnzemflhedzor','transport must be tenant-configured, not hardcoded to test backend');
 forbid(runtimeSource,'.activate()','renderer transport must never auto-activate takeover');
 forbid(runtimeSource,'.attestTransport()','renderer transport must never auto-attest itself');
+forbid(runtimeSource,'isRetailProfile','Offline V2 profile routing must use authoritative runtime config only');
 
 assert.equal(retryDelayMs(1,{jitterRatio:0}),5000);
 assert.equal(retryDelayMs(2,{jitterRatio:0}),15000);
@@ -63,9 +64,13 @@ function row(tx,attempts=0,extra={}){return {client_tx_id:tx,device_id:'dev7',de
 function ack(x){return {ok:true,acknowledged:true,client_tx_id:x.client_tx_id,protocol_version:2,payload_digest:x.payload_digest,server_event_id:`evt-${x.client_tx_id}`,server_entity_id:`srv-${x.client_tx_id}`}}
 function engine(store,send){return createSyncEngine({store,transport:{send},identityProvider:async()=>({device_fingerprint:'canonical'}),random:()=>0.5,clock:()=>1000000});}
 
-function rendererHarness(){
+function rendererHarness(options={}){
   let active=true,legacyCalls=0,syncCalls=0;const rows=new Map();
-  const ctx={console,Date,JSON,Number,String,Math,Map,Set,Error,TypeError,Promise,URL,crypto:{randomUUID:()=>`tx-${Date.now()}`},setTimeout:(fn)=>{fn();return 1},setInterval:()=>1,clearInterval:()=>{},navigator:{onLine:true},document:{readyState:'complete',addEventListener:()=>{}},addEventListener:()=>{},localStorage:{getItem:k=>k==='sharawlaBusinessConnectionV1'?JSON.stringify({url:'https://tenant.supabase.co',key:'pub'}):null},session:{access_token:'jwt'},state:{activeBranchId:1,employee:{id:3}},currentBranchId:()=>1,isRetailProfile:()=>false,refreshSessionIfNeeded:async()=>{},loadLicenseState:async()=>({device_id:'dev7',business_id:'biz',device_fingerprint:'fp'}),saveOfflineExpense:async(...args)=>({fallback:'expense',args}),saveOfflineShiftOpen:async(...args)=>({fallback:'shift',args}),saveOfflineReturn:async(...args)=>({fallback:'return',args}),saveOfflineShiftClose:async(...args)=>({fallback:'close',args})};
+  const ctx={console,Date,JSON,Number,String,Math,Map,Set,Error,TypeError,Promise,URL,crypto:{randomUUID:()=>`tx-${Date.now()}`},setTimeout:(fn)=>{fn();return 1},setInterval:()=>1,clearInterval:()=>{},navigator:{onLine:true},document:{readyState:'complete',addEventListener:()=>{}},addEventListener:()=>{},localStorage:{getItem:k=>k==='sharawlaBusinessConnectionV1'?JSON.stringify({url:'https://tenant.supabase.co',key:'pub'}):null},session:{access_token:'jwt'},state:{activeBranchId:1,employee:{id:3}},currentBranchId:()=>1,refreshSessionIfNeeded:async()=>{},loadLicenseState:async()=>({device_id:'dev7',business_id:'biz',device_fingerprint:'fp'}),saveOfflineExpense:async(...args)=>({fallback:'expense',args}),saveOfflineShiftOpen:async(...args)=>({fallback:'shift',args}),saveOfflineReturn:async(...args)=>({fallback:'return',args}),saveOfflineShiftClose:async(...args)=>({fallback:'close',args})};
+  if(Object.prototype.hasOwnProperty.call(options,'posProfile'))ctx.sharawlaRuntimeConfig={pos_profile:options.posProfile};
+  if(Object.prototype.hasOwnProperty.call(options,'legacyRetail'))ctx.isRetailProfile=()=>options.legacyRetail;
+  ctx.__SharawlaFoodRecipeRuntimeV1={operational:()=>options.food===true,variantsOperational:()=>false,enrich:x=>x};
+  ctx.__SharawlaRetailVariantsRuntimeV1={operational:()=>options.variants===true,enrichSaleItems:x=>x};
   ctx.rpc=async(name,payload)=>{legacyCalls++;return {legacy:true,name,payload}};
   ctx.SharawlaOfflineV2Takeover={registerOperation:()=>true};
   ctx.topBurgerDesktop={offlineV2:{
@@ -85,18 +90,28 @@ function rendererHarness(){
   {const a=row('stock');const b={...row('ok'),device_sequence:2};const s=new MemoryStore([a,b]);const e=engine(s,async x=>{if(x.client_tx_id==='stock')throw Object.assign(new Error('المخزون غير كافٍ للصنف 2'),{code:'P0001',http_status:400});return ack(x)});const r=await e.syncOnce();assert.equal(r.conflicts,1);assert.equal(r.acked,1);assert.equal(s.row('stock').status,'conflict');assert.equal(s.row('ok').status,'synced')}
   {const parent=row('parent',0,{status:'synced',operation_type:'shift_open',entity_type:'shift',local_entity_id:'offline-shift-parent'});const child=row('child',0,{depends_on_tx_id:'parent',local_shift_id:'offline-shift-parent'});const s=new MemoryStore([parent,child]);const e=engine(s,async x=>ack(x));const r=await e.syncOnce();assert.equal(r.blocked,1);assert.equal(s.row('child').status,'blocked');assert.equal(s.row('child').last_error_code,'OFFLINE_V2_DEPENDENCY_MAPPING_MISSING')}
 
+  // Runtime config pos_profile is the only routing authority. Legacy helper
+  // absence or disagreement cannot change Retail routing.
+  {const h=rendererHarness({posProfile:'retail',food:true});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_food_retail_pos_order_atomic_v1')}
+  {const h=rendererHarness({posProfile:'retail',food:false,variants:false,legacyRetail:false});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_retail_pos_order_atomic')}
+  {const h=rendererHarness({posProfile:'retail',food:false,variants:false});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_retail_pos_order_atomic')}
+  // Missing or unknown authoritative profiles fail before a durable event can
+  // be committed.
+  {const h=rendererHarness(),tx='tx-profile-missing';let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_POS_PROFILE_REQUIRED');assert.equal(h.rows.size,0)}
+  {const h=rendererHarness({posProfile:'unknown'}),tx='tx-profile-invalid';let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_INVALID_POS_PROFILE');assert.equal(h.rows.size,0)}
+
   // When takeover is active, a synced V2 event returns its ACK result and MUST
   // NOT call the captured legacy operational RPC.
-  {const h=rendererHarness(),tx='tx-authority';h.rows.set(tx,{client_tx_id:tx,status:'synced',server_ack:{result:{order:{id:77},items:[]}}});const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3},p_items:[],p_payments:[]});assert.equal(out.order.id,77);assert.equal(h.legacyCalls(),0)}
+  {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-authority';h.rows.set(tx,{client_tx_id:tx,status:'synced',server_ack:{result:{order:{id:77},items:[]}}});const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3},p_items:[],p_payments:[]});assert.equal(out.order.id,77);assert.equal(h.legacyCalls(),0)}
   // Inactive mode stays completely backward compatible and delegates once.
-  {const h=rendererHarness();h.setActive(false);const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:'tx-off'}});assert.equal(out.legacy,true);assert.equal(h.legacyCalls(),1)}
+  {const h=rendererHarness({posProfile:'restaurant'});h.setActive(false);const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:'tx-off'}});assert.equal(out.legacy,true);assert.equal(h.legacyCalls(),1)}
   // Active pending work never falls through to the legacy server RPC; it returns
   // the network-shaped signal used by existing local-success branches.
-  {const h=rendererHarness(),tx='tx-pending';h.rows.set(tx,{client_tx_id:tx,status:'pending'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.message,'Failed to fetch');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),1)}
+  {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-pending';h.rows.set(tx,{client_tx_id:tx,status:'pending'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.message,'Failed to fetch');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),1)}
   // Return callers receive the original bigint-shaped contract after explicit ACK.
-  {const h=rendererHarness(),tx='tx-return';h.rows.set(tx,{client_tx_id:tx,status:'synced',server_ack:{result:{return_id:91}}});const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_order_return_idempotent',{p_order_id:39,p_client_tx_id:tx});assert.equal(out,91);assert.equal(h.legacyCalls(),0)}
+  {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-return';h.rows.set(tx,{client_tx_id:tx,status:'synced',server_ack:{result:{return_id:91}}});const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_order_return_idempotent',{p_order_id:39,p_client_tx_id:tx});assert.equal(out,91);assert.equal(h.legacyCalls(),0)}
   // Legacy-preserved migration shadows can never be stolen by V2 transport.
-  {const h=rendererHarness(),tx='tx-legacy';h.rows.set(tx,{client_tx_id:tx,status:'blocked',last_error_code:'OFFLINE_V2_LEGACY_PRESERVED',last_error_message:'legacy authority'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),0)}
+  {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-legacy';h.rows.set(tx,{client_tx_id:tx,status:'blocked',last_error_code:'OFFLINE_V2_LEGACY_PRESERVED',last_error_message:'legacy authority'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),0)}
 
   console.log('Beta45 Offline V2 Phase 5 authoritative transport / conflict / retry / DLQ gate PASS');
 })().catch(e=>{console.error(e);process.exit(1)});
