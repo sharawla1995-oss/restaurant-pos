@@ -563,6 +563,20 @@ Point 4D-1 source readiness is a schema/ownership contract only; it does not est
 
 Point 4E-1 source readiness does not constitute Financial Closure. Posting mappings, deployment, reconciliation, and runtime acceptance remain separate gates.
 
+### Point 4F-1 — Canonical Reconciliation Auditor
+
+**SOURCE COMPLETE / LOCAL REVIEW — NOT DEPLOYED / NOT EXECUTED.**
+
+- The deterministic read-only auditor covers Canonical Stock balance ↔ ledger quantity/reservation and final movement snapshots.
+- Transfer checks cover dispatched value conservation, received-with-in-transit defects, and missing canonical out/in effects for canonically active transfers.
+- Purchasing/AP checks cover invoice-backed payable arithmetic, payment allocation totals, payable settlement totals, and supplier credit totals.
+- Financial checks cover debit=credit, orphan reversals, and orphan Canonical Stock/transfer/payable evidence links.
+- Output includes a deterministic SHA-256 evidence digest and all four activation facts. It always reports `runtime_reconciliation_accepted=false`; source structure or empty tables cannot be represented as runtime acceptance.
+- The function is SQL `STABLE`, uses SELECT-only evidence queries, has empty `search_path`, and is not executable by `PUBLIC`, `anon`, or `authenticated`. It calls no operational writer or Offline path.
+- Source validation: Point 4F-1 static read-only gate **PASS**. No auditor execution, deployment, Beta write, Production access, or Push occurred.
+
+Point 4F-1 source readiness does not close reconciliation/acceptance. Deployment, authoritative posting mappings, real workflow integration, and runtime evidence remain required.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -600,10 +614,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, and Point 4E-1 Financial Journal source are complete locally but NOT DEPLOYED / NOT CONNECTED.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
 
 Exact next step:
 
-Continue Point 4 source-only architecture with deterministic reconciliation/readiness contracts across Canonical Stock, transfer dispatch/in-transit/receive, GRN/inventory, supplier invoice/payable, payment/allocation, operational source/journal, balanced entries, duplicate economic effects, orphan events, and valuation lineage. Do not execute reconciliation against any database and do not connect runtime workflows. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover, transfer activation, AP activation, or Financial posting is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Resolve Point 4B-2 genuine committed concurrency using two independent committed PostgreSQL sessions in an approved disposable environment. Until that evidence is PASS, do not deploy or activate 4B-3B/4B-4, Backfill/Cutover stock, or connect transfer/AP/Financial workflows. Separately review and approve the source-only Point 4C-1 through 4F-1 contracts before any deployment design; authoritative account mappings and operational posting adapters remain future architecture gates and must not be invented. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
