@@ -21,7 +21,7 @@ function nowIso(){return new Date().toISOString()}
 function uid(){try{return typeof uuid==='function'?uuid():crypto.randomUUID()}catch{return `${Date.now()}-${Math.random().toString(16).slice(2)}`}}
 function runtimeBranch(){try{return num(typeof currentBranchId==='function'?currentBranchId():state?.activeBranchId)}catch{return 0}}
 function runtimeEmployee(){try{return num(state?.employee?.id)}catch{return 0}}
-function authoritativeProfile(){const profile=text(global.sharawlaRuntimeConfig?.pos_profile).toLowerCase();if(!profile){const e=new Error('Offline V2 pos_profile is required');e.code='OFFLINE_V2_POS_PROFILE_REQUIRED';throw e}if(!POS_PROFILES.has(profile)){const e=new Error(`Offline V2 pos_profile is invalid: ${profile}`);e.code='OFFLINE_V2_INVALID_POS_PROFILE';throw e}return profile}
+function authoritativeProfile(){const profile=text(global.SharawlaRuntimeConfig?.current?.()?.pos_profile).toLowerCase();if(!profile){const e=new Error('Offline V2 pos_profile is required');e.code='OFFLINE_V2_POS_PROFILE_REQUIRED';throw e}if(!POS_PROFILES.has(profile)){const e=new Error(`Offline V2 pos_profile is invalid: ${profile}`);e.code='OFFLINE_V2_INVALID_POS_PROFILE';throw e}return profile}
 function localShiftTx(v){const s=text(v);return s.startsWith('offline-shift-')?s.slice('offline-shift-'.length):null}
 function localOrderTx(v){const s=text(v);if(!s.startsWith('offline-')||s.startsWith('offline-shift-')||s.startsWith('offline-ret-')||s.startsWith('offline-exp-')||s.startsWith('offline-movement-'))return null;return s.slice('offline-'.length)||null}
 function deterministicLocalId(type,tx){

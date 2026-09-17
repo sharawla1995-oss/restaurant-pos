@@ -11,6 +11,7 @@ const RUNTIME_CONFIG_CACHE_KEY='sharawlaRuntimeConfigV1';
 // V10.5.2 Phase 2 Step 2: Restaurant navigation, permissions, page titles and
 // operational page rules now live in the Restaurant Engine instead of app.js.
 let sharawlaRuntimeConfig=null;
+Object.defineProperty(window,'SharawlaRuntimeConfig',{value:Object.freeze({current:()=>sharawlaRuntimeConfig?Object.freeze({...sharawlaRuntimeConfig}):null}),writable:false,configurable:false,enumerable:false});
 let sharawlaDeviceInfo=null;
 function clearLegacyBusinessConfig(){
   if(!window.topBurgerDesktop?.isDesktop)return;

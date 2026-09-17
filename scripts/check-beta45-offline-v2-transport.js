@@ -8,6 +8,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const syncSource=read('beta45-offline-v2-sync.js');
 const transportSource=read('beta45-offline-v2-transport.js');
 const runtimeSource=read('beta45-offline-v2-transport-runtime.js');
+const appSource=read('app.js');
 const preloadSource=read('preload.js');
 const mainSource=read('main-beta44.js');
 const sqlSource=read('supabase-beta45-offline-v2-transport-v1.sql');
@@ -20,7 +21,8 @@ new Function(transportSource);new Function(runtimeSource);
 
 for(const t of ['retryDelaysMs','maxProtocolAttempts','maxTransientAttempts','markBlocked','markDeadLetter','OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'])need(syncSource,t);
 for(const t of ['sharawla_offline_v2_apply_event','sharawla_offline_v2_transport_info','offline-v2:event','offline-v2:sync-now','offline-v2:manual-retry','offline-v2:transport-attest','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','employee_id=?','device_id=?','business_id=?','recoverStaleScoped','status=\'syncing\''])need(transportSource,t);
-for(const t of ['create_food_pos_order_atomic_v1','create_food_retail_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_food_order_return_idempotent_v1','create_retail_variant_order_return_idempotent_v1','rpc_name','rpc_payload','depends_on_tx_id','transportAttest','manualRetry','authoritativeRpc','ensureEvent','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','OFFLINE_V2_POS_PROFILE_REQUIRED','OFFLINE_V2_INVALID_POS_PROFILE','sharawlaRuntimeConfig?.pos_profile','networkDeferred','unwrapResult','bridge.rpc(name,payload)','rpc=authoritativeRpc'])need(runtimeSource,t);
+for(const t of ['create_food_pos_order_atomic_v1','create_food_retail_pos_order_atomic_v1','create_retail_variant_pos_order_atomic_v1','create_food_order_return_idempotent_v1','create_retail_variant_order_return_idempotent_v1','rpc_name','rpc_payload','depends_on_tx_id','transportAttest','manualRetry','authoritativeRpc','ensureEvent','OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','OFFLINE_V2_POS_PROFILE_REQUIRED','OFFLINE_V2_INVALID_POS_PROFILE','SharawlaRuntimeConfig?.current?.()?.pos_profile','networkDeferred','unwrapResult','bridge.rpc(name,payload)','rpc=authoritativeRpc'])need(runtimeSource,t);
+for(const t of ["Object.defineProperty(window,'SharawlaRuntimeConfig'",'current:()=>sharawlaRuntimeConfig?Object.freeze({...sharawlaRuntimeConfig}):null','writable:false','configurable:false'])need(appSource,t,`read-only app runtime config interface ${t}`);
 for(const t of ['event:tx=>ipcRenderer.invoke','syncNow:x=>ipcRenderer.invoke','manualRetry:x=>ipcRenderer.invoke','transportAttest:x=>ipcRenderer.invoke','data-offline-v2-phase5'])need(preloadSource,t);
 need(mainSource,"require('./beta45-offline-v2-transport.js').installOfflineV2Transport(offlineV2Store)");
 for(const t of ['offline_v2_server_receipts','enable row level security','security definer','sharawla_offline_v2_apply_event','sharawla_offline_v2_transport_info','authenticated','client_tx_id','payload_digest','server_event_id','idempotent_replay','operation/RPC binding','RPC client_tx_id mismatch','device_sequence is distinct from v_sequence'])need(sqlSource,t);
@@ -67,7 +69,8 @@ function engine(store,send){return createSyncEngine({store,transport:{send},iden
 function rendererHarness(options={}){
   let active=true,legacyCalls=0,syncCalls=0;const rows=new Map();
   const ctx={console,Date,JSON,Number,String,Math,Map,Set,Error,TypeError,Promise,URL,crypto:{randomUUID:()=>`tx-${Date.now()}`},setTimeout:(fn)=>{fn();return 1},setInterval:()=>1,clearInterval:()=>{},navigator:{onLine:true},document:{readyState:'complete',addEventListener:()=>{}},addEventListener:()=>{},localStorage:{getItem:k=>k==='sharawlaBusinessConnectionV1'?JSON.stringify({url:'https://tenant.supabase.co',key:'pub'}):null},session:{access_token:'jwt'},state:{activeBranchId:1,employee:{id:3}},currentBranchId:()=>1,refreshSessionIfNeeded:async()=>{},loadLicenseState:async()=>({device_id:'dev7',business_id:'biz',device_fingerprint:'fp'}),saveOfflineExpense:async(...args)=>({fallback:'expense',args}),saveOfflineShiftOpen:async(...args)=>({fallback:'shift',args}),saveOfflineReturn:async(...args)=>({fallback:'return',args}),saveOfflineShiftClose:async(...args)=>({fallback:'close',args})};
-  if(Object.prototype.hasOwnProperty.call(options,'posProfile'))ctx.sharawlaRuntimeConfig={pos_profile:options.posProfile};
+  if(options.runtimeConfigInterface)ctx.SharawlaRuntimeConfig=options.runtimeConfigInterface;
+  else if(Object.prototype.hasOwnProperty.call(options,'posProfile'))ctx.SharawlaRuntimeConfig=Object.freeze({current:()=>Object.freeze({pos_profile:options.posProfile})});
   if(Object.prototype.hasOwnProperty.call(options,'legacyRetail'))ctx.isRetailProfile=()=>options.legacyRetail;
   ctx.__SharawlaFoodRecipeRuntimeV1={operational:()=>options.food===true,variantsOperational:()=>false,enrich:x=>x};
   ctx.__SharawlaRetailVariantsRuntimeV1={operational:()=>options.variants===true,enrichSaleItems:x=>x};
@@ -82,6 +85,12 @@ function rendererHarness(options={}){
   ctx.window=ctx;vm.runInNewContext(runtimeSource,ctx,{filename:'beta45-offline-v2-transport-runtime.js'});
   return {ctx,rows,setActive:v=>{active=v},legacyCalls:()=>legacyCalls,syncCalls:()=>syncCalls};
 }
+function appRuntimeConfigInterface(posProfile){
+  const stop=appSource.indexOf('function clearLegacyBusinessConfig');assert(stop>0);
+  const ctx={localStorage:{getItem:()=>null}};ctx.window=ctx;
+  vm.runInNewContext(`${appSource.slice(0,stop)}\nsharawlaRuntimeConfig={pos_profile:${JSON.stringify(posProfile)}};`,ctx,{filename:'app-runtime-config-interface.js'});
+  return ctx.SharawlaRuntimeConfig;
+}
 
 (async()=>{
   {const s=new MemoryStore([row('auth')]);const e=engine(s,async()=>{throw Object.assign(new Error('JWT expired'),{http_status:401,code:'JWT_EXPIRED'})});const r=await e.syncOnce();assert.equal(r.blocked,1);assert.equal(s.row('auth').status,'blocked')}
@@ -92,7 +101,7 @@ function rendererHarness(options={}){
 
   // Runtime config pos_profile is the only routing authority. Legacy helper
   // absence or disagreement cannot change Retail routing.
-  {const h=rendererHarness({posProfile:'retail',food:true});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_food_retail_pos_order_atomic_v1')}
+  {const runtimeConfigInterface=appRuntimeConfigInterface('retail');assert(Object.isFrozen(runtimeConfigInterface));assert(Object.isFrozen(runtimeConfigInterface.current()));const h=rendererHarness({runtimeConfigInterface,food:true});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_food_retail_pos_order_atomic_v1')}
   {const h=rendererHarness({posProfile:'retail',food:false,variants:false,legacyRetail:false});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_retail_pos_order_atomic')}
   {const h=rendererHarness({posProfile:'retail',food:false,variants:false});assert.equal(h.ctx.SharawlaOfflineV2Transport.resolveSale({p_items:[]}).rpc_name,'create_retail_pos_order_atomic')}
   // Missing or unknown authoritative profiles fail before a durable event can
