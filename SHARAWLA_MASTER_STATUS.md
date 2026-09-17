@@ -339,13 +339,15 @@ Acceptance scope must include at minimum:
 - return online and reconcile
 - Commercial Signed Snapshot/LKG behavior while offline, including anti-rollback.
 
-Source currently contains multiple historical Offline layers (Beta43/44/45/47/49/51 plus later recovery/hardening). Before adding another patch, review ownership and determine whether multiple overlapping layers are creating risk. Prefer one authoritative Offline owner/flow over another wrapper stacked on top.
+Source contains multiple historical Offline layers (Beta43/44/45/47/49/51 plus later recovery/hardening). The pre-Point-4 ownership assessment and minimum consolidation are now complete: while takeover is ACTIVE, Native V2 is the sole operational Offline owner and the historical layers are constrained to verified compatibility/read-only evidence boundaries.
 
 Because SH-0007 may be remotely controlled, offline acceptance should use a safe controlled network simulation where possible rather than physically cutting the connection and losing remote control.
 
-### Offline Ownership Consolidation — Current Runtime Gate
+### Offline Ownership Consolidation — Runtime + Source Gates
 
 **Core Crash/Recovery Runtime Gate: PASS.**
+
+**Pre-Point-4 Offline Ownership Consolidation Source Gate: CLOSED.**
 
 This is a focused pre-Point-4 safety gate. It does **not** close Roadmap Point 15 — Offline / Sync Final Closure, and it does **not** mean that all Offline Acceptance is complete.
 
@@ -355,7 +357,11 @@ Safety scope and environment:
 - Production SH-0005 / SH-0006 / Top Burger remained untouched and read-only.
 
 Accepted source and routing evidence:
-- Current accepted source HEAD: `443e5b2ec4013ba7d1589ec472a4d77012edf708`.
+- Current accepted source HEAD: `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`.
+- Documentation checkpoint before consolidation: `b7fb94b844f39098bb5ddc255da81c0c865790e2`.
+- Main consolidation commit: `c1b5d131d3a449e9a737bed12ffb7de6b4c3b7c7` (`fix: consolidate offline ownership under native v2`).
+- Follow-up bypass fix: `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f` (`fix: close beta36 active ownership bypass`).
+- Accepted runtime source for the earlier SH-0007 Native V2 crash/recovery gate: `443e5b2ec4013ba7d1589ec472a4d77012edf708`.
 - Commit: `fix: expose authoritative runtime config to offline v2`.
 - Previous routing fix: `a4c8a9d7bc6e631d42af44a6b01c13193ded81a4`.
 - `app.js` now explicitly exposes the loaded Runtime Config through the read-only interface `window.SharawlaRuntimeConfig.current()`.
@@ -365,6 +371,25 @@ Accepted source and routing evidence:
 - Static transport regression: **PASS**.
 - Runtime syntax: **PASS**.
 - `git diff --check`: **PASS**.
+
+Closed ownership invariants:
+- While takeover is ACTIVE, Native V2 is the sole operational Offline owner.
+- `1 client_tx_id → 1 operational owner → 1 durable authoritative store → 1 sync owner → 1 authoritative ACK`.
+- Beta36 SAFE RPCs cannot create an independent Offline owner during ACTIVE.
+- All 14 Beta36 SAFE RPCs require an approved Native mapping during ACTIVE, whether `p_client_tx_id` exists or is missing.
+- No approved mapping fails closed with `OFFLINE_V2_OPERATION_ADAPTER_REQUIRED`.
+- `LEGACY_HISTORICAL` is verified, readable, and frozen; during ACTIVE it has no send/delete/remap/reconcile/classify authority.
+- `UNKNOWN` fails closed.
+- `local_operations` recovery cannot rehydrate non-verified Legacy POS work.
+- When takeover is not ACTIVE, Legacy fallback compatibility is preserved.
+
+Ownership consolidation acceptance evidence:
+- Earlier SH-0007 Native V2 crash/recovery runtime gate at accepted runtime source `443e5b2ec4013ba7d1589ec472a4d77012edf708`: **PASS**.
+- Final ownership consolidation static gate at `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`: **PASS**.
+- Runtime syntax: **PASS**.
+- `git diff --check b7fb94b844f39098bb5ddc255da81c0c865790e2..e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`: **PASS**.
+- No additional crash test was required after the source-only consolidation.
+- Production SH-0005 / SH-0006 / Top Burger remained untouched and read-only.
 
 Root cause and repair history:
 - The first failure proved that Retail + Food could be persisted with the wrong RPC, `create_food_pos_order_atomic_v1`, because routing depended on optional `isRetailProfile()`.
@@ -389,8 +414,9 @@ Runtime acceptance evidence:
 
 Remaining before Final Offline/Sync Closure:
 - Complete structured verification of the remaining operational movements and Master scenarios, including expense, shift open/close, order/status, retry, partial failure, pending recovery, and the other required Offline/Sync cases recorded above.
+- Complete final cross-profile Offline acceptance where required by the Master.
 - Do not repeat already proven tests unless a regression or new source evidence requires them.
-- Identify and consolidate any remaining Legacy Queue writers, deleters, or reconcilers that can still compete with Native V2 while takeover is ACTIVE.
+- The ownership architecture blocker before Point 4 is closed; this does **not** close Roadmap Point 15 — Offline / Sync Final Closure and does **not** mean all Offline Acceptance is complete.
 
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
@@ -429,10 +455,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 is CLOSED. Do not rerun completed Commercial lifecycle or device-aware E2E tests. Do not start Point 4 until the focused Offline ownership/architecture audit below is complete.**
+**Point 3 is CLOSED. The pre-Point-4 Offline Ownership Consolidation Source Gate is CLOSED. Do not rerun completed Commercial lifecycle, device-aware E2E, or crash/recovery tests without new regression evidence.**
 
 Exact next step:
 
-Complete the remaining read-only ownership/consolidation assessment against the now-proven Native V2 crash/recovery path, identify any remaining operational Legacy Queue writers/deleters/reconcilers that can still compete with Native V2 while takeover is ACTIVE, and determine the minimum remaining consolidation scope before returning to Roadmap Point 4. Do not run another SH-0007 crash test unless new source evidence requires it.
+Return to the official roadmap and begin Point 4 — Central Warehouse V2 + Financial Closure — from accepted source HEAD `e12ca8333ec71c99f3d1a32ba063717df8c2ea5f`.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
