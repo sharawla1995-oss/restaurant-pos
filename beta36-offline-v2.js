@@ -38,9 +38,9 @@ function put(name,payload){
 }
 async function call(name,payload={}){
  if(!SAFE.has(name))return baseRpc(name,payload);
- if(!tx(payload))return baseRpc(name,payload);
  const ownership=await activeOwnership();
  if(ownership.active){requireActiveAdapter(name,ownership);return baseRpc(name,payload)}
+ if(!tx(payload))return baseRpc(name,payload);
  if(!navigator.onLine){const j=put(name,payload);return {_offline:true,client_tx_id:j.client_tx_id,queued:true}}
  try{return await baseRpc(name,payload)}catch(e){if(!netError(e))throw e;const j=put(name,payload);return {_offline:true,client_tx_id:j.client_tx_id,queued:true}}
 }

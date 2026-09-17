@@ -20,12 +20,18 @@ function runtime({active=true,mappings={},online=false,queue=[]}={}){
  for(const name of RPCS)await assert.rejects(()=>blocked.api.call(name,{p_client_tx_id:`tx-${name}`}),e=>e?.code==='OFFLINE_V2_OPERATION_ADAPTER_REQUIRED');
  assert.deepStrictEqual(JSON.parse(blocked.data.get('sharawlaOfflineActionsV2')),[]);assert.strictEqual(blocked.calls.length,0);assert.strictEqual(blocked.puts.length,0);
 
+ const missingTx=runtime();
+ for(const name of RPCS)await assert.rejects(()=>missingTx.api.call(name,{}),e=>e?.code==='OFFLINE_V2_OPERATION_ADAPTER_REQUIRED');
+ assert.deepStrictEqual(JSON.parse(missingTx.data.get('sharawlaOfflineActionsV2')),[]);assert.strictEqual(missingTx.calls.length,0);assert.strictEqual(missingTx.puts.length,0);
+
  const mapped=runtime({mappings:{[RPCS[0]]:'approved_existing_adapter'}});await mapped.api.call(RPCS[0],{p_client_tx_id:'mapped-tx'});assert.strictEqual(mapped.calls.length,1);assert.strictEqual(mapped.puts.length,0);assert.deepStrictEqual(JSON.parse(mapped.data.get('sharawlaOfflineActionsV2')),[]);
 
  const pending={type:'engine_action_v2',rpc:RPCS[1],payload:{p_client_tx_id:'pending-tx'},client_tx_id:'pending-tx'};
  const frozen=runtime({online:true,queue:[pending]});const sync=await frozen.api.sync();assert.strictEqual(sync.blocked,1);assert.strictEqual(frozen.calls.length,0);assert.deepStrictEqual(JSON.parse(frozen.data.get('sharawlaOfflineActionsV2')),[pending]);
 
  const inactive=runtime({active:false,online:false});const queued=await inactive.api.call(RPCS[0],{p_client_tx_id:'legacy-tx'});assert.strictEqual(queued.queued,true);assert.strictEqual(JSON.parse(inactive.data.get('sharawlaOfflineActionsV2')).length,1);assert.strictEqual(inactive.puts.length,1);
+
+ const inactiveMissingTx=runtime({active:false,online:false});const fallback=await inactiveMissingTx.api.call(RPCS[0],{});assert.strictEqual(fallback.ok,true);assert.strictEqual(inactiveMissingTx.calls.length,1);assert.deepStrictEqual(JSON.parse(inactiveMissingTx.data.get('sharawlaOfflineActionsV2')),[]);assert.strictEqual(inactiveMissingTx.puts.length,0);
 
  for(const token of ["types=new Set(['sale','return','expense','shift_open','shift_close'])","legacyTx.has(tx)","env.migration_source==='legacy_queue_v1'","env.legacy_authority===true","same(env.legacy_payload,job)","Object.keys(v).sort()","if(!stateKnown)q=[]"])assert(app.includes(token),`app recovery ownership gate missing: ${token}`);
  assert(!app.includes("types=new Set(['sale','return','expense','shift_open','shift_close','engine_action_v2'])"),'engine_action_v2 must not enter Legacy POS recovery');
