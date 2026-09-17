@@ -534,6 +534,20 @@ Point 4B-4 source readiness does not close Point 4B-2 and does not authorize dep
 
 Point 4C-1 source readiness does not close Point 4B-2 and does not authorize transfer routing, deployment, or stock cutover.
 
+### Point 4D-1 — Purchasing / Accounts Payable Contract
+
+**SOURCE COMPLETE / LOCAL REVIEW — NOT DEPLOYED / NOT CONNECTED.**
+
+- Existing PR → PO → GRN → Supplier Invoice → 3-way Match remains unchanged. The missing authoritative AP layer is modeled additively as invoice-backed payable, supplier-return credit, supplier payment, payment allocation/settlement, landed-cost lineage, and immutable AP events.
+- Every payable has exactly one approved-source supplier invoice identity; credits require a supplier-return identity; landed-cost links retain explicit evidence rather than silently changing stock valuation.
+- Generated outstanding and unallocated amounts plus conservation constraints prevent over-crediting, over-settlement, and over-allocation at the contract boundary. A future internal transactional writer must maintain aggregate amounts atomically; none is connected in this point.
+- Deterministic intent digests and unique client transaction identities define replay/conflict semantics without depending on mutable timestamps/provenance.
+- AP activation remains hard-false with `SUPPLIER_AP_V1_ACTIVATION_BLOCKED`. No purchasing, GRN, invoice, treasury, stock, Financial Journal, or Offline workflow calls this contract.
+- All tables are RLS-enabled and all client mutation privileges are revoked. Internal functions revoke execution from `PUBLIC`, `anon`, and `authenticated`; no generic client payable/payment RPC is introduced.
+- Source validation: Point 4D-1 static gate **PASS**. No deployment, Beta write, operational connection, Production access, or Push occurred.
+
+Point 4D-1 source readiness is a schema/ownership contract only; it does not establish Financial Closure or settle any real supplier balance.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -571,10 +585,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer source is complete locally but NOT DEPLOYED / NOT CONNECTED.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer and Point 4D-1 Purchasing/AP source are complete locally but NOT DEPLOYED / NOT CONNECTED.**
 
 Exact next step:
 
-Continue Point 4 source-only architecture with Purchasing/AP discovery and the minimum canonical contract: Supplier → PR → PO → GRN → Supplier Invoice → 3-way Match → Approved Payable → Payment → Allocation/Settlement, including supplier-return and landed-cost lineage. Preserve existing runtime behavior and do not deploy or connect any workflow. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover or transfer activation is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Continue Point 4 source-only architecture with the minimum append-only Financial Journal contract and deterministic source-to-journal posting boundaries. Cover balanced events/lines, reversal, source lineage, stock valuation/COGS evidence, transfer value, Purchasing/AP, sales/returns, expenses/payments/receivables without connecting any runtime workflow or inventing missing valuation. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover, transfer activation, AP activation, or Financial posting is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
