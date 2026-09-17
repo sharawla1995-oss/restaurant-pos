@@ -5,6 +5,8 @@ let syncBusy47=false;
 const text=v=>String(v??'').trim();
 const OWN=Object.freeze({V2_OPERATIONAL:'V2_OPERATIONAL',LEGACY_HISTORICAL:'LEGACY_HISTORICAL',LEGACY_FALLBACK:'LEGACY_FALLBACK',UNKNOWN:'UNKNOWN'});
 const permanentError=e=>/المخزون غير كاف|insufficient stock|negative stock|stock.*insufficient|inventory.*insufficient|oversell|لا يمكن.*المخزون/i.test(text(e?.message||e));
+const canonical47=v=>Array.isArray(v)?v.map(canonical47):(v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>(o[k]=canonical47(v[k]),o),{}):v);
+const same47=(a,b)=>JSON.stringify(canonical47(a))===JSON.stringify(canonical47(b));
 function session47(){try{return session}catch{return global.session||null}}
 function state47(){try{return state}catch{return global.state||null}}
 async function rpc47(name,payload){if(typeof global.rpc==='function')return await global.rpc(name,payload);return await rpc(name,payload)}
@@ -20,15 +22,20 @@ async function resolveOwnership47(jobOrTx){
   if(!tx)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'CLIENT_TX_ID_MISSING'};
   const api=global.topBurgerDesktop?.offlineV2;
   if(!api?.takeoverState||!api?.event)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'DURABLE_V2_EVIDENCE_UNAVAILABLE'};
-  let event=null;try{event=await api.event(tx)}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'V2_EVENT_LOOKUP_FAILED',error:text(e?.message||e)}}
-  if(event)return {owner:OWN.V2_OPERATIONAL,client_tx_id:tx,reason:'DURABLE_NATIVE_EVENT'};
   let st;try{st=await api.takeoverState()}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'TAKEOVER_STATE_UNAVAILABLE',error:text(e?.message||e)}}
-  if(Array.isArray(st?.legacy_tx_ids)&&st.legacy_tx_ids.some(x=>text(x)===tx))return {owner:OWN.LEGACY_HISTORICAL,client_tx_id:tx,reason:'DURABLE_MIGRATION_SNAPSHOT'};
   const active=st?.active===true&&st?.migration_verified===true&&st?.transport_ready===true;
+  let event=null;try{event=await api.event(tx)}catch(e){return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'V2_EVENT_LOOKUP_FAILED',error:text(e?.message||e)}}
+  if(active&&Array.isArray(st?.legacy_tx_ids)&&st.legacy_tx_ids.some(x=>text(x)===tx)){
+    const env=event?.envelope||{},code=text(event?.last_error_code||env.last_error_code),job=typeof jobOrTx==='string'?null:jobOrTx;
+    const verified=event&&env.migration_source==='legacy_queue_v1'&&env.legacy_authority===true&&['OFFLINE_V2_LEGACY_PRESERVED','OFFLINE_V2_LEGACY_CONFLICT_PRESERVED'].includes(code)&&(!job||same47(env.legacy_payload,job));
+    return verified?{owner:OWN.LEGACY_HISTORICAL,client_tx_id:tx,reason:'VERIFIED_DURABLE_MIGRATION_SNAPSHOT'}:{owner:OWN.UNKNOWN,client_tx_id:tx,reason:'LEGACY_MIGRATION_EVIDENCE_UNVERIFIED'};
+  }
+  if(event)return {owner:OWN.V2_OPERATIONAL,client_tx_id:tx,reason:'DURABLE_NATIVE_EVENT'};
   if(active)return {owner:OWN.UNKNOWN,client_tx_id:tx,reason:'ACTIVE_TAKEOVER_WITHOUT_DURABLE_OWNER_EVIDENCE'};
   return {owner:OWN.LEGACY_FALLBACK,client_tx_id:tx,reason:'V2_NOT_ACTIVE_WITHOUT_DURABLE_OWNER_EVIDENCE'};
 }
-function legacyMayOperate47(owner){return owner===OWN.LEGACY_HISTORICAL||owner===OWN.LEGACY_FALLBACK}
+function legacyMayRead47(owner){return owner===OWN.LEGACY_HISTORICAL||owner===OWN.LEGACY_FALLBACK}
+function legacyMayOperate47(owner){return owner===OWN.LEGACY_FALLBACK}
 async function mark47(job,status,e){
   const q=await getQueue47(),now=new Date().toISOString(),msg=text(e?.message||e);
   for(const j of q){if(j.client_tx_id===job.client_tx_id)j._sync={...(j._sync||{}),status,last_error:msg,last_attempt_at:now,attempts:Number(j._sync?.attempts||0)+1}}
@@ -77,7 +84,7 @@ async function classifyExisting47(){
 }
 async function syncOfflineQueue47(){
   if(syncBusy47||!navigator.onLine||!session47()?.access_token)return;
-  syncBusy47=true;let done=0,reconciled=0,failed=0,blocked=0,conflicts=0,v2Owned=0,unknown=0;
+  syncBusy47=true;let done=0,reconciled=0,failed=0,blocked=0,conflicts=0,v2Owned=0,legacyFrozen=0,unknown=0;
   try{
     try{await refreshSession47()}catch(e){console.warn('Beta47 session refresh before sync',e);return}
     await classifyExisting47();
@@ -87,6 +94,7 @@ async function syncOfflineQueue47(){
       const current=(await getQueue47()).find(x=>x.client_tx_id===job.client_tx_id);if(!current)continue;
       const own=await resolveOwnership47(current);
       if(own.owner===OWN.V2_OPERATIONAL){v2Owned++;continue}
+      if(own.owner===OWN.LEGACY_HISTORICAL){legacyFrozen++;continue}
       if(own.owner===OWN.UNKNOWN){unknown++;console.error('Offline ownership unresolved; legacy sync fail-closed',current.client_tx_id,own.reason);continue}
       if(current?._sync?.status==='conflict'){conflicts++;continue}
       try{const r=await syncOne47(current);if(r==='done')done++;else if(r==='reconciled')reconciled++;else if(r==='blocked'){blocked++;await mark47(current,'blocked',new Error('الحركة تنتظر مزامنة الوردية المرتبطة بها'))}else if(r==='v2-owned')v2Owned++;else if(r==='unknown')unknown++}
@@ -98,7 +106,7 @@ async function syncOfflineQueue47(){
   }finally{syncBusy47=false}
 }
 function install47(){
-  global.SharawlaOfflineOwnership=Object.freeze({version:'1.0',OWN,resolve:resolveOwnership47,legacyMayOperate:legacyMayOperate47});
+  global.SharawlaOfflineOwnership=Object.freeze({version:'1.1',OWN,resolve:resolveOwnership47,legacyMayRead:legacyMayRead47,legacyMayOperate:legacyMayOperate47});
   try{syncOfflineQueue=syncOfflineQueue47}catch{}
   try{global.syncOfflineQueue=syncOfflineQueue47}catch{}
   global.__SharawlaBeta47PerformanceSyncHotfix=Object.freeze({version:VERSION,permanentConflictClassifier:true,autoRetryPermanentConflicts:false,classifyExisting:classifyExisting47,syncNow:syncOfflineQueue47,ownershipGate:true});

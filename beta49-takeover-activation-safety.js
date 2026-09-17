@@ -52,6 +52,9 @@ function mismatchError(v){
  return /بيانات الموظف غير مطابقة للجلسة الحالية|الموظف غير مطابق(?:ة)? للجلسة|employee.*(?:session|shift).*mismatch|session.*employee.*mismatch|shift.*employee.*mismatch|الوردية.*غير.*مطابق.*الموظف|الموظف.*غير.*مطابق.*الوردية/.test(m);
 }
 async function classifyLegacyMismatches(){
+ const api=global.topBurgerDesktop?.offlineV2;let takeover=null,stateKnown=!api?.takeoverState;try{if(api?.takeoverState){takeover=await api.takeoverState();stateKnown=true}}catch{}
+ if(!stateKnown)return {changed:0,conflicts:0,total:(await legacyQueue()).length,skipped:'takeover_ownership_state_unavailable'};
+ if(takeover?.active===true&&takeover?.migration_verified===true&&takeover?.transport_ready===true)return {changed:0,conflicts:0,total:(await legacyQueue()).length,skipped:'takeover_active_legacy_frozen'};
  const q=await legacyQueue();let changed=0;
  for(const j of q){
   if(j?._sync?.status==='conflict')continue;

@@ -396,7 +396,26 @@ async function odbSet(k,v){
 async function offlineQueue(){
   let q=(await odbGet('queue'))||[];
   if(!q.length&&window.topBurgerDesktop?.operations?.list){
-    try{const rows=await window.topBurgerDesktop.operations.list('pending');q=(rows||[]).map(r=>r.payload).filter(Boolean);if(q.length)await odbSet('queue',q)}catch(e){console.warn('recover pending queue',e)}
+    try{
+      const rows=await window.topBurgerDesktop.operations.list('pending'),pending=(rows||[]).map(r=>r.payload).filter(Boolean),api=window.topBurgerDesktop?.offlineV2;
+      let takeover=null,stateKnown=!api?.takeoverState;try{if(api?.takeoverState){takeover=await api.takeoverState();stateKnown=true}}catch{}
+      const active=takeover?.active===true&&takeover?.migration_verified===true&&takeover?.transport_ready===true;
+      if(!stateKnown)q=[];
+      else if(!active)q=pending;
+      else{
+        const legacyTx=new Set((takeover.legacy_tx_ids||[]).map(x=>String(x||''))),types=new Set(['sale','return','expense','shift_open','shift_close']);
+        const canonical=v=>Array.isArray(v)?v.map(canonical):(v&&typeof v==='object'?Object.keys(v).sort().reduce((o,k)=>(o[k]=canonical(v[k]),o),{}):v);
+        const same=(a,b)=>JSON.stringify(canonical(a))===JSON.stringify(canonical(b));
+        q=[];
+        for(const job of pending){
+          const tx=String(job?.client_tx_id||'');if(!types.has(job?.type)||!tx||!legacyTx.has(tx)||!api?.event)continue;
+          let event=null;try{event=await api.event(tx)}catch{}
+          const env=event?.envelope||{},code=String(event?.last_error_code||env.last_error_code||'');
+          if(env.migration_source==='legacy_queue_v1'&&env.legacy_authority===true&&['OFFLINE_V2_LEGACY_PRESERVED','OFFLINE_V2_LEGACY_CONFLICT_PRESERVED'].includes(code)&&same(env.legacy_payload,job))q.push(job);
+        }
+      }
+      if(q.length)await odbSet('queue',q)
+    }catch(e){console.warn('recover pending queue',e)}
   }
   return q
 }
@@ -2303,4 +2322,3 @@ async function renderUsers(){
  };
  $('#newUserBtn').onclick=()=>openForm();$('#page').onclick=async e=>{const eb=e.target.closest('[data-edit-user]');if(eb){const u=rows.find(x=>String(x.id)===eb.dataset.editUser);if(u)openForm(u);return}const tb=e.target.closest('[data-toggle-user]');if(tb){const u=rows.find(x=>String(x.id)===tb.dataset.toggleUser);if(!u)return;if(String(u.auth_user_id)===String(session.user.id)&&u.active!==false)return toast('لا يمكنك إيقاف حسابك الحالي');if(!await uiConfirm(`${u.active===false?'تفعيل':'إيقاف'} ${u.name}؟`))return;try{await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({active:u.active===false})});toast('تم تحديث حالة المستخدم');renderUsers()}catch(err){toast(err.message)}return}const pb=e.target.closest('[data-password-user]');if(pb){const u=rows.find(x=>String(x.id)===pb.dataset.passwordUser);if(!u)return;const password=await uiPrompt(`كلمة المرور الجديدة لـ ${u.name}`);if(password===null)return;if(password.length<6)return toast('كلمة المرور 6 أحرف على الأقل');try{await callFunction('smart-function',{action:'password',employee_id:u.id,password});toast('تم تغيير كلمة المرور')}catch(err){toast(err.message)}return}};
 }
-

@@ -29,6 +29,7 @@ async function setQueue(q){try{if(typeof setOfflineQueue==='function')return awa
 async function rememberShift(sh){if(!sh)return sh;try{if(typeof rememberOpenShift==='function')return await rememberOpenShift(sh)}catch{}try{return await global.rememberOpenShift?.(sh)}catch{return sh}}
 async function cachedShift(){try{if(typeof cachedOpenShift==='function')return await cachedOpenShift()}catch{}try{return await global.cachedOpenShift?.()}catch{return null}}
 async function ownership55(job){const gate=global.SharawlaOfflineOwnership;if(!gate?.resolve)return {owner:'UNKNOWN',reason:'OWNERSHIP_GATE_UNAVAILABLE'};try{return await gate.resolve(job)}catch(e){return {owner:'UNKNOWN',reason:'OWNERSHIP_RESOLUTION_FAILED',error:text(e?.message||e)}}}
+function legacyMayRead55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayRead?gate.legacyMayRead(owner):false}
 function legacyMayOperate55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayOperate?gate.legacyMayOperate(owner):false}
 
 function parseEq(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=eq\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
@@ -117,7 +118,7 @@ async function pendingLocalShift(){
  const q=await getQueue(),bid=branchId(),eid=employeeId(),eligible=[];
  for(const j of q){
   if(j.type!=='shift_open'||!j.local_shift||Number(j.local_shift.branch_id)!==bid||Number(j.local_shift.employee_id)!==eid)continue;
-  const own=await ownership55(j);if(legacyMayOperate55(own.owner))eligible.push(j.local_shift);else if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; pending shift read fail-closed',j.client_tx_id,own.reason);
+  const own=await ownership55(j);if(legacyMayRead55(own.owner))eligible.push(j.local_shift);else if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; pending shift read fail-closed',j.client_tx_id,own.reason);
  }
  return eligible.sort((a,b)=>new Date(b.opened_at||0)-new Date(a.opened_at||0))[0]||null;
 }
@@ -173,7 +174,7 @@ async function numericBonFloor(shiftId){
  let max=Number(localStorage.getItem(bonKey(shiftId))||0);const q=await getQueue();
  for(const j of q){
   if(j.type!=='sale'||String(j.p_order?.shift_id||j.local_order?.shift_id)!==String(shiftId))continue;
-  const own=await ownership55(j);if(!legacyMayOperate55(own.owner)){if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; bon floor read fail-closed',j.client_tx_id,own.reason);continue}
+  const own=await ownership55(j);if(!legacyMayRead55(own.owner)){if(own.owner==='UNKNOWN')console.error('Offline ownership unresolved; bon floor read fail-closed',j.client_tx_id,own.reason);continue}
   const m=String(j.local_order?.bon_number||'').match(/^OFF-(\d+)$/);if(m)max=Math.max(max,Number(m[1]||0));
  }
  return max;

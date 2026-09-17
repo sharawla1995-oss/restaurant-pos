@@ -15,6 +15,19 @@ function parse(){try{const q=JSON.parse(localStorage.getItem(KEY)||'[]');return 
 function save(q){localStorage.setItem(KEY,JSON.stringify(q));global.dispatchEvent(new CustomEvent('sharawla-offline-v2-change',{detail:{pending:q.length}}));return q}
 function netError(e){try{if(typeof global.isNetError==='function')return global.isNetError(e)}catch{}const m=String(e?.message||e||'');return e?.name==='TypeError'||/failed to fetch|network|offline|load failed|internet/i.test(m)}
 function tx(payload){return String(payload?.p_client_tx_id||'').trim()}
+function ownershipError(code,message){const e=new Error(message);e.code=code;return e}
+async function activeOwnership(){
+ const api=global.topBurgerDesktop?.offlineV2;
+ if(!api?.takeoverState)throw ownershipError('OFFLINE_V2_OWNERSHIP_STATE_UNAVAILABLE','Offline V2 ownership state is unavailable');
+ let state;try{state=await api.takeoverState()}catch{throw ownershipError('OFFLINE_V2_OWNERSHIP_STATE_UNAVAILABLE','Offline V2 ownership state is unavailable')}
+ const active=state?.active===true&&state?.migration_verified===true&&state?.transport_ready===true;
+ if(!active)return {active:false,mappings:{}};
+ const takeover=global.SharawlaOfflineV2Takeover;
+ if(typeof takeover?.rpcMappings!=='function')throw ownershipError('OFFLINE_V2_OWNERSHIP_STATE_UNAVAILABLE','Offline V2 operation mappings are unavailable');
+ let mappings;try{mappings=takeover.rpcMappings()}catch{throw ownershipError('OFFLINE_V2_OWNERSHIP_STATE_UNAVAILABLE','Offline V2 operation mappings are unavailable')}
+ return {active:true,mappings:mappings&&typeof mappings==='object'?mappings:{}};
+}
+function requireActiveAdapter(name,ownership){if(!ownership.mappings[name])throw ownershipError('OFFLINE_V2_OPERATION_ADAPTER_REQUIRED',`Offline V2 approved adapter is required: ${name}`)}
 function put(name,payload){
  const id=tx(payload);if(!id)throw new Error(`Offline V2 requires p_client_tx_id for ${name}`);
  const q=parse();if(q.some(x=>x.client_tx_id===id&&x.rpc===name))return q.find(x=>x.client_tx_id===id&&x.rpc===name);
@@ -26,15 +39,19 @@ function put(name,payload){
 async function call(name,payload={}){
  if(!SAFE.has(name))return baseRpc(name,payload);
  if(!tx(payload))return baseRpc(name,payload);
+ const ownership=await activeOwnership();
+ if(ownership.active){requireActiveAdapter(name,ownership);return baseRpc(name,payload)}
  if(!navigator.onLine){const j=put(name,payload);return {_offline:true,client_tx_id:j.client_tx_id,queued:true}}
  try{return await baseRpc(name,payload)}catch(e){if(!netError(e))throw e;const j=put(name,payload);return {_offline:true,client_tx_id:j.client_tx_id,queued:true}}
 }
 let syncing=false;
 async function sync(){
  if(syncing||!navigator.onLine)return {done:0,pending:parse().length};
- syncing=true;let q=parse(),done=0;
+ syncing=true;let q=parse(),done=0,blocked=0;
  try{
+  const ownership=await activeOwnership();
   for(const job of [...q]){
+   if(ownership.active&&!ownership.mappings[job.rpc]){blocked++;continue}
    try{
     await baseRpc(job.rpc,job.payload);
     q=q.filter(x=>!(x.client_tx_id===job.client_tx_id&&x.rpc===job.rpc));save(q);done++;
@@ -48,7 +65,7 @@ async function sync(){
    }
   }
   if(done)try{global.toast?.(`تمت مزامنة ${done} حركة تشغيل أوفلاين`)}catch{}
-  return {done,pending:q.length};
+  return {done,pending:q.length,blocked};
  }finally{syncing=false}
 }
 function pending(){return parse().length}
