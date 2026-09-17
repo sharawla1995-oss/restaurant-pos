@@ -548,6 +548,21 @@ Point 4C-1 source readiness does not close Point 4B-2 and does not authorize tra
 
 Point 4D-1 source readiness is a schema/ownership contract only; it does not establish Financial Closure or settle any real supplier balance.
 
+### Point 4E-1 — Authoritative Financial Journal Contract
+
+**SOURCE COMPLETE / LOCAL REVIEW — NOT DEPLOYED / NOT CONNECTED.**
+
+- The additive contract defines append-only `finance_journal_events_v1` and `finance_journal_lines_v1` with deterministic `(client_tx_id,line_key)` event identity and explicit source-document lineage.
+- Each line is exclusively debit or credit. A deferred database constraint requires positive equal debit/credit totals for every affected event.
+- Journal events and lines reject UPDATE/DELETE. Reversal is a new uniquely linked event whose ordered account/location/counterparty lines must exactly swap the original debit and credit values; destructive correction is not allowed.
+- Optional evidence links connect journal lines to Canonical Stock movements, canonical transfers, and supplier payables. This preserves traceability without posting COGS, valuation, transfer variance, or AP effects prematurely.
+- Event types reserve contracts for sales/payments/refunds, expenses/cash/shifts, receivables/collections, payables/supplier payments, inventory value/COGS/waste/damage, and transfer value/variance. No historical value is inferred and no operational source is connected.
+- Same deterministic identity/digest replays; changed canonical intent fails closed with `FINANCE_JOURNAL_V1_IDEMPOTENCY_CONFLICT`.
+- Financial Journal activation remains hard-false with `FINANCE_JOURNAL_V1_ACTIVATION_BLOCKED`. Tables are RLS-enabled, clients have no direct privileges, internal functions have no `PUBLIC`/`anon`/`authenticated` execute permission, and no generic posting RPC exists.
+- Source validation: Point 4E-1 static gate **PASS**. No deployment, Beta write, journal posting, workflow connection, Production access, or Push occurred.
+
+Point 4E-1 source readiness does not constitute Financial Closure. Posting mappings, deployment, reconciliation, and runtime acceptance remain separate gates.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -585,10 +600,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer and Point 4D-1 Purchasing/AP source are complete locally but NOT DEPLOYED / NOT CONNECTED.**
+**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 source are committed locally but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, and Point 4E-1 Financial Journal source are complete locally but NOT DEPLOYED / NOT CONNECTED.**
 
 Exact next step:
 
-Continue Point 4 source-only architecture with the minimum append-only Financial Journal contract and deterministic source-to-journal posting boundaries. Cover balanced events/lines, reversal, source lineage, stock valuation/COGS evidence, transfer value, Purchasing/AP, sales/returns, expenses/payments/receivables without connecting any runtime workflow or inventing missing valuation. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover, transfer activation, AP activation, or Financial posting is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Continue Point 4 source-only architecture with deterministic reconciliation/readiness contracts across Canonical Stock, transfer dispatch/in-transit/receive, GRN/inventory, supplier invoice/payable, payment/allocation, operational source/journal, balanced entries, duplicate economic effects, orphan events, and valuation lineage. Do not execute reconciliation against any database and do not connect runtime workflows. Point 4B-2 concurrency remains OPEN; no stock Backfill/Cutover, transfer activation, AP activation, or Financial posting is authorized. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.

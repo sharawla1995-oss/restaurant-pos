@@ -13,6 +13,7 @@
     "check:point4-stock-v2-cutover-hooks": "node scripts/check-point4-stock-v2-cutover-hooks.js",
     "check:point4-transfer-v2-contract": "node scripts/check-point4-transfer-v2-contract.js",
     "check:point4-purchasing-ap-v1-contract": "node scripts/check-point4-purchasing-ap-v1-contract.js",
+    "check:point4-financial-journal-v1-contract": "node scripts/check-point4-financial-journal-v1-contract.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js"
