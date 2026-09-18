@@ -26,7 +26,8 @@ create table if not exists public.supplier_payments_v1(
  payment_amount numeric(18,2) not null check(payment_amount>0),allocated_amount numeric(18,2) not null default 0 check(allocated_amount>=0),
  unallocated_amount numeric(18,2) generated always as(payment_amount-allocated_amount) stored,
  payment_method_id bigint references public.payment_methods(id) on delete restrict,
- treasury_movement_id bigint,client_tx_id text not null unique,operation_digest text not null check(operation_digest~'^[0-9a-f]{64}$'),
+ treasury_movement_id bigint unique references public.treasury_movements(id) on delete restrict,
+ client_tx_id text not null unique,operation_digest text not null check(operation_digest~'^[0-9a-f]{64}$'),
  status text not null check(status in('CAPTURED','PARTIALLY_ALLOCATED','ALLOCATED','REVERSED','FORWARD_RECOVERY_REQUIRED')),
  paid_at timestamptz not null,created_at timestamptz not null default now(),check(allocated_amount<=payment_amount));
 create table if not exists public.supplier_payment_allocations_v1(

@@ -15,23 +15,27 @@ movement_totals as (
 ), transfer_findings as (
  select count(*) filter(where l.dispatched_value<>l.received_value+l.damaged_value+l.shortage_value+l.in_transit_value) value_mismatch,
   count(*) filter(where o.lifecycle_state='RECEIVED' and l.quantity_in_transit<>0) received_still_in_transit,
-  count(*) filter(where o.ownership_state='CANONICAL_ACTIVE' and (so.id is null or si.id is null)) missing_stock_effect
+  count(*) filter(where o.ownership_state='CANONICAL_ACTIVE' and (coalesce(so.effect_count,0)<>1 or coalesce(si.effect_count,0)<>1)) missing_or_duplicate_stock_effect,
+  count(*) filter(where coalesce(so.effect_count,0)>1 or coalesce(si.effect_count,0)>1) duplicate_stock_effect
  from public.inventory_transfer_operations_v2 o join public.inventory_transfer_lines_v2 l on l.transfer_operation_id=o.id
- left join public.inventory_stock_movements_v2 so on so.source_document_type='canonical_transfer' and so.source_document_id=o.id::text and so.line_key='out:'||l.line_key
- left join public.inventory_stock_movements_v2 si on si.source_document_type='canonical_transfer' and si.source_document_id=o.id::text and si.line_key='in:'||l.line_key
+ left join lateral(select count(*) effect_count from public.inventory_stock_movements_v2 m where m.source_document_type='canonical_transfer' and m.source_document_id=o.id::text and m.line_key='out:'||l.line_key and m.movement_type='transfer_out') so on true
+ left join lateral(select count(*) effect_count from public.inventory_stock_movements_v2 m where m.source_document_type='canonical_transfer' and m.source_document_id=o.id::text and m.line_key='in:'||l.line_key and m.movement_type='transfer_in') si on true
 ), ap_findings as (
  select
   (select count(*) from public.supplier_payables_v1 p where p.outstanding_amount<>p.original_amount-p.settled_amount-p.credited_amount) payable_math_mismatch,
+  (select count(*) from public.supplier_payables_v1 p join public.retail_supplier_invoices i on i.id=p.supplier_invoice_id where i.status<>'approved' or p.branch_id<>i.branch_id or p.supplier_id<>i.supplier_id or p.original_amount<>i.total_amount or upper(p.currency_code)<>upper(coalesce(i.currency_code,'EGP'))) invoice_payable_mismatch,
   (select count(*) from public.supplier_payments_v1 p left join lateral(select coalesce(sum(a.amount),0) total from public.supplier_payment_allocations_v1 a where a.payment_id=p.id) a on true where p.allocated_amount<>a.total or p.unallocated_amount<>p.payment_amount-a.total) allocation_mismatch,
+  (select count(*) from public.supplier_payment_allocations_v1 a join public.supplier_payments_v1 y on y.id=a.payment_id join public.supplier_payables_v1 p on p.id=a.payable_id where y.supplier_id<>p.supplier_id or y.branch_id<>p.branch_id or upper(y.currency_code)<>upper(p.currency_code)) allocation_scope_mismatch,
   (select count(*) from public.supplier_payables_v1 p left join lateral(select coalesce(sum(a.amount),0) total from public.supplier_payment_allocations_v1 a where a.payable_id=p.id) a on true left join lateral(select coalesce(sum(c.credit_amount),0) total from public.supplier_payable_credits_v1 c where c.payable_id=p.id) c on true where p.settled_amount<>a.total or p.credited_amount<>c.total) settlement_mismatch
 ), journal_findings as (
- select count(*) filter(where x.debit<=0 or x.debit<>x.credit) unbalanced,
-  count(*) filter(where e.reversal_of_event_id is not null and r.id is null) orphan_reversal,
+ select count(distinct e.id) filter(where x.debit<=0 or x.debit<>x.credit) unbalanced,
+  count(distinct e.id) filter(where x.line_count=0) orphan_event_without_lines,
+  count(distinct e.id) filter(where e.reversal_of_event_id is not null and r.id is null) orphan_reversal,
   count(*) filter(where l.stock_movement_id is not null and sm.id is null) orphan_stock_line,
   count(*) filter(where l.transfer_operation_id is not null and t.id is null) orphan_transfer_line,
   count(*) filter(where l.payable_id is not null and p.id is null) orphan_payable_line
  from public.finance_journal_events_v1 e
- left join lateral(select coalesce(sum(debit),0) debit,coalesce(sum(credit),0) credit from public.finance_journal_lines_v1 where event_id=e.id) x on true
+ left join lateral(select count(*) line_count,coalesce(sum(debit),0) debit,coalesce(sum(credit),0) credit from public.finance_journal_lines_v1 where event_id=e.id) x on true
  left join public.finance_journal_events_v1 r on r.id=e.reversal_of_event_id
  left join public.finance_journal_lines_v1 l on l.event_id=e.id
  left join public.inventory_stock_movements_v2 sm on sm.id=l.stock_movement_id

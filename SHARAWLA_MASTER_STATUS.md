@@ -577,6 +577,36 @@ Point 4E-1 source readiness does not constitute Financial Closure. Posting mappi
 
 Point 4F-1 source readiness does not close reconciliation/acceptance. Deployment, authoritative posting mappings, real workflow integration, and runtime evidence remain required.
 
+### Point 4 — Final Source Integrity / Runtime Readiness Audit
+
+**SOURCE INTEGRITY REVIEWED — RUNTIME CLOSURE REVIEW REQUIRED / BLOCKED.**
+
+Audit baseline: `16c2159e2ad82e3d9360b893c1f8f3dc621fac66`.
+
+Clear source defects corrected locally during this audit:
+
+- `supplier_payments_v1.treasury_movement_id` now has a unique `ON DELETE RESTRICT` FK to `treasury_movements`, preventing an unverified or multiply claimed treasury effect.
+- the Financial Journal now has a deferred event-completeness constraint: an event cannot commit with no lines, fewer than two lines, zero value, or unequal debit/credit totals; reversal-of-reversal and cross-business/branch/currency reversal are rejected;
+- 4F-1 now detects missing **or duplicate** canonical transfer-out/transfer-in effects, invoice/payable identity and amount mismatches, payment-allocation supplier/branch/currency scope mismatches, and journal events without lines.
+
+The end-to-end ownership direction remains compatible: audited Legacy watermark → protected atomic cutover → control-plane ownership independent of balance existence → guarded Canonical Stock → future transfer/AP/journal adapters → reconciliation. `CUT_OVER_ZERO` still has no fake balance/movement and must use the same future Canonical adapter as positive ownership. No canonical-to-Legacy fallback or dual-write path was introduced.
+
+Runtime Closure is not source-complete because the following require explicit architecture/accounting decisions rather than guesses:
+
+- deterministic source-document types, line keys, canonical line ordering, and posting identities for GRN, transfer, AP, sales/returns, expenses, payments, receivables, COGS, waste/damage, and reversals;
+- tenant/business identity for the operational Financial Journal (`business_id` cannot be safely finalized without defining the authoritative tenant identity available inside the business backend);
+- transfer cancellation after dispatch, shortage/damage responsibility, transfer variance recognition, and in-transit account treatment;
+- 3-way-match tolerances, invoice/credit tax treatment, overpayment/unallocated cash policy, supplier-return credit allocation, landed-cost capitalization/clearing timing, currency/FX and rounding policy;
+- chart-of-accounts mappings and recognition timing for Inventory, COGS, Sales, Discounts/Tax, Cash/Bank/Wallet clearing, Receivables, Payables, GRNI, Expenses, Waste/Damage, Transfer In Transit/Variance, Supplier Credits, Landed Cost, and rounding/FX.
+
+Required operational adapters remain: every approved direct Legacy stock boundary plus its transitive callers/barriers; sale/return/reservation/waste/damage/stocktake; GRN and supplier return; atomic transfer dispatch/receive; invoice approval → payable; treasury supplier payment → allocation/settlement; landed-cost and supplier-credit linkage; and deterministic journal posting/reversal adapters. Every Canonical stock adapter must call the canonical ownership assertion before the sole 4B-2 writer. There is currently no installed adapter or workflow switch.
+
+4F-1 still cannot truthfully close these checks until the above mappings exist: GRN without its expected Canonical movement, source-specific duplicate economic posting, and complete valuation lineage. The auditor must not infer generic keys or treat empty/non-connected tables as PASS.
+
+Security review: Point 4 internal functions use `SECURITY DEFINER` with empty `search_path`; client execution is revoked; new tables enable RLS and revoke direct client privileges; immutable ledgers reject UPDATE/DELETE. No generic stock/transfer/AP/journal mutation RPC is client-executable. Table owners/service roles can still bypass RLS by design, so future adapters require a reviewed privileged execution role and clients must never receive service-role credentials.
+
+Point 4B-2 genuine committed concurrency remains **OPEN / INFRASTRUCTURE BLOCKED** and `inventory_stock_point4b2_concurrency_closed_v2()` remains `false`. No Backfill, Cutover, hook activation, deployment, runtime connection, or Point 4 closure is authorized.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
@@ -618,6 +648,6 @@ This architecture does NOT create an 18th roadmap point.
 
 Exact next step:
 
-Resolve Point 4B-2 genuine committed concurrency using two independent committed PostgreSQL sessions in an approved disposable environment. Until that evidence is PASS, do not deploy or activate 4B-3B/4B-4, Backfill/Cutover stock, or connect transfer/AP/Financial workflows. Separately review and approve the source-only Point 4C-1 through 4F-1 contracts before any deployment design; authoritative account mappings and operational posting adapters remain future architecture gates and must not be invented. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+In an approved disposable PostgreSQL environment, execute the already-defined Point 4B-2 genuine committed concurrency acceptance with two independent sessions and real commits. In parallel as a separate Architecture Review Gate, approve the explicit source-document/idempotency mapping, operational tenant identity, transfer exception policy, AP settlement policy, and chart-of-accounts/posting matrix listed by the Final Source Audit. Do not deploy or activate 4B-3B/4B-4, Backfill/Cutover stock, or connect transfer/AP/Financial workflows until both prerequisites are resolved. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
