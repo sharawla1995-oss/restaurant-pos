@@ -12,14 +12,51 @@ movement_totals as (
   count(*) filter(where lm.id is null or lm.balance_version_after<>b.balance_version or lm.average_unit_cost_after<>b.average_unit_cost or lm.last_unit_cost_after<>b.last_unit_cost) snapshot_mismatch
  from public.inventory_stock_balances_v2 b left join movement_totals m using(location_id,item_kind,item_id)
  left join public.inventory_stock_movements_v2 lm on lm.id=m.last_id
+), transfer_effect_candidates as (
+ select el.event_id,el.line_uid,el.transfer_operation_id,el.transfer_line_uid,e.operation_type,e.client_tx_id,
+  o.source_document_id,el.stock_effect_line_key,el.quantity,l.unit_cost_snapshot,m.id movement_id,m.quantity_delta,m.value_delta,
+  (m.id is not null and m.client_tx_id=e.client_tx_id
+   and m.movement_type=case when e.operation_type='DISPATCH' then 'transfer_out' else 'transfer_in' end
+   and m.location_id=case when e.operation_type='DISPATCH' then o.source_location_id else o.destination_location_id end
+   and m.item_kind=l.item_kind and m.item_id=l.item_id) exact_effect
+ from public.inventory_transfer_event_lines_v2 el
+ join public.inventory_transfer_events_v2 e on e.id=el.event_id
+ join public.inventory_transfer_operations_v2 o on o.id=e.transfer_operation_id
+ join public.inventory_transfer_lines_v2 l on l.transfer_operation_id=el.transfer_operation_id and l.line_uid=el.transfer_line_uid
+ left join public.inventory_stock_movements_v2 m on m.source_document_type='inventory_transfer'
+  and m.source_document_id=o.source_document_id and m.line_key=el.stock_effect_line_key
+ where e.operation_type in('DISPATCH','RECEIVE')
+), transfer_effect_evidence as (
+ select event_id,line_uid,transfer_operation_id,transfer_line_uid,operation_type,client_tx_id,
+  source_document_id,stock_effect_line_key,quantity,unit_cost_snapshot,
+  count(movement_id) candidate_effect_count,
+  count(movement_id) filter(where exact_effect) effect_count,
+  count(movement_id) filter(where not exact_effect) unexpected_effect_count,
+  count(movement_id) filter(where exact_effect and value_delta is null) missing_valuation_count,
+  sum(quantity_delta) filter(where exact_effect) actual_quantity_delta,
+  sum(value_delta) filter(where exact_effect) actual_value_delta
+ from transfer_effect_candidates
+ group by event_id,line_uid,transfer_operation_id,transfer_line_uid,operation_type,client_tx_id,source_document_id,stock_effect_line_key,quantity,unit_cost_snapshot
+), transfer_slice_totals as (
+ select el.transfer_operation_id,el.transfer_line_uid,
+  coalesce(sum(el.quantity) filter(where e.operation_type='DISPATCH'),0) dispatched,
+  coalesce(sum(el.quantity) filter(where e.operation_type='RECEIVE'),0) received,
+  coalesce(sum(el.quantity_damaged) filter(where e.operation_type='RECEIVE'),0) damaged,
+  coalesce(sum(el.quantity_shortage) filter(where e.operation_type='RECEIVE'),0) shortage
+ from public.inventory_transfer_event_lines_v2 el join public.inventory_transfer_events_v2 e on e.id=el.event_id
+ where e.operation_type in('DISPATCH','RECEIVE') group by el.transfer_operation_id,el.transfer_line_uid
 ), transfer_findings as (
- select count(*) filter(where l.dispatched_value<>l.received_value+l.damaged_value+l.shortage_value+l.in_transit_value) value_mismatch,
-  count(*) filter(where o.lifecycle_state='RECEIVED' and l.quantity_in_transit<>0) received_still_in_transit,
-  count(*) filter(where o.ownership_state='CANONICAL_ACTIVE' and (coalesce(so.effect_count,0)<>1 or coalesce(si.effect_count,0)<>1)) missing_or_duplicate_stock_effect,
-  count(*) filter(where coalesce(so.effect_count,0)>1 or coalesce(si.effect_count,0)>1) duplicate_stock_effect
- from public.inventory_transfer_operations_v2 o join public.inventory_transfer_lines_v2 l on l.transfer_operation_id=o.id
- left join lateral(select count(*) effect_count from public.inventory_stock_movements_v2 m where m.source_document_type='canonical_transfer' and m.source_document_id=o.id::text and m.line_key='out:'||l.line_key and m.movement_type='transfer_out') so on true
- left join lateral(select count(*) effect_count from public.inventory_stock_movements_v2 m where m.source_document_type='canonical_transfer' and m.source_document_id=o.id::text and m.line_key='in:'||l.line_key and m.movement_type='transfer_in') si on true
+ select
+  (select count(*) from public.inventory_transfer_lines_v2 l where l.dispatched_value<>l.received_value+l.damaged_value+l.shortage_value+l.in_transit_value) value_mismatch,
+  (select count(*) from public.inventory_transfer_operations_v2 o join public.inventory_transfer_lines_v2 l on l.transfer_operation_id=o.id where o.lifecycle_state='RECEIVED' and l.quantity_in_transit<>0) received_still_in_transit,
+  (select count(*) from transfer_effect_evidence x join public.inventory_transfer_operations_v2 o on o.id=x.transfer_operation_id where o.ownership_state='CANONICAL_ACTIVE' and x.effect_count<>1) missing_or_duplicate_stock_effect,
+  (select count(*) from transfer_effect_evidence where candidate_effect_count>1) duplicate_stock_effect,
+  (select count(*) from transfer_effect_evidence where unexpected_effect_count>0) unexpected_stock_effect,
+  (select count(*) from transfer_effect_evidence where effect_count=1 and missing_valuation_count>0) missing_valuation_evidence,
+  (select count(*) from transfer_effect_evidence where effect_count=1 and actual_quantity_delta<>case when operation_type='DISPATCH' then -quantity else quantity end) quantity_effect_mismatch,
+  (select count(*) from transfer_effect_evidence where effect_count=1 and actual_value_delta is not null and actual_value_delta<>case when operation_type='DISPATCH' then -round(quantity*unit_cost_snapshot,4) else round(quantity*unit_cost_snapshot,4) end) value_effect_mismatch,
+  (select count(*) from public.inventory_transfer_lines_v2 l left join transfer_slice_totals s on s.transfer_operation_id=l.transfer_operation_id and s.transfer_line_uid=l.line_uid where l.quantity_dispatched<>coalesce(s.dispatched,0)) dispatch_slice_aggregate_mismatch,
+  (select count(*) from public.inventory_transfer_lines_v2 l left join transfer_slice_totals s on s.transfer_operation_id=l.transfer_operation_id and s.transfer_line_uid=l.line_uid where l.quantity_received<>coalesce(s.received,0) or l.quantity_damaged<>coalesce(s.damaged,0) or l.quantity_shortage<>coalesce(s.shortage,0)) receipt_slice_aggregate_mismatch
 ), ap_findings as (
  select
   (select count(*) from public.supplier_payables_v1 p where p.outstanding_amount<>p.original_amount-p.settled_amount-p.credited_amount) payable_math_mismatch,

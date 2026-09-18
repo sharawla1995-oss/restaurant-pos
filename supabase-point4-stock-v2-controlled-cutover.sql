@@ -627,7 +627,7 @@ begin
         v_candidate.opening_client_tx_id,v_candidate.opening_line_key,
         v_candidate.location_id,v_candidate.item_kind,v_candidate.item_id,'opening',
         v_candidate.source_quantity,0,v_candidate.average_unit_cost,null,
-        'legacy_cutover',p_plan_digest,null,null,now(),0,p_employee_id,null,
+        'stock_opening','digest:sha256:'||p_plan_digest,null,null,now(),0,p_employee_id,null,
         jsonb_build_object('candidate_digest',v_candidate.candidate_digest,
           'lineage',v_candidate.lineage,'historical_warnings',v_candidate.historical_warnings)
       );

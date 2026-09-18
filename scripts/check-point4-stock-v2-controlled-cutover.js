@@ -108,7 +108,8 @@ const positiveBlock=sql.slice(
 assert(/inventory_stock_apply_movement_v2\s*\(/.test(positiveBlock),'positive quantity must use the approved 4B-2 writer');
 for(const token of [
   "v_candidate.opening_client_tx_id,v_candidate.opening_line_key",
-  "'opening'","'legacy_cutover'","'CANONICAL_ACTIVE'",
+  "'stock_opening','digest:sha256:'||p_plan_digest",
+  "'opening'","'CANONICAL_ACTIVE'",
   "'CANONICAL_OPENING'"
 ])assert(positiveBlock.includes(token),`positive opening contract missing: ${token}`);
 

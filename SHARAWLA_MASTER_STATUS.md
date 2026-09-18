@@ -616,6 +616,28 @@ Point 4B-2 genuine committed concurrency remains **OPEN / INFRASTRUCTURE BLOCKED
 - Because 4E/4F were never deployed, the Tenant Boundary correction is made in their original source contracts before first deployment; no Forward Migration, `DROP`, or deployed-schema rewrite is required.
 - **Architecture Decision:** the Operational Backend itself is the tenant boundary. Sharawla Business UUID remains external identity in Sharawla Cloud / Business Connection. Financial Journal stores no synthetic `business_id bigint`; `branch_id bigint` identifies an operational location inside the tenant backend.
 - Point 4F-1 has no `business_id` dependency and remains structurally unchanged by this decision. Its future reconciliation runs inside the same operational-backend tenant boundary.
+
+### Point 4 — Source Identity Contract V1
+
+**IDENTITY V1 — SOURCE COMPLETE / LOCALLY COMMITTED — NOT PUSHED / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+
+- Contract namespace: `sharawla.point4.identity.v1`.
+- An Offline-originated business document receives an immutable lowercase UUIDv4 `document_uid` before its first durable write. Its canonical identity remains `uuid:<document_uid>` across Offline, Sync, Cloud persistence, retry, and replay. A generated database ID is mapping/lineage only and never replaces that identity.
+- `db:<id>` is restricted to Legacy or guaranteed-online-existing documents. Controlled stock opening retains the approved deterministic `digest:sha256:<plan_digest>` exception.
+- `document_uid` identifies the document lifetime; `client_tx_id` identifies exactly one logical mutation/command. One document may therefore have multiple independent commands without changing document identity.
+- Every business/document line receives an immutable lowercase UUIDv4 `line_uid`. Deterministic effect keys use `v1:<domain>:<effect>:<line_uid>[:<subcomponent-kind>:<subcomponent-identity>]`; nested line keys, UI indexes, item IDs, and generated database line IDs are not canonical line identity.
+- Transfer keeps one immutable transfer `document_uid`; dispatch and every partial/final receive use independent `client_tx_id` values. Each partial receipt line has its own immutable `receive_line_uid`, while the original transfer line remains lineage.
+- Recipe effects require an immutable recipe-component identity. The source contract fails closed when that identity is unavailable; no Recipe migration or business rule is invented here.
+- Journal evidence line identity, posting role, and final journal line identity are separate. Posting roles are not inferred from account codes; Accounting Mapping remains an explicit future decision.
+- Canonical operation digests sort by deterministic line key, normalize quantities/costs/amounts to the approved fixed scales, reject duplicate keys, and exclude generated IDs, raw array order, recorded timestamps, transport metadata, and mutable/derived fields.
+- Offline V2 `payload_digest` remains a transport-integrity digest. Point 4 `operation_digest` is the canonical economic-intent digest. Identity V1 creates no new Offline owner and does not modify Outbox, ACK, or takeover behavior.
+- Append-only reversal is a new document and command with canonical references to the original document/TX/effect/digest. Internal movement/event IDs remain FK/mapping details and are not canonical reversal digest identity.
+- Point 4C Transfer, Point 4D Purchasing/AP, Point 4E Financial Journal, and the affected Point 4F reconciliation linkage are corrected in source only. None is deployed or operationally connected.
+- The deployed Point 4B-1/4B-2 signatures and behavior remain unchanged. Their text `source_document_id` and `line_key` inputs can receive canonical Identity V1 values through future reviewed workflow adapters.
+- Point 4B-3 controlled positive opening now calls the unchanged 4B-2 writer with `source_document_type='stock_opening'` and `source_document_id='digest:sha256:<plan_digest>'`; zero opening remains control-plane-only with no fake balance or movement.
+- `effective_date` is included only when a domain contract explicitly defines it. It is not a global timestamp and `occurred_at`/`recorded_at` remain outside canonical economic identity.
+
+This source contract does not deploy schema, connect runtime adapters, execute Backfill/Cutover, activate hooks, close Point 4B-2 concurrency, or close Point 4 Runtime Acceptance.
 - This provenance decision changes no deployed 4B-1/4B-2 file or object and authorizes no deployment, Backfill, Cutover, workflow connection, or Production action.
 
 ## Approved Architecture — Customer-Specific Features / Release Channels
@@ -659,6 +681,6 @@ This architecture does NOT create an 18th roadmap point.
 
 Exact next step:
 
-Approve the explicit Source Document Identity contract for deterministic source-document types, line keys, canonical line ordering, and posting identities across Stock, Transfer, Purchasing/AP, and Financial Journal. Point 4B-2 genuine committed concurrency remains a separate mandatory execution blocker and must still be completed in an approved disposable PostgreSQL environment before any stock Backfill/Cutover or hook activation. Do not deploy 4B-3B through 4F, switch workflows, or connect transfer/AP/Financial adapters yet. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Identity V1 Source is locally closed but remains NOT PUSHED / NOT DEPLOYED / NOT RUNTIME ACCEPTED. The AP contract still requires a future durable runtime resolver before adapter acceptance. Point 4B-2 genuine committed concurrency remains a separate mandatory execution blocker and must be completed in an approved disposable PostgreSQL environment before any stock Backfill/Cutover or hook activation. Do not deploy 4B-3B through 4F, switch workflows, or connect transfer/AP/Financial adapters without their explicit deployment/runtime gates. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
