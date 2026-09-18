@@ -20,7 +20,7 @@ const publishedHashes={
 const offlineHashes={
   'beta36-offline-v2.js':'4acb8c2acd124c1101f339519e404f22940adb983606d104cfd5df78dc37f6ff',
   'beta43-offline-core.js':'00b3a29a40f548aaad5cacd8f5e39560cef4a3bb7bbbe78e29293ad3d1e1232b',
-  'beta45-offline-v2-transport-runtime.js':'64b3d0706738576640646b1f7d35ee5c9b859a3df1b1fb9ec4f3bb77133daa44',
+  'beta45-offline-v2-transport-runtime.js':'e3d9c05e533b1d5e2687cdbcd551425ee639c6ed28db8bd407d63ed48214d37b',
   'beta47-performance-sync-hotfix.js':'b670d1b8e40c2622bb8d43dba341116b883eae4523514a1e0ea83abb2c1fefdd',
   'beta49-takeover-activation-safety.js':'1873727a0c1ef26031716e7b3f5093d7ad1c36f056da198e17566fa829dbae55',
   'beta55-4-runtime-recovery.js':'137928c9ed556e3fa7b20d9f39b3e9044b3ebf49ab1f3d9c07700ffbe2ca2bc8'

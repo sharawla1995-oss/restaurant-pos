@@ -19,6 +19,11 @@ function num(v,f=0){const n=Number(v);return Number.isFinite(n)?n:f}
 function clone(v){return v==null?v:JSON.parse(JSON.stringify(v))}
 function nowIso(){return new Date().toISOString()}
 function uid(){try{return typeof uuid==='function'?uuid():crypto.randomUUID()}catch{return `${Date.now()}-${Math.random().toString(16).slice(2)}`}}
+const POINT4_UUID_V4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+function point4IdentityError(code){const e=new Error(code);e.code=code;return e}
+function assertPoint4Uuid(value){const v=text(value);if(v!==v.toLowerCase()||!POINT4_UUID_V4.test(v))throw point4IdentityError('POINT4_IDENTITY_UUID_V4_REQUIRED');return v}
+function assertPoint4Lines(type,items){const seen=new Set();for(const item of items||[]){const line=assertPoint4Uuid(item?.line_uid),expected=`v1:stock:${type==='return'?'sale_return':'sale'}:${line}`;if(text(item?.effect_line_key)!==expected)throw point4IdentityError('POINT4_IDENTITY_EFFECT_LINE_KEY_INVALID');if(seen.has(line))throw point4IdentityError('POINT4_IDENTITY_DUPLICATE_LINE_UID');seen.add(line)}if(!seen.size)throw point4IdentityError('POINT4_IDENTITY_LINES_REQUIRED')}
+function assertPoint4Payload(type,payload){const rawTx=text(type==='sale'?payload?.p_order?.client_tx_id:payload?.p_client_tx_id),items=payload?.p_items||[],hasIdentity=type==='sale'?[payload?.p_order?.document_uid,payload?.p_order?.source_document_id,payload?.p_order?.point4_identity_contract,...items.flatMap(x=>[x?.line_uid,x?.effect_line_key])].some(Boolean):items.some(x=>x?.line_uid||x?.effect_line_key||x?.source_document_id||x?.original_source_document_id);if(!hasIdentity){if(!rawTx)throw point4IdentityError('OFFLINE_V2_CLIENT_TX_REQUIRED');return{tx:rawTx,classification:'LEGACY_COMPAT'}}const tx=assertPoint4Uuid(rawTx);if(type==='sale'){const doc=assertPoint4Uuid(payload?.p_order?.document_uid);if(payload?.p_order?.source_document_id!==`uuid:${doc}`||payload?.p_order?.point4_identity_contract!=='sharawla.point4.identity.v1')throw point4IdentityError('POINT4_IDENTITY_SALE_DOCUMENT_INVALID')}else{const source=new Set(items.map(x=>text(x?.source_document_id))),original=new Set(items.map(x=>text(x?.original_source_document_id))),originalId=[...original][0];if(source.size!==1||![...source][0].startsWith('uuid:')||!POINT4_UUID_V4.test([...source][0].slice(5)))throw point4IdentityError('POINT4_IDENTITY_RETURN_DOCUMENT_INVALID');if(original.size!==1||!(originalId.startsWith('uuid:')&&POINT4_UUID_V4.test(originalId.slice(5)))&&!/^db:[1-9][0-9]*$/.test(originalId))throw point4IdentityError('POINT4_IDENTITY_RETURN_LINEAGE_INVALID')}assertPoint4Lines(type,items);return{tx,classification:'CANONICAL_V1'}}
 function runtimeBranch(){try{return num(typeof currentBranchId==='function'?currentBranchId():state?.activeBranchId)}catch{return 0}}
 function runtimeEmployee(){try{return num(state?.employee?.id)}catch{return 0}}
 function authoritativeProfile(){const profile=text(global.SharawlaRuntimeConfig?.current?.()?.pos_profile).toLowerCase();if(!profile){const e=new Error('Offline V2 pos_profile is required');e.code='OFFLINE_V2_POS_PROFILE_REQUIRED';throw e}if(!POS_PROFILES.has(profile)){const e=new Error(`Offline V2 pos_profile is invalid: ${profile}`);e.code='OFFLINE_V2_INVALID_POS_PROFILE';throw e}return profile}
@@ -84,7 +89,7 @@ function recordsFor(type,entityType,localId,rpcPayload,created){
   if(type==='sale'){
     const order={...(clone(rpcPayload.p_order)||{}),id:localId,_offline:true};
     const rows=[{record_type:'order',local_id:localId,payload:order,created_local_at:created}];
-    (rpcPayload.p_items||[]).forEach((item,i)=>rows.push({record_type:'order_item',local_id:`${localId}-i${i+1}`,parent_local_id:localId,payload:{...clone(item),order_id:localId},created_local_at:created}));
+    (rpcPayload.p_items||[]).forEach((item,i)=>rows.push({record_type:'order_item',local_id:item.line_uid?`${localId}-line-${item.line_uid}`:`${localId}-legacy-i${i+1}`,parent_local_id:localId,payload:{...clone(item),order_id:localId},created_local_at:created}));
     (rpcPayload.p_payments||[]).forEach((p,i)=>rows.push({record_type:'payment',local_id:`${localId}-p${i+1}`,parent_local_id:localId,payload:{...clone(p),order_id:localId},created_local_at:created}));
     return rows;
   }
@@ -96,12 +101,13 @@ function adapter(type,entityType,rpcNames){
     extractTx:p=>type==='sale'?text(p?.p_order?.client_tx_id||p?.p_client_tx_id):text(p?.p_client_tx_id||p?.client_tx_id),
     buildCommit:({payload,clientTx,identity,createdAt})=>{
       const resolved=resolveOperation(type,payload),created=createdAt||nowIso(),localId=deterministicLocalId(type,clientTx),order=resolved.rpc_payload?.p_order||{};
+      const point4Identity=type==='sale'||type==='return'?assertPoint4Payload(type,resolved.rpc_payload):null;if(point4Identity&&point4Identity.tx!==clientTx)throw point4IdentityError('POINT4_IDENTITY_CLIENT_TX_MISMATCH');
       const branchId=num(order.branch_id??resolved.rpc_payload?.p_branch_id,runtimeBranch()),employeeId=num(order.employee_id??resolved.rpc_payload?.p_employee_id,runtimeEmployee());
       return {
         client_tx_id:clientTx,device_id:identity.device_id,business_id:identity.business_id,branch_id:branchId,employee_id:employeeId,
         operation_type:type,entity_type:entityType,local_entity_id:localId,local_shift_id:shiftId(type,resolved.rpc_payload),depends_on_tx_id:dependencyTx(type,resolved.rpc_payload),
         created_local_at:created,protocol_version:2,schema_version:2,status:'pending',
-        payload:{rpc_name:resolved.rpc_name,rpc_payload:clone(resolved.rpc_payload)},
+        payload:{rpc_name:resolved.rpc_name,rpc_payload:clone(resolved.rpc_payload),point4_identity_classification:point4Identity?.classification||'NOT_APPLICABLE'},
         records:recordsFor(type,entityType,localId,resolved.rpc_payload,created)
       };
     }
@@ -215,7 +221,7 @@ function start(){
   if(!installAuthority())return setTimeout(start,80);
   global.addEventListener('online',()=>{syncNow().catch(e=>console.warn('Offline V2 online sync',e))});
   timer=setInterval(()=>{if(navigator.onLine)syncNow().catch(()=>{})},15_000);
-  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,registerTransportAdapters,authoritativeRpc});
+  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,validatePoint4Identity:(type,payload)=>clone(assertPoint4Payload(type,clone(payload))),registerTransportAdapters,authoritativeRpc});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);

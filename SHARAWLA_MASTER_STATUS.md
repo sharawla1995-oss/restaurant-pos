@@ -653,6 +653,17 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 - The kernel is internal-only: `PUBLIC`, `anon`, and `authenticated` receive no execute permission. No generic client mutation RPC, Offline owner, Outbox, ACK, workflow switch, Legacy hook activation, Backfill, or Cutover is introduced.
 - Static/source validation is not PostgreSQL runtime or concurrency acceptance. Deployment, adapter activation, workflow integration, genuine committed concurrency, and runtime evidence remain separate mandatory gates.
 
+### Point 4 — Runtime Adapter Batch 2
+
+**Canonical Identity Propagation — SOURCE COMPLETE / COMPATIBILITY-FIRST / CANONICAL STOCK INACTIVE / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+
+- Offline-capable POS sale commands now create one lowercase UUIDv4 `client_tx_id`, one immutable `document_uid`, and distinct immutable `line_uid` values before the first Native V2 durable write. `source_document_id` remains `uuid:<document_uid>` and effect keys use the non-nested Identity V1 namespace.
+- Sale identity is preserved inside the existing Native V2 event/payload/records and therefore across retry, restart, replay, sync, and ACK state changes. No second store, outbox, sync owner, or ACK owner was added.
+- Sale-return commands create a new mutation TX and return document identity, preserve immutable return-line identities, and carry explicit original-sale lineage when available. The same TX is reused by the online attempt and its existing offline fallback.
+- Historical rows without Identity V1 remain explicitly Legacy; this Batch performs no backfill or silent Canonical reclassification. Other stock-producing workflows remain deferred until their deployed RPC/schema boundaries can preserve Identity V1 without changing operational semantics.
+- `payload_digest` remains the existing Native V2 transport-integrity digest. No Point 4 `operation_digest` is substituted for it, and durable economic replay remains owned by the unchanged published contracts/future approved adapters.
+- Batch 1 remains hard-false/inactive. This Batch does not call the Canonical adapter or `inventory_stock_apply_movement_v2`, modify Legacy stock routing, activate hooks, or close the Point 4B-2 committed-concurrency blocker.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
