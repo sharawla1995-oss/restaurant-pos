@@ -664,6 +664,16 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 - `payload_digest` remains the existing Native V2 transport-integrity digest. No Point 4 `operation_digest` is substituted for it, and durable economic replay remains owned by the unchanged published contracts/future approved adapters.
 - Batch 1 remains hard-false/inactive. This Batch does not call the Canonical adapter or `inventory_stock_apply_movement_v2`, modify Legacy stock routing, activate hooks, or close the Point 4B-2 committed-concurrency blocker.
 
+### Point 4 — Runtime Adapter Batch 3
+
+**Direct Physical Writer Routing Foundation — SOURCE COMPLETE / INACTIVE / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+
+- The first reviewed routing group covers only the direct Retail parent-product boundaries `create_retail_pos_order_atomic` and `create_retail_order_return_idempotent`. Their Food/Retail wrappers remain transitive delegates and do not own another physical effect; Variant and ingredient effects remain deferred pending their exact item/component contracts.
+- The additive internal preparation contract consumes the existing Identity V1 `client_tx_id`, `document_uid`, `source_document_id`, `line_uid`, and deterministic `effect_line_key`; it never generates replacement identity, aggregates duplicate product lines, or derives Canonical identity from a database row ID or array position.
+- Fully identity-absent historical payloads remain explicitly `LEGACY_COMPAT / LEGACY_ONLY`. Partial or malformed Canonical identity fails closed. No backfill, Legacy reclassification, Legacy writer modification, or workflow switch is introduced.
+- The future-only internal execution boundary checks Point 4B-2 committed concurrency and the Batch 1 hard-false activation gate before its sole delegation to the inactive Batch 1 adapter. It has no direct 4B-2 writer call, Legacy fallback, exception fallback, dual-write, or client execute grant.
+- No real POS, Offline V2, transport, Outbox, sync, ACK, or deployed operational RPC calls this foundation. Canonical Stock therefore remains unreachable and inactive; static/source validation is not PostgreSQL runtime or concurrency acceptance.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
