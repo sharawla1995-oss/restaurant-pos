@@ -640,6 +640,19 @@ Point 4B-2 genuine committed concurrency remains **OPEN / INFRASTRUCTURE BLOCKED
 This source contract does not deploy schema, connect runtime adapters, execute Backfill/Cutover, activate hooks, close Point 4B-2 concurrency, or close Point 4 Runtime Acceptance.
 - This provenance decision changes no deployed 4B-1/4B-2 file or object and authorizes no deployment, Backfill, Cutover, workflow connection, or Production action.
 
+### Point 4 — Runtime Adapter Batch 1
+
+**Runtime Adapter Batch 1 — SOURCE COMPLETE / INACTIVE / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+
+- The additive internal Canonical Stock adapter kernel validates one Identity V1 economic effect and maps only the approved operations to the unchanged Point 4B-2 movement vocabulary.
+- Execution order is fixed as: canonical identity/economic validation → approved mapping → Point 4B-2 committed-concurrency gate → adapter activation gate → committed ownership resolution → canonical ownership assertion → the sole unchanged `inventory_stock_apply_movement_v2` writer.
+- Both activation boundaries remain fail-closed. Genuine Point 4B-2 committed concurrency is still **OPEN / INFRASTRUCTURE BLOCKED**, and the adapter-specific activation function returns `false`; therefore no current path can reach the physical writer through this kernel.
+- `NOT_CUT_OVER` is rejected by the Canonical adapter, `CUT_OVER_ZERO` and `CANONICAL_ACTIVE` remain Canonical-only ownership states, and `FORWARD_RECOVERY_REQUIRED`, missing, unknown, or contradictory ownership fail closed. The adapter performs no Legacy routing and contains no Canonical-to-Legacy fallback or dual-write path.
+- Controlled stock opening retains its approved deterministic `digest:sha256:<plan_digest>` identity exception. Ordinary documents require an immutable UUIDv4 `document_uid` whose canonical source identity is exactly `uuid:<document_uid>`; generated database IDs are not document or line identity.
+- Outbound valuation remains server-derived by the unchanged 4B-2 writer. Required inbound valuation cannot be coerced from missing evidence to zero; unresolved adjustment/stocktake costing remains fail-closed.
+- The kernel is internal-only: `PUBLIC`, `anon`, and `authenticated` receive no execute permission. No generic client mutation RPC, Offline owner, Outbox, ACK, workflow switch, Legacy hook activation, Backfill, or Cutover is introduced.
+- Static/source validation is not PostgreSQL runtime or concurrency acceptance. Deployment, adapter activation, workflow integration, genuine committed concurrency, and runtime evidence remain separate mandatory gates.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
