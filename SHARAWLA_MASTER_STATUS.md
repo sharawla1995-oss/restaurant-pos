@@ -674,6 +674,17 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 - The future-only internal execution boundary checks Point 4B-2 committed concurrency and the Batch 1 hard-false activation gate before its sole delegation to the inactive Batch 1 adapter. It has no direct 4B-2 writer call, Legacy fallback, exception fallback, dual-write, or client execute grant.
 - No real POS, Offline V2, transport, Outbox, sync, ACK, or deployed operational RPC calls this foundation. Canonical Stock therefore remains unreachable and inactive; static/source validation is not PostgreSQL runtime or concurrency acceptance.
 
+### Point 4 — Batch 4C-1 Reservation Identity V1
+
+**SOURCE IMPLEMENTATION COMPLETE / STATIC CHECKER PASS / NOT COMMITTED / NOT PUSHED / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+
+- Reservation Identity V1 source contract is implemented additively with immutable document, line, and mutation identity sidecars; deterministic SHA-256 operation digests; replay/conflict resolution; projection assertions; and fail-closed mutation guards.
+- Create, accept, reject, cancel, and DB-owned expire source RPC contracts are implemented with deterministic advisory-lock/idempotency boundaries and durable mutation results.
+- RLS, branch-scoped staff visibility, direct-DML revocation, and least-privilege RPC grants are defined in source.
+- The dedicated 4C-1 static/source checker passes, including frozen-source integrity and Canonical Stock inactivity assertions.
+- This is source/static evidence only. No Supabase deployment, PostgreSQL runtime acceptance, workflow connection, Backfill, Cutover, Canonical Stock activation, or Production action has occurred.
+- Point 4B-2 genuine committed-concurrency remains OPEN / INFRASTRUCTURE BLOCKED and is not waived by this source implementation.
+
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
 **APPROVED DIRECTION / DEFERRED IMPLEMENTATION.**
