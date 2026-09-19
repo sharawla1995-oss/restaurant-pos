@@ -118,6 +118,7 @@ for(const rpc of [
 ]){
   matches(sql,rpc,'RPC signature/security contract drift');
 }
+matches(sql,/point4_identity_source_document_id_v1(s*'stock_reservation',s*'uuid:'||v_document_uid,s*trues*)/,'create source_document_id must use canonical uuid: document identity');
 
 for(const fragment of [
   "'sharawla.point4.identity.v1'",

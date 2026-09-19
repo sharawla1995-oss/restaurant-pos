@@ -594,7 +594,7 @@ begin
   v_document_uid:=public.point4_identity_uuid_v4_v1(p_identity_envelope->>'document_uid');
   v_source_document_id:=public.point4_identity_source_document_id_v1(
     'stock_reservation',
-    v_document_uid,
+    'uuid:'||v_document_uid,
     true
   );
 
