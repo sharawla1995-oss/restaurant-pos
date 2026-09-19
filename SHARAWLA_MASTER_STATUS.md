@@ -676,7 +676,7 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 
 ### Point 4 — Batch 4C-1 Reservation Identity V1
 
-**SOURCE IMPLEMENTATION COMPLETE / STATIC CHECKER PASS / NOT COMMITTED / NOT PUSHED / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
+**SOURCE IMPLEMENTATION COMPLETE / STATIC CHECKER PASS / COMMITTED / PUSHED / NOT DEPLOYED / NOT RUNTIME ACCEPTED.**
 
 - Reservation Identity V1 source contract is implemented additively with immutable document, line, and mutation identity sidecars; deterministic SHA-256 operation digests; replay/conflict resolution; projection assertions; and fail-closed mutation guards.
 - Create, accept, reject, cancel, and DB-owned expire source RPC contracts are implemented with deterministic advisory-lock/idempotency boundaries and durable mutation results.
