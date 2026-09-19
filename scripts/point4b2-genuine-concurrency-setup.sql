@@ -4,6 +4,9 @@
 
 create extension if not exists pgcrypto;
 create schema if not exists auth;
+create role anon nologin;
+create role authenticated nologin;
+create role service_role nologin;
 create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
 
 create table public.branches(
