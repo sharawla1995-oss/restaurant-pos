@@ -1054,7 +1054,7 @@ begin
     v_subtotal,v_discount,v_delivery,v_total,
     'pending',v_expiry
   )
-  returning * into v_order;[B[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[D[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
+  returning * into v_order;
   -- The Legacy order and this sidecar must commit or roll back together.
   insert into public.retail_reservation_documents_identity_v1(
     retail_website_order_id,
