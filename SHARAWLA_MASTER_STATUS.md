@@ -635,7 +635,7 @@ Point 4B-2 genuine committed concurrency acceptance is **CLOSED / PASS** by GitH
 - Point 4B-3 controlled positive opening now calls the unchanged 4B-2 writer with `source_document_type='stock_opening'` and `source_document_id='digest:sha256:<plan_digest>'`; zero opening remains control-plane-only with no fake balance or movement.
 - `effective_date` is included only when a domain contract explicitly defines it. It is not a global timestamp and `occurred_at`/`recorded_at` remain outside canonical economic identity.
 
-This source contract does not deploy schema, connect runtime adapters, execute Backfill/Cutover, activate hooks, close Point 4B-2 concurrency, or close Point 4 Runtime Acceptance.
+This source contract does not deploy schema, connect runtime adapters, execute Backfill/Cutover, activate hooks, or close Point 4 Runtime Acceptance. Point 4B-2 committed-concurrency acceptance is separately CLOSED / PASS.
 - This provenance decision changes no deployed 4B-1/4B-2 file or object and authorizes no deployment, Backfill, Cutover, workflow connection, or Production action.
 
 ### Point 4 — Runtime Adapter Batch 1
