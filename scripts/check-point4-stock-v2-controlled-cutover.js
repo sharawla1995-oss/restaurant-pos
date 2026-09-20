@@ -52,7 +52,8 @@ for(const fn of [
   assert(new RegExp(`revoke all on function public\\.${fn}\\(`).test(sql),`client revoke missing: ${fn}`);
 }
 
-has("as $ select true $",'4B-2 concurrency evidence gate must remain closed/pass');
+has("as $ select true $;",'4B-2 concurrency evidence gate must use valid dollar-quoted SQL and remain closed/pass');
+assert(!sql.includes("as $ select true $;"),'malformed single-dollar SQL body delimiter must be rejected');
 before(
   'if not public.inventory_stock_point4b2_concurrency_closed_v2() then',
   'perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_plan_digest,0))',
