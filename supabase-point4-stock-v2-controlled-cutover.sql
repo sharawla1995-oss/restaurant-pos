@@ -160,11 +160,14 @@ revoke all on public.inventory_stock_cutover_boundaries_v2 from public,anon,auth
 revoke all on public.inventory_stock_ownership_v2 from public,anon,authenticated;
 revoke all on public.inventory_stock_ownership_events_v2 from public,anon,authenticated;
 
--- This is intentionally false in the current source. It may only be replaced
--- by separately reviewed evidence after genuine two-session committed tests.
+-- Point 4B-2 genuine committed concurrency acceptance is CLOSED / PASS.
+-- Evidence: GitHub Actions disposable PostgreSQL 16 independent-session harness,
+-- passing commit 716f192f1bd7a664fae884e15fb98ea0c9bc8fa1.
+-- This evidence-backed gate closes only the concurrency prerequisite; it does
+-- not stage a plan, execute cutover, activate hooks, or enable runtime routing.
 create or replace function public.inventory_stock_point4b2_concurrency_closed_v2()
 returns boolean language sql stable security definer set search_path=''
-as $$ select false $$;
+as $ select true $;
 
 -- Routing never infers ownership from a balance row. CUT_OVER_ZERO routes to
 -- Canonical V2; recovery states fail closed and an absent row is NOT_CUT_OVER.
