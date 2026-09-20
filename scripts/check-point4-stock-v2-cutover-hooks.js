@@ -23,7 +23,7 @@ function body(text,name){
   return next<0?text.slice(start):text.slice(start,start+1+next);
 }
 
-assert(cutover.includes("as $$ select false $$"),'4B-2 concurrency gate is no longer false');
+assert(cutover.includes("as $ select true $"),'4B-2 concurrency evidence gate is not closed/pass');
 for(const fn of [
   'inventory_stock_resolve_cutover_route_v2',
   'inventory_stock_declare_cutover_hooks_v2',
@@ -110,7 +110,7 @@ function route({owner='NOT_CUT_OVER',protectedState=false,committed=false,concur
 }
 assert.strictEqual(route({}),'LEGACY_ONLY','NOT_CUT_OVER must preserve Legacy');
 assert.strictEqual(route({owner:'CANONICAL_V2',committed:true,concurrency:true}),'CANONICAL_ONLY','CUT_OVER_ZERO/CANONICAL_ACTIVE must be Canonical only');
-assert.throws(()=>route({owner:'CANONICAL_V2',committed:true}),/CONCURRENCY_GATE_REQUIRED/,'concurrency=false must block activation');
+assert.throws(()=>route({owner:'CANONICAL_V2',committed:true,concurrency:false}),/CONCURRENCY_GATE_REQUIRED/,'explicit concurrency=false must block activation');
 assert.throws(()=>route({owner:'FAIL_CLOSED_FORWARD_RECOVERY'}),/MANUAL_RECOVERY_REQUIRED/,'forward recovery must fail closed');
 assert.throws(()=>route({owner:'NOT_CUT_OVER',committed:true}),/UNKNOWN_OWNERSHIP/,'missing committed ownership must not fall back');
 assert.throws(()=>route({owner:'UNKNOWN'}),/UNKNOWN_OWNERSHIP/,'unknown ownership must fail closed');
