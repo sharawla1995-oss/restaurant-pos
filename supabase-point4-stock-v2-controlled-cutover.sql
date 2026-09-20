@@ -188,7 +188,7 @@ end;
 $$;
 
 -- Future Legacy hooks must call this before every physical mutation. Merely
--- installing this function freezes nothing; all 50 approved signatures must
+-- installing this function freezes nothing; all 55 approved signatures must
 -- be definition-digest verified before the coordinator can proceed.
 create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(
   p_location_id bigint,p_item_kind text,p_item_id bigint
@@ -278,9 +278,9 @@ begin
   then raise exception 'INVENTORY_STOCK_CUTOVER_AUDITOR_NOT_READY'; end if;
   if v_source_digest<>'44d29b548400ca80870d1418968945a2ef3154cc5e8ae688dbabd3ee018567fc'
     or v_auditor_plan_digest<>'d54c6e5cbd75a79e6b2fcb9ddc862b68dc1330fb8eee4f2263987f31a048196d'
-    or v_writer_digest<>'26e720760b6b4d2ddf6d45470b6092dab81c15a4fb1e98c5e76043551fb0d88d'
+    or v_writer_digest<>'ef4460f8ac8631427f448be86f4316619a1ab7bc170d5888a0a656bbc10284f6'
     or jsonb_array_length(coalesce(p_auditor_result->'candidate_evidence','[]'::jsonb))<>3
-    or jsonb_array_length(coalesce(p_auditor_result->'legacy_writer_inventory','[]'::jsonb))<>50
+    or jsonb_array_length(coalesce(p_auditor_result->'legacy_writer_inventory','[]'::jsonb))<>55
     or jsonb_array_length(coalesce(p_auditor_result->'document_workflow_mutators','[]'::jsonb))<>6
   then raise exception 'INVENTORY_STOCK_CUTOVER_APPROVED_PLAN_REQUIRED'; end if;
   if v_source_digest!~'^[0-9a-f]{64}$' or v_auditor_plan_digest!~'^[0-9a-f]{64}$'
