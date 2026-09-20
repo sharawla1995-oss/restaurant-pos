@@ -435,25 +435,23 @@ Remaining before Final Offline/Sync Closure:
 
 ### Point 4B-2 — Canonical Stock Writer
 
-**OPEN / INFRASTRUCTURE BLOCKED.**
+**CLOSED / GENUINE COMMITTED CONCURRENCY PASS.**
 
 - Source commit: `0c63b6a3ba99554f2c769681769cef419d8d3610` (`feat: add canonical stock v2 writer`).
 - Source review, source commit, Beta deployment preflight, Beta migration apply, and non-concurrent database-contract acceptance: **PASS**.
 - Non-concurrent contract acceptance: `33/33 PASS`; rollback/cleanup proof: **PASS**.
 - Persistent isolated Beta remained at `inventory_stock_balances_v2=0` and `inventory_stock_movements_v2=0` after rollback.
 - Acceptance marker: `P4B2-ACC-20260917-1640-ROLLBACK`.
-- Genuine committed concurrency remains **NOT TESTED / NOT PASS**. Required scenarios remain:
+- Genuine committed concurrency acceptance: **PASS** in a disposable PostgreSQL 16 GitHub Actions environment using independent concurrent sessions.
+- Required concurrency scenarios passed:
   - different `client_tx_id` operations concurrently against the same stock identity;
   - concurrent same-idempotency-key replay;
   - concurrent reversal.
-- Verified infrastructure blockers:
-  - Supabase Database Branching requires Pro;
-  - Free-plan additional project capacity is unavailable;
-  - Work has no Docker or Podman;
-  - PostgreSQL `16.15` binaries were installed in Work, but Work exposes only root UID;
-  - PostgreSQL correctly refuses `initdb` as root;
-  - setuid and user namespaces are prohibited.
-- Do not weaken committed-session concurrency into a sequential simulation and do not mark 4B-2 CLOSED until genuine independent-session evidence exists.
+- GitHub Actions harness:
+  - workflow: `.github/workflows/point4b2-genuine-concurrency.yml`;
+  - setup: `scripts/point4b2-genuine-concurrency-setup.sql`;
+  - passing commit: `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`.
+- This closes only the Point 4B-2 concurrency acceptance gate. Canonical Stock activation, Backfill, Cutover, hooks, and runtime routing remain unchanged and are **NOT activated**.
 
 ### Point 4B-3A — Legacy Stock Reconciliation Auditor
 
@@ -605,7 +603,7 @@ Required operational adapters remain: every approved direct Legacy stock boundar
 
 Security review: Point 4 internal functions use `SECURITY DEFINER` with empty `search_path`; client execution is revoked; new tables enable RLS and revoke direct client privileges; immutable ledgers reject UPDATE/DELETE. No generic stock/transfer/AP/journal mutation RPC is client-executable. Table owners/service roles can still bypass RLS by design, so future adapters require a reviewed privileged execution role and clients must never receive service-role credentials.
 
-Point 4B-2 genuine committed concurrency remains **OPEN / INFRASTRUCTURE BLOCKED** and `inventory_stock_point4b2_concurrency_closed_v2()` remains `false`. No Backfill, Cutover, hook activation, deployment, runtime connection, or Point 4 closure is authorized.
+Point 4B-2 genuine committed concurrency acceptance is **CLOSED / PASS** by GitHub Actions evidence at `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`. This closes only the concurrency acceptance blocker; no Backfill, Cutover, hook activation, deployment, runtime connection, or Point 4 closure is authorized by that result alone.
 
 ### Point 4 — Deployment Provenance / Tenant Boundary Decision
 
@@ -646,7 +644,7 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 
 - The additive internal Canonical Stock adapter kernel validates one Identity V1 economic effect and maps only the approved operations to the unchanged Point 4B-2 movement vocabulary.
 - Execution order is fixed as: canonical identity/economic validation → approved mapping → Point 4B-2 committed-concurrency gate → adapter activation gate → committed ownership resolution → canonical ownership assertion → the sole unchanged `inventory_stock_apply_movement_v2` writer.
-- Both activation boundaries remain fail-closed. Genuine Point 4B-2 committed concurrency is still **OPEN / INFRASTRUCTURE BLOCKED**, and the adapter-specific activation function returns `false`; therefore no current path can reach the physical writer through this kernel.
+- Both activation boundaries remain fail-closed. Genuine Point 4B-2 committed concurrency acceptance is now **CLOSED / PASS**, while the adapter-specific activation function still returns `false`; therefore no current path can reach the physical writer through this kernel.
 - `NOT_CUT_OVER` is rejected by the Canonical adapter, `CUT_OVER_ZERO` and `CANONICAL_ACTIVE` remain Canonical-only ownership states, and `FORWARD_RECOVERY_REQUIRED`, missing, unknown, or contradictory ownership fail closed. The adapter performs no Legacy routing and contains no Canonical-to-Legacy fallback or dual-write path.
 - Controlled stock opening retains its approved deterministic `digest:sha256:<plan_digest>` identity exception. Ordinary documents require an immutable UUIDv4 `document_uid` whose canonical source identity is exactly `uuid:<document_uid>`; generated database IDs are not document or line identity.
 - Outbound valuation remains server-derived by the unchanged 4B-2 writer. Required inbound valuation cannot be coerced from missing evidence to zero; unresolved adjustment/stocktake costing remains fail-closed.
@@ -662,7 +660,7 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 - Sale-return commands create a new mutation TX and return document identity, preserve immutable return-line identities, and carry explicit original-sale lineage when available. The same TX is reused by the online attempt and its existing offline fallback.
 - Historical rows without Identity V1 remain explicitly Legacy; this Batch performs no backfill or silent Canonical reclassification. Other stock-producing workflows remain deferred until their deployed RPC/schema boundaries can preserve Identity V1 without changing operational semantics.
 - `payload_digest` remains the existing Native V2 transport-integrity digest. No Point 4 `operation_digest` is substituted for it, and durable economic replay remains owned by the unchanged published contracts/future approved adapters.
-- Batch 1 remains hard-false/inactive. This Batch does not call the Canonical adapter or `inventory_stock_apply_movement_v2`, modify Legacy stock routing, activate hooks, or close the Point 4B-2 committed-concurrency blocker.
+- Batch 1 remains hard-false/inactive. This Batch does not call the Canonical adapter or `inventory_stock_apply_movement_v2`, modify Legacy stock routing, or activate hooks. Point 4B-2 committed-concurrency acceptance is separately CLOSED / PASS.
 
 ### Point 4 — Runtime Adapter Batch 3
 
@@ -683,7 +681,7 @@ This source contract does not deploy schema, connect runtime adapters, execute B
 - RLS, branch-scoped staff visibility, direct-DML revocation, and least-privilege RPC grants are defined in source.
 - The dedicated 4C-1 static/source checker passes, including frozen-source integrity and Canonical Stock inactivity assertions.
 - This is source/static evidence only. No Supabase deployment, PostgreSQL runtime acceptance, workflow connection, Backfill, Cutover, Canonical Stock activation, or Production action has occurred.
-- Point 4B-2 genuine committed-concurrency remains OPEN / INFRASTRUCTURE BLOCKED and is not waived by this source implementation.
+- Point 4B-2 genuine committed-concurrency acceptance is now CLOSED / PASS and remains separate from this source implementation.
 
 ## Approved Architecture — Customer-Specific Features / Release Channels
 
@@ -722,10 +720,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3 and Point 4B-1 are CLOSED. Point 4B-2 remains OPEN / INFRASTRUCTURE BLOCKED. Point 4B-3A is CLOSED. Point 4B-3B and Point 4B-4 remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
+**Point 3, Point 4B-1, Point 4B-2, and Point 4B-3A are CLOSED. Point 4B-3B and Point 4B-4 remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
 
 Exact next step:
 
-Identity V1 Source is locally closed and PUSHED through 23f9f570, but remains NOT DEPLOYED / NOT RUNTIME ACCEPTED. The AP contract still requires a future durable runtime resolver before adapter acceptance. Point 4B-2 genuine committed concurrency remains a separate mandatory execution blocker and must be completed in an approved disposable PostgreSQL environment before any stock Backfill/Cutover or hook activation. Do not deploy 4B-3B through 4F, switch workflows, or connect transfer/AP/Financial adapters without their explicit deployment/runtime gates. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Identity V1 Source is locally closed and PUSHED through 23f9f570, but remains NOT DEPLOYED / NOT RUNTIME ACCEPTED. The AP contract still requires a future durable runtime resolver before adapter acceptance. Point 4B-2 genuine committed concurrency is now CLOSED / PASS by disposable PostgreSQL 16 GitHub Actions evidence at `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`. Do not deploy 4B-3B through 4F, switch workflows, or connect transfer/AP/Financial adapters without their explicit deployment/runtime gates. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
