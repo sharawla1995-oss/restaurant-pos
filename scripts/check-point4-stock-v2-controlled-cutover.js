@@ -54,6 +54,7 @@ for(const fn of [
 
 has("as $ select true $;",'4B-2 concurrency evidence gate must use valid dollar-quoted SQL and remain closed/pass');
 assert(!sql.includes("as $ select true $;"),'malformed single-dollar SQL body delimiter must be rejected');
+assert(!sql.includes("as $ select true $;"),'untagged dollar quote is intentionally not used for this gate to avoid connector/transport ambiguity');
 before(
   'if not public.inventory_stock_point4b2_concurrency_closed_v2() then',
   'perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_plan_digest,0))',
