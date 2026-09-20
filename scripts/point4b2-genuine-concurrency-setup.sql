@@ -2,7 +2,8 @@
 -- Disposable PostgreSQL only. Never run against Production or operational Beta.
 \set ON_ERROR_STOP on
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 create schema if not exists auth;
 create role anon nologin;
 create role authenticated nologin;
