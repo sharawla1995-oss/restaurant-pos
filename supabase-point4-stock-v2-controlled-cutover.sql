@@ -167,7 +167,7 @@ revoke all on public.inventory_stock_ownership_events_v2 from public,anon,authen
 -- not stage a plan, execute cutover, activate hooks, or enable runtime routing.
 create or replace function public.inventory_stock_point4b2_concurrency_closed_v2()
 returns boolean language sql stable security definer set search_path=''
-as $ select true $;
+as $point4b2$ select true $point4b2$;
 
 -- Routing never infers ownership from a balance row. CUT_OVER_ZERO routes to
 -- Canonical V2; recovery states fail closed and an absent row is NOT_CUT_OVER.
