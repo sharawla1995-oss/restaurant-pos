@@ -39,9 +39,9 @@ for(const token of [
   "'DIRECT_PHYSICAL_WRITER','TRANSITIVE_STOCK_CALLER','DOCUMENT_WORKFLOW_BARRIER'",
   "v_plan.approved_auditor_evidence->'legacy_writer_inventory'",
   "v_plan.approved_auditor_evidence->'document_workflow_mutators'",
-  "v_direct<>35 or v_transitive<>15 or v_documents<>6",
-  "where plan_digest=p_plan_digest)<>56",
-  "contract_kind='DIRECT_PHYSICAL_WRITER')<>35",
+  "v_direct<>40 or v_transitive<>15 or v_documents<>6",
+  "where plan_digest=p_plan_digest)<>61",
+  "contract_kind='DIRECT_PHYSICAL_WRITER')<>40",
   "contract_kind='TRANSITIVE_STOCK_CALLER')<>15",
   "contract_kind='DOCUMENT_WORKFLOW_BARRIER')<>6",
   "raise exception 'INVENTORY_STOCK_HOOKS_UNKNOWN_DIRECT_WRITER'"
@@ -50,7 +50,7 @@ for(const token of [
 for(const digest of [
   '44d29b548400ca80870d1418968945a2ef3154cc5e8ae688dbabd3ee018567fc',
   'd54c6e5cbd75a79e6b2fcb9ddc862b68dc1330fb8eee4f2263987f31a048196d',
-  '26e720760b6b4d2ddf6d45470b6092dab81c15a4fb1e98c5e76043551fb0d88d'
+  'ef4460f8ac8631427f448be86f4316619a1ab7bc170d5888a0a656bbc10284f6'
 ])has(sql,digest,'authoritative 4B-3A digest missing');
 
 const resolver=body(sql,'inventory_stock_resolve_cutover_route_v2');
