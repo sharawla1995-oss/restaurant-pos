@@ -204,13 +204,14 @@ begin
   return jsonb_build_object(
     'plan_digest',p_plan_digest,'direct_physical_writers',v_direct,
     'transitive_stock_callers',v_transitive,'document_workflow_barriers',v_documents,
-    'activated',false,'concurrency_closed',false
+    'activated',false,'concurrency_closed',public.inventory_stock_point4b2_concurrency_closed_v2()
   );
 end;
 $$;
 
--- Verification/activation is a separate future operation. It cannot even
--- inspect-and-mark hooks while 4B-2 concurrency remains open. For each exact
+-- Verification/activation is a separate future operation. Point 4B-2 concurrency
+-- is CLOSED / PASS; this operation still requires a complete 56-boundary contract,
+-- exact deployed definitions with required guards, and privileged invocation. For each exact
 -- function it verifies the deployed definition digest and required guard text;
 -- transitive callers remain guard-only and never apply a physical effect.
 create or replace function public.inventory_stock_verify_cutover_hooks_v2(
@@ -306,6 +307,6 @@ revoke all on function public.inventory_stock_verify_cutover_hooks_v2(text)
 comment on table public.inventory_stock_cutover_hook_contracts_v2 is
   'Point 4B-4 contracts derived only from the approved 4B-3A inventory; declarations are not runtime activation.';
 comment on function public.inventory_stock_verify_cutover_hooks_v2(text) is
-  'Future internal activation gate; impossible while Point 4B-2 concurrency is false.';
+  'Future internal hook verification/activation gate. Point 4B-2 concurrency is closed; 56-boundary coverage, exact deployed guard verification, and privileged invocation remain mandatory. SOURCE ONLY / NOT DEPLOYED.';
 
 commit;
