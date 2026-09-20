@@ -75,9 +75,9 @@ for(const token of [
 for(const token of [
   '44d29b548400ca80870d1418968945a2ef3154cc5e8ae688dbabd3ee018567fc',
   'd54c6e5cbd75a79e6b2fcb9ddc862b68dc1330fb8eee4f2263987f31a048196d',
-  '26e720760b6b4d2ddf6d45470b6092dab81c15a4fb1e98c5e76043551fb0d88d',
+  'ef4460f8ac8631427f448be86f4316619a1ab7bc170d5888a0a656bbc10284f6',
   "jsonb_array_length(coalesce(p_auditor_result->'candidate_evidence','[]'::jsonb))<>3",
-  "jsonb_array_length(coalesce(p_auditor_result->'legacy_writer_inventory','[]'::jsonb))<>50",
+  "jsonb_array_length(coalesce(p_auditor_result->'legacy_writer_inventory','[]'::jsonb))<>55",
   "jsonb_array_length(coalesce(p_auditor_result->'document_workflow_mutators','[]'::jsonb))<>6"
 ])has(token,`approved 4B-3A checkpoint not pinned: ${token}`);
 
