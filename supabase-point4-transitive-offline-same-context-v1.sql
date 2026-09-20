@@ -77,8 +77,6 @@ declare v_operation text:=nullif(trim(coalesce(p_event->>'operation_type','')),'
 begin
  -- Existing Phase-7 operations retain their published path; stock operations use read-only preparation.
  if v_operation in('customer_merge','order_status') then
-   -- Literal guard is unreachable for non-stock Phase-7 paths but remains part of the Transitive definition contract.
-   if false then perform public.inventory_stock_assert_legacy_write_allowed_v2(0,'offline_event',0);end if;
    return public.sharawla_offline_v2_apply_event_core_v1(p_event);
  end if;
 
