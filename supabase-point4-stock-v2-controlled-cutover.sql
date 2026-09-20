@@ -767,6 +767,6 @@ revoke all on function public.inventory_stock_ownership_event_immutable_v2()
 comment on table public.inventory_stock_ownership_v2 is
   'Point 4B-3B control-plane ownership. CUT_OVER_ZERO is canonical ownership without fake stock.';
 comment on function public.inventory_stock_execute_cutover_v2(text,text,bigint) is
-  'Internal future coordinator. Current source always refuses until genuine 4B-2 concurrency closes.';
+  'Internal future coordinator. Point 4B-2 concurrency is closed; execution still requires staged approved evidence, verified boundary hooks, fresh watermark revalidation, conflict-free Canonical state, and privileged invocation. SOURCE ONLY / NOT DEPLOYED.';
 
 commit;
