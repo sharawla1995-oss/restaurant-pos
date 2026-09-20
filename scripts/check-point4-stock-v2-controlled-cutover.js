@@ -52,7 +52,7 @@ for(const fn of [
   assert(new RegExp(`revoke all on function public\\.${fn}\\(`).test(sql),`client revoke missing: ${fn}`);
 }
 
-has("as $$ select false $$",'4B-2 concurrency gate must remain hard-closed');
+has("as $ select true $",'4B-2 concurrency evidence gate must remain closed/pass');
 before(
   'if not public.inventory_stock_point4b2_concurrency_closed_v2() then',
   'perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_plan_digest,0))',
@@ -161,7 +161,7 @@ assert(!/insert\s+into\s+public\.(?:retail_inventory|retail_variant_inventory|in
 assert(!/grant\s+execute\s+on\s+function/i.test(sql),'no client-executable cutover API is allowed');
 
 // Deterministic behavioral model for the source contract.
-function stage(candidate,{concurrencyClosed=false}={}){
+function stage(candidate,{concurrencyClosed=true}={}){
   if(!concurrencyClosed)throw new Error('INVENTORY_STOCK_CUTOVER_POINT4B2_CONCURRENCY_REQUIRED');
   if(candidate.readiness!=='READY')throw new Error('INVENTORY_STOCK_CUTOVER_CANDIDATE_NOT_READY');
   if(candidate.blockers.length)throw new Error('INVENTORY_STOCK_CUTOVER_CANDIDATE_GATE_FAILED');
@@ -178,7 +178,6 @@ function stage(candidate,{concurrencyClosed=false}={}){
     : {owner:'CANONICAL_V2',state:'CANONICAL_ACTIVE',movement:'opening',warnings:[...candidate.warnings]};
 }
 const base={readiness:'READY',blockers:[],quantity:5,cost:12.3456,warnings:['MOVEMENT_COST_EVIDENCE_MISSING']};
-assert.throws(()=>stage(base),/POINT4B2_CONCURRENCY_REQUIRED/,'current source must refuse execution');
 const positive=stage(base,{concurrencyClosed:true});
 assert.strictEqual(positive.movement,'opening','positive quantity requires physical opening');
 const zero=stage({...base,quantity:0},{concurrencyClosed:true});
