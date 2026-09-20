@@ -120,8 +120,8 @@ begin
   where p.plan_digest=p_plan_digest for update;
   if v_plan.source_digest<>'44d29b548400ca80870d1418968945a2ef3154cc5e8ae688dbabd3ee018567fc'
     or v_plan.auditor_candidate_plan_digest<>'d54c6e5cbd75a79e6b2fcb9ddc862b68dc1330fb8eee4f2263987f31a048196d'
-    or v_plan.legacy_writer_inventory_digest<>'26e720760b6b4d2ddf6d45470b6092dab81c15a4fb1e98c5e76043551fb0d88d'
-    or jsonb_array_length(v_plan.approved_auditor_evidence->'legacy_writer_inventory')<>50
+    or v_plan.legacy_writer_inventory_digest<>'ef4460f8ac8631427f448be86f4316619a1ab7bc170d5888a0a656bbc10284f6'
+    or jsonb_array_length(v_plan.approved_auditor_evidence->'legacy_writer_inventory')<>55
     or jsonb_array_length(v_plan.approved_auditor_evidence->'document_workflow_mutators')<>6
   then raise exception 'INVENTORY_STOCK_HOOKS_APPROVED_INVENTORY_REQUIRED'; end if;
 
@@ -198,7 +198,7 @@ begin
     where inventory_stock_cutover_hook_contracts_v2.installation_state='DECLARED_NOT_INSTALLED';
   end loop;
 
-  if v_direct<>35 or v_transitive<>15 or v_documents<>6 then
+  if v_direct<>40 or v_transitive<>15 or v_documents<>6 then
     raise exception 'INVENTORY_STOCK_HOOKS_INVENTORY_COUNT_MISMATCH';
   end if;
   return jsonb_build_object(
@@ -210,7 +210,7 @@ end;
 $$;
 
 -- Verification/activation is a separate future operation. Point 4B-2 concurrency
--- is CLOSED / PASS; this operation still requires a complete 56-boundary contract,
+-- is CLOSED / PASS; this operation still requires a complete 61-boundary contract,
 -- exact deployed definitions with required guards, and privileged invocation. For each exact
 -- function it verifies the deployed definition digest and required guard text;
 -- transitive callers remain guard-only and never apply a physical effect.
@@ -232,9 +232,9 @@ begin
     pg_catalog.hashtextextended('point4-stock-hooks-v2:'||p_plan_digest,0)
   );
   if (select count(*) from public.inventory_stock_cutover_hook_contracts_v2
-      where plan_digest=p_plan_digest)<>56
+      where plan_digest=p_plan_digest)<>61
     or (select count(*) from public.inventory_stock_cutover_hook_contracts_v2
-      where plan_digest=p_plan_digest and contract_kind='DIRECT_PHYSICAL_WRITER')<>35
+      where plan_digest=p_plan_digest and contract_kind='DIRECT_PHYSICAL_WRITER')<>40
     or (select count(*) from public.inventory_stock_cutover_hook_contracts_v2
       where plan_digest=p_plan_digest and contract_kind='TRANSITIVE_STOCK_CALLER')<>15
     or (select count(*) from public.inventory_stock_cutover_hook_contracts_v2
@@ -307,6 +307,6 @@ revoke all on function public.inventory_stock_verify_cutover_hooks_v2(text)
 comment on table public.inventory_stock_cutover_hook_contracts_v2 is
   'Point 4B-4 contracts derived only from the approved 4B-3A inventory; declarations are not runtime activation.';
 comment on function public.inventory_stock_verify_cutover_hooks_v2(text) is
-  'Future internal hook verification/activation gate. Point 4B-2 concurrency is closed; 56-boundary coverage, exact deployed guard verification, and privileged invocation remain mandatory. SOURCE ONLY / NOT DEPLOYED.';
+  'Future internal hook verification/activation gate. Point 4B-2 concurrency is closed; 61-boundary coverage, exact deployed guard verification, and privileged invocation remain mandatory. SOURCE ONLY / NOT DEPLOYED.';
 
 commit;
