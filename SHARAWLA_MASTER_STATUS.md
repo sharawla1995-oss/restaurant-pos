@@ -720,10 +720,10 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3, Point 4B-1, Point 4B-2, and Point 4B-3A are CLOSED. Point 4B-3B and Point 4B-4 remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
+**Point 3, Point 4B-1, Point 4B-2, and Point 4B-3A are CLOSED. Point 4B-3B and Point 4B-4 are SOURCE-ALIGNED / STATIC-CI PASS but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
 
 Exact next step:
 
-Identity V1 Source is locally closed and PUSHED through 23f9f570, but remains NOT DEPLOYED / NOT RUNTIME ACCEPTED. The AP contract still requires a future durable runtime resolver before adapter acceptance. Point 4B-2 genuine committed concurrency is now CLOSED / PASS by disposable PostgreSQL 16 GitHub Actions evidence at `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`. Do not deploy 4B-3B through 4F, switch workflows, or connect transfer/AP/Financial adapters without their explicit deployment/runtime gates. Preserve SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries.
+Point 4B-2 genuine committed concurrency is CLOSED / PASS by disposable PostgreSQL 16 GitHub Actions evidence at `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`. The source evidence gate now reflects CLOSED/PASS, and the 4B-3B / 4B-4 static checkers are aligned with that state. GitHub Actions runs 91 and 92 passed for the updated 4B-3B and 4B-4 checkers. 4B-3B cutover and 4B-4 hook activation are still NOT deployed or executed. Before any deployment or runtime switch, perform an explicit deployment preflight for 4B-3B/4B-4 on the isolated Beta environment only, preserving SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries. Identity V1 remains NOT DEPLOYED / NOT RUNTIME ACCEPTED, and the AP contract still requires a future durable runtime resolver before adapter acceptance.
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
