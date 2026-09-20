@@ -1,6 +1,6 @@
 -- Sharawla POS — Point 4B-3B Controlled Canonical Opening/Cutover contract
 -- SOURCE ONLY. This file is not deployed by this change and performs no cutover.
--- 4B-2 committed concurrency acceptance is deliberately hard-closed below.
+-- 4B-2 committed concurrency acceptance is CLOSED / PASS by reviewed GitHub Actions evidence. Cutover execution remains separately gated.
 
 begin;
 
