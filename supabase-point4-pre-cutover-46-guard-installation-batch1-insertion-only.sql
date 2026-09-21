@@ -17,7 +17,7 @@ begin
  select track_inventory into v_track from public.ingredients where id=p_ingredient_id and active is distinct from false;if not found then raise exception 'الخامة غير موجودة أو موقوفة';end if;
  if not coalesce(v_track,true) then raise exception 'الخامة غير متتبعة بالمخزون';end if;
  perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'ingredient',p_ingredient_id);
- insert into public.ingredient_stock insert into public.ingredient_stock(branch_id,ingredient_id,quantity) values(p_branch_id,p_ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
+ insert into public.ingredient_stock(branch_id,ingredient_id,quantity) values(p_branch_id,p_ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
  select * into v_stock from public.ingredient_stock where branch_id=p_branch_id and ingredient_id=p_ingredient_id for update;
  v_new:=round(v_stock.quantity+p_quantity_delta,6);if v_new<0 then raise exception 'مخزون الخامة غير كافٍ';end if;
  v_avg:=v_stock.average_unit_cost;if p_quantity_delta>0 and v_cost>0 then v_avg:=case when v_new<=0 then v_cost else round(((v_stock.quantity*v_stock.average_unit_cost)+(p_quantity_delta*v_cost))/v_new,6) end;end if;
@@ -59,7 +59,7 @@ begin
 
   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'ingredient',p_ingredient_id);
 
-  insert into public.ingredient_stock  insert into public.ingredient_stock(branch_id,ingredient_id,quantity)
+  insert into public.ingredient_stock(branch_id,ingredient_id,quantity)
   values(p_branch_id,p_ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
   select * into v_stock from public.ingredient_stock
   where branch_id=p_branch_id and ingredient_id=p_ingredient_id for update;
@@ -139,7 +139,6 @@ begin
   v_cost:=coalesce(v_fallback_cost,0);
   if coalesce(v_track,true) then
     perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'ingredient',p_ingredient_id);
-    insert into public.ingredient_stock  if coalesce(v_track,true) then
     insert into public.ingredient_stock(branch_id,ingredient_id,quantity)
     values(p_branch_id,p_ingredient_id,0)
     on conflict(branch_id,ingredient_id) do nothing;
@@ -243,7 +242,7 @@ begin
 
   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'product',p_product_id);
 
-  insert into public.retail_inventory_balances(  insert into public.retail_inventory_balances(
+  insert into public.retail_inventory_balances(
     branch_id,
     product_id,
     quantity
@@ -330,7 +329,7 @@ begin
 
   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'product',p_product_id);
 
-  insert into public.retail_inventory_balances(  insert into public.retail_inventory_balances(
+  insert into public.retail_inventory_balances(
     branch_id,
     product_id,
     quantity,
@@ -394,7 +393,7 @@ begin
   where client_tx_id=v_key and variant_id=p_variant_id and movement_type=v_type limit 1;
   if found then return to_jsonb(v_existing); end if;
   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'variant',p_variant_id);
-  insert into public.retail_variant_inventory_balances  insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
+  insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
   values(p_branch_id,p_variant_id,0) on conflict(branch_id,variant_id) do nothing;
   select * into v_balance from public.retail_variant_inventory_balances
   where branch_id=p_branch_id and variant_id=p_variant_id for update;
@@ -432,7 +431,7 @@ begin
   if not v_can then raise exception 'ليس لديك صلاحية إلغاء الطلب في حالته الحالية';end if;
   v_emp:=public.current_employee_id();
   perform public.inventory_stock_assert_document_workflow_allowed_v2('inventory_supply_request_cancel_v1(bigint,text)');
-  update public.inventory_supply_request_items  update public.inventory_supply_request_items set quantity_reserved=0 where request_id=v_q.id;
+  update public.inventory_supply_request_items set quantity_reserved=0 where request_id=v_q.id;
   update public.inventory_supply_requests set status='cancelled',decision_note=nullif(trim(coalesce(p_note,'')),''),updated_at=now() where id=v_q.id;
   insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id,details)
   values(v_q.id,v_q.status,'cancelled',nullif(trim(coalesce(p_note,'')),''),v_emp,jsonb_build_object('reservation_released',true));
@@ -460,7 +459,7 @@ begin
  if v_q.status<>'approved' then raise exception 'الطلب غير جاهز للتجهيز';end if;
  v_emp:=public.current_employee_id();
  perform public.inventory_stock_assert_document_workflow_allowed_v2('inventory_supply_request_prepare_v1(bigint,text)');
- update public.inventory_supply_requests update public.inventory_supply_requests set status='preparing',updated_at=now() where id=v_q.id;
+ update public.inventory_supply_requests set status='preparing',updated_at=now() where id=v_q.id;
  insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'approved','preparing',nullif(trim(coalesce(p_note,'')),''),v_emp);
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(v_emp,v_q.source_location_id,'inventory.supply.request.prepare','inventory_supply_request',v_q.id,jsonb_build_object('destination_branch_id',v_q.destination_branch_id));
  return v_q.id;
@@ -484,7 +483,7 @@ begin
  if v_q.status<>'draft' then raise exception 'لا يمكن إرسال الطلب في حالته الحالية';end if;
  v_emp:=public.current_employee_id();
  perform public.inventory_stock_assert_document_workflow_allowed_v2('inventory_supply_request_submit_v1(bigint)');
- update public.inventory_supply_requests update public.inventory_supply_requests set status='submitted',submitted_by_employee_id=v_emp,submitted_at=now(),updated_at=now() where id=v_q.id;
+ update public.inventory_supply_requests set status='submitted',submitted_by_employee_id=v_emp,submitted_at=now(),updated_at=now() where id=v_q.id;
  insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'draft','submitted','تم إرسال الطلب للمخزن',v_emp);
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(v_emp,v_q.destination_branch_id,'inventory.supply.request.submit','inventory_supply_request',v_q.id,jsonb_build_object('source_location_id',v_q.source_location_id));
  return v_q.id;
