@@ -439,7 +439,8 @@ begin
   values(v_emp,case when v_q.status in ('approved','preparing') then v_q.source_location_id else v_q.destination_branch_id end,
     'inventory.supply.request.cancel','inventory_supply_request',v_q.id,jsonb_build_object('from_status',v_q.status,'reservation_released',true));
   return v_q.id;
-end$function$
+end;
+$function$
 
 -- inventory_supply_request_prepare_v1(bigint,text)
 CREATE OR REPLACE FUNCTION public.inventory_supply_request_prepare_v1(p_request_id bigint, p_note text)
@@ -463,7 +464,8 @@ begin
  insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'approved','preparing',nullif(trim(coalesce(p_note,'')),''),v_emp);
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(v_emp,v_q.source_location_id,'inventory.supply.request.prepare','inventory_supply_request',v_q.id,jsonb_build_object('destination_branch_id',v_q.destination_branch_id));
  return v_q.id;
-end$function$
+end;
+$function$
 
 -- inventory_supply_request_submit_v1(bigint)
 CREATE OR REPLACE FUNCTION public.inventory_supply_request_submit_v1(p_request_id bigint)
@@ -487,4 +489,5 @@ begin
  insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'draft','submitted','تم إرسال الطلب للمخزن',v_emp);
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(v_emp,v_q.destination_branch_id,'inventory.supply.request.submit','inventory_supply_request',v_q.id,jsonb_build_object('source_location_id',v_q.source_location_id));
  return v_q.id;
-end$function$
+end;
+$function$
