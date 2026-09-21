@@ -13,7 +13,7 @@ const EXPECTED_DIRECT=[
   "create_retail_variant_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text)",
   "create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb)",
   "expire_retail_website_order_identity_v1(text)",
-  "food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text)",
+  "food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text,bigint,text)",
   "food_apply_order_consumption_v1(jsonb,jsonb)",
   "food_apply_return_consumption_v1(bigint,bigint,jsonb,text)",
   "food_ingredient_stock_adjust_v1(bigint,bigint,numeric,numeric,text,text)",
