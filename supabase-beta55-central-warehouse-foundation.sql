@@ -460,7 +460,9 @@ create or replace function public.inventory_supply_request_decide_v1(
   p_approved_items jsonb,
   p_note text
 ) returns bigint language plpgsql security definer set search_path=public as $$
-declare v_q public.inventory_supply_requests%rowtype;v_emp bigint;v record;v_qty numeric(14,3);v_seen integer:=0;
+declare
+ v_q public.inventory_supply_requests%rowtype;v_emp bigint;v record;v_qty numeric(14,3);
+ v_seen integer:=0;v_positive integer:=0;v_frozen_approved jsonb:='[]'::jsonb;
 begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
  if not public.has_action_permission_v2('inventory.supply.request.approve') then raise exception 'ليس لديك صلاحية اعتماد طلبات التوريد';end if;
@@ -470,23 +472,55 @@ begin
  if v_q.status in ('approved','rejected') then return v_q.id;end if;
  if v_q.status<>'submitted' then raise exception 'الطلب غير جاهز للاعتماد';end if;
  v_emp:=public.current_employee_id();
- if coalesce(p_approve,false)=false then
-   update public.inventory_supply_requests set status='rejected',decision_note=nullif(trim(coalesce(p_note,'')),''),decided_by_employee_id=v_emp,decided_at=now(),updated_at=now() where id=v_q.id;
-   insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'submitted','rejected',nullif(trim(coalesce(p_note,'')),''),v_emp);
- else
-   update public.inventory_supply_request_items set quantity_approved=quantity_requested where request_id=v_q.id;
+
+ -- Point 4 #43: validate and freeze the approval decision before any workflow write.
+ if coalesce(p_approve,false)=true then
    if jsonb_typeof(coalesce(p_approved_items,'[]'::jsonb))='array' and jsonb_array_length(coalesce(p_approved_items,'[]'::jsonb))>0 then
-     update public.inventory_supply_request_items set quantity_approved=0 where request_id=v_q.id;
      for v in select * from jsonb_to_recordset(p_approved_items) as x(item_id bigint,quantity numeric)
      loop
        v_qty:=round(coalesce(v.quantity,0),3);
        if v_qty<0 then raise exception 'كمية الاعتماد غير صحيحة';end if;
-       update public.inventory_supply_request_items set quantity_approved=least(v_qty,quantity_requested) where id=v.item_id and request_id=v_q.id;
-       if found then v_seen:=v_seen+1;end if;
+       select jsonb_build_object(
+         'item_id',i.id,
+         'quantity_approved',least(v_qty,i.quantity_requested)
+       ) into v_frozen_approved
+       from public.inventory_supply_request_items i
+       where i.id=v.item_id and i.request_id=v_q.id;
+       if v_frozen_approved is not null then
+         v_seen:=v_seen+1;
+         if coalesce((v_frozen_approved->>'quantity_approved')::numeric,0)>0 then v_positive:=v_positive+1;end if;
+         if v_seen=1 then
+           v_frozen_approved:=jsonb_build_array(v_frozen_approved);
+         else
+           v_frozen_approved:=(select coalesce(jsonb_agg(x),'[]'::jsonb) from (
+             select value x from jsonb_array_elements(v_frozen_approved)
+           ) q);
+         end if;
+       end if;
      end loop;
      if v_seen=0 then raise exception 'بنود الاعتماد غير صحيحة';end if;
+   else
+     select coalesce(jsonb_agg(jsonb_build_object('item_id',i.id,'quantity_approved',i.quantity_requested) order by i.id),'[]'::jsonb),
+            count(*) filter(where i.quantity_requested>0)
+     into v_frozen_approved,v_positive
+     from public.inventory_supply_request_items i where i.request_id=v_q.id;
    end if;
-   if not exists(select 1 from public.inventory_supply_request_items where request_id=v_q.id and quantity_approved>0) then raise exception 'لا توجد كمية معتمدة';end if;
+   if v_positive=0 then raise exception 'لا توجد كمية معتمدة';end if;
+ end if;
+
+ perform public.inventory_stock_assert_document_workflow_allowed_v2(
+   'inventory_supply_request_decide_v1(bigint,boolean,jsonb,text)'
+ );
+
+ if coalesce(p_approve,false)=false then
+   update public.inventory_supply_requests set status='rejected',decision_note=nullif(trim(coalesce(p_note,'')),''),decided_by_employee_id=v_emp,decided_at=now(),updated_at=now() where id=v_q.id;
+   insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'submitted','rejected',nullif(trim(coalesce(p_note,'')),''),v_emp);
+ else
+   update public.inventory_supply_request_items set quantity_approved=0 where request_id=v_q.id;
+   update public.inventory_supply_request_items i
+   set quantity_approved=x.quantity_approved
+   from jsonb_to_recordset(v_frozen_approved) as x(item_id bigint,quantity_approved numeric)
+   where i.id=x.item_id and i.request_id=v_q.id;
    update public.inventory_supply_requests set status='approved',decision_note=nullif(trim(coalesce(p_note,'')),''),decided_by_employee_id=v_emp,decided_at=now(),updated_at=now() where id=v_q.id;
    insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id) values(v_q.id,'submitted','approved',nullif(trim(coalesce(p_note,'')),''),v_emp);
  end if;
