@@ -462,7 +462,7 @@ create or replace function public.inventory_supply_request_decide_v1(
 ) returns bigint language plpgsql security definer set search_path=public as $$
 declare
  v_q public.inventory_supply_requests%rowtype;v_emp bigint;v record;v_qty numeric(14,3);
- v_seen integer:=0;v_positive integer:=0;v_frozen_approved jsonb:='[]'::jsonb;
+ v_seen integer:=0;v_positive integer:=0;v_frozen_item jsonb;v_frozen_approved jsonb:='[]'::jsonb;
 begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
  if not public.has_action_permission_v2('inventory.supply.request.approve') then raise exception 'ليس لديك صلاحية اعتماد طلبات التوريد';end if;
@@ -480,22 +480,17 @@ begin
      loop
        v_qty:=round(coalesce(v.quantity,0),3);
        if v_qty<0 then raise exception 'كمية الاعتماد غير صحيحة';end if;
+       v_frozen_item:=null;
        select jsonb_build_object(
          'item_id',i.id,
          'quantity_approved',least(v_qty,i.quantity_requested)
-       ) into v_frozen_approved
+       ) into v_frozen_item
        from public.inventory_supply_request_items i
        where i.id=v.item_id and i.request_id=v_q.id;
-       if v_frozen_approved is not null then
+       if v_frozen_item is not null then
          v_seen:=v_seen+1;
-         if coalesce((v_frozen_approved->>'quantity_approved')::numeric,0)>0 then v_positive:=v_positive+1;end if;
-         if v_seen=1 then
-           v_frozen_approved:=jsonb_build_array(v_frozen_approved);
-         else
-           v_frozen_approved:=(select coalesce(jsonb_agg(x),'[]'::jsonb) from (
-             select value x from jsonb_array_elements(v_frozen_approved)
-           ) q);
-         end if;
+         if coalesce((v_frozen_item->>'quantity_approved')::numeric,0)>0 then v_positive:=v_positive+1;end if;
+         v_frozen_approved:=v_frozen_approved||jsonb_build_array(v_frozen_item);
        end if;
      end loop;
      if v_seen=0 then raise exception 'بنود الاعتماد غير صحيحة';end if;
