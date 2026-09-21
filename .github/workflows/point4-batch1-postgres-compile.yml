@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   compile:
@@ -138,6 +139,20 @@ jobs:
           );
           SQL
 
+      - name: Initialize evidence report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p point4-compile-evidence
+          {
+            echo "POINT4_BATCH1_POSTGRES_COMPILE_EVIDENCE_V1"
+            echo "tested_commit_sha=$GITHUB_SHA"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "source_path=supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+            echo "source_sha256=$(sha256sum supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql | awk '{print $1}')"
+            echo "postgres_version=$(psql -Atc 'show server_version')"
+          } > point4-compile-evidence/report.txt
+
       - name: Compile nine source definitions verbatim
         shell: bash
         run: |
@@ -153,14 +168,22 @@ jobs:
           for i,part in enumerate(parts,1):
               pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\n")
           PY
+          overall=0
           for i in $(seq 1 9); do
-            echo "=== COMPILE FUNCTION $i/9 ==="
-            if ! psql -v ON_ERROR_STOP=1 -f "/tmp/point4-fn-$i.sql"; then
-              echo "COMPILE_FAILURE function=$i classification=UNCLASSIFIED_REQUIRES_LOG_REVIEW"
-              exit 1
+            name=$(sed -n 's/^CREATE OR REPLACE FUNCTION public\.\([^ (]*\).*/\1/p' "/tmp/point4-fn-$i.sql" | head -1)
+            digest=$(sha256sum "/tmp/point4-fn-$i.sql" | awk '{print $1}')
+            echo "=== COMPILE FUNCTION $i/9: $name ==="
+            if psql -v ON_ERROR_STOP=1 -f "/tmp/point4-fn-$i.sql" >"/tmp/point4-fn-$i.log" 2>&1; then
+              echo "function=$i name=$name source_digest=$digest create=PASS" | tee -a point4-compile-evidence/report.txt
+            else
+              cat "/tmp/point4-fn-$i.log"
+              echo "function=$i name=$name source_digest=$digest create=FAIL classification=UNCLASSIFIED_REQUIRES_LOG_REVIEW" | tee -a point4-compile-evidence/report.txt
+              cp "/tmp/point4-fn-$i.log" point4-compile-evidence/
+              overall=1
             fi
-            echo "COMPILE_SUCCESS function=$i"
           done
+          echo "create_pass_count=$(grep -c 'create=PASS' point4-compile-evidence/report.txt || true)" >> point4-compile-evidence/report.txt
+          test "$overall" -eq 0
 
       - name: Verify 9 functions exist and capture pg_get_functiondef
         shell: bash
@@ -195,6 +218,11 @@ jobs:
                 'inventory_supply_request_prepare_v1','inventory_supply_request_submit_v1'
               )
             order by p.oid::regprocedure::text;" > /tmp/point4-pg-get-functiondef.txt
+          cp /tmp/point4-functiondefs.txt point4-compile-evidence/function-signatures.txt
+          cp /tmp/point4-pg-get-functiondef.txt point4-compile-evidence/pg-get-functiondef.txt
+          echo "existence_count=9" >> point4-compile-evidence/report.txt
+          echo "pg_get_functiondef_count=9" >> point4-compile-evidence/report.txt
+          sha256sum /tmp/point4-pg-get-functiondef.txt | awk '{print "pg_get_functiondef_bundle_sha256="$1}' >> point4-compile-evidence/report.txt
           echo "PG_GET_FUNCTIONDEF_CAPTURED=9"
 
       - name: Final static guard counts
@@ -206,4 +234,29 @@ jobs:
           test "$(grep -c 'perform public.inventory_stock_assert_legacy_write_allowed_v2' "$f")" -eq 6
           test "$(grep -c 'perform public.inventory_stock_assert_document_workflow_allowed_v2' "$f")" -eq 3
           ! grep -Eqi 'declare_cutover|activate_cutover|CANONICAL_COMMITTED|cutover-hooks' "$f"
-          echo "STATIC_COUNTS_PASS functions=9 legacy=6 document=3"
+          echo "guard_legacy=6/6" >> point4-compile-evidence/report.txt
+          echo "guard_document=3/3" >> point4-compile-evidence/report.txt
+          echo "cutover_canonical_activation=0" >> point4-compile-evidence/report.txt
+          echo "STATIC_COUNTS_PASS functions=9 legacy=6 document=3 activation=0"
+
+      - name: Finalize evidence on failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p point4-compile-evidence
+          echo "job_result=FAIL" >> point4-compile-evidence/report.txt
+
+      - name: Finalize evidence on success
+        if: success()
+        shell: bash
+        run: |
+          echo "job_result=PASS" >> point4-compile-evidence/report.txt
+
+      - name: Upload immutable compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: point4-batch1-postgres-compile-evidence-${{ github.sha }}
+          path: point4-compile-evidence/
+          if-no-files-found: error
+          retention-days: 90
