@@ -23,8 +23,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Assert exact source lineage
         run: |
-          git merge-base --is-ancestor 8ef361ee4c7917c2aa26c52574fb8ac63a71effd HEAD
-          git merge-base --is-ancestor 026bd7ab7ddb2a29f88eaa9d5faf6e78e94db1c3 HEAD
+          grep -F "v_frozen_approved:=v_frozen_approved||jsonb_build_array(v_frozen_item)" supabase-beta55-central-warehouse-foundation.sql
+          test -f scripts/check-point4-batch12-supply-request-decide.js
+          node scripts/check-point4-batch12-supply-request-decide.js
           echo "FROZEN_FIX_AND_SEMANTIC_PRESENT=1"
       - name: Assert isolation
         run: echo "No Supabase/Beta/Production credentials are used by this workflow."
