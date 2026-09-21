@@ -1,0 +1,73 @@
+name: Point4 Batch2 Semantic and PostgreSQL Compile Gate
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql'
+      - 'scripts/check-point4-batch2-same-frozen-set.js'
+      - '.github/workflows/point4-batch2-postgres-compile.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert isolation
+        run: echo "No Supabase/Beta/Production credentials are used by this workflow."
+      - name: Run same-frozen-set semantic checker
+        run: node scripts/check-point4-batch2-same-frozen-set.js
+      - name: Install minimum compile stubs
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists auth; create schema if not exists extensions;
+          create function auth.uid() returns uuid language sql as $$select null::uuid$$;
+          create function extensions.gen_random_uuid() returns uuid language sql as $$select gen_random_uuid()$$;
+          create table public.retail_reservation_documents_identity_v1(id bigint,document_uid uuid,retail_website_order_id bigint);
+          create table public.retail_reservation_mutations_identity_v1(id bigint,reservation_document_id bigint,client_tx_id uuid,mutation_type text,operation_digest text,requested_status text,actor_kind text,actor_employee_id bigint,applied_at timestamptz,result_status text,result_payload jsonb);
+          create table public.retail_website_orders(id bigint,branch_id bigint,status text,reservation_expires_at timestamptz,customer_phone text,reservation_key text,order_type text,payment_method_code text,subtotal numeric,offer_discount numeric,delivery_fee numeric,total numeric,customer_name text,customer_address text,delivery_zone_id bigint,customer_notes text,payment_status text,payment_reference text,accepted_order_id bigint,accepted_by_employee_id bigint,accepted_at timestamptz,cancelled_at timestamptz,rejected_at timestamptz,updated_at timestamptz);
+          create table public.retail_website_order_items(id bigint,retail_website_order_id bigint,product_id bigint,product_name text,quantity numeric,unit_price numeric,unit_cost_snapshot numeric,line_subtotal numeric,notes text);
+          create table public.shifts(id bigint,branch_id bigint,employee_id bigint,status text,closed_at timestamptz,opened_at timestamptz);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint);
+          create table public.retail_stock_reservations(id bigint,website_order_id bigint,reservation_key text,product_id bigint,status text,expires_at timestamptz,quantity numeric);
+          create table public.orders(id bigint,website_order_id bigint,payment_status text,payment_reference text);
+          create function public.point4_identity_uuid_v4_v1(text) returns text language sql as $$select $1$$;
+          create function public.current_employee_id() returns bigint language sql as $$select 1::bigint$$;
+          create function public.has_branch_access(bigint) returns boolean language sql as $$select true$$;
+          create function public.retail_website_normalize_phone(text) returns text language sql as $$select $1$$;
+          create function public.retail_reservation_identity_digest_v1(text,text,text,bigint,jsonb,jsonb) returns text language sql as $$select 'x'::text$$;
+          create function public.retail_reservation_identity_resolve_mutation_v1(text,text,text) returns bigint language sql as $$select null::bigint$$;
+          create function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as $$begin return; end$$;
+          create function public.create_retail_pos_order_atomic(jsonb,jsonb,jsonb) returns jsonb language sql as $$select '{"order":{"id":1}}'::jsonb$$;
+          SQL
+      - name: Extract and compile four definitions
+        run: |
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql').read_text()
+          starts=[m.start() for m in re.finditer(r'(?im)^CREATE OR REPLACE FUNCTION\s+',s)]
+          assert len(starts)==4, len(starts)
+          for i,a in enumerate(starts):
+            b=starts[i+1] if i+1<len(starts) else len(s)
+            x=s[a:b].strip()
+            assert x.count('$function$')==2
+            pathlib.Path(f'/tmp/b2-{i+1}.sql').write_text(x)
+          print('EXTRACT_COMPLETE functions=4')
+          PY
+          for f in /tmp/b2-*.sql; do psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f"; done
+          echo "POSTGRES_CREATE_PASS functions=4"
+      - name: Verify effective definitions
+        run: |
+          test "$(psql -h localhost -U postgres -d postgres -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('accept_retail_website_order_identity_v1','cancel_retail_website_order_customer_identity_v1','expire_retail_website_order_identity_v1','reject_retail_website_order_identity_v1')")" = "4"
+          echo "PG_FUNCTIONS_EXIST=4"
