@@ -1,0 +1,209 @@
+name: Point4 Batch1 PostgreSQL Compile Gate
+
+on:
+  push:
+    branches: [beta56-offline-ownership-consolidation]
+    paths:
+      - "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+      - ".github/workflows/point4-batch1-postgres-compile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: point4_compile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d point4_compile"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: point4_compile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assert isolated compile gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_URL:-}"
+          test -z "${SUPABASE_DB_URL:-}"
+          test -z "${DATABASE_URL:-}"
+          echo "No Supabase/Beta/Production credentials are used by this workflow."
+
+      - name: Install minimum compile stubs
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create extension if not exists pgcrypto;
+
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint)
+          returns void language plpgsql as $$ begin return; end $$;
+
+          create or replace function public.inventory_stock_assert_document_workflow_allowed_v2(text)
+          returns void language plpgsql as $$ begin return; end $$;
+
+          create or replace function public.current_employee_id()
+          returns bigint language sql as $$ select 1::bigint $$;
+
+          create or replace function public.has_permission(text)
+          returns boolean language sql as $$ select true $$;
+
+          create table public.ingredients(
+            id bigint primary key, active boolean, track_inventory boolean,
+            base_unit_id bigint, cost_per_base_unit numeric
+          );
+          create table public.ingredient_stock(
+            branch_id bigint, ingredient_id bigint, quantity numeric default 0,
+            average_unit_cost numeric default 0, updated_at timestamptz,
+            primary key(branch_id,ingredient_id)
+          );
+          create table public.ingredient_stock_movements(
+            id bigint generated always as identity primary key,
+            branch_id bigint, ingredient_id bigint, movement_type text,
+            quantity_delta numeric, reference_type text, reference_id bigint,
+            notes text, created_at timestamptz default now()
+          );
+          create table public.food_ingredient_stock_adjustments(
+            id bigint generated always as identity primary key,
+            branch_id bigint, ingredient_id bigint, quantity_delta numeric,
+            quantity_after numeric, unit_cost numeric, reason text,
+            client_tx_id text, employee_id bigint
+          );
+          create table public.food_waste_events(
+            id bigint generated always as identity primary key,
+            branch_id bigint, ingredient_id bigint, prep_item_id bigint,
+            shift_id bigint, reason_code text, quantity numeric,
+            base_quantity numeric, unit_code text, notes text,
+            client_tx_id text, employee_id bigint, created_at timestamptz default now()
+          );
+          create table public.retail_inventory_balances(
+            branch_id bigint, product_id bigint, quantity numeric default 0,
+            track_inventory boolean default true, low_stock_threshold numeric default 0,
+            updated_at timestamptz, primary key(branch_id,product_id)
+          );
+          create table public.retail_inventory_movements(
+            id bigint generated always as identity primary key,
+            branch_id bigint, product_id bigint, movement_type text,
+            quantity_delta numeric, quantity_after numeric, reference_type text,
+            reference_id text, client_tx_id text, notes text, employee_id bigint
+          );
+          create table public.retail_variant_inventory_balances(
+            branch_id bigint, variant_id bigint, quantity numeric default 0,
+            updated_at timestamptz, primary key(branch_id,variant_id)
+          );
+          create table public.retail_variant_inventory_movements(
+            id bigint generated always as identity primary key,
+            branch_id bigint, variant_id bigint, movement_type text,
+            quantity_delta numeric, quantity_after numeric, reference_type text,
+            reference_id text, client_tx_id text, notes text, employee_id bigint
+          );
+          create table public.inventory_supply_requests(
+            id bigint primary key, status text, source_location_id bigint,
+            destination_branch_id bigint, submitted_by_employee_id bigint,
+            submitted_at timestamptz, decision_note text, updated_at timestamptz
+          );
+          create table public.inventory_supply_request_items(
+            id bigint generated always as identity primary key,
+            request_id bigint, quantity_reserved numeric
+          );
+          create table public.inventory_supply_request_events(
+            id bigint generated always as identity primary key,
+            request_id bigint, from_status text, to_status text, note text,
+            employee_id bigint, details jsonb
+          );
+          create table public.audit_logs(
+            id bigint generated always as identity primary key,
+            employee_id bigint, branch_id bigint, action text, entity_type text,
+            entity_id bigint, details jsonb
+          );
+          SQL
+
+      - name: Compile nine source definitions verbatim
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+          python3 - <<'PY'
+          import re, pathlib
+          p=pathlib.Path("supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql")
+          s=p.read_text()
+          parts=re.findall(r'(CREATE OR REPLACE FUNCTION[\s\S]*?\$function\$)',s,re.I)
+          if len(parts)!=9:
+              raise SystemExit(f"SOURCE_DEFECT: expected 9 function definitions, found {len(parts)}")
+          for i,part in enumerate(parts,1):
+              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\n")
+          PY
+          for i in $(seq 1 9); do
+            echo "=== COMPILE FUNCTION $i/9 ==="
+            if ! psql -v ON_ERROR_STOP=1 -f "/tmp/point4-fn-$i.sql"; then
+              echo "COMPILE_FAILURE function=$i classification=UNCLASSIFIED_REQUIRES_LOG_REVIEW"
+              exit 1
+            fi
+            echo "COMPILE_SUCCESS function=$i"
+          done
+
+      - name: Verify 9 functions exist and capture pg_get_functiondef
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -At <<'SQL' | tee /tmp/point4-functiondefs.txt
+          select p.oid::regprocedure::text
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public'
+            and p.proname in (
+              'food_apply_ingredient_delta_internal_v1',
+              'food_ingredient_stock_adjust_v1',
+              'food_waste_post_v1',
+              'retail_inventory_adjust',
+              'retail_inventory_set_item_policy',
+              'retail_variant_inventory_adjust_v1',
+              'inventory_supply_request_cancel_v1',
+              'inventory_supply_request_prepare_v1',
+              'inventory_supply_request_submit_v1'
+            )
+          order by 1;
+          SQL
+          test "$(wc -l < /tmp/point4-functiondefs.txt)" -eq 9
+          psql -v ON_ERROR_STOP=1 -Atc "
+            select pg_get_functiondef(p.oid)
+            from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public'
+              and p.proname in (
+                'food_apply_ingredient_delta_internal_v1','food_ingredient_stock_adjust_v1',
+                'food_waste_post_v1','retail_inventory_adjust','retail_inventory_set_item_policy',
+                'retail_variant_inventory_adjust_v1','inventory_supply_request_cancel_v1',
+                'inventory_supply_request_prepare_v1','inventory_supply_request_submit_v1'
+              )
+            order by p.oid::regprocedure::text;" > /tmp/point4-pg-get-functiondef.txt
+          echo "PG_GET_FUNCTIONDEF_CAPTURED=9"
+
+      - name: Final static guard counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          f="supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+          test "$(grep -c 'CREATE OR REPLACE FUNCTION' "$f")" -eq 9
+          test "$(grep -c 'perform public.inventory_stock_assert_legacy_write_allowed_v2' "$f")" -eq 6
+          test "$(grep -c 'perform public.inventory_stock_assert_document_workflow_allowed_v2' "$f")" -eq 3
+          ! grep -Eqi 'declare_cutover|activate_cutover|CANONICAL_COMMITTED|cutover-hooks' "$f"
+          echo "STATIC_COUNTS_PASS functions=9 legacy=6 document=3"
