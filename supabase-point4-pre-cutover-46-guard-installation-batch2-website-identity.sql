@@ -23,6 +23,7 @@ declare
   v_shift bigint;
   v_result jsonb;
   v_guard_product_id bigint;
+  v_frozen_items jsonb;
   v_order_id bigint;
   v_items jsonb;
   v_order jsonb;
@@ -149,13 +150,22 @@ begin
     raise exception 'افتح وردية أولًا قبل استلام طلب الموقع';
   end if;
 
-  -- Point4: freeze the complete affected product set read-only, then guard ALL before commitment.
+  -- Point4: materialize the complete affected item evidence once, then guard ALL
+  -- product identities from that immutable in-transaction value.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',wi.id,'product_id',wi.product_id,'product_name',wi.product_name,
+    'quantity',wi.quantity,'unit_price',wi.unit_price,
+    'unit_cost_snapshot',wi.unit_cost_snapshot,'line_subtotal',wi.line_subtotal,
+    'notes',wi.notes) order by wi.id),'[]'::jsonb)
+    into v_frozen_items
+    from public.retail_website_order_items wi
+   where wi.retail_website_order_id=v_web.id;
+
   for v_guard_product_id in
-    select distinct wi.product_id
-      from public.retail_website_order_items wi
-     where wi.retail_website_order_id=v_web.id
-       and wi.product_id is not null
-     order by wi.product_id
+    select distinct (x->>'product_id')::bigint
+      from jsonb_array_elements(v_frozen_items) x
+     where nullif(x->>'product_id','') is not null
+     order by 1
   loop
     perform public.inventory_stock_assert_legacy_write_allowed_v2(
       v_web.branch_id,'product',v_guard_product_id
@@ -183,24 +193,22 @@ begin
 
   perform 1
     from public.retail_inventory_balances b
-    join public.retail_website_order_items wi
+    join (select distinct (x->>'product_id')::bigint product_id from jsonb_array_elements(v_frozen_items) x) wi
       on wi.product_id=b.product_id
-     and wi.retail_website_order_id=v_web.id
    where b.branch_id=v_web.branch_id
    order by b.product_id
    for update of b;
 
   if exists(
     select 1
-      from public.retail_website_order_items wi
+      from jsonb_to_recordset(v_frozen_items) as wi(product_id bigint,quantity numeric)
       left join public.retail_stock_reservations r
         on r.website_order_id=v_web.id
        and r.reservation_key=v_web.reservation_key
        and r.product_id=wi.product_id
        and r.status='active'
        and r.expires_at>now()
-     where wi.retail_website_order_id=v_web.id
-       and (r.id is null or r.quantity<wi.quantity)
+     where r.id is null or r.quantity<wi.quantity
   ) then
     raise exception 'حجز المخزون غير صالح أو انتهى';
   end if;
@@ -222,8 +230,10 @@ begin
     '[]'::jsonb
   )
   into v_items
-  from public.retail_website_order_items wi
-  where wi.retail_website_order_id=v_web.id;
+  from jsonb_to_recordset(v_frozen_items) as wi(
+    id bigint,product_id bigint,product_name text,quantity numeric,
+    unit_price numeric,unit_cost_snapshot numeric,line_subtotal numeric,notes text
+  );
 
   v_order:=jsonb_build_object(
     'branch_id',v_web.branch_id,
@@ -352,6 +362,7 @@ declare
   v_web public.retail_website_orders%rowtype;
   v_result jsonb;
   v_guard_product_id bigint;
+  v_frozen_items jsonb;
 begin
   v_document_uid:=public.point4_identity_uuid_v4_v1(p_document_uid);
   v_client_tx_id:=public.point4_identity_uuid_v4_v1(p_client_tx_id);
@@ -448,13 +459,22 @@ begin
   if v_web.status<>'pending' then
     raise exception 'لا يمكن إلغاء الطلب في حالته الحالية';
   end if;
-  -- Point4: freeze the complete affected product set read-only, then guard ALL before commitment.
+  -- Point4: materialize the complete affected item evidence once, then guard ALL
+  -- product identities from that immutable in-transaction value.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',wi.id,'product_id',wi.product_id,'product_name',wi.product_name,
+    'quantity',wi.quantity,'unit_price',wi.unit_price,
+    'unit_cost_snapshot',wi.unit_cost_snapshot,'line_subtotal',wi.line_subtotal,
+    'notes',wi.notes) order by wi.id),'[]'::jsonb)
+    into v_frozen_items
+    from public.retail_website_order_items wi
+   where wi.retail_website_order_id=v_web.id;
+
   for v_guard_product_id in
-    select distinct wi.product_id
-      from public.retail_website_order_items wi
-     where wi.retail_website_order_id=v_web.id
-       and wi.product_id is not null
-     order by wi.product_id
+    select distinct (x->>'product_id')::bigint
+      from jsonb_array_elements(v_frozen_items) x
+     where nullif(x->>'product_id','') is not null
+     order by 1
   loop
     perform public.inventory_stock_assert_legacy_write_allowed_v2(
       v_web.branch_id,'product',v_guard_product_id
@@ -527,6 +547,7 @@ declare
   v_web public.retail_website_orders%rowtype;
   v_result jsonb;
   v_guard_product_id bigint;
+  v_frozen_items jsonb;
 begin
   v_document_uid:=public.point4_identity_uuid_v4_v1(p_document_uid);
 
@@ -609,13 +630,22 @@ begin
     raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IDEMPOTENCY_CONFLICT';
   end if;
 
-  -- Point4: freeze the complete affected product set read-only, then guard ALL before commitment.
+  -- Point4: materialize the complete affected item evidence once, then guard ALL
+  -- product identities from that immutable in-transaction value.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',wi.id,'product_id',wi.product_id,'product_name',wi.product_name,
+    'quantity',wi.quantity,'unit_price',wi.unit_price,
+    'unit_cost_snapshot',wi.unit_cost_snapshot,'line_subtotal',wi.line_subtotal,
+    'notes',wi.notes) order by wi.id),'[]'::jsonb)
+    into v_frozen_items
+    from public.retail_website_order_items wi
+   where wi.retail_website_order_id=v_web.id;
+
   for v_guard_product_id in
-    select distinct wi.product_id
-      from public.retail_website_order_items wi
-     where wi.retail_website_order_id=v_web.id
-       and wi.product_id is not null
-     order by wi.product_id
+    select distinct (x->>'product_id')::bigint
+      from jsonb_array_elements(v_frozen_items) x
+     where nullif(x->>'product_id','') is not null
+     order by 1
   loop
     perform public.inventory_stock_assert_legacy_write_allowed_v2(
       v_web.branch_id,'product',v_guard_product_id
@@ -692,6 +722,7 @@ declare
   v_emp bigint;
   v_result jsonb;
   v_guard_product_id bigint;
+  v_frozen_items jsonb;
 begin
   v_document_uid:=public.point4_identity_uuid_v4_v1(p_document_uid);
   v_client_tx_id:=public.point4_identity_uuid_v4_v1(p_client_tx_id);
@@ -796,13 +827,22 @@ begin
     raise exception 'لا يمكن رفض الطلب في حالته الحالية';
   end if;
 
-  -- Point4: freeze the complete affected product set read-only, then guard ALL before commitment.
+  -- Point4: materialize the complete affected item evidence once, then guard ALL
+  -- product identities from that immutable in-transaction value.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',wi.id,'product_id',wi.product_id,'product_name',wi.product_name,
+    'quantity',wi.quantity,'unit_price',wi.unit_price,
+    'unit_cost_snapshot',wi.unit_cost_snapshot,'line_subtotal',wi.line_subtotal,
+    'notes',wi.notes) order by wi.id),'[]'::jsonb)
+    into v_frozen_items
+    from public.retail_website_order_items wi
+   where wi.retail_website_order_id=v_web.id;
+
   for v_guard_product_id in
-    select distinct wi.product_id
-      from public.retail_website_order_items wi
-     where wi.retail_website_order_id=v_web.id
-       and wi.product_id is not null
-     order by wi.product_id
+    select distinct (x->>'product_id')::bigint
+      from jsonb_array_elements(v_frozen_items) x
+     where nullif(x->>'product_id','') is not null
+     order by 1
   loop
     perform public.inventory_stock_assert_legacy_write_allowed_v2(
       v_web.branch_id,'product',v_guard_product_id
