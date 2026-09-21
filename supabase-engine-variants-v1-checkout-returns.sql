@@ -260,6 +260,7 @@ declare
   v_branch bigint;
   v_emp bigint;
   v_row record;
+  v_frozen_items jsonb:='[]'::jsonb;
   v_balance public.retail_inventory_balances%rowtype;
   v_variant_balance public.retail_variant_inventory_balances%rowtype;
   v_new_balance numeric(14,3);
@@ -276,83 +277,105 @@ begin
   if not public.has_branch_access(v_branch) then raise exception 'ليس لديك صلاحية لهذا الفرع'; end if;
   v_emp:=public.current_employee_id();
 
+  -- Point 4 #7: freeze the exact original stock identity for every returned line.
+  -- A line is owned by its original variant when present, otherwise by its product.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'item_kind',q.item_kind,
+           'item_id',q.item_id,
+           'qty',q.qty,
+           'unit_cost',q.unit_cost,
+           'track_inventory',case when q.item_kind='variant'
+                                  then coalesce(vb.track_inventory,true)
+                                  else coalesce(pb.track_inventory,true) end
+         ) order by q.item_kind,q.item_id),'[]'::jsonb)
+    into v_frozen_items
+    from (
+      select case when oi.variant_id is not null then 'variant' else 'product' end item_kind,
+             coalesce(oi.variant_id,oi.product_id) item_id,
+             round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+             round(avg(coalesce(oi.cost,0)),4) unit_cost
+        from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
+        join public.order_items oi
+          on oi.id=nullif(x->>'order_item_id','')::bigint
+         and oi.order_id=p_order_id
+       where coalesce(oi.variant_id,oi.product_id) is not null
+       group by case when oi.variant_id is not null then 'variant' else 'product' end,
+                coalesce(oi.variant_id,oi.product_id)
+    ) q
+    left join public.retail_inventory_balances pb
+      on q.item_kind='product' and pb.branch_id=v_branch and pb.product_id=q.item_id
+    left join public.retail_variant_inventory_balances vb
+      on q.item_kind='variant' and vb.branch_id=v_branch and vb.variant_id=q.item_id;
+
+  -- Guard the complete mixed ownership set before the financial return commits.
+  for v_row in
+    select *
+      from jsonb_to_recordset(v_frozen_items)
+        as x(item_kind text,item_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.item_kind,x.item_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,v_row.item_kind,v_row.item_id);
+  end loop;
+
   -- Proven financial return creation remains source of truth.
   v_return_id:=public.create_order_return_idempotent(
     p_order_id,p_reason,p_notes,p_items,p_payments,v_key
   );
 
-  -- Restore parent-product stock only for original non-variant lines.
+  -- Restore stock from the exact frozen mixed identity set.
   for v_row in
-    select oi.product_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty,
-           round(avg(coalesce(oi.cost,0)),4) as unit_cost
-    from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
-    join public.order_items oi
-      on oi.id=nullif(x->>'order_item_id','')::bigint
-     and oi.order_id=p_order_id
-    where oi.product_id is not null and oi.variant_id is null
-    group by oi.product_id
-    order by oi.product_id
+    select *
+      from jsonb_to_recordset(v_frozen_items)
+        as x(item_kind text,item_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.item_kind,x.item_id
   loop
-    insert into public.retail_inventory_balances(branch_id,product_id,quantity)
-    values(v_branch,v_row.product_id,0)
-    on conflict(branch_id,product_id) do nothing;
+    if v_row.item_kind='product' then
+      insert into public.retail_inventory_balances(branch_id,product_id,quantity)
+      values(v_branch,v_row.item_id,0)
+      on conflict(branch_id,product_id) do nothing;
 
-    select * into v_balance
-    from public.retail_inventory_balances
-    where branch_id=v_branch and product_id=v_row.product_id
-    for update;
-    if not v_balance.track_inventory then continue; end if;
+      select * into v_balance
+      from public.retail_inventory_balances
+      where branch_id=v_branch and product_id=v_row.item_id
+      for update;
+      if not v_row.track_inventory then continue; end if;
 
-    v_new_balance:=round(v_balance.quantity+v_row.qty,3);
-    update public.retail_inventory_balances
-    set quantity=v_new_balance,updated_at=now()
-    where branch_id=v_branch and product_id=v_row.product_id;
+      v_new_balance:=round(v_balance.quantity+v_row.qty,3);
+      update public.retail_inventory_balances
+      set quantity=v_new_balance,updated_at=now()
+      where branch_id=v_branch and product_id=v_row.item_id;
 
-    insert into public.retail_inventory_movements(
-      branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,
-      reference_type,reference_id,client_tx_id,employee_id
-    ) values(
-      v_branch,v_row.product_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
-      'return',v_return_id::text,v_key,v_emp
-    );
-  end loop;
+      insert into public.retail_inventory_movements(
+        branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,
+        reference_type,reference_id,client_tx_id,employee_id
+      ) values(
+        v_branch,v_row.item_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
+        'return',v_return_id::text,v_key,v_emp
+      );
+    else
+      insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
+      values(v_branch,v_row.item_id,0)
+      on conflict(branch_id,variant_id) do nothing;
 
-  -- Restore exact original variant stock.
-  for v_row in
-    select oi.variant_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty,
-           round(avg(coalesce(oi.cost,0)),4) as unit_cost
-    from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
-    join public.order_items oi
-      on oi.id=nullif(x->>'order_item_id','')::bigint
-     and oi.order_id=p_order_id
-    where oi.variant_id is not null
-    group by oi.variant_id
-    order by oi.variant_id
-  loop
-    insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
-    values(v_branch,v_row.variant_id,0)
-    on conflict(branch_id,variant_id) do nothing;
+      select * into v_variant_balance
+      from public.retail_variant_inventory_balances
+      where branch_id=v_branch and variant_id=v_row.item_id
+      for update;
+      if not v_row.track_inventory then continue; end if;
 
-    select * into v_variant_balance
-    from public.retail_variant_inventory_balances
-    where branch_id=v_branch and variant_id=v_row.variant_id
-    for update;
-    if not v_variant_balance.track_inventory then continue; end if;
+      v_new_balance:=round(v_variant_balance.quantity+v_row.qty,3);
+      update public.retail_variant_inventory_balances
+      set quantity=v_new_balance,updated_at=now()
+      where branch_id=v_branch and variant_id=v_row.item_id;
 
-    v_new_balance:=round(v_variant_balance.quantity+v_row.qty,3);
-    update public.retail_variant_inventory_balances
-    set quantity=v_new_balance,updated_at=now()
-    where branch_id=v_branch and variant_id=v_row.variant_id;
-
-    insert into public.retail_variant_inventory_movements(
-      branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,
-      reference_type,reference_id,client_tx_id,employee_id
-    ) values(
-      v_branch,v_row.variant_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
-      'return',v_return_id::text,v_key,v_emp
-    );
+      insert into public.retail_variant_inventory_movements(
+        branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,
+        reference_type,reference_id,client_tx_id,employee_id
+      ) values(
+        v_branch,v_row.item_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
+        'return',v_return_id::text,v_key,v_emp
+      );
+    end if;
   end loop;
 
   return v_return_id;
