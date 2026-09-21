@@ -239,6 +239,7 @@ declare
   v_branch bigint;
   v_emp bigint;
   v_row record;
+  v_frozen_items jsonb:='[]'::jsonb;
   v_balance public.retail_inventory_balances%rowtype;
   v_new_balance numeric(14,3);
 begin
@@ -253,21 +254,48 @@ begin
   if not public.has_branch_access(v_branch) then raise exception 'ليس لديك صلاحية لهذا الفرع'; end if;
   v_emp:=public.current_employee_id();
 
+  -- Point 4 #5: freeze every return product identity and its stock execution evidence
+  -- before the nested return workflow makes its first durable commitment.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'product_id',q.product_id,
+           'qty',q.qty,
+           'unit_cost',q.unit_cost,
+           'track_inventory',coalesce(b.track_inventory,true)
+         ) order by q.product_id),'[]'::jsonb)
+    into v_frozen_items
+    from (
+      select oi.product_id,
+             round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+             round(avg(coalesce(oi.cost,0)),4) unit_cost
+        from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
+        join public.order_items oi on oi.id=nullif(x->>'order_item_id','')::bigint and oi.order_id=p_order_id
+       where oi.product_id is not null
+       group by oi.product_id
+    ) q
+    left join public.retail_inventory_balances b
+      on b.branch_id=v_branch and b.product_id=q.product_id;
+
+  -- Guard the complete product ownership set, including currently-untracked products:
+  -- item policy can change independently, so excluding them would leave an unguarded owner.
+  for v_row in
+    select distinct x.product_id
+      from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.product_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,'product',v_row.product_id);
+  end loop;
+
   v_return_id:=public.create_order_return_idempotent(p_order_id,p_reason,p_notes,p_items,p_payments,v_key);
 
   for v_row in
-    select oi.product_id, round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
-           round(avg(coalesce(oi.cost,0)),4) unit_cost
-      from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
-      join public.order_items oi on oi.id=nullif(x->>'order_item_id','')::bigint and oi.order_id=p_order_id
-     where oi.product_id is not null
-     group by oi.product_id
-     order by oi.product_id
+    select *
+      from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.product_id
   loop
     insert into public.retail_inventory_balances(branch_id,product_id,quantity)
       values(v_branch,v_row.product_id,0) on conflict(branch_id,product_id) do nothing;
     select * into v_balance from public.retail_inventory_balances where branch_id=v_branch and product_id=v_row.product_id for update;
-    if not v_balance.track_inventory then continue; end if;
+    if not v_row.track_inventory then continue; end if;
     v_new_balance:=round(v_balance.quantity+v_row.qty,3);
     update public.retail_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and product_id=v_row.product_id;
     insert into public.retail_inventory_movements(branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
