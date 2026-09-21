@@ -164,6 +164,7 @@ declare
   v_result jsonb;
   v_existing_order_id bigint;
   v_row record;
+  v_frozen_items jsonb:='[]'::jsonb;
   v_balance public.retail_inventory_balances%rowtype;
   v_new_balance numeric(14,3);
 begin
@@ -181,38 +182,59 @@ begin
   select coalesce(allow_negative_stock,false) into v_allow_negative from public.retail_inventory_settings where branch_id=v_branch;
   if not found then v_allow_negative:=false; end if;
 
-  -- Lock and validate every tracked product before creating the invoice.
+  -- Point 4 #6: freeze every product identity and the stock evidence once.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'product_id',q.product_id,
+           'qty',q.qty,
+           'unit_cost',q.unit_cost,
+           'track_inventory',coalesce(b.track_inventory,true),
+           'balance_quantity',coalesce(b.quantity,0)
+         ) order by q.product_id),'[]'::jsonb)
+    into v_frozen_items
+    from (
+      select nullif(x->>'product_id','')::bigint product_id,
+             round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+             round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost
+        from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
+       where nullif(x->>'product_id','') is not null
+       group by nullif(x->>'product_id','')::bigint
+    ) q
+    left join public.retail_inventory_balances b
+      on b.branch_id=v_branch and b.product_id=q.product_id;
+
+  -- Guard the complete ownership set before balance initialization or invoice creation.
   for v_row in
-    select nullif(x->>'product_id','')::bigint product_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty
-    from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
-    where nullif(x->>'product_id','') is not null
-    group by nullif(x->>'product_id','')::bigint
-    order by nullif(x->>'product_id','')::bigint
+    select x.product_id
+      from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric)
+     order by x.product_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,'product',v_row.product_id);
+  end loop;
+
+  -- Preserve legacy balance initialization, but only after every ownership guard passed.
+  for v_row in
+    select *
+      from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric)
+     order by x.product_id
   loop
     insert into public.retail_inventory_balances(branch_id,product_id,quantity)
       values(v_branch,v_row.product_id,0) on conflict(branch_id,product_id) do nothing;
     select * into v_balance from public.retail_inventory_balances where branch_id=v_branch and product_id=v_row.product_id for update;
-    if v_balance.track_inventory and not v_allow_negative and v_balance.quantity < v_row.qty then
-      raise exception 'المخزون غير كافٍ للصنف % — المتاح %', v_row.product_id, v_balance.quantity;
+    if v_row.track_inventory and not v_allow_negative and v_row.balance_quantity < v_row.qty then
+      raise exception 'المخزون غير كافٍ للصنف % — المتاح %', v_row.product_id, v_row.balance_quantity;
     end if;
   end loop;
 
   -- Existing proven checkout remains the source of truth for invoice/payment creation.
-  -- Because this call is inside the same outer transaction, any inventory failure rolls the sale back too.
   v_result:=public.create_pos_order_atomic(p_order,p_items,p_payments);
 
   for v_row in
-    select nullif(x->>'product_id','')::bigint product_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
-           round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost
-    from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
-    where nullif(x->>'product_id','') is not null
-    group by nullif(x->>'product_id','')::bigint
-    order by nullif(x->>'product_id','')::bigint
+    select *
+      from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric)
+     order by x.product_id
   loop
     select * into v_balance from public.retail_inventory_balances where branch_id=v_branch and product_id=v_row.product_id for update;
-    if not v_balance.track_inventory then continue; end if;
+    if not v_row.track_inventory then continue; end if;
     v_new_balance:=round(v_balance.quantity-v_row.qty,3);
     update public.retail_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and product_id=v_row.product_id;
     insert into public.retail_inventory_movements(branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
