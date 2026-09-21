@@ -29,7 +29,7 @@ jobs:
       - name: Install minimum compile stubs
         run: |
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
-          create schema if not exists auth;
+          create schema if not exists auth;\n          create role anon; create role authenticated;
           create function auth.uid() returns uuid language sql as $$select null::uuid$$;
           create table public.retail_website_orders(id bigint,public_order_code text,customer_phone text,branch_id bigint,status text,accepted_order_id bigint,reservation_expires_at timestamptz,reservation_key text,order_type text,payment_method_code text,subtotal numeric,offer_discount numeric,delivery_fee numeric,total numeric,customer_name text,customer_address text,delivery_zone_id bigint,customer_notes text,payment_status text,payment_reference text,accepted_by_employee_id bigint,accepted_at timestamptz,cancelled_at timestamptz,rejected_at timestamptz,updated_at timestamptz);
           create table public.retail_website_order_items(id bigint,retail_website_order_id bigint,product_id bigint,product_name text,quantity numeric,unit_price numeric,unit_cost_snapshot numeric,line_subtotal numeric,notes text);
