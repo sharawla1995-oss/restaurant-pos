@@ -9,7 +9,7 @@ returns jsonb
 language plpgsql security definer set search_path=public as $$
 declare
   v_key text:=substr(md5(coalesce(p_run_id,'')),1,12);
-  v_wh bigint;v_br bigint;v_product bigint;v_residue bigint:=0;
+  v_wh bigint;v_br bigint;v_product bigint;v_balance_identity record;v_residue bigint:=0;
 begin
   if auth.uid() is null or not public.is_admin() then raise exception 'Beta55 acceptance cleanup للمدير فقط';end if;
   if coalesce(p_run_id,'') !~ '^ACC-' then raise exception 'Acceptance run id غير صالح';end if;
@@ -17,6 +17,25 @@ begin
   select id into v_wh from public.branches where location_code='ACC55-WH-'||v_key order by id desc limit 1;
   select id into v_br from public.branches where location_code='ACC55-BR-'||v_key order by id desc limit 1;
   select id into v_product from public.products where barcode='ACC55-'||v_key order by id desc limit 1;
+
+  -- Point 4 #39: freeze exactly the balance identities this cleanup can delete,
+  -- then guard every tuple before the first destructive DML.
+  for v_balance_identity in
+    select distinct b.branch_id,b.product_id
+    from public.retail_inventory_balances b
+    where (
+      v_product is not null
+      and (b.product_id=v_product or b.branch_id in (v_wh,v_br))
+    ) or (
+      v_product is null
+      and b.branch_id in (v_wh,v_br)
+    )
+    order by b.branch_id,b.product_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(
+      v_balance_identity.branch_id,'product',v_balance_identity.product_id
+    );
+  end loop;
 
   delete from public.audit_logs a
    where (v_wh is not null and a.branch_id=v_wh)
