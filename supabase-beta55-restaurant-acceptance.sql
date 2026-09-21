@@ -78,6 +78,7 @@ declare
   v_floors bigint[]:=array[]::bigint[];
   v_tables bigint[]:=array[]::bigint[];
   v_shifts bigint[]:=array[]::bigint[];
+  v_stock_identity record;
   v_residue int:=0;
 begin
   if auth.uid() is null then raise exception 'ACCEPTANCE_AUTH_REQUIRED'; end if;
@@ -103,6 +104,22 @@ begin
   select coalesce(array_agg(id),array[]::bigint[]) into v_floors from public.restaurant_floors where name=v_marker;
   select coalesce(array_agg(id),array[]::bigint[]) into v_tables from public.restaurant_tables where code=v_run||'-B55R-T1';
   select coalesce(array_agg(id),array[]::bigint[]) into v_shifts from public.shifts where client_open_tx_id=v_run||'-B55R-SHIFT';
+
+  -- Point 4 #38: freeze the complete historical physical-stock identity set
+  -- before any destructive cleanup can erase its evidence. Writer provenance
+  -- proves every committed acceptance stock effect leaves stock_movements.
+  -- Guard every frozen branch/ingredient identity before the first mutation.
+  for v_stock_identity in
+    select distinct sm.branch_id,sm.ingredient_id
+    from public.stock_movements sm
+    where sm.ingredient_id=any(v_ingredients)
+      and sm.branch_id is not null
+    order by sm.branch_id,sm.ingredient_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(
+      v_stock_identity.branch_id,'ingredient',v_stock_identity.ingredient_id
+    );
+  end loop;
 
   delete from public.restaurant_table_session_orders where session_id=any(v_sessions) or order_id=any(v_orders);
   delete from public.restaurant_table_sessions where id=any(v_sessions);
