@@ -313,7 +313,12 @@ begin
      set status='consumed'
    where website_order_id=v_web.id
      and reservation_key=v_web.reservation_key
-     and status='active';
+     and status='active'
+     and product_id in (
+       select distinct (x->>'product_id')::bigint
+         from jsonb_array_elements(v_frozen_items) x
+        where nullif(x->>'product_id','') is not null
+     );
 
   update public.retail_website_orders
      set status='accepted',
@@ -510,7 +515,12 @@ begin
      set status='released'
    where website_order_id=v_web.id
      and reservation_key=v_web.reservation_key
-     and status='active';
+     and status='active'
+     and product_id in (
+       select distinct (x->>'product_id')::bigint
+         from jsonb_array_elements(v_frozen_items) x
+        where nullif(x->>'product_id','') is not null
+     );
   v_result:=jsonb_build_object(
     'ok',true,
     'document_uid',v_document_uid,
@@ -681,7 +691,12 @@ begin
      set status='expired'
    where website_order_id=v_web.id
      and reservation_key=v_web.reservation_key
-     and status='active';
+     and status='active'
+     and product_id in (
+       select distinct (x->>'product_id')::bigint
+         from jsonb_array_elements(v_frozen_items) x
+        where nullif(x->>'product_id','') is not null
+     );
 
   v_result:=jsonb_build_object(
     'ok',true,
@@ -883,7 +898,12 @@ begin
      set status='released'
    where website_order_id=v_web.id
      and reservation_key=v_web.reservation_key
-     and status='active';
+     and status='active'
+     and product_id in (
+       select distinct (x->>'product_id')::bigint
+         from jsonb_array_elements(v_frozen_items) x
+        where nullif(x->>'product_id','') is not null
+     );
   v_result:=jsonb_build_object(
     'ok',true,
     'document_uid',v_document_uid,
