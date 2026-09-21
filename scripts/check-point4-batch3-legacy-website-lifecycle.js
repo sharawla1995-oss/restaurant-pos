@@ -20,7 +20,8 @@ for(let i=0;i<starts.length;i++){
  guards++;
  const firstWeb=x.indexOf('update public.retail_website_orders',freeze);
  if(firstWeb<0||guard>firstWeb)die(name+':guard-not-before-first-website-commitment');
- const freezeStatementEnd=x.indexOf(';',freeze);\n const afterFreeze=x.slice(freezeStatementEnd+1);
+ const freezeStatementEnd=x.indexOf(';',freeze);
+ const afterFreeze=x.slice(freezeStatementEnd+1);
  const direct=[...afterFreeze.matchAll(/\b(?:from|join)\s+public\.retail_website_order_items\b/gi)];
  if(direct.length)die(name+':item-rediscovery='+direct.length);
  const res=x.indexOf('update public.retail_stock_reservations',guard);
