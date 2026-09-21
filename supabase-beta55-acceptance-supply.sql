@@ -111,15 +111,21 @@ begin
   v_clean:=public.sharawla_beta55_supply_acceptance_cleanup_v1(p_run_id);
   if coalesce((v_clean->>'residue')::bigint,0)<>0 then raise exception 'تعذر تنظيف Fixture سابق';end if;
 
+  -- Point 4 #40: allocate the complete new ownership identity before
+  -- the first durable fixture write, then guard both product locations.
   v_wh:=nextval('public.branches_id_seq');
+  v_br:=nextval('public.branches_id_seq');
+  v_product:=nextval('public.products_id_seq');
+
+  perform public.inventory_stock_assert_legacy_write_allowed_v2(v_wh,'product',v_product);
+  perform public.inventory_stock_assert_legacy_write_allowed_v2(v_br,'product',v_product);
+
   insert into public.branches(id,name,active,website_visible,website_orders_enabled,location_type,location_code)
   values(v_wh,'ACC55 Warehouse '||v_key,true,false,false,'central_warehouse','ACC55-WH-'||v_key);
 
-  v_br:=nextval('public.branches_id_seq');
   insert into public.branches(id,name,active,website_visible,website_orders_enabled,location_type,location_code)
   values(v_br,'ACC55 Branch '||v_key,true,false,false,'branch','ACC55-BR-'||v_key);
 
-  v_product:=nextval('public.products_id_seq');
   insert into public.products(id,name,price,cost,barcode,active,website_visible)
   values(v_product,'ACC55 Supply Product '||v_key,25,10,'ACC55-'||v_key,true,false);
 
