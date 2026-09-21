@@ -720,10 +720,39 @@ This architecture does NOT create an 18th roadmap point.
 
 ## EXACT NEXT STEP — AUTHORITATIVE
 
-**Point 3, Point 4B-1, Point 4B-2, and Point 4B-3A are CLOSED. Point 4B-3B and Point 4B-4 are SOURCE-ALIGNED / STATIC-CI PASS but remain NOT DEPLOYED / NOT EXECUTED / NOT ACTIVATED. Point 4C-1 transfer, Point 4D-1 Purchasing/AP, Point 4E-1 Financial Journal, and Point 4F-1 reconciliation source are complete locally but NOT DEPLOYED / NOT CONNECTED / NOT RUNTIME ACCEPTED.**
+**POINT 4 — PRE-CUTOVER 46 GUARD INSTALLATION — OFFICIAL CHECKPOINT**
 
-Exact next step:
+- Pre-Implementation Evidence Gate = **CLOSED / PASS** for all 46 contracts.
+- Contract set = **46/46 Evidence-Complete**: 40 Direct Legacy writer boundaries + 6 Document Workflow barriers.
+- Current accepted Source Implementation = **0/46**.
+- Batch 1 covers 9 insertion-only functions: 6 Legacy guards + 3 Document Workflow guards.
+- Original Batch 1 commit `7a17ac92c651f216113903569c039b20dcbbda25` was **FAIL / STOP for Source Validity** because duplicated DML fragments produced malformed SQL. Its coverage/guard placement evidence does not make it an accepted implementation.
+- Batch 1 corrective commit `a08fc8aaadf1760444e31b6c87ee9cb950b286b6` removed only the discovered duplicated DML fragments.
+- Corrective Diff Gate = **PASS**: the corrective diff is duplication/syntax cleanup only; no guard movement, business-logic redesign, signature change, Cutover/Canonical activation, or Transitive change was introduced.
+- Obvious malformed-DML static scan after the corrective = **PASS**: the known `INSERT ... INSERT`, `UPDATE ... UPDATE`, and malformed `INSERT ... IF ... INSERT` patterns are absent.
+- Static coverage after the corrective remains: exact functions **9/9**, Legacy guard references **6/6**, Document Workflow guard references **3/3**, with no Cutover/Canonical activation.
+- These static checks are **NOT** a Full PostgreSQL Source-Validity proof.
+- PostgreSQL Parse/Compile Proof = **NOT ESTABLISHED / OPEN**. Batch 1 therefore remains **UNACCEPTED** and must not be counted as 9/46 yet.
+- Preliminary Batch 2 commit `80596e05f0b8afbee11c1c45a9cabdb0fc293442` is **BLOCKED / UNACCEPTED BY BATCH 1**. Do not infer that Batch 2 is correct or incorrect; do not count or review it for acceptance until Batch 1 closes.
+- Beta/Supabase writes for this 46-guard remediation stage = **0**.
+- Final Runtime61 = **STOP**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- SH-0005, SH-0006, Top Burger Production = **UNTOUCHED / READ-ONLY**.
 
-Point 4B-2 genuine committed concurrency is CLOSED / PASS by disposable PostgreSQL 16 GitHub Actions evidence at `716f192f1bd7a664fae884e15fb98ea0c9bc8fa1`. The source evidence gate now reflects CLOSED/PASS, and the 4B-3B / 4B-4 static checkers are aligned with that state. GitHub Actions runs 91 and 92 passed for the updated 4B-3B and 4B-4 checkers. 4B-3B cutover and 4B-4 hook activation are still NOT deployed or executed. Before any deployment or runtime switch, perform an explicit deployment preflight for 4B-3B/4B-4 on the isolated Beta environment only, preserving SH-0005, SH-0006, Top Burger, Production, Offline ownership, Licensing, Canonical Fingerprint, and Business Connection as untouched/read-only boundaries. Identity V1 remains NOT DEPLOYED / NOT RUNTIME ACCEPTED, and the AP contract still requires a future durable runtime resolver before adapter acceptance.
+### Exact next execution step
+
+Run a **Disposable PostgreSQL Compile Gate** isolated completely from Beta and Production:
+
+1. Provision a local/ephemeral/disposable PostgreSQL environment.
+2. Load only the minimum real schema/dependencies or precise stubs needed by the nine definitions.
+3. Load the nine `CREATE OR REPLACE FUNCTION` definitions **verbatim from corrective commit `a08fc8aa...`**.
+4. Require **9/9 CREATE/compile success**. Distinguish a missing/inaccurate test dependency or stub from an actual source/syntax defect; do not modify production source merely because the disposable environment lacks an object.
+5. Inspect `pg_get_functiondef` for all nine compiled functions and verify the expected definitions were created.
+6. Re-run the final semantic/boundary checker: exact signatures 9/9, Legacy guards 6/6, Document guards 3/3, guards at the frozen approved boundaries, and no Cutover/Canonical/Transitive or unrelated changes.
+7. PostgreSQL CREATE/compile success proves the definitions can be accepted by PostgreSQL in that environment; it **does not prove runtime/business behavior** because PL/pgSQL can defer resolution of some references until execution.
+8. Only if all of the above PASS may the checkpoint change to **Batch 1 = ACCEPTED / PASS; Accepted Source Implementation = 9/46**.
+9. Only after that may Batch 2 `80596e05...` be opened and reviewed independently from zero.
+
+Until this gate closes: **Accepted Source Implementation = 0/46; Batch 1 UNACCEPTED; Batch 2 BLOCKED; Beta Write = 0; Production untouched.**
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
