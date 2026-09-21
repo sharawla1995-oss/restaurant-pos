@@ -1,0 +1,65 @@
+name: Point4 Batch6 Semantic and PostgreSQL Compile Gate
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql'
+      - 'scripts/check-point4-batch6-retail-purchasing-product-only.js'
+      - '.github/workflows/point4-batch6-postgres-compile.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGPASSWORD: postgres }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert isolation
+        run: echo "No Supabase/Beta/Production credentials are used by this workflow."
+      - name: Run semantic checker
+        run: node scripts/check-point4-batch6-retail-purchasing-product-only.js
+      - name: Install compile stubs
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create schema if not exists auth;
+          create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;
+          create function public.is_admin() returns boolean language sql as $$select true$$;
+          create function public.has_permission(text) returns boolean language sql as $$select true$$;
+          create function public.has_branch_access(bigint) returns boolean language sql as $$select true$$;
+          create function public.current_employee_id() returns bigint language sql as $$select 1::bigint$$;
+          create function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as $$begin return; end$$;
+          create table public.retail_purchase_orders(id bigint,branch_id bigint,supplier_id bigint,status text,updated_at timestamptz);
+          create table public.retail_purchase_order_items(id bigint,purchase_order_id bigint,product_id bigint,quantity_received numeric,quantity_ordered numeric,unit_cost numeric);
+          create table public.retail_goods_receipts(id bigserial,purchase_order_id bigint,branch_id bigint,supplier_id bigint,client_tx_id text,created_by_employee_id bigint);
+          create table public.retail_goods_receipt_items(goods_receipt_id bigint,purchase_order_item_id bigint,product_id bigint,quantity numeric,unit_cost numeric);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,last_purchase_cost numeric,updated_at timestamptz);
+          create unique index on public.retail_inventory_balances(branch_id,product_id);
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create table public.retail_suppliers(id bigint,active boolean);
+          create table public.retail_supplier_returns(id bigserial,branch_id bigint,supplier_id bigint,notes text,client_tx_id text,created_by_employee_id bigint);
+          create table public.retail_supplier_return_items(supplier_return_id bigint,product_id bigint,quantity numeric,unit_cost numeric);
+          SQL
+      - name: Extract and compile definitions
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql').read_text()
+          defs=re.findall(r'(?is)(create or replace function\s+public\.(?:retail_purchase_receive|retail_supplier_return_create)\s*\(.*?end;\s*\$\$;)',s)
+          assert len(defs)==2, f'expected 2 definitions, got {len(defs)}'
+          pathlib.Path('/tmp/b6.sql').write_text('\n\n'.join(defs))
+          print('EXTRACT_COMPLETE functions=2')
+          PY
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/b6.sql
+          echo "POSTGRES_CREATE_PASS functions=2"
+      - name: Verify effective definitions
+        run: |
+          test "$(psql -h localhost -U postgres -d postgres -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('retail_purchase_receive','retail_supplier_return_create')")" = "2"
+          echo "PG_FUNCTIONS_EXIST=2"
