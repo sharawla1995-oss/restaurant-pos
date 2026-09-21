@@ -162,11 +162,29 @@ jobs:
           import re, pathlib
           p=pathlib.Path("supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql")
           s=p.read_text()
-          parts=re.findall(r'(CREATE OR REPLACE FUNCTION[\s\S]*?\$function\$)',s,re.I)
+          starts=[m.start() for m in re.finditer(r'(?im)^CREATE OR REPLACE FUNCTION\\s+',s)]
+          if len(starts)!=9:
+              raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: expected 9 function starts, found {len(starts)}")
+          parts=[]
+          for i,start in enumerate(starts):
+              stop=starts[i+1] if i+1 < len(starts) else len(s)
+              block=s[start:stop]
+              delimiters=list(re.finditer(r'\\$function\\$',block,re.I))
+              if len(delimiters)!=2:
+                  raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} expected exactly 2 $function$ delimiters, found {len(delimiters)}")
+              close=delimiters[1].end()
+              part=block[:close]
+              if not re.search(r'\\bAS\\s+\\$function\\$',part,re.I):
+                  raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing AS $function$ opening delimiter")
+              if not part.rstrip().endswith("$function$"):
+                  raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing closing delimiter")
+              parts.append(part)
           if len(parts)!=9:
-              raise SystemExit(f"SOURCE_DEFECT: expected 9 function definitions, found {len(parts)}")
+              raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: expected 9 complete definitions, found {len(parts)}")
           for i,part in enumerate(parts,1):
-              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\n")
+              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\\n")
+              print(f"EXTRACT_SUCCESS function={i} delimiters=2 bytes={len(part.encode())}")
+          print("EXTRACT_COMPLETE functions=9")
           PY
           overall=0
           for i in $(seq 1 9); do
