@@ -144,7 +144,7 @@
     },
     {
       "id": 10,
-      "signature": "food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text)",
+      "signature": "food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text,bigint,text)",
       "classification": "DIRECT_PHYSICAL_WRITER",
       "required_guard": "inventory_stock_assert_legacy_write_allowed_v2",
       "provenance": "p_branch_id + p_ingredient_id",
