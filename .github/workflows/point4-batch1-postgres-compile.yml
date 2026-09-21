@@ -169,12 +169,12 @@ jobs:
           for i,start in enumerate(starts):
               stop=starts[i+1] if i+1 < len(starts) else len(s)
               block=s[start:stop]
-              delimiters=list(re.finditer(r'\$function\$',block,re.I))
+              delimiters=list(re.finditer(r'\$function\,block,re.I))
               if len(delimiters)!=2:
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} expected exactly 2 $function$ delimiters, found {len(delimiters)}")
               close=delimiters[1].end()
               part=block[:close]
-              if not re.search(r'\bAS\s+\$function\$',part,re.I):
+              if not re.search(r'\bAS\s+\$function\,part,re.I):
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing AS $function$ opening delimiter")
               if not part.rstrip().endswith("$function$"):
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing closing delimiter")
@@ -182,7 +182,7 @@ jobs:
           if len(parts)!=9:
               raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: expected 9 complete definitions, found {len(parts)}")
           for i,part in enumerate(parts,1):
-              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\n")
+              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\\n")
               print(f"EXTRACT_SUCCESS function={i} delimiters=2 bytes={len(part.encode())}")
           print("EXTRACT_COMPLETE functions=9")
           PY
@@ -496,7 +496,111 @@ jobs:
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} expected exactly 2 $function$ delimiters, found {len(delimiters)}")
               close=delimiters[1].end()
               part=block[:close]
-              if not re.search(r'\\bAS\\s+\\$function\\$',part,re.I):
+              if not re.search(r'\bAS\s+\$function\,part,re.I):
+                  raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing AS $function$ opening delimiter")
+              if not part.rstrip().endswith("$function$"):
+                  raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing closing delimiter")
+              parts.append(part)
+          if len(parts)!=9:
+              raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: expected 9 complete definitions, found {len(parts)}")
+          for i,part in enumerate(parts,1):
+              pathlib.Path(f"/tmp/point4-fn-{i}.sql").write_text(part+";\\n")
+              print(f"EXTRACT_SUCCESS function={i} delimiters=2 bytes={len(part.encode())}")
+          print("EXTRACT_COMPLETE functions=9")
+          PY
+          overall=0
+          for i in $(seq 1 9); do
+            name=$(sed -n 's/^CREATE OR REPLACE FUNCTION public\.\([^ (]*\).*/\1/p' "/tmp/point4-fn-$i.sql" | head -1)
+            digest=$(sha256sum "/tmp/point4-fn-$i.sql" | awk '{print $1}')
+            echo "=== COMPILE FUNCTION $i/9: $name ==="
+            if psql -v ON_ERROR_STOP=1 -f "/tmp/point4-fn-$i.sql" >"/tmp/point4-fn-$i.log" 2>&1; then
+              echo "function=$i name=$name source_digest=$digest create=PASS" | tee -a point4-compile-evidence/report.txt
+            else
+              cat "/tmp/point4-fn-$i.log"
+              echo "function=$i name=$name source_digest=$digest create=FAIL classification=UNCLASSIFIED_REQUIRES_LOG_REVIEW" | tee -a point4-compile-evidence/report.txt
+              cp "/tmp/point4-fn-$i.log" point4-compile-evidence/
+              overall=1
+            fi
+          done
+          echo "create_pass_count=$(grep -c 'create=PASS' point4-compile-evidence/report.txt || true)" >> point4-compile-evidence/report.txt
+          test "$overall" -eq 0
+
+      - name: Verify 9 functions exist and capture pg_get_functiondef
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -At <<'SQL' | tee /tmp/point4-functiondefs.txt
+          select p.oid::regprocedure::text
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public'
+            and p.proname in (
+              'food_apply_ingredient_delta_internal_v1',
+              'food_ingredient_stock_adjust_v1',
+              'food_waste_post_v1',
+              'retail_inventory_adjust',
+              'retail_inventory_set_item_policy',
+              'retail_variant_inventory_adjust_v1',
+              'inventory_supply_request_cancel_v1',
+              'inventory_supply_request_prepare_v1',
+              'inventory_supply_request_submit_v1'
+            )
+          order by 1;
+          SQL
+          test "$(wc -l < /tmp/point4-functiondefs.txt)" -eq 9
+          psql -v ON_ERROR_STOP=1 -Atc "
+            select pg_get_functiondef(p.oid)
+            from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public'
+              and p.proname in (
+                'food_apply_ingredient_delta_internal_v1','food_ingredient_stock_adjust_v1',
+                'food_waste_post_v1','retail_inventory_adjust','retail_inventory_set_item_policy',
+                'retail_variant_inventory_adjust_v1','inventory_supply_request_cancel_v1',
+                'inventory_supply_request_prepare_v1','inventory_supply_request_submit_v1'
+              )
+            order by p.oid::regprocedure::text;" > /tmp/point4-pg-get-functiondef.txt
+          cp /tmp/point4-functiondefs.txt point4-compile-evidence/function-signatures.txt
+          cp /tmp/point4-pg-get-functiondef.txt point4-compile-evidence/pg-get-functiondef.txt
+          echo "existence_count=9" >> point4-compile-evidence/report.txt
+          echo "pg_get_functiondef_count=9" >> point4-compile-evidence/report.txt
+          sha256sum /tmp/point4-pg-get-functiondef.txt | awk '{print "pg_get_functiondef_bundle_sha256="$1}' >> point4-compile-evidence/report.txt
+          echo "PG_GET_FUNCTIONDEF_CAPTURED=9"
+
+      - name: Final static guard counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          f="supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+          test "$(grep -c 'CREATE OR REPLACE FUNCTION' "$f")" -eq 9
+          test "$(grep -c 'perform public.inventory_stock_assert_legacy_write_allowed_v2' "$f")" -eq 6
+          test "$(grep -c 'perform public.inventory_stock_assert_document_workflow_allowed_v2' "$f")" -eq 3
+          ! grep -Eqi 'declare_cutover|activate_cutover|CANONICAL_COMMITTED|cutover-hooks' "$f"
+          echo "guard_legacy=6/6" >> point4-compile-evidence/report.txt
+          echo "guard_document=3/3" >> point4-compile-evidence/report.txt
+          echo "cutover_canonical_activation=0" >> point4-compile-evidence/report.txt
+          echo "STATIC_COUNTS_PASS functions=9 legacy=6 document=3 activation=0"
+
+      - name: Finalize evidence on failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p point4-compile-evidence
+          echo "job_result=FAIL" >> point4-compile-evidence/report.txt
+
+      - name: Finalize evidence on success
+        if: success()
+        shell: bash
+        run: |
+          echo "job_result=PASS" >> point4-compile-evidence/report.txt
+
+      - name: Upload immutable compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: point4-batch1-postgres-compile-evidence-${{ github.sha }}
+          path: point4-compile-evidence/
+          if-no-files-found: error
+          retention-days: 90
+,part,re.I):
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing AS $function$ opening delimiter")
               if not part.rstrip().endswith("$function$"):
                   raise SystemExit(f"WORKFLOW_EXTRACTION_DEFECT: function {i+1} missing closing delimiter")
