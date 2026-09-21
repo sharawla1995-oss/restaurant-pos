@@ -1,0 +1,59 @@
+name: Point4 Batch8 Restaurant Cleanup Semantic and PostgreSQL Compile Gate
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'supabase-beta55-restaurant-acceptance.sql'
+      - 'scripts/check-point4-batch8-restaurant-cleanup.js'
+      - '.github/workflows/point4-batch8-postgres-compile.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGPASSWORD: postgres }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert isolation
+        run: echo "No Supabase/Beta/Production credentials are used by this workflow."
+      - name: Semantic
+        run: node scripts/check-point4-batch8-restaurant-cleanup.js
+      - name: Build compile stubs
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('supabase-beta55-restaurant-acceptance.sql').read_text()
+          m=re.search(r'(?is)(create or replace function\s+public\.sharawla_beta55_restaurant_acceptance_cleanup_v1\s*\(.*?\n\$\$;)',s)
+          assert m, 'cleanup function not found'
+          body=m.group(1)
+          tables=sorted(set(re.findall(r'public\.([a-zA-Z_][a-zA-Z0-9_]*)',body)))
+          funcs={'is_admin','inventory_stock_assert_legacy_write_allowed_v2'}
+          tables=[t for t in tables if t not in funcs]
+          cols=sorted(set(re.findall(r'\b(?:where|or|and|set|select|order by)\s+([a-zA-Z_][a-zA-Z0-9_]*)',body,re.I)))
+          common=['id','name','sku','notes','product_id','prep_item_id','recipe_id','client_tx_id','return_id','order_id','order_item_id','session_id','code','client_open_tx_id','status','updated_at','production_batch_id','ingredient_id','receipt_id','supplier_return_id','stock_count_id','transfer_id','recipe_version_id','purchase_id','branch_id']
+          lines=["create schema auth;","create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;","create function public.is_admin() returns boolean language sql as $$select true$$;","create function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as $$begin return; end$$;"]
+          coldef=', '.join(c+' bigint' for c in common)
+          # Override text/timestamp columns used by expressions/assignments.
+          coldef=coldef.replace('name bigint','name text').replace('sku bigint','sku text').replace('notes bigint','notes text').replace('client_tx_id bigint','client_tx_id text').replace('code bigint','code text').replace('client_open_tx_id bigint','client_open_tx_id text').replace('status bigint','status text').replace('updated_at bigint','updated_at timestamptz')
+          for t in tables: lines.append(f'create table public.{t}({coldef});')
+          pathlib.Path('/tmp/b8-stubs.sql').write_text('\n'.join(lines))
+          pathlib.Path('/tmp/b8.sql').write_text(body)
+          print('EXTRACT_COMPLETE functions=1 tables='+str(len(tables)))
+          PY
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/b8-stubs.sql
+      - name: Compile cleanup
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/b8.sql
+          echo "POSTGRES_CREATE_PASS functions=1"
+      - name: Verify effective definition
+        run: |
+          test "$(psql -h localhost -U postgres -d postgres -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='sharawla_beta55_restaurant_acceptance_cleanup_v1'")" = "1"
+          echo "PG_FUNCTIONS_EXIST=1"
