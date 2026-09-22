@@ -12,27 +12,49 @@
     {
       "id_range": "1,3,9,19",
       "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql",
-      "blob": "786380b5d9eacca6a21d1de8ff0de78893f407a2"
+      "blob": "786380b5d9eacca6a21d1de8ff0de78893f407a2",
+      "supersedes": [
+        "supabase-point4-reservation-identity-v1-contract.sql@c774a8b81479bbbf3105295f41ffad6dad86068f"
+      ]
     },
     {
       "id_range": "2,4,20",
       "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch3-legacy-website-lifecycle.sql",
-      "blob": "372a5091d70e6ee320c6ffacd95cbfa0aca06ef5"
+      "blob": "372a5091d70e6ee320c6ffacd95cbfa0aca06ef5",
+      "supersedes": [
+        "supabase-v10-5-4-beta18-retail-website-integration.sql@f3251a8f0d4aa8384c39160f7a49ae2fe8f23ee3"
+      ]
     },
     {
       "id_range": "21",
       "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch4-website-create-identity.sql",
-      "blob": "7c3328ebfee0962279ebdad5d3df83e066cad953"
+      "blob": "7c3328ebfee0962279ebdad5d3df83e066cad953",
+      "supersedes": [
+        "supabase-point4-reservation-identity-v1-contract.sql@c774a8b81479bbbf3105295f41ffad6dad86068f"
+      ]
     },
     {
       "id_range": "10,13,16,23,24,34,41,44,45",
       "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql",
-      "blob": "3da64c2ce459e71336b5c1b8e503c37a5ba82c35"
+      "blob": "3da64c2ce459e71336b5c1b8e503c37a5ba82c35",
+      "supersedes": [
+        "supabase-beta55-restaurant-operations.sql@002e76541d1ec75a09ba41e5f7a979e0bad00114",
+        "supabase-engine-recipe-basic-v1-runtime.sql@a9922634d7433925fdc977a6e9158c4b4ab75f2f",
+        "supabase-engine-recipe-advanced-v1-runtime.sql@29d4c8455c7c6f24de0e6e3993a0a5ea6cbb72ff",
+        "supabase-v10-5-4-beta15-retail-inventory-foundation.sql@f2d96d1aff7dc806cb6546ee2b62f26447b6783a",
+        "supabase-engine-variants-v1-foundation.sql@747911b955534fdaca5bb6b8c1da8f2568c8b737",
+        "supabase-beta55-central-warehouse-foundation.sql@65f20e3400939b4e230baf4449fc73fdb9ac87af",
+        "supabase-beta55-central-warehouse-visibility-shortages.sql@6231e8c5e8fd7164e1b18765f4f19526ed4223c8",
+        "supabase-beta55-central-warehouse-fulfillment.sql@6c9090547d8fa1356b8d6980e35825923f0612ee"
+      ]
     },
     {
       "id_range": "28,31",
       "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql",
-      "blob": "70514e5a72fa911e21f889e6a455e9788b3e8d85"
+      "blob": "70514e5a72fa911e21f889e6a455e9788b3e8d85",
+      "supersedes": [
+        "supabase-v10-5-4-beta16-retail-suppliers-purchasing.sql@5ebe8cf22f68821c43e6d052a3839b7cb2aaac23"
+      ]
     },
     {
       "id_range": "32,33",
@@ -65,12 +87,19 @@
     {
       "id_range": "17,18",
       "artifact": "supabase-beta55-central-warehouse-fulfillment.sql",
-      "blob": "6c9090547d8fa1356b8d6980e35825923f0612ee"
+      "blob": "6c9090547d8fa1356b8d6980e35825923f0612ee",
+      "supersedes": [
+        "supabase-beta55-central-warehouse-hardening.sql@822f7c59d4d618dfe0e60beac2e6a3f97a761d17"
+      ]
     },
     {
       "id_range": "25,27,30",
       "artifact": "supabase-point4-ft6-retail-mixed-stock.sql",
-      "blob": "3e0c4b2e65edd86bc5eda892af0ea798fb913665"
+      "blob": "3e0c4b2e65edd86bc5eda892af0ea798fb913665",
+      "supersedes": [
+        "supabase-engine-landed-cost-v1-posting.sql@1f8bbc6d5453a8570f2c13a9065d323a94c0d457",
+        "supabase-engine-purchasing-v1-1-runtime.sql@da400da9a60d46f4c05ac59b359b416e6c6774e1"
+      ]
     },
     {
       "id_range": "26,29",
@@ -115,7 +144,10 @@
     {
       "id_range": "42,43",
       "artifact": "supabase-beta55-central-warehouse-foundation.sql",
-      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af"
+      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af",
+      "supersedes": [
+        "supabase-beta55-central-warehouse-visibility-shortages.sql@6231e8c5e8fd7164e1b18765f4f19526ed4223c8"
+      ]
     },
     {
       "id_range": "46",
