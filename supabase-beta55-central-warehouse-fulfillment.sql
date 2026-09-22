@@ -232,6 +232,7 @@ declare
   v_good numeric(14,3);v_damaged numeric(14,3);v_short numeric(14,3);v_total numeric(14,3);v_remaining numeric(14,3);
   v_old_qty numeric(14,3);v_old_cost numeric(14,4);v_new_qty numeric(14,3);v_new_cost numeric(14,4);
   v_count integer:=0;
+  v_frozen_items jsonb:='[]'::jsonb;
 begin
   if auth.uid() is null then raise exception 'غير مصرح';end if;
   if not public.has_action_permission_v2('inventory.supply.request.receive') then raise exception 'ليس لديك صلاحية استلام طلبات التوريد';end if;
@@ -246,21 +247,48 @@ begin
   if v_q.status not in ('in_transit','partially_received') then raise exception 'الطلب غير قابل للاستلام في حالته الحالية';end if;
   if jsonb_typeof(coalesce(p_items,'[]'::jsonb))<>'array' or jsonb_array_length(coalesce(p_items,'[]'::jsonb))=0 then raise exception 'حدد بنود الاستلام';end if;
   v_emp:=public.current_employee_id();
+
+  -- Point4 FT-1: validate and freeze every receipt line and its destination stock identity before the receipt header.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'request_item_id',z.id,'item_type',z.item_type,'product_id',z.product_id,'ingredient_id',z.ingredient_id,
+    'good',z.good,'damaged',z.damaged,'shortage',z.shortage,'unit_cost',z.unit_cost,'notes',z.notes
+  ) order by z.item_type,coalesce(z.product_id,z.ingredient_id),z.id),'[]'::jsonb)
+  into v_frozen_items
+  from (
+    select i.id,i.item_type,i.product_id,i.ingredient_id,i.unit_cost,
+      round(greatest(coalesce(x.quantity_received,0),0),3) good,
+      round(greatest(coalesce(x.quantity_damaged,0),0),3) damaged,
+      round(greatest(coalesce(x.quantity_shortage,0),0),3) shortage,x.notes,
+      round(i.quantity_dispatched-i.quantity_received-i.quantity_damaged-i.quantity_shortage,3) remaining
+    from jsonb_to_recordset(p_items) as x(item_id bigint,quantity_received numeric,quantity_damaged numeric,quantity_shortage numeric,notes text)
+    join public.inventory_supply_request_items i on i.id=x.item_id and i.request_id=v_q.id
+  ) z
+  where z.good+z.damaged+z.shortage>0
+    and z.good+z.damaged+z.shortage<=z.remaining;
+
+  if jsonb_array_length(v_frozen_items)=0 then raise exception 'لم يتم إدخال أي كمية استلام';end if;
+  if exists(
+    select 1 from jsonb_to_recordset(p_items) as x(item_id bigint,quantity_received numeric,quantity_damaged numeric,quantity_shortage numeric,notes text)
+    left join public.inventory_supply_request_items i on i.id=x.item_id and i.request_id=v_q.id
+    where i.id is null or round(greatest(coalesce(x.quantity_received,0),0)+greatest(coalesce(x.quantity_damaged,0),0)+greatest(coalesce(x.quantity_shortage,0),0),3)
+      > round(i.quantity_dispatched-i.quantity_received-i.quantity_damaged-i.quantity_shortage,3)
+  ) then raise exception 'بيانات الاستلام غير صحيحة أو أكبر من المتبقي';end if;
+
+  for v_req in select * from jsonb_to_recordset(v_frozen_items) as x(request_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,good numeric,damaged numeric,shortage numeric,unit_cost numeric,notes text)
+               where good>0 order by item_type,coalesce(product_id,ingredient_id),request_item_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(
+      v_q.destination_branch_id,v_req.item_type,case when v_req.item_type='product' then v_req.product_id else v_req.ingredient_id end);
+  end loop;
+
   insert into public.inventory_supply_receipts(request_id,client_tx_id,is_final,notes,received_by_employee_id)
   values(v_q.id,p_client_tx_id,coalesce(p_final,false),nullif(trim(coalesce(p_note,'')),''),v_emp)
   returning id into v_receipt_id;
 
-  for v_req in select * from jsonb_to_recordset(p_items) as x(item_id bigint,quantity_received numeric,quantity_damaged numeric,quantity_shortage numeric,notes text)
+  for v_req in select * from jsonb_to_recordset(v_frozen_items) as x(request_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,good numeric,damaged numeric,shortage numeric,unit_cost numeric,notes text)
   loop
-    select * into v_i from public.inventory_supply_request_items where id=v_req.item_id and request_id=v_q.id for update;
-    if not found then raise exception 'بند الاستلام % غير موجود',v_req.item_id;end if;
-    v_good:=round(greatest(coalesce(v_req.quantity_received,0),0),3);
-    v_damaged:=round(greatest(coalesce(v_req.quantity_damaged,0),0),3);
-    v_short:=round(greatest(coalesce(v_req.quantity_shortage,0),0),3);
-    v_total:=v_good+v_damaged+v_short;
-    if v_total<=0 then continue;end if;
-    v_remaining:=round(v_i.quantity_dispatched-v_i.quantity_received-v_i.quantity_damaged-v_i.quantity_shortage,3);
-    if v_total>v_remaining then raise exception 'الكمية المستلمة أكبر من المتبقي للبند %',v_i.id;end if;
+    select * into v_i from public.inventory_supply_request_items where id=v_req.request_item_id and request_id=v_q.id for update;
+    v_good:=v_req.good;v_damaged:=v_req.damaged;v_short:=v_req.shortage;v_total:=v_good+v_damaged+v_short;
 
     insert into public.inventory_supply_receipt_items(receipt_id,request_item_id,quantity_received,quantity_damaged,quantity_shortage,notes)
     values(v_receipt_id,v_i.id,v_good,v_damaged,v_short,nullif(trim(coalesce(v_req.notes,'')),''));
