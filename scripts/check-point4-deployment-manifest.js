@@ -22,7 +22,17 @@ let unresolvedCollisions=0;
 for(const r of c.records){const name=r.signature.slice(0,r.signature.indexOf('(')).toLowerCase(),hits=[...new Set(occurrences.get(name)||[])];if(hits.length>1){const o=owners.get(r.id),registered=new Set([o&&o.artifact,...((o&&o.supersedes)||[]).map(x=>x.split('@')[0])]);const unknown=hits.filter(x=>!registered.has(x));if(unknown.length){unresolvedCollisions++;console.log('unresolved_collision_id='+r.id+' files='+unknown.join(','));}}}
 console.log('POINT4_DEPLOYMENT_COLLISION_SCAN contracts='+c.records.length+' unresolved_collisions='+unresolvedCollisions);
 
-const ok=ids.length===46&&new Set(ids).size===46&&!missing.length&&!dup.length&&!extra.length&&!badBlob&&!badFile&&!badGuard&&!guardMissing&&!definitionMissing&&!unresolvedCollisions;
+
+const plan=m.deployment_plan||[];
+let orderingViolations=0,downgrades=0,finalDefinitionMismatches=0,blobMismatches=0;
+const seenPlan=new Set();
+for(const x of plan){if(seenPlan.has(x.artifact)){orderingViolations++;console.log('duplicate_deployment_artifact='+x.artifact);}seenPlan.add(x.artifact);const o=m.known_effective_owners.find(y=>y.artifact===x.artifact);if(!o||o.blob!==x.blob){blobMismatches++;console.log('plan_blob_mismatch='+x.artifact);}}
+const finalOwner=new Map();
+for(const x of plan){const src=fs.readFileSync(x.artifact,'utf8').toLowerCase();for(const r of c.records){const o=owners.get(r.id);let name=r.signature.slice(0,r.signature.indexOf('(')).toLowerCase();if(r.id===22&&o&&o.artifact===x.artifact&&o.effective_signature_note)name='retail_create_website_order_beta18_core';if(src.includes('create or replace function public.'+name+'('))finalOwner.set(r.id,x.artifact);}}
+for(const r of c.records){const o=owners.get(r.id),win=finalOwner.get(r.id);if(win!==o.artifact){finalDefinitionMismatches++;console.log('final_definition_mismatch_id='+r.id+' expected='+o.artifact+' actual='+(win||'BASELINE_RUNTIME'));if(win&&((o.supersedes)||[]).some(z=>z.split('@')[0]===win))downgrades++;}}
+console.log('POINT4_FINAL_DEFINITION_SIMULATION contracts='+c.records.length+' deployment_artifacts='+plan.length+' blob_mismatches='+blobMismatches+' ordering_violations='+orderingViolations+' downgrades='+downgrades+' final_definition_mismatches='+finalDefinitionMismatches);
+
+const ok=ids.length===46&&new Set(ids).size===46&&!missing.length&&!dup.length&&!extra.length&&!badBlob&&!badFile&&!badGuard&&!guardMissing&&!definitionMissing&&!unresolvedCollisions&&!blobMismatches&&!orderingViolations&&!downgrades&&!finalDefinitionMismatches;
 console.log(`POINT4_DEPLOYMENT_MANIFEST_${ok?'COVERAGE_PASS':'COVERAGE_FAIL'} contracts=${c.records.length} mapped=${new Set(ids).size} missing=${missing.length} duplicates=${dup.length} extra=${extra.length} bad_blob=${badBlob} bad_file=${badFile} definition_missing=${definitionMissing} guard_missing=${guardMissing}`);
 if(missing.length)console.log('missing_ids='+missing.join(','));if(dup.length)console.log('duplicate_ids='+dup.join(','));if(definitionMissing||guardMissing)console.log('NOTE effective owner semantic/body reconciliation still required');
 if(!ok)process.exit(1);
