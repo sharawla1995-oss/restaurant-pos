@@ -1,6 +1,6 @@
 const fs=require('fs'),s=fs.readFileSync('supabase-engine-variants-v1-checkout-returns.sql','utf8'),name='create_retail_variant_pos_order_atomic_v1';
 const l=s.toLowerCase(),a=l.indexOf('create or replace function public.'+name+'('),n=l.indexOf('\ncreate or replace function public.',a+20),b=s.slice(a,n<0?s.length:n).toLowerCase();
-const replay=b.indexOf('if v_existing_order_id is not null then'),freeze=b.indexOf('into v_frozen_items'),guard=b.indexOf('inventory_stock_assert_legacy_write_allowed_v2'),first=Math.min(...['insert into public.retail_variant_inventory_balances','insert into public.retail_inventory_balances'].map(x=>{const p=b.indexOf(x);return p<0?Number.MAX_SAFE_INTEGER:p}))),invoice=b.indexOf('v_result:=public.create_pos_order_atomic'),exec=b.indexOf('execute stock deduction from the exact frozen set');
+const replay=b.indexOf('if v_existing_order_id is not null then'),freeze=b.indexOf('into v_frozen_items'),guard=b.indexOf('inventory_stock_assert_legacy_write_allowed_v2'),first=Math.min(...['insert into public.retail_variant_inventory_balances','insert into public.retail_inventory_balances'].map(x=>{const p=b.indexOf(x);return p<0?Number.MAX_SAFE_INTEGER:p})),invoice=b.indexOf('v_result:=public.create_pos_order_atomic'),exec=b.indexOf('execute stock deduction from the exact frozen set');
 const stockExec=b.slice(exec);
 const pAfterInvoice=stockExec.includes('jsonb_array_elements(p_items)');
 const frozenAfterInvoice=b.slice(invoice).includes('jsonb_to_recordset(v_frozen_items)');
