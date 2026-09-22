@@ -209,20 +209,31 @@ grant execute on function public.retail_delete_suspended_sale(bigint) to authent
 
 create or replace function public.retail_post_stock_count(p_branch_id bigint,p_notes text,p_items jsonb)
 returns bigint language plpgsql security definer set search_path=public as $$
-declare v_id bigint; v_emp bigint; v record; v_bal public.retail_inventory_balances%rowtype; v_counted numeric(14,3); v_var numeric(14,3);
+declare v_id bigint; v_emp bigint; v record; v_bal public.retail_inventory_balances%rowtype; v_counted numeric(14,3); v_var numeric(14,3); v_frozen_items jsonb:='[]'::jsonb;
 begin
  if auth.uid() is null then raise exception 'غير مصرح'; end if;
  if not (public.is_admin() or public.has_permission('inventory')) then raise exception 'ليس لديك صلاحية الجرد'; end if;
  if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع'; end if;
  v_emp:=public.current_employee_id();
+ select coalesce(jsonb_agg(jsonb_build_object('product_id',z.product_id,'counted_qty',z.counted_qty,'track_inventory',z.track_inventory) order by z.product_id),'[]'::jsonb)
+ into v_frozen_items
+ from (
+   select x.product_id,round(coalesce(x.counted_qty,0),3) counted_qty,coalesce(b.track_inventory,true) track_inventory
+   from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(product_id bigint,counted_qty numeric)
+   left join public.retail_inventory_balances b on b.branch_id=p_branch_id and b.product_id=x.product_id
+ ) z;
+ if exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,counted_qty numeric,track_inventory boolean) where counted_qty<0) then raise exception 'كمية الجرد لا يمكن أن تكون سالبة'; end if;
+ for v in select * from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,counted_qty numeric,track_inventory boolean) where track_inventory order by product_id loop
+   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'product',v.product_id);
+ end loop;
  insert into public.retail_stock_counts(branch_id,status,notes,created_by_employee_id,posted_by_employee_id,posted_at) values(p_branch_id,'posted',nullif(trim(coalesce(p_notes,'')),''),v_emp,v_emp,now()) returning id into v_id;
- for v in select * from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(product_id bigint,counted_qty numeric) loop
+ for v in select * from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,counted_qty numeric,track_inventory boolean) loop
   insert into public.retail_inventory_balances(branch_id,product_id,quantity) values(p_branch_id,v.product_id,0) on conflict(branch_id,product_id) do nothing;
   select * into v_bal from public.retail_inventory_balances where branch_id=p_branch_id and product_id=v.product_id for update;
-  v_counted:=round(coalesce(v.counted_qty,0),3); if v_counted<0 then raise exception 'كمية الجرد لا يمكن أن تكون سالبة'; end if;
+  v_counted:=v.counted_qty;
   v_var:=round(v_counted-v_bal.quantity,3);
   insert into public.retail_stock_count_items(stock_count_id,product_id,system_qty,counted_qty,variance) values(v_id,v.product_id,v_bal.quantity,v_counted,v_var);
-  if v_bal.track_inventory and v_var<>0 then
+  if v.track_inventory and v_var<>0 then
     update public.retail_inventory_balances set quantity=v_counted,updated_at=now() where branch_id=p_branch_id and product_id=v.product_id;
     insert into public.retail_inventory_movements(branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id,notes)
     values(p_branch_id,v.product_id,'adjustment',v_var,v_counted,v_bal.average_unit_cost,'stock_count',v_id::text,'stock-count:'||v_id||':'||v.product_id,v_emp,'جرد مخزون');
