@@ -42,6 +42,7 @@ declare
   v_variant_balance public.retail_variant_inventory_balances%rowtype;
   v_new_balance numeric(14,3);
   v_variant public.product_variants%rowtype;
+  v_frozen_items jsonb:='[]'::jsonb;
 begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   if v_client_tx_id is null then raise exception 'معرف الحركة مطلوب'; end if;
@@ -73,68 +74,46 @@ begin
   from public.retail_inventory_settings where branch_id=v_branch;
   if not found then v_allow_negative:=false; end if;
 
-  -- Validate every true variant line before any invoice is created.
-  for v_row in
-    select
-      nullif(x->>'variant_id','')::bigint as variant_id,
-      nullif(x->>'product_id','')::bigint as product_id,
-      round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty
+  -- Point4 FT-3: resolve and freeze the complete mixed stock ownership set before balance initialization.
+  select coalesce(jsonb_agg(to_jsonb(z) order by z.item_kind,z.item_id),'[]'::jsonb)
+  into v_frozen_items
+  from (
+    select 'variant'::text item_kind,v.id item_id,v.product_id,
+           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+           round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost,
+           coalesce(b.track_inventory,true) track_inventory,
+           coalesce(b.quantity,0) balance_quantity
     from jsonb_array_elements(p_items) x
+    join public.product_variants v on v.id=nullif(x->>'variant_id','')::bigint
+      and v.product_id=nullif(x->>'product_id','')::bigint and v.is_stock_unit=true and v.active=true
+    left join public.retail_variant_inventory_balances b on b.branch_id=v_branch and b.variant_id=v.id
     where nullif(x->>'variant_id','') is not null
-    group by nullif(x->>'variant_id','')::bigint,
-             nullif(x->>'product_id','')::bigint
-    order by nullif(x->>'variant_id','')::bigint
-  loop
-    if v_row.product_id is null or v_row.qty<=0 then raise exception 'بيانات Variant غير صحيحة'; end if;
-
-    select * into v_variant
-    from public.product_variants
-    where id=v_row.variant_id
-      and product_id=v_row.product_id
-      and is_stock_unit=true
-      and active=true;
-    if not found then raise exception 'Variant % غير موجود أو غير صالح للصنف',v_row.variant_id; end if;
-
-    insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
-    values(v_branch,v_row.variant_id,0)
-    on conflict(branch_id,variant_id) do nothing;
-
-    select * into v_variant_balance
-    from public.retail_variant_inventory_balances
-    where branch_id=v_branch and variant_id=v_row.variant_id
-    for update;
-
-    if v_variant_balance.track_inventory
-       and not v_allow_negative
-       and v_variant_balance.quantity<v_row.qty then
-      raise exception 'المخزون غير كافٍ للتركيبة % — المتاح %',v_variant.name,v_variant_balance.quantity;
-    end if;
-  end loop;
-
-  -- Validate ordinary product lines exactly like the established Retail path,
-  -- excluding rows that carry a true stock-unit variant.
-  for v_row in
-    select nullif(x->>'product_id','')::bigint as product_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty
+    group by v.id,v.product_id,b.track_inventory,b.quantity
+    union all
+    select 'product'::text item_kind,nullif(x->>'product_id','')::bigint item_id,nullif(x->>'product_id','')::bigint product_id,
+           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+           round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost,
+           coalesce(b.track_inventory,true) track_inventory,
+           coalesce(b.quantity,0) balance_quantity
     from jsonb_array_elements(p_items) x
-    where nullif(x->>'product_id','') is not null
-      and nullif(x->>'variant_id','') is null
-    group by nullif(x->>'product_id','')::bigint
-    order by nullif(x->>'product_id','')::bigint
-  loop
-    insert into public.retail_inventory_balances(branch_id,product_id,quantity)
-    values(v_branch,v_row.product_id,0)
-    on conflict(branch_id,product_id) do nothing;
-
-    select * into v_balance
-    from public.retail_inventory_balances
-    where branch_id=v_branch and product_id=v_row.product_id
-    for update;
-
-    if v_balance.track_inventory
-       and not v_allow_negative
-       and v_balance.quantity<v_row.qty then
-      raise exception 'المخزون غير كافٍ للصنف % — المتاح %',v_row.product_id,v_balance.quantity;
+    left join public.retail_inventory_balances b on b.branch_id=v_branch and b.product_id=nullif(x->>'product_id','')::bigint
+    where nullif(x->>'product_id','') is not null and nullif(x->>'variant_id','') is null
+    group by nullif(x->>'product_id','')::bigint,b.track_inventory,b.quantity
+  ) z;
+  if jsonb_array_length(v_frozen_items)=0 then raise exception 'لا توجد بنود مخزون صالحة'; end if;
+  if exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) where qty<=0)
+    then raise exception 'بيانات الصنف أو Variant غير صحيحة'; end if;
+  if not v_allow_negative and exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) where track_inventory and balance_quantity<qty)
+    then raise exception 'المخزون غير كافٍ لأحد بنود الأوردر'; end if;
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,v_row.item_kind,v_row.item_id);
+  end loop;
+  -- Balance rows are initialized only after every mixed ownership guard passed.
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id loop
+    if v_row.item_kind='variant' then
+      insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity) values(v_branch,v_row.item_id,0) on conflict(branch_id,variant_id) do nothing;
+    else
+      insert into public.retail_inventory_balances(branch_id,product_id,quantity) values(v_branch,v_row.item_id,0) on conflict(branch_id,product_id) do nothing;
     end if;
   end loop;
 
@@ -161,71 +140,23 @@ begin
   join public.product_variants pv on pv.id=src.variant_id
   where oi.id=dst.id and src.variant_id is not null;
 
-  -- Deduct ordinary product stock.
-  for v_row in
-    select nullif(x->>'product_id','')::bigint as product_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty,
-           round(
-             sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0)) /
-             nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4
-           ) as unit_cost
-    from jsonb_array_elements(p_items) x
-    where nullif(x->>'product_id','') is not null
-      and nullif(x->>'variant_id','') is null
-    group by nullif(x->>'product_id','')::bigint
-    order by nullif(x->>'product_id','')::bigint
+  -- Execute stock deduction from the exact frozen set; do not rediscover ownership from p_items.
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id
   loop
-    select * into v_balance
-    from public.retail_inventory_balances
-    where branch_id=v_branch and product_id=v_row.product_id
-    for update;
-    if not v_balance.track_inventory then continue; end if;
-
-    v_new_balance:=round(v_balance.quantity-v_row.qty,3);
-    update public.retail_inventory_balances
-    set quantity=v_new_balance,updated_at=now()
-    where branch_id=v_branch and product_id=v_row.product_id;
-
-    insert into public.retail_inventory_movements(
-      branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,
-      reference_type,reference_id,client_tx_id,employee_id
-    ) values(
-      v_branch,v_row.product_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,
-      'order',v_result->'order'->>'id',v_client_tx_id,v_emp
-    );
-  end loop;
-
-  -- Deduct true variant stock only; parent product balance is intentionally untouched.
-  for v_row in
-    select nullif(x->>'variant_id','')::bigint as variant_id,
-           round(sum(coalesce((x->>'quantity')::numeric,0)),3) as qty,
-           round(
-             sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0)) /
-             nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4
-           ) as unit_cost
-    from jsonb_array_elements(p_items) x
-    where nullif(x->>'variant_id','') is not null
-    group by nullif(x->>'variant_id','')::bigint
-    order by nullif(x->>'variant_id','')::bigint
-  loop
-    select * into v_variant_balance
-    from public.retail_variant_inventory_balances
-    where branch_id=v_branch and variant_id=v_row.variant_id
-    for update;
-    if not v_variant_balance.track_inventory then continue; end if;
-
-    v_new_balance:=round(v_variant_balance.quantity-v_row.qty,3);
-    update public.retail_variant_inventory_balances
-    set quantity=v_new_balance,updated_at=now()
-    where branch_id=v_branch and variant_id=v_row.variant_id;
-
-    insert into public.retail_variant_inventory_movements(
-      branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,
-      reference_type,reference_id,client_tx_id,employee_id
-    ) values(
-      v_branch,v_row.variant_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,
-      'order',v_result->'order'->>'id',v_client_tx_id,v_emp
-    );
+    if not v_row.track_inventory then continue; end if;
+    if v_row.item_kind='product' then
+      select * into v_balance from public.retail_inventory_balances where branch_id=v_branch and product_id=v_row.item_id for update;
+      v_new_balance:=round(v_balance.quantity-v_row.qty,3);
+      update public.retail_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and product_id=v_row.item_id;
+      insert into public.retail_inventory_movements(branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
+      values(v_branch,v_row.item_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,'order',v_result->'order'->>'id',v_client_tx_id,v_emp);
+    else
+      select * into v_variant_balance from public.retail_variant_inventory_balances where branch_id=v_branch and variant_id=v_row.item_id for update;
+      v_new_balance:=round(v_variant_balance.quantity-v_row.qty,3);
+      update public.retail_variant_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and variant_id=v_row.item_id;
+      insert into public.retail_variant_inventory_movements(branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
+      values(v_branch,v_row.item_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,'order',v_result->'order'->>'id',v_client_tx_id,v_emp);
+    end if;
   end loop;
 
   select coalesce(jsonb_agg(to_jsonb(oi) order by oi.id),'[]'::jsonb)
