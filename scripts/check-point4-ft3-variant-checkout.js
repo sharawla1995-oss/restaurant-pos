@@ -5,7 +5,7 @@ const stockExec=b.slice(exec);\nconst pAfterInvoice=stockExec.includes('jsonb_ar
 const frozenAfterInvoice=b.slice(invoice).includes('jsonb_to_recordset(v_frozen_items)');
 const deterministic=b.slice(freeze,first).includes('order by item_kind,item_id');
 const mixed=b.slice(0,guard).includes("'variant'::text item_kind")&&b.slice(0,guard).includes("'product'::text item_kind");
-const frozenTrack=b.slice(invoice).includes('v_row.track_inventory');
+const frozenTrack=b.slice(exec).includes('v_row.track_inventory');
 const ok=replay>=0&&freeze>replay&&guard>freeze&&first>guard&&invoice>first&&exec>invoice&&!pAfterInvoice&&frozenAfterInvoice&&deterministic&&mixed&&frozenTrack;
 console.log(JSON.stringify({id:8,replay,freeze,guard,firstBalanceWrite:first,invoice,execution:exec,pItemsRediscoveryAfterInvoice:pAfterInvoice,frozenExecution:frozenAfterInvoice,deterministic,mixedIdentity:mixed,frozenTrack,status:ok?'PASS':'FAIL'}));
 if(!ok)process.exit(1);
