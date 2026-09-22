@@ -1,11 +1,13 @@
 name: Point4 Fast Track Factory
 on:
+  workflow_dispatch:
   push:
     branches: [ beta56-offline-ownership-consolidation ]
     paths:
       - 'contracts/point4-fast-track-remaining.v1.json'
       - 'contracts/point4-pre-cutover-46-guard-contracts.v1.json'
       - 'scripts/check-point4-fast-track-factory.js'
+      - 'scripts/check-point4-ft*.js'
       - '.github/workflows/point4-fast-track-factory.yml'
 permissions: { contents: read }
 jobs:
