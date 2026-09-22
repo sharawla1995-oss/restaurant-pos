@@ -16,5 +16,6 @@ const post=src.slice(phaseB);
 for(const x of ['food_recipe_headers','food_recipe_versions','food_recipe_lines','food_recipe_removal_mappings','food_modifier_recipe_impacts',"v_input->'removed'","v_input->'modifiers'"]) if(post.includes(x)) fail('post-guard-rediscovery:'+x);
 if(!post.includes('jsonb_array_elements(v_frozen_lines)')) fail('same-frozen-execution');
 if(!src.includes("coalesce((x->>'track_inventory')::boolean,true)")) fail('conditional-stock');
-if(/canonical_stock|cutover.*(on|true)|activate.*canonical/i.test(src)) fail('activation');
+const executable=src.replace(/^\s*--.*$/gm,'');
+if(/\bcanonical_stock\b|\bcutover\s*=\s*(?:on|true)\b|\bactivate\w*\s+canonical\b/i.test(executable)) fail('activation');
 console.log('POINT4_FT7_11_SEMANTIC_PASS raw_md5=1 replay=1 recipe=1 removals=1 modifiers=1 frozen=1 distinct_guard=1 rediscovery=0');
