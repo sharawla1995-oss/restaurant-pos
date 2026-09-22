@@ -364,6 +364,32 @@
     "validation_run_id": 35782268078,
     "contracts": 46,
     "deployment_artifacts": 23,
-    "rule": "Any change to validated_head inputs, effective-owner blobs, target project, or unexplained runtime drift invalidates this freeze and requires re-validation before DB writes."
+    "rule": "Any change to validated_head inputs, effective-owner blobs, target project, or unexplained runtime drift invalidates this freeze and requires re-validation before DB writes.",
+    "freeze_commit": "1701fb810a143071f3e537040e6c7d2f72a0430e"
+  },
+  "preflight": {
+    "target_project": "xihcxydjnzemflhedzor",
+    "mode": "READ_ONLY",
+    "status": "PASS_WITH_CREATED_BEFORE_USE_PREREQUISITE",
+    "checked_contract_signatures": 46,
+    "runtime_missing_contract_signatures": 0,
+    "dependencies": {
+      "legacy_guard": {
+        "signature": "inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint)",
+        "present": true
+      },
+      "document_guard": {
+        "signature": "inventory_stock_assert_document_workflow_allowed_v2(text)",
+        "present": true
+      },
+      "website_guarded_core": {
+        "signature": "retail_create_website_order_beta18_core(bigint,text,text,text,text,text,bigint,text,text,text,text,jsonb)",
+        "present_before_deployment": false,
+        "created_by": "supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql",
+        "required_by_runtime_wrapper": "retail_create_website_order(bigint,text,text,text,text,text,bigint,text,text,text,text,jsonb)",
+        "rule": "created-before-use; absence in pre-deploy runtime is expected and is not drift"
+      }
+    },
+    "deployment_authorized": false
   }
 }
