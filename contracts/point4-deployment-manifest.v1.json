@@ -121,6 +121,16 @@
       "id_range": "46",
       "artifact": "supabase-beta55-central-warehouse-visibility-shortages.sql",
       "blob": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8"
+    },
+    {
+      "id_range": "22",
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql",
+      "blob": "3f8b3fb147592b20be9a77f3d999e86fed0d1fe1",
+      "effective_signature_note": "Contract #22 public retail_create_website_order(...) delegates to guarded private retail_create_website_order_beta18_core(...); accepted implementation owner is the guarded core artifact.",
+      "supersedes": [
+        "supabase-v10-5-4-beta18-retail-website-integration.sql@f3251a8f0d4aa8384c39160f7a49ae2fe8f23ee3",
+        "supabase-v10-5-4-beta18-retail-website-integration-finalize.sql@76c769629788eae05ce08d70981e87a52ee8f6be"
+      ]
     }
   ],
   "known_collision_rules": [
