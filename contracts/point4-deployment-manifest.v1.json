@@ -359,13 +359,14 @@
     }
   ],
   "freeze": {
-    "status": "FROZEN_FOR_READ_ONLY_PREFLIGHT",
-    "validated_head": "1ab5cbfab88cd1e38f8a021f52d54fea5272bfa2",
-    "validation_run_id": 35782268078,
+    "status": "PINNED_FOR_FINAL_BETA_FRESHNESS_CHECK",
+    "validated_head": "78f3a880675191331a217e318971c472c766f7d1",
+    "validation_run_id": 35783865384,
     "contracts": 46,
     "deployment_artifacts": 23,
-    "rule": "Any change to validated_head inputs, effective-owner blobs, target project, or unexplained runtime drift invalidates this freeze and requires re-validation before DB writes.",
-    "freeze_commit": "1701fb810a143071f3e537040e6c7d2f72a0430e"
+    "payload_order_unchanged_since_head": "1ab5cbfab88cd1e38f8a021f52d54fea5272bfa2",
+    "comparison": "Only contracts/point4-deployment-manifest.v1.json and scripts/check-point4-deployment-manifest.js changed; no deployment SQL artifact changed. CI re-simulation PASS.",
+    "rule": "Any deployment artifact/blob/order, target project, or unexplained runtime drift change invalidates this pin before DB writes."
   },
   "preflight": {
     "target_project": "xihcxydjnzemflhedzor",
