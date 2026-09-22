@@ -160,6 +160,48 @@ jobs:
           grep -q inventory_stock_assert_document_workflow_allowed_v2 /tmp/ft4-readback.sql
           grep -q v_frozen_items /tmp/ft4-readback.sql
           echo "PASS effective readback: #46"
+      - name: FT-5 food stock semantic gate
+        run: node scripts/check-point4-ft5-food-stock.js
+      - name: FT-5 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft5-pg -e POSTGRES_PASSWORD=postgres -p 55436:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55436 -U postgres && break; sleep 1; done
+          cat > /tmp/ft5.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.food_production_batches(id bigint primary key,branch_id bigint,prep_item_id bigint,status text,completion_client_tx_id text,actual_output_quantity numeric,completed_by_employee_id bigint,completed_at timestamptz,notes text,updated_at timestamptz);
+          create table public.food_prep_items(id bigint primary key,output_ingredient_id bigint);
+          create table public.food_production_consumptions(id bigint primary key,production_batch_id bigint,ingredient_id bigint,planned_base_quantity numeric,actual_base_quantity numeric,unit_cost_snapshot numeric);
+          create table public.ingredients(id bigint primary key,active boolean,track_inventory boolean,cost_per_unit numeric);
+          create table public.ingredient_stock(id bigserial primary key,branch_id bigint,ingredient_id bigint,quantity numeric,average_unit_cost numeric,last_purchase_cost numeric,last_costed_at timestamptz,updated_at timestamptz,unique(branch_id,ingredient_id));
+          create table public.stock_movements(branch_id bigint,ingredient_id bigint,movement_type text,quantity numeric,reference_type text,reference_id bigint,notes text);
+          create table public.food_stock_counts(id bigserial primary key,branch_id bigint,notes text,client_tx_id text,created_by_employee_id bigint);
+          create table public.food_stock_count_items(stock_count_id bigint,ingredient_id bigint,system_quantity numeric,counted_quantity numeric,variance numeric,unit_cost_snapshot numeric);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          create or replace function public.is_admin() returns boolean language sql as 'select true';
+          create or replace function public.has_permission(text) returns boolean language sql as 'select true';
+          create or replace function public.has_action_permission_v2(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          create or replace function public.food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text,bigint,text) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -v ON_ERROR_STOP=1 -f /tmp/ft5.sql
+          python3 - <<'PY'
+          import re,pathlib
+          specs=[('supabase-engine-recipe-advanced-v1-runtime.sql','food_production_batch_complete_v1'),('supabase-beta55-restaurant-operations.sql','food_stock_count_post_v1')]
+          out=[]
+          for fn,name in specs:
+              s=pathlib.Path(fn).read_text()
+              m=re.search(r'create or replace function public\.'+name+r'\(.*?end;\$\$;',s,re.S|re.I); assert m,name
+              out.append(m.group(0))
+          pathlib.Path('/tmp/ft5funcs.sql').write_text('\n\n'.join(out))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -v ON_ERROR_STOP=1 -f /tmp/ft5funcs.sql
+          for sig in "food_production_batch_complete_v1(bigint,numeric,jsonb,text,text)" "food_stock_count_post_v1(bigint,text,jsonb,text)"; do
+            psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" > /tmp/ft5-readback.sql
+            grep -q inventory_stock_assert_legacy_write_allowed_v2 /tmp/ft5-readback.sql
+            echo "PASS effective readback: $sig"
+          done
       - name: Safety boundary
         run: |
           echo "SOURCE-ONLY factory"
