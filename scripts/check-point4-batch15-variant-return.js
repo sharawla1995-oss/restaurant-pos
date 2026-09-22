@@ -8,7 +8,7 @@ const guard=c.indexOf('inventory_stock_assert_legacy_write_allowed_v2',freeze);
 const commit=c.indexOf('v_return_id:=public.create_order_return_idempotent',guard);
 const execute=c.indexOf('from jsonb_to_recordset(v_frozen_items)',commit);
 if(!(replay>=0&&freeze>replay&&guard>freeze&&commit>guard&&execute>commit))fail('ordering');
-if(!/case when oi\.variant_id is not null then 'variant' else 'product' end/.test(c.slice(freeze-1500,freeze)))fail('mixed-identity');
+if(!/case when oi\.variant_id is not null then 'variant' else 'product' end/.test(c.slice(replay,freeze)))fail('mixed-identity');
 if(!c.includes('inventory_stock_assert_legacy_write_allowed_v2(v_branch,v_row.item_kind,v_row.item_id)'))fail('guard-identity');
 if((c.match(/jsonb_array_elements\(coalesce\(p_items,'\[\]'::jsonb\)\)/g)||[]).length!==1)fail('p-items-reparsed');
 if(/jsonb_array_elements\(coalesce\(p_items/i.test(c.slice(commit)))fail('p-items-after-commit');
