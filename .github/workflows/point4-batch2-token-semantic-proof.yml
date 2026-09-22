@@ -38,6 +38,21 @@ jobs:
           m=re.search(r"create\s+or\s+replace\s+function\s+public\."+re.escape(n)+r"\s*\(.*?\bend\$\$\s*;",s,re.I|re.S)
           if not m: raise SystemExit("missing="+n)
           pathlib.Path("/tmp/accepted.sql").write_text(m.group(0))
+      - name: Create minimal compile dependency stubs
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create table public.inventory_supply_routes(
+            id bigint, source_location_id bigint, destination_branch_id bigint, active boolean
+          );
+          create table public.inventory_supply_requests(
+            id bigint, client_tx_id text
+          );
+          create table public.inventory_supply_catalog(
+            id bigint, route_id bigint, active boolean, item_type text,
+            product_id bigint, ingredient_id bigint,
+            min_request_qty numeric, max_request_qty numeric, request_multiple numeric
+          );
+          SQL
       - run: psql -v ON_ERROR_STOP=1 -f /tmp/accepted.sql
       - name: Export isolated effective definition
         run: psql -At -c "select pg_get_functiondef('public.inventory_supply_shortage_request_create_v1(bigint,jsonb,text,text)'::regprocedure)" > /tmp/isolated46.def
