@@ -129,6 +129,37 @@ jobs:
           grep -q inventory_stock_assert_legacy_write_allowed_v2 /tmp/ft3-readback.sql
           grep -q v_frozen_items /tmp/ft3-readback.sql
           echo "PASS effective readback: #8"
+      - name: FT-4 document shortage semantic gate
+        run: node scripts/check-point4-ft4-document-shortage.js
+      - name: FT-4 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft4-pg -e POSTGRES_PASSWORD=postgres -p 55435:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55435 -U postgres && break; sleep 1; done
+          cat > /tmp/ft4.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.inventory_supply_routes(id bigint primary key,active boolean,source_location_id bigint,destination_branch_id bigint);
+          create table public.inventory_supply_catalog(id bigint primary key,route_id bigint,active boolean,item_type text,product_id bigint,ingredient_id bigint,min_request_qty numeric,max_request_qty numeric,request_multiple numeric);
+          create table public.inventory_supply_requests(id bigserial primary key,route_id bigint,source_location_id bigint,destination_branch_id bigint,request_type text,status text,notes text,client_tx_id text,created_by_employee_id bigint,submitted_by_employee_id bigint,submitted_at timestamptz);
+          create table public.inventory_supply_request_items(request_id bigint,catalog_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_requested numeric,line_note text);
+          create table public.inventory_supply_request_events(request_id bigint,from_status text,to_status text,note text,employee_id bigint,details jsonb);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          create or replace function public.has_action_permission_v2(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_document_workflow_allowed_v2(text) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -v ON_ERROR_STOP=1 -f /tmp/ft4.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-beta55-central-warehouse-visibility-shortages.sql').read_text()
+          m=re.search(r'create or replace function public\.inventory_supply_shortage_request_create_v1\(.*?end\$\$;',s,re.S|re.I);assert m
+          pathlib.Path('/tmp/ft4func.sql').write_text(m.group(0))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -v ON_ERROR_STOP=1 -f /tmp/ft4func.sql
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -Atc "select pg_get_functiondef('inventory_supply_shortage_request_create_v1(bigint,jsonb,text,text)'::regprocedure)" > /tmp/ft4-readback.sql
+          grep -q inventory_stock_assert_document_workflow_allowed_v2 /tmp/ft4-readback.sql
+          grep -q v_frozen_items /tmp/ft4-readback.sql
+          echo "PASS effective readback: #46"
       - name: Safety boundary
         run: |
           echo "SOURCE-ONLY factory"
