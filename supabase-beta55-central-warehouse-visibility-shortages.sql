@@ -257,7 +257,7 @@ create or replace function public.inventory_supply_shortage_request_create_v1(
   p_client_tx_id text
 ) returns bigint
 language plpgsql security definer set search_path=public as $$
-declare v_id bigint;v_emp bigint;v_route public.inventory_supply_routes%rowtype;v record;v_c public.inventory_supply_catalog%rowtype;v_qty numeric(14,3);v_count integer:=0;
+declare v_id bigint;v_emp bigint;v_route public.inventory_supply_routes%rowtype;v record;v_c public.inventory_supply_catalog%rowtype;v_qty numeric(14,3);v_count integer:=0;v_frozen_items jsonb:='[]'::jsonb;
 begin
   if auth.uid() is null then raise exception 'غير مصرح';end if;
   if not public.has_action_permission_v2('inventory.supply.shortages.create') then raise exception 'ليس لديك صلاحية إنشاء توريد من تقرير النواقص';end if;
@@ -269,22 +269,32 @@ begin
   select id into v_id from public.inventory_supply_requests where client_tx_id=p_client_tx_id;
   if v_id is not null then return v_id;end if;
   v_emp:=public.current_employee_id();
+  -- Point4 FT-4: validate and freeze every shortage request line before the document barrier and first workflow mutation.
+  select coalesce(jsonb_agg(to_jsonb(z) order by z.catalog_item_id),'[]'::jsonb)
+    into v_frozen_items
+  from (
+    select c.id catalog_item_id,c.item_type,c.product_id,c.ingredient_id,
+           round(coalesce(x.quantity,0),3)::numeric(14,3) quantity_requested,
+           nullif(trim(coalesce(x.line_note,'')),'') line_note,
+           c.min_request_qty,c.max_request_qty,c.request_multiple
+    from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(catalog_item_id bigint,quantity numeric,line_note text)
+    join public.inventory_supply_catalog c on c.id=x.catalog_item_id and c.route_id=v_route.id and c.active=true
+  ) z;
+  if jsonb_array_length(v_frozen_items)<>jsonb_array_length(coalesce(p_items,'[]'::jsonb)) then raise exception 'يوجد صنف غير متاح لهذا الفرع';end if;
+  if jsonb_array_length(v_frozen_items)=0 then raise exception 'اختر صنفًا واحدًا على الأقل';end if;
+  if exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(catalog_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_requested numeric,line_note text,min_request_qty numeric,max_request_qty numeric,request_multiple numeric)
+            where quantity_requested<=0 or quantity_requested<min_request_qty or (max_request_qty is not null and quantity_requested>max_request_qty)
+               or (request_multiple>0 and abs((quantity_requested/request_multiple)-round(quantity_requested/request_multiple))>0.0001))
+    then raise exception 'بيانات كمية الطلب غير صحيحة';end if;
+  perform public.inventory_stock_assert_document_workflow_allowed_v2('inventory_supply_shortage_request_create_v1(bigint,jsonb,text,text)');
   insert into public.inventory_supply_requests(route_id,source_location_id,destination_branch_id,request_type,status,notes,client_tx_id,created_by_employee_id,submitted_by_employee_id,submitted_at)
   values(v_route.id,v_route.source_location_id,v_route.destination_branch_id,'normal','submitted',nullif(trim(coalesce(p_notes,'')),''),p_client_tx_id,v_emp,v_emp,now()) returning id into v_id;
-  for v in select * from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(catalog_item_id bigint,quantity numeric,line_note text)
+  for v in select * from jsonb_to_recordset(v_frozen_items) as x(catalog_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_requested numeric,line_note text,min_request_qty numeric,max_request_qty numeric,request_multiple numeric) order by catalog_item_id
   loop
-    select * into v_c from public.inventory_supply_catalog where id=v.catalog_item_id and route_id=v_route.id and active=true;
-    if not found then raise exception 'الصنف % غير متاح لهذا الفرع',v.catalog_item_id;end if;
-    v_qty:=round(coalesce(v.quantity,0),3);
-    if v_qty<=0 then raise exception 'كمية الطلب غير صحيحة';end if;
-    if v_qty<v_c.min_request_qty then raise exception 'الكمية أقل من الحد الأدنى للصنف %',v.catalog_item_id;end if;
-    if v_c.max_request_qty is not null and v_qty>v_c.max_request_qty then raise exception 'الكمية أكبر من الحد الأقصى للصنف %',v.catalog_item_id;end if;
-    if v_c.request_multiple>0 and abs((v_qty/v_c.request_multiple)-round(v_qty/v_c.request_multiple))>0.0001 then raise exception 'الكمية لا تطابق مضاعف الطلب للصنف %',v.catalog_item_id;end if;
     insert into public.inventory_supply_request_items(request_id,catalog_item_id,item_type,product_id,ingredient_id,quantity_requested,line_note)
-    values(v_id,v_c.id,v_c.item_type,v_c.product_id,v_c.ingredient_id,v_qty,nullif(trim(coalesce(v.line_note,'')),''));
+    values(v_id,v.catalog_item_id,v.item_type,v.product_id,v.ingredient_id,v.quantity_requested,v.line_note);
     v_count:=v_count+1;
   end loop;
-  if v_count=0 then raise exception 'اختر صنفًا واحدًا على الأقل';end if;
   insert into public.inventory_supply_request_events(request_id,from_status,to_status,note,employee_id,details)
   values(v_id,null,'submitted','تم إنشاء الطلب من تقرير نواقص الفروع',v_emp,jsonb_build_object('source','shortages_report','items',v_count));
   insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details)
