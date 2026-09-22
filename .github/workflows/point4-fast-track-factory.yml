@@ -92,6 +92,40 @@ jobs:
             psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" | grep -q inventory_stock_assert_legacy_write_allowed_v2
             echo "PASS effective readback: $sig"
           done
+      - name: FT-3 variant checkout semantic gate
+        run: node scripts/check-point4-ft3-variant-checkout.js
+      - name: FT-3 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft3-pg -e POSTGRES_PASSWORD=postgres -p 55434:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55434 -U postgres && break; sleep 1; done
+          cat > /tmp/ft3.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.orders(id bigserial primary key,client_tx_id text);
+          create table public.order_items(id bigserial primary key,order_id bigint,variant_id bigint,variant_name text,variant_sku text,variant_barcode text);
+          create table public.retail_inventory_settings(branch_id bigint,allow_negative_stock boolean);
+          create table public.product_variants(id bigint primary key,product_id bigint,is_stock_unit boolean,active boolean,name text,sku text,barcode text);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,product_id));
+          create table public.retail_variant_inventory_balances(branch_id bigint,variant_id bigint,quantity numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,variant_id));
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create table public.retail_variant_inventory_movements(branch_id bigint,variant_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          create or replace function public.create_pos_order_atomic(jsonb,jsonb,jsonb) returns jsonb language sql as 'select jsonb_build_object(''order'',jsonb_build_object(''id'',1))';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -v ON_ERROR_STOP=1 -f /tmp/ft3.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-engine-variants-v1-checkout-returns.sql').read_text()
+          m=re.search(r'create or replace function public\.create_retail_variant_pos_order_atomic_v1\(.*?\n\$\$;',s,re.S|re.I)
+          assert m
+          pathlib.Path('/tmp/ft3func.sql').write_text(m.group(0))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -v ON_ERROR_STOP=1 -f /tmp/ft3func.sql
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -Atc "select pg_get_functiondef('create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb)'::regprocedure)" > /tmp/ft3-readback.sql
+          grep -q inventory_stock_assert_legacy_write_allowed_v2 /tmp/ft3-readback.sql
+          grep -q v_frozen_items /tmp/ft3-readback.sql
+          echo "PASS effective readback: #8"
       - name: Safety boundary
         run: |
           echo "SOURCE-ONLY factory"
