@@ -1,5 +1,8 @@
 name: Point4 Batch2 Token Semantic Proof
 on:
+  push:
+    branches: [beta56-offline-ownership-consolidation]
+    paths: ['.github/workflows/point4-batch2-token-semantic-proof.yml']
   workflow_dispatch:
 permissions:
   contents: read
