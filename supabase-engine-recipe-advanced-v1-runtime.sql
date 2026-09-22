@@ -150,6 +150,7 @@ declare
   v_prep public.food_prep_items%rowtype; v record; v_stock public.ingredient_stock%rowtype;
   v_actual numeric(18,6); v_new numeric(18,6); v_unit_cost numeric(18,6); v_total_cost numeric(18,6):=0;
   v_output_cost numeric(18,6); v_emp bigint; v_output_stock public.ingredient_stock%rowtype;
+  v_frozen_inputs jsonb:='[]'::jsonb; v_output_track boolean;
 begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   if not (public.is_admin() or public.has_permission('inventory')) then raise exception 'ليس لديك صلاحية إكمال الإنتاج'; end if;
@@ -170,20 +171,63 @@ begin
   if not found then raise exception 'Prep Item غير موجود'; end if;
   v_emp:=public.current_employee_id();
 
-  -- Update actual quantities from payload where supplied; otherwise planned quantity is used.
-  update public.food_production_consumptions pc
-  set actual_base_quantity=coalesce((select round((x->>'actual_base_quantity')::numeric,6) from jsonb_array_elements(coalesce(p_consumptions,'[]'::jsonb)) x where nullif(x->>'ingredient_id','')::bigint=pc.ingredient_id limit 1),pc.planned_base_quantity)
-  where pc.production_batch_id=v_batch.id;
-
-  for v in
-    select pc.*,i.track_inventory,coalesce(i.cost_per_unit,0)::numeric(18,6) fallback_cost
+  -- Point 4 FT-5: compute the complete effective input evidence read-only before
+  -- the first production_consumptions write, then guard every affected owner.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'consumption_id',q.id,'ingredient_id',q.ingredient_id,
+           'actual_base_quantity',q.actual_base_quantity,
+           'track_inventory',q.track_inventory,'fallback_cost',q.fallback_cost
+         ) order by q.ingredient_id,q.id),'[]'::jsonb)
+  into v_frozen_inputs
+  from (
+    select pc.id,pc.ingredient_id,
+           coalesce((select round((x->>'actual_base_quantity')::numeric,6)
+                     from jsonb_array_elements(coalesce(p_consumptions,'[]'::jsonb)) x
+                     where nullif(x->>'ingredient_id','')::bigint=pc.ingredient_id limit 1),
+                    pc.planned_base_quantity)::numeric(18,6) actual_base_quantity,
+           i.track_inventory,
+           coalesce(i.cost_per_unit,0)::numeric(18,6) fallback_cost
     from public.food_production_consumptions pc
     join public.ingredients i on i.id=pc.ingredient_id and i.active is distinct from false
     where pc.production_batch_id=v_batch.id
-    order by pc.ingredient_id
+  ) q;
+
+  if exists(select 1 from jsonb_to_recordset(v_frozen_inputs)
+            as x(consumption_id bigint,ingredient_id bigint,actual_base_quantity numeric,track_inventory boolean,fallback_cost numeric)
+            where x.actual_base_quantity<0) then
+    raise exception 'استهلاك فعلي غير صحيح';
+  end if;
+
+  select track_inventory into v_output_track
+  from public.ingredients where id=v_prep.output_ingredient_id and active is distinct from false;
+  if not found then raise exception 'خامة ناتج التحضير غير موجودة أو موقوفة'; end if;
+
+  for v in
+    select distinct x.ingredient_id
+    from jsonb_to_recordset(v_frozen_inputs)
+      as x(consumption_id bigint,ingredient_id bigint,actual_base_quantity numeric,track_inventory boolean,fallback_cost numeric)
+    where x.track_inventory=true and x.actual_base_quantity>0
+    union
+    select v_prep.output_ingredient_id where coalesce(v_output_track,false)=true
+    order by 1
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_batch.branch_id,'ingredient',v.ingredient_id);
+  end loop;
+
+  -- First new-execution commitment write: persist exactly the frozen effective quantities.
+  update public.food_production_consumptions pc
+  set actual_base_quantity=x.actual_base_quantity
+  from jsonb_to_recordset(v_frozen_inputs)
+    as x(consumption_id bigint,ingredient_id bigint,actual_base_quantity numeric,track_inventory boolean,fallback_cost numeric)
+  where pc.id=x.consumption_id and pc.production_batch_id=v_batch.id;
+
+  for v in
+    select x.consumption_id id,x.ingredient_id,x.actual_base_quantity,x.track_inventory,x.fallback_cost
+    from jsonb_to_recordset(v_frozen_inputs)
+      as x(consumption_id bigint,ingredient_id bigint,actual_base_quantity numeric,track_inventory boolean,fallback_cost numeric)
+    order by x.ingredient_id,x.consumption_id
   loop
     v_actual:=round(coalesce(v.actual_base_quantity,0),6);
-    if v_actual<0 then raise exception 'استهلاك فعلي غير صحيح'; end if;
     if v_actual=0 then continue; end if;
     insert into public.ingredient_stock(branch_id,ingredient_id,quantity)
     values(v_batch.branch_id,v.ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
