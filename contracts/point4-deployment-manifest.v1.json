@@ -203,45 +203,45 @@
   "deployment_plan": [
     {
       "order": 1,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql",
-      "blob": "786380b5d9eacca6a21d1de8ff0de78893f407a2",
-      "contracts": "1,3,9,19"
+      "artifact": "supabase-beta55-acceptance-supply.sql",
+      "blob": "fae66e56925c53b73e82c5eb016a9d40c33058cc",
+      "contracts": "39,40"
     },
     {
       "order": 2,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch3-legacy-website-lifecycle.sql",
-      "blob": "372a5091d70e6ee320c6ffacd95cbfa0aca06ef5",
-      "contracts": "2,4,20"
+      "artifact": "supabase-beta55-central-warehouse-foundation.sql",
+      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af",
+      "contracts": "42,43"
     },
     {
       "order": 3,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch4-website-create-identity.sql",
-      "blob": "7c3328ebfee0962279ebdad5d3df83e066cad953",
-      "contracts": "21"
+      "artifact": "supabase-beta55-central-warehouse-fulfillment.sql",
+      "blob": "6c9090547d8fa1356b8d6980e35825923f0612ee",
+      "contracts": "17,18"
     },
     {
       "order": 4,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql",
-      "blob": "3da64c2ce459e71336b5c1b8e503c37a5ba82c35",
-      "contracts": "10,13,16,23,24,34,41,44,45"
+      "artifact": "supabase-beta55-central-warehouse-visibility-shortages.sql",
+      "blob": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8",
+      "contracts": "46"
     },
     {
       "order": 5,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql",
-      "blob": "70514e5a72fa911e21f889e6a455e9788b3e8d85",
-      "contracts": "28,31"
+      "artifact": "supabase-beta55-restaurant-acceptance.sql",
+      "blob": "155b9846dbb59c50e1f9964c0cf02d494eff0077",
+      "contracts": "38"
     },
     {
       "order": 6,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch7-retail-transfers.sql",
-      "blob": "57602b078a90a49ef9da2fa6792f9d63e4f89702",
-      "contracts": "32,33"
+      "artifact": "supabase-beta55-restaurant-operations.sql",
+      "blob": "002e76541d1ec75a09ba41e5f7a979e0bad00114",
+      "contracts": "15"
     },
     {
       "order": 7,
-      "artifact": "supabase-v10-5-4-beta15-retail-inventory-foundation.sql",
-      "blob": "f2d96d1aff7dc806cb6546ee2b62f26447b6783a",
-      "contracts": "5,6"
+      "artifact": "supabase-engine-recipe-advanced-v1-runtime.sql",
+      "blob": "29d4c8455c7c6f24de0e6e3993a0a5ea6cbb72ff",
+      "contracts": "14"
     },
     {
       "order": 8,
@@ -251,94 +251,94 @@
     },
     {
       "order": 9,
-      "artifact": "supabase-engine-recipe-advanced-v1-runtime.sql",
-      "blob": "29d4c8455c7c6f24de0e6e3993a0a5ea6cbb72ff",
-      "contracts": "14"
+      "artifact": "supabase-v10-5-4-beta15-retail-inventory-foundation.sql",
+      "blob": "f2d96d1aff7dc806cb6546ee2b62f26447b6783a",
+      "contracts": "5,6"
     },
     {
       "order": 10,
-      "artifact": "supabase-beta55-restaurant-operations.sql",
-      "blob": "002e76541d1ec75a09ba41e5f7a979e0bad00114",
-      "contracts": "15"
-    },
-    {
-      "order": 11,
-      "artifact": "supabase-beta55-central-warehouse-fulfillment.sql",
-      "blob": "6c9090547d8fa1356b8d6980e35825923f0612ee",
-      "contracts": "17,18"
-    },
-    {
-      "order": 12,
-      "artifact": "supabase-point4-ft6-retail-mixed-stock.sql",
-      "blob": "3e0c4b2e65edd86bc5eda892af0ea798fb913665",
-      "contracts": "25,27,30"
-    },
-    {
-      "order": 13,
       "artifact": "supabase-v10-5-4-beta17-retail-market-core.sql",
       "blob": "576baf33eff9b750d359925a7696c2f4f8b54a64",
       "contracts": "26,29"
     },
     {
+      "order": 11,
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql",
+      "blob": "786380b5d9eacca6a21d1de8ff0de78893f407a2",
+      "contracts": "1,3,9,19"
+    },
+    {
+      "order": 12,
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch3-legacy-website-lifecycle.sql",
+      "blob": "372a5091d70e6ee320c6ffacd95cbfa0aca06ef5",
+      "contracts": "2,4,20"
+    },
+    {
+      "order": 13,
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch4-website-create-identity.sql",
+      "blob": "7c3328ebfee0962279ebdad5d3df83e066cad953",
+      "contracts": "21"
+    },
+    {
       "order": 14,
-      "artifact": "supabase-point4-ft7-food-order-consumption-guard.sql",
-      "blob": "42c8dd065ff7601f1371fe67f0e3916f10dbb582",
-      "contracts": "11"
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql",
+      "blob": "3f8b3fb147592b20be9a77f3d999e86fed0d1fe1",
+      "contracts": "22"
     },
     {
       "order": 15,
-      "artifact": "supabase-point4-ft8-food-return-consumption-guard.sql",
-      "blob": "9d5b97bb2f03d4b93bf2a34833a6d5ee283a3265",
-      "contracts": "12"
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql",
+      "blob": "70514e5a72fa911e21f889e6a455e9788b3e8d85",
+      "contracts": "28,31"
     },
     {
       "order": 16,
-      "artifact": "supabase-point4-ft9-acceptance-cleanup-v1-guard.sql",
-      "blob": "334f85a0bad7fa7afcb521743732ddfba25708e8",
-      "contracts": "35"
-    },
-    {
-      "order": 17,
       "artifact": "supabase-point4-ft10-acceptance-cleanup-v2-guard.sql",
       "blob": "493f92c24f2f7d675e771202ef1abb4cda7263b5",
       "contracts": "36"
     },
     {
-      "order": 18,
+      "order": 17,
       "artifact": "supabase-point4-ft11-acceptance-cleanup-v3-guard.sql",
       "blob": "c92b63664e53afbfac9f111404d52416e9fc4b14",
       "contracts": "37"
     },
     {
+      "order": 18,
+      "artifact": "supabase-point4-ft6-retail-mixed-stock.sql",
+      "blob": "3e0c4b2e65edd86bc5eda892af0ea798fb913665",
+      "contracts": "25,27,30"
+    },
+    {
       "order": 19,
-      "artifact": "supabase-beta55-restaurant-acceptance.sql",
-      "blob": "155b9846dbb59c50e1f9964c0cf02d494eff0077",
-      "contracts": "38"
+      "artifact": "supabase-point4-ft7-food-order-consumption-guard.sql",
+      "blob": "42c8dd065ff7601f1371fe67f0e3916f10dbb582",
+      "contracts": "11"
     },
     {
       "order": 20,
-      "artifact": "supabase-beta55-acceptance-supply.sql",
-      "blob": "fae66e56925c53b73e82c5eb016a9d40c33058cc",
-      "contracts": "39,40"
+      "artifact": "supabase-point4-ft8-food-return-consumption-guard.sql",
+      "blob": "9d5b97bb2f03d4b93bf2a34833a6d5ee283a3265",
+      "contracts": "12"
     },
     {
       "order": 21,
-      "artifact": "supabase-beta55-central-warehouse-foundation.sql",
-      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af",
-      "contracts": "42,43"
+      "artifact": "supabase-point4-ft9-acceptance-cleanup-v1-guard.sql",
+      "blob": "334f85a0bad7fa7afcb521743732ddfba25708e8",
+      "contracts": "35"
     },
     {
       "order": 22,
-      "artifact": "supabase-beta55-central-warehouse-visibility-shortages.sql",
-      "blob": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8",
-      "contracts": "46"
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql",
+      "blob": "3da64c2ce459e71336b5c1b8e503c37a5ba82c35",
+      "contracts": "10,13,16,23,24,34,41,44,45"
     },
     {
       "order": 23,
-      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql",
-      "blob": "3f8b3fb147592b20be9a77f3d999e86fed0d1fe1",
-      "contracts": "22"
+      "artifact": "supabase-point4-pre-cutover-46-guard-installation-batch7-retail-transfers.sql",
+      "blob": "57602b078a90a49ef9da2fa6792f9d63e4f89702",
+      "contracts": "32,33"
     }
   ],
-  "deployment_plan_note": "Only these accepted effective-owner artifacts are deployment inputs. supersedes[] entries are collision evidence only and MUST NOT be deployed unless separately promoted into this plan."
+  "deployment_plan_note": "Only accepted effective-owner artifacts are deployment inputs. Ordering is baseline/effective-owner aware: older multi-function baseline owners run before later Point4 overriding owners. supersedes[] are collision evidence only and are not added as separate deployment inputs."
 }
