@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.6
         env:
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
@@ -48,25 +48,26 @@ jobs:
               if not m: raise SystemExit("definition_missing="+name)
               out.append(m.group(0))
           pathlib.Path("/tmp/accepted.sql").write_text("\n\n".join(out))
-      - name: Canonicalize in isolated PostgreSQL 17
+      - name: Canonicalize in isolated PostgreSQL 17.6 and preserve definitions
         shell: bash
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -c "select version();"
           psql -v ON_ERROR_STOP=1 -f /tmp/accepted.sql
           psql -At -F '|' -v ON_ERROR_STOP=1 <<'SQL' | tee /tmp/digests.txt
-          select current_setting('server_version'),
-                 p.oid::regprocedure::text,
-                 md5(pg_get_functiondef(p.oid))
+          select current_setting('server_version'),p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))
           from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-          where n.nspname='public'
-            and p.proname in ('sharawla_beta55_supply_acceptance_cleanup_v1','sharawla_beta55_supply_acceptance_fixture_v1')
+          where n.nspname='public' and p.proname in ('sharawla_beta55_supply_acceptance_cleanup_v1','sharawla_beta55_supply_acceptance_fixture_v1')
           order by p.proname;
           SQL
-      - name: Assert Batch1 expected effective digests
+          psql -At -v ON_ERROR_STOP=1 -c "select pg_get_functiondef('public.sharawla_beta55_supply_acceptance_cleanup_v1(text)'::regprocedure)" > /tmp/39.def
+          psql -At -v ON_ERROR_STOP=1 -c "select pg_get_functiondef('public.sharawla_beta55_supply_acceptance_fixture_v1(text)'::regprocedure)" > /tmp/40.def
+          echo '---BEGIN_39_EFFECTIVE---'; cat /tmp/39.def; echo '---END_39_EFFECTIVE---'
+          echo '---BEGIN_40_EFFECTIVE---'; cat /tmp/40.def; echo '---END_40_EFFECTIVE---'
+      - name: Assert exact effective digests
         shell: bash
         run: |
           set -euo pipefail
           grep -F 'sharawla_beta55_supply_acceptance_cleanup_v1(text)|274f5c3abb0689cf41ec970c91d2cb53' /tmp/digests.txt
-          grep -F 'sharawla_beta55_supply_acceptance_fixture_v1(text)|8b2e9ae9086f73a66751f1dbd2eff91e' /tmp/digests.txt
+          grep -F 'sharawla_beta55_supply_acceptance_fixture_v1(text)|8b2e9ae9086f73a66751f1dbd2eff91' /tmp/digests.txt
           echo 'POINT4_BATCH1_EFFECTIVE_DIGEST_PROOF accepted_blob=fae66e56925c53b73e82c5eb016a9d40c33058cc contracts=39,40 match=true'
