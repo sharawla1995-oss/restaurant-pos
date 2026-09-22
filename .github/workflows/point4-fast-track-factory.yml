@@ -1,0 +1,21 @@
+name: Point4 Fast Track Factory
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'contracts/point4-fast-track-remaining.v1.json'
+      - 'contracts/point4-pre-cutover-46-guard-contracts.v1.json'
+      - 'scripts/check-point4-fast-track-factory.js'
+      - '.github/workflows/point4-fast-track-factory.yml'
+permissions: { contents: read }
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Data-driven per-function preflight
+        run: node scripts/check-point4-fast-track-factory.js
+      - name: Safety boundary
+        run: |
+          echo "SOURCE-ONLY factory"
+          echo "No Supabase credentials; no deployment; no canonical activation; no cutover mutation."
