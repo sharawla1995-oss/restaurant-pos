@@ -115,6 +115,7 @@ declare
   v_found boolean;
   v_count integer:=0;
   v_payload_empty boolean:=true;
+  v_frozen_items jsonb:='[]'::jsonb;
 begin
   if auth.uid() is null then raise exception 'غير مصرح';end if;
   if not public.has_action_permission_v2('inventory.supply.request.fulfill') then raise exception 'ليس لديك صلاحية صرف طلبات التوريد';end if;
@@ -128,18 +129,39 @@ begin
   v_payload_empty:=coalesce(jsonb_array_length(case when jsonb_typeof(coalesce(p_items,'[]'::jsonb))='array' then coalesce(p_items,'[]'::jsonb) else '[]'::jsonb end),0)=0;
   v_emp:=public.current_employee_id();
 
+  -- Point4 FT-1: freeze the complete effective mixed stock identity set before any request-item/stock mutation.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'request_item_id',z.id,'item_type',z.item_type,'product_id',z.product_id,'ingredient_id',z.ingredient_id,'qty',z.qty
+  ) order by z.item_type,coalesce(z.product_id,z.ingredient_id),z.id),'[]'::jsonb)
+  into v_frozen_items
+  from (
+    select i.id,i.item_type,i.product_id,i.ingredient_id,
+      case when v_payload_empty then i.quantity_approved
+           else coalesce((select round(x.quantity,3) from jsonb_to_recordset(p_items) as x(item_id bigint,quantity numeric) where x.item_id=i.id limit 1),0) end qty
+    from public.inventory_supply_request_items i where i.request_id=v_q.id
+  ) z
+  where z.qty>0;
+
+  if jsonb_array_length(v_frozen_items)=0 then raise exception 'حدد كمية صرف لبند واحد على الأقل';end if;
+  for v_req in select * from jsonb_to_recordset(v_frozen_items) as x(request_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,qty numeric)
+  loop
+    if v_req.qty<0 then raise exception 'كمية الصرف غير صحيحة للبند %',v_req.request_item_id;end if;
+    select * into v_i from public.inventory_supply_request_items where id=v_req.request_item_id and request_id=v_q.id;
+    if v_req.qty>v_i.quantity_approved then raise exception 'كمية الصرف غير صحيحة للبند %',v_i.id;end if;
+  end loop;
+  for v_req in select * from jsonb_to_recordset(v_frozen_items) as x(request_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,qty numeric)
+               order by item_type,coalesce(product_id,ingredient_id),request_item_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(
+      v_q.source_location_id,v_req.item_type,case when v_req.item_type='product' then v_req.product_id else v_req.ingredient_id end);
+  end loop;
+
   for v_i in
-    select * from public.inventory_supply_request_items where request_id=v_q.id order by id for update
+    select i.* from public.inventory_supply_request_items i where i.request_id=v_q.id order by i.id for update
   loop
     v_found:=false;v_qty:=0;
-    if v_payload_empty then
-      v_qty:=v_i.quantity_approved;v_found:=true;
-    else
-      for v_req in select * from jsonb_to_recordset(p_items) as x(item_id bigint,quantity numeric)
-      loop
-        if v_req.item_id=v_i.id then v_qty:=round(coalesce(v_req.quantity,0),3);v_found:=true;exit;end if;
-      end loop;
-    end if;
+    select x.qty into v_qty from jsonb_to_recordset(v_frozen_items) as x(request_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,qty numeric) where x.request_item_id=v_i.id;
+    v_found:=found;
     if not v_found then v_qty:=0;end if;
     if v_qty<0 or v_qty>v_i.quantity_approved then raise exception 'كمية الصرف غير صحيحة للبند %',v_i.id;end if;
     if v_qty=0 then
