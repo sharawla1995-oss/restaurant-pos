@@ -1,0 +1,76 @@
+name: Point4 Batch2 Token Semantic Proof
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: postgres
+      SOURCE: supabase-beta55-central-warehouse-visibility-shortages.sql
+      EXPECTED_BLOB: 6231e8c5e8fd7164e1b18765f4f19526ed4223c8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify accepted blob
+        run: test "$(git hash-object "$SOURCE")" = "$EXPECTED_BLOB"
+      - name: Extract accepted contract 46 definition
+        shell: python
+        run: |
+          import re,pathlib
+          s=pathlib.Path("supabase-beta55-central-warehouse-visibility-shortages.sql").read_text()
+          n="inventory_supply_shortage_request_create_v1"
+          m=re.search(r"create\s+or\s+replace\s+function\s+public\."+re.escape(n)+r"\s*\(.*?\bend\$\$\s*;",s,re.I|re.S)
+          if not m: raise SystemExit("missing="+n)
+          pathlib.Path("/tmp/accepted.sql").write_text(m.group(0))
+      - run: psql -v ON_ERROR_STOP=1 -f /tmp/accepted.sql
+      - name: Export isolated effective definition
+        run: psql -At -c "select pg_get_functiondef('public.inventory_supply_shortage_request_create_v1(bigint,jsonb,text,text)'::regprocedure)" > /tmp/isolated46.def
+      - name: Produce corrected source-side token evidence
+        shell: python
+        run: |
+          import hashlib,json,pathlib
+          def normalize(s):
+            out=[];i=0;n=len(s);state="normal"
+            while i<n:
+              if state=="normal":
+                if s.startswith("--",i): state="linecomment";i+=2;continue
+                if s.startswith("/*",i): state="blockcomment";i+=2;continue
+                if s[i]=="'": state="single";out.append(s[i]);i+=1;continue
+                if s.startswith("$function$",i): out.append("$function$");i+=10;continue
+                if s[i].isspace(): i+=1;continue
+                out.append(s[i]);i+=1
+              elif state=="linecomment":
+                if s[i] in "\r\n": state="normal"
+                i+=1
+              elif state=="blockcomment":
+                if s.startswith("*/",i): state="normal";i+=2
+                else:i+=1
+              elif state=="single":
+                out.append(s[i])
+                if s[i]=="'":
+                  if i+1<n and s[i+1]=="'": out.append("'");i+=2;continue
+                  state="normal"
+                i+=1
+            return "".join(out)
+          raw=pathlib.Path("/tmp/isolated46.def").read_text()
+          norm=normalize(raw)
+          ev={"normalized_sha256":hashlib.sha256(norm.encode()).hexdigest(),"normalized_length":len(norm),"normalized":norm}
+          pathlib.Path("/tmp/source-token-evidence.json").write_text(json.dumps(ev,ensure_ascii=False,indent=2))
+          print(json.dumps({k:ev[k] for k in ("normalized_sha256","normalized_length")},indent=2))
+      - uses: actions/upload-artifact@v4
+        with:
+          name: point4-batch2-token-evidence
+          path: /tmp/source-token-evidence.json
