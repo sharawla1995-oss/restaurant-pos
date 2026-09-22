@@ -32,7 +32,18 @@ for(const x of plan){const src=fs.readFileSync(x.artifact,'utf8').toLowerCase();
 for(const r of c.records){const o=owners.get(r.id),win=finalOwner.get(r.id);if(win!==o.artifact){finalDefinitionMismatches++;console.log('final_definition_mismatch_id='+r.id+' expected='+o.artifact+' actual='+(win||'BASELINE_RUNTIME'));if(win&&((o.supersedes)||[]).some(z=>z.split('@')[0]===win))downgrades++;}}
 console.log('POINT4_FINAL_DEFINITION_SIMULATION contracts='+c.records.length+' deployment_artifacts='+plan.length+' blob_mismatches='+blobMismatches+' ordering_violations='+orderingViolations+' downgrades='+downgrades+' final_definition_mismatches='+finalDefinitionMismatches);
 
-const ok=ids.length===46&&new Set(ids).size===46&&!missing.length&&!dup.length&&!extra.length&&!badBlob&&!badFile&&!badGuard&&!guardMissing&&!definitionMissing&&!unresolvedCollisions&&!blobMismatches&&!orderingViolations&&!downgrades&&!finalDefinitionMismatches;
+
+let prerequisiteViolations=0;
+const pf=m.preflight||{},deps=(pf.dependencies||{});
+if(pf.target_project!=='xihcxydjnzemflhedzor'||pf.mode!=='READ_ONLY'){prerequisiteViolations++;console.log('preflight_target_or_mode_invalid');}
+if(!deps.legacy_guard||deps.legacy_guard.signature!=='inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint)'||deps.legacy_guard.present!==true){prerequisiteViolations++;console.log('legacy_guard_prerequisite_invalid');}
+if(!deps.document_guard||deps.document_guard.signature!=='inventory_stock_assert_document_workflow_allowed_v2(text)'||deps.document_guard.present!==true){prerequisiteViolations++;console.log('document_guard_prerequisite_invalid');}
+const core=deps.website_guarded_core;
+if(!core||core.created_by!=='supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql'||core.present_before_deployment!==false){prerequisiteViolations++;console.log('website_core_prerequisite_invalid');}
+else {const creator=plan.find(x=>x.artifact===core.created_by);if(!creator){prerequisiteViolations++;console.log('website_core_creator_not_in_plan');}}
+console.log('POINT4_PREFLIGHT_PREREQUISITES target='+(pf.target_project||'NONE')+' contract_signatures='+(pf.checked_contract_signatures||0)+' missing_contract_signatures='+(pf.runtime_missing_contract_signatures??'NA')+' prerequisite_violations='+prerequisiteViolations);
+
+const ok=ids.length===46&&new Set(ids).size===46&&!missing.length&&!dup.length&&!extra.length&&!badBlob&&!badFile&&!badGuard&&!guardMissing&&!definitionMissing&&!unresolvedCollisions&&!blobMismatches&&!orderingViolations&&!downgrades&&!finalDefinitionMismatches&&!prerequisiteViolations;
 console.log(`POINT4_DEPLOYMENT_MANIFEST_${ok?'COVERAGE_PASS':'COVERAGE_FAIL'} contracts=${c.records.length} mapped=${new Set(ids).size} missing=${missing.length} duplicates=${dup.length} extra=${extra.length} bad_blob=${badBlob} bad_file=${badFile} definition_missing=${definitionMissing} guard_missing=${guardMissing}`);
 if(missing.length)console.log('missing_ids='+missing.join(','));if(dup.length)console.log('duplicate_ids='+dup.join(','));if(definitionMissing||guardMissing)console.log('NOTE effective owner semantic/body reconciliation still required');
 if(!ok)process.exit(1);
