@@ -10,11 +10,11 @@ ordered(f25,[['replay',"if lc.status='posted'"],['freeze',"v_frozen_items:=v_fro
 if(!/select distinct x\.stock_kind,x\.stock_id[\s\S]*order by x\.stock_kind,x\.stock_id/i.test(f25))fail('#25 deterministic mixed guard set');
 if(/retail_landed_cost_allocations/i.test(f25.slice(f25.indexOf('inventory_stock_assert_legacy_write_allowed_v2'))))fail('#25 allocation rediscovery after guard');
 
-ordered(f27,[['replay','select id into v_grn from public.retail_goods_receipts where client_tx_id=v_key'],['freeze',"v_frozen_items:=v_frozen_items||jsonb_build_array"],['cumulative','sum(x.quantity) quantity'],['guard','inventory_stock_assert_legacy_write_allowed_v2'],['commit','insert into public.retail_goods_receipts'],['execute','jsonb_to_recordset(v_frozen_items)']],'#27');
+ordered(f27,[['replay','select id into v_grn from public.retail_goods_receipts where client_tx_id=v_key'],['freeze',"v_frozen_items:=v_frozen_items||jsonb_build_array"],['cumulative','sum(x.quantity) quantity'],['guard','inventory_stock_assert_legacy_write_allowed_v2'],['commit','insert into public.retail_goods_receipts'],['execute','-- Phase B: stock/document execution uses only the frozen lines.']],'#27');
 if(!f27.includes("'stock_kind',case when v_line.variant_id is null then 'product' else 'variant' end"))fail('#27 mixed identity freeze');
 if(/jsonb_to_recordset\s*\(p_items\)/i.test(f27.slice(f27.indexOf('inventory_stock_assert_legacy_write_allowed_v2'))))fail('#27 raw payload rediscovery after guard');
 
-ordered(f30,[['replay','select id into v_ret from public.retail_supplier_returns where client_tx_id=v_key'],['freeze',"v_frozen_items:=v_frozen_items||jsonb_build_array"],['cumulative','sum(x.quantity) quantity'],['guard','inventory_stock_assert_legacy_write_allowed_v2'],['commit','insert into public.retail_supplier_returns'],['execute','jsonb_to_recordset(v_frozen_items)']],'#30');
+ordered(f30,[['replay','select id into v_ret from public.retail_supplier_returns where client_tx_id=v_key'],['freeze',"v_frozen_items:=v_frozen_items||jsonb_build_array"],['cumulative','sum(x.quantity) quantity'],['guard','inventory_stock_assert_legacy_write_allowed_v2'],['commit','insert into public.retail_supplier_returns'],['execute','-- Phase B: execute only frozen identities/quantities/costs.']],'#30');
 if(!f30.includes("'stock_kind',case when v.variant_id is null then 'product' else 'variant' end"))fail('#30 mixed identity freeze');
 if(/jsonb_to_recordset\s*\(coalesce\(p_items/i.test(f30.slice(f30.indexOf('inventory_stock_assert_legacy_write_allowed_v2'))))fail('#30 raw payload rediscovery after guard');
 
