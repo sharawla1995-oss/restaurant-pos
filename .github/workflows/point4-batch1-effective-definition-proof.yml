@@ -1,0 +1,54 @@
+name: Point4 Batch1 Effective Definition Proof
+
+on:
+  push:
+    branches: [beta56-offline-ownership-consolidation]
+    paths:
+      - 'supabase-beta55-acceptance-supply.sql'
+      - '.github/workflows/point4-batch1-effective-definition-proof.yml'
+  workflow_dispatch:
+
+jobs:
+  canonicalize:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify accepted artifact blob
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object supabase-beta55-acceptance-supply.sql)" = "fae66e56925c53b73e82c5eb016a9d40c33058cc"
+      - name: Canonicalize accepted definitions in isolated PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create role authenticated;
+          \i supabase-beta55-acceptance-supply.sql
+          SQL
+          psql -h localhost -U postgres -d postgres -At -F '|' -v ON_ERROR_STOP=1 <<'SQL' | tee point4-batch1-effective-digests.txt
+          select current_setting('server_version');
+          select '39',pg_get_function_identity_arguments(p.oid),md5(pg_get_functiondef(p.oid))
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='sharawla_beta55_supply_acceptance_cleanup_v1';
+          select '40',pg_get_function_identity_arguments(p.oid),md5(pg_get_functiondef(p.oid))
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='sharawla_beta55_supply_acceptance_fixture_v1';
+          SQL
+          grep -Fx '39|p_run_id text|274f5c3abb0689cf41ec970c91d2cb53' point4-batch1-effective-digests.txt
+          grep -Fx '40|p_run_id text|8b2e9ae9086f73a66751f1dbd2eff91e' point4-batch1-effective-digests.txt
+          echo 'POINT4_BATCH1_EFFECTIVE_DEFINITION_PROOF PASS blob=fae66e56925c53b73e82c5eb016a9d40c33058cc contracts=39,40'
