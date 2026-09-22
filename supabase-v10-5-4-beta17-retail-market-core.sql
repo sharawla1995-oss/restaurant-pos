@@ -311,12 +311,23 @@ grant execute on function public.retail_catalog(bigint) to anon,authenticated;
 
 create or replace function public.retail_reserve_stock(p_branch_id bigint,p_reservation_key text,p_items jsonb,p_minutes integer default 10)
 returns boolean language plpgsql security definer set search_path=public as $$
-declare v record; v_bal numeric; v_reserved numeric; v_qty numeric(14,3);
+declare v record; v_bal numeric; v_reserved numeric; v_qty numeric(14,3); v_frozen_items jsonb:='[]'::jsonb;
 begin
  if nullif(trim(coalesce(p_reservation_key,'')),'') is null then raise exception 'reservation key required'; end if;
+ select coalesce(jsonb_agg(jsonb_build_object('product_id',z.product_id,'quantity',z.quantity) order by z.product_id),'[]'::jsonb)
+ into v_frozen_items
+ from (
+   select x.product_id,round(sum(coalesce(x.quantity,0)),3) quantity
+   from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(product_id bigint,quantity numeric)
+   group by x.product_id
+ ) z;
+ if exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,quantity numeric) where quantity<=0) then raise exception 'كمية غير صحيحة'; end if;
+ for v in select * from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,quantity numeric) order by product_id loop
+   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'product',v.product_id);
+ end loop;
  update public.retail_stock_reservations set status='expired' where status='active' and expires_at<=now();
- for v in select * from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb)) as x(product_id bigint,quantity numeric) loop
-  v_qty:=round(coalesce(v.quantity,0),3); if v_qty<=0 then raise exception 'كمية غير صحيحة'; end if;
+ for v in select * from jsonb_to_recordset(v_frozen_items) as x(product_id bigint,quantity numeric) loop
+  v_qty:=v.quantity;
   select quantity into v_bal from public.retail_inventory_balances where branch_id=p_branch_id and product_id=v.product_id for update;
   select coalesce(sum(quantity),0) into v_reserved from public.retail_stock_reservations where branch_id=p_branch_id and product_id=v.product_id and status='active' and expires_at>now() and reservation_key<>p_reservation_key;
   if coalesce(v_bal,0)-v_reserved<v_qty then raise exception 'المخزون غير كافٍ للصنف %',v.product_id; end if;
