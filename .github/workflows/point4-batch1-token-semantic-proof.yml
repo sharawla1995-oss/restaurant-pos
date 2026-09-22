@@ -57,7 +57,7 @@ jobs:
                 if s.startswith("--",i): state="linecomment";i+=2;continue
                 if s.startswith("/*",i): state="blockcomment";i+=2;continue
                 if s[i]=="'": state="single";out.append(s[i]);i+=1;continue
-                if s.startswith("$function$",i): state="dollar";out.append("$function$");i+=10;continue
+                if s.startswith("$function$",i): out.append("$function$");i+=10;continue
                 if s[i].isspace(): i+=1;continue
                 out.append(s[i]);i+=1
               elif state=="linecomment":
@@ -72,9 +72,6 @@ jobs:
                   if i+1<n and s[i+1]=="'": out.append("'");i+=2;continue
                   state="normal"
                 i+=1
-              elif state=="dollar":
-                if s.startswith("$function$",i): out.append("$function$");i+=10;state="normal"
-                else: out.append(s[i]);i+=1
             return "".join(out)
           ev={}
           for cid in ("39","40"):
