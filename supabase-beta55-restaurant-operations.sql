@@ -511,12 +511,37 @@ begin
  perform pg_advisory_xact_lock(hashtextextended('food-count:'||v_key,0));
  select id into v_id from public.food_stock_counts where client_tx_id=v_key;if v_id is not null then return v_id;end if;
  v_emp:=public.current_employee_id();
- insert into public.food_stock_counts(branch_id,notes,client_tx_id,created_by_employee_id) values(p_branch_id,nullif(trim(coalesce(p_notes,'')),''),v_key,v_emp) returning id into v_id;
- for v in select * from jsonb_to_recordset(p_items) as x(ingredient_id bigint,counted_quantity numeric) loop
+
+ -- Point 4 FT-5: validate and freeze the complete caller evidence before the
+ -- stock-count header (the first new-execution commitment write).
+ for v in
+   select x.ingredient_id,round(coalesce(x.counted_quantity,-1)::numeric,6) counted_quantity
+   from jsonb_to_recordset(p_items) with ordinality as x(ingredient_id bigint,counted_quantity numeric,ord bigint)
+   order by x.ord
+ loop
    if not exists(select 1 from public.ingredients where id=v.ingredient_id and active is distinct from false and track_inventory=true) then raise exception 'الخامة غير موجودة أو غير متتبعة %',v.ingredient_id; end if;
+   if v.counted_quantity<0 then raise exception 'كمية الجرد لا يمكن أن تكون سالبة';end if;
+ end loop;
+
+ -- Guard every distinct affected tracked ingredient in deterministic order.
+ for v in
+   select distinct x.ingredient_id
+   from jsonb_to_recordset(p_items) as x(ingredient_id bigint,counted_quantity numeric)
+   join public.ingredients i on i.id=x.ingredient_id and i.active is distinct from false and i.track_inventory=true
+   order by x.ingredient_id
+ loop
+   perform public.inventory_stock_assert_legacy_write_allowed_v2(p_branch_id,'ingredient',v.ingredient_id);
+ end loop;
+
+ insert into public.food_stock_counts(branch_id,notes,client_tx_id,created_by_employee_id) values(p_branch_id,nullif(trim(coalesce(p_notes,'')),''),v_key,v_emp) returning id into v_id;
+ for v in
+   select x.ingredient_id,round(coalesce(x.counted_quantity,-1)::numeric,6) counted_quantity
+   from jsonb_to_recordset(p_items) with ordinality as x(ingredient_id bigint,counted_quantity numeric,ord bigint)
+   order by x.ord
+ loop
    insert into public.ingredient_stock(branch_id,ingredient_id,quantity) values(p_branch_id,v.ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
    select * into v_stock from public.ingredient_stock where branch_id=p_branch_id and ingredient_id=v.ingredient_id for update;
-   v_count:=round(coalesce(v.counted_quantity,-1)::numeric,6);if v_count<0 then raise exception 'كمية الجرد لا يمكن أن تكون سالبة';end if;
+   v_count:=v.counted_quantity;
    v_var:=round(v_count-v_stock.quantity,6);
    if v_var<>0 then perform public.food_apply_ingredient_delta_internal_v1(p_branch_id,v.ingredient_id,v_var,null,'stock_count','food_stock_count',v_id,'تسوية جرد خامات'); end if;
    insert into public.food_stock_count_items(stock_count_id,ingredient_id,system_quantity,counted_quantity,variance,unit_cost_snapshot)
