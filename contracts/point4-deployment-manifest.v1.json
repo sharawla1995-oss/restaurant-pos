@@ -209,9 +209,9 @@
     },
     {
       "order": 2,
-      "artifact": "supabase-beta55-central-warehouse-foundation.sql",
-      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af",
-      "contracts": "42,43"
+      "artifact": "supabase-beta55-central-warehouse-visibility-shortages.sql",
+      "blob": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8",
+      "contracts": "46"
     },
     {
       "order": 3,
@@ -221,9 +221,9 @@
     },
     {
       "order": 4,
-      "artifact": "supabase-beta55-central-warehouse-visibility-shortages.sql",
-      "blob": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8",
-      "contracts": "46"
+      "artifact": "supabase-beta55-central-warehouse-foundation.sql",
+      "blob": "65f20e3400939b4e230baf4449fc73fdb9ac87af",
+      "contracts": "42,43"
     },
     {
       "order": 5,
@@ -340,5 +340,22 @@
       "contracts": "32,33"
     }
   ],
-  "deployment_plan_note": "Only accepted effective-owner artifacts are deployment inputs. Ordering is baseline/effective-owner aware: older multi-function baseline owners run before later Point4 overriding owners. supersedes[] are collision evidence only and are not added as separate deployment inputs."
+  "deployment_plan_note": "Only accepted effective-owner artifacts are deployment inputs. Ordering is baseline/effective-owner aware: older multi-function baseline owners run before later Point4 overriding owners. supersedes[] are collision evidence only and are not added as separate deployment inputs.",
+  "ordering_constraints": [
+    {
+      "reason": "Contract #43 accepted owner is warehouse foundation; visibility-shortages contains a superseded #43 definition.",
+      "must_run_before": "supabase-beta55-central-warehouse-visibility-shortages.sql",
+      "must_run_after": "supabase-beta55-central-warehouse-foundation.sql"
+    },
+    {
+      "reason": "Point4 Batch1 is final accepted owner for #10,#13,#16,#23,#24,#34,#41,#44,#45.",
+      "must_run_before": "all baseline/effective artifacts that also define those signatures",
+      "must_run_after": "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql"
+    },
+    {
+      "reason": "Point4 Batch7 is final accepted owner for #32,#33.",
+      "must_run_before": "supabase-v10-5-4-beta17-retail-market-core.sql",
+      "must_run_after": "supabase-point4-pre-cutover-46-guard-installation-batch7-retail-transfers.sql"
+    }
+  ]
 }
