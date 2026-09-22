@@ -57,6 +57,41 @@ jobs:
             psql postgresql://postgres:postgres@127.0.0.1:55432/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" | grep -q inventory_stock_assert_legacy_write_allowed_v2
             echo "PASS effective readback: $sig"
           done
+      - name: FT-2 independent semantic gates
+        run: node scripts/check-point4-ft2-retail-market.js
+      - name: FT-2 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft2-pg -e POSTGRES_PASSWORD=postgres -p 55433:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55433 -U postgres && break; sleep 1; done
+          cat > /tmp/ft2.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,product_id));
+          create table public.retail_stock_counts(id bigserial primary key,branch_id bigint,status text,notes text,created_by_employee_id bigint,posted_by_employee_id bigint,posted_at timestamptz);
+          create table public.retail_stock_count_items(stock_count_id bigint,product_id bigint,system_qty numeric,counted_qty numeric,variance numeric);
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint,notes text);
+          create table public.retail_stock_reservations(branch_id bigint,product_id bigint,quantity numeric,reservation_key text,status text,expires_at timestamptz,unique(reservation_key,product_id));
+          create or replace function public.is_admin() returns boolean language sql as 'select true';
+          create or replace function public.has_permission(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -v ON_ERROR_STOP=1 -f /tmp/ft2.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-v10-5-4-beta17-retail-market-core.sql').read_text()
+          names=['retail_post_stock_count','retail_reserve_stock']; out=[]
+          for name in names:
+              m=re.search(r'create or replace function public\.'+name+r'\(.*?\nend \$\$;',s,re.S|re.I)
+              assert m,name
+              out.append(m.group(0))
+          pathlib.Path('/tmp/ft2funcs.sql').write_text('\n\n'.join(out))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -v ON_ERROR_STOP=1 -f /tmp/ft2funcs.sql
+          for sig in "retail_post_stock_count(bigint,text,jsonb)" "retail_reserve_stock(bigint,text,jsonb,integer)"; do
+            psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" | grep -q inventory_stock_assert_legacy_write_allowed_v2
+            echo "PASS effective readback: $sig"
+          done
       - name: Safety boundary
         run: |
           echo "SOURCE-ONLY factory"
