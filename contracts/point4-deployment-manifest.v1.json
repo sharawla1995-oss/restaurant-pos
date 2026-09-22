@@ -357,5 +357,13 @@
       "must_run_before": "supabase-v10-5-4-beta17-retail-market-core.sql",
       "must_run_after": "supabase-point4-pre-cutover-46-guard-installation-batch7-retail-transfers.sql"
     }
-  ]
+  ],
+  "freeze": {
+    "status": "FROZEN_FOR_READ_ONLY_PREFLIGHT",
+    "validated_head": "1ab5cbfab88cd1e38f8a021f52d54fea5272bfa2",
+    "validation_run_id": 35782268078,
+    "contracts": 46,
+    "deployment_artifacts": 23,
+    "rule": "Any change to validated_head inputs, effective-owner blobs, target project, or unexplained runtime drift invalidates this freeze and requires re-validation before DB writes."
+  }
 }
