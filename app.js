@@ -521,8 +521,20 @@ function canAccessPage(page){
   if(page==='users')return isAdmin();
   return runtimeOperationalAllowsPage(page);
 }
+function applyProfileNavigationLabels(){
+  const profile=String(sharawlaRuntimeConfig?.pos_profile||'').trim().toLowerCase();
+  if(profile!=='restaurant'&&profile!=='retail')return;
+  const labels=profile==='restaurant'
+    ?{stockCount:'🧮 جرد الخامات',transfers:'🔄 تحويلات الخامات',purchasing:'📥 مشتريات الخامات'}
+    :{stockCount:'🧮 الجرد',transfers:'🔄 تحويلات الفروع',purchasing:'📥 المشتريات والاستلام'};
+  for(const [page,label] of Object.entries(labels)){
+    const b=$(`#nav button[data-page="${page}"]`);
+    if(b)b.textContent=label;
+  }
+}
 function applyRoleNavigation(){
-  $$('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
+  applyProfileNavigationLabels();
+  $('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
 }
 function allowedBranchIds(){if(isAdmin())return state.branches.map(b=>Number(b.id));const ids=(state.employeeBranches||[]).map(x=>Number(x.branch_id));if(!ids.length&&state.employee?.branch_id)ids.push(Number(state.employee.branch_id));return [...new Set(ids)]}
 function allowedBranches(){const ids=new Set(allowedBranchIds().map(String));return state.branches.filter(b=>ids.has(String(b.id)))}
