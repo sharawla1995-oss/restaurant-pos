@@ -1,0 +1,55 @@
+name: Shared Inventory Labels Gate
+
+on:
+  push:
+    branches:
+      - nav-registry-1d-b-shared-labels-gate
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f704cd22118b0a7ede8db20329108e9585e3d70a
+          fetch-depth: 1
+
+      - name: Verify exact candidate
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "HEAD=$actual"
+          test "$actual" = "f704cd22118b0a7ede8db20329108e9585e3d70a"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Sync version
+        run: npm run sync-version
+
+      - name: Run navigation and regression gates
+        shell: bash
+        run: |
+          set +e
+          node scripts/check-navigation-profile-leakage-corrective.js
+          a=$?
+          node scripts/check-runtime-syntax.js
+          b=$?
+          node scripts/check-unified-navigation-registry-1c.js
+          c=$?
+          node scripts/check-unified-navigation-registry-1d-a.js
+          d=$?
+          node scripts/check-unified-navigation-registry-1d-b-runtime-binding.js
+          e=$?
+          node scripts/check-beta55-restaurant-acceptance.js
+          f=$?
+          node scripts/check-orders-performance-date-window.js
+          g=$?
+          node scripts/check-orders-runtime-corrective.js
+          h=$?
+          echo "EXIT_CODES corrective=$a syntax=$b 1c=$c 1da=$d 1db=$e restaurant=$f orders_perf=$g orders_runtime=$h"
+          test $a -eq 0 -a $b -eq 0 -a $c -eq 0 -a $d -eq 0 -a $e -eq 0 -a $f -eq 0 -a $g -eq 0 -a $h -eq 0
