@@ -7,9 +7,9 @@ const app=read('app.js');
 const recovery=read('beta55-4-runtime-recovery.js');
 const sync=read('scripts/sync-version.js');
 const loader=read('beta36-integration-loader.js');
-assert(pkg.version==='10.5.4-beta.58.2','expected beta58.1 package version');
+assert(pkg.version==='10.5.4-beta.58.3','expected beta58.1 package version');
 assert(app.includes('async function renderOrders(opts={})'),'new Orders renderer missing');
-assert(app.includes("ORDERS-DATE-WINDOW-V58.2"),'visible Orders runtime ownership marker missing');
+assert(app.includes("ORDERS-DATE-WINDOW-V58.3"),'visible Orders runtime ownership marker missing');
 assert(app.includes('id="ordersFrom"')&&app.includes('id="ordersTo"'),'Orders date controls missing');
 assert(app.includes('pageSize=100'),'Orders page size contract missing');
 assert(app.includes('await cacheOrderRows(rows.slice(0,pageSize))'),'Orders batch cache contract missing');
@@ -19,3 +19,11 @@ for(const file of ['beta51-final-offline-acceptance-fix.js','beta55-4-runtime-re
  assert(loader.includes(file),'integration loader missing '+file);
 }
 console.log('Orders runtime corrective contract PASS:',pkg.version);
+
+assert(app.includes("if(window.topBurgerDesktop?.isDesktop)"),'desktop service worker bypass missing');
+assert(app.includes("getRegistrations()"),'desktop service worker unregister missing');
+const main=fs.readFileSync(path.join(root,'main.js'),'utf8');
+assert(main.includes("clearDesktopRendererAssetCaches"),'main desktop renderer cache cleanup missing');
+assert(main.includes("storages:['serviceworkers','cachestorage']"),'serviceworker/cachestorage cleanup missing');
+assert(main.includes("await clearDesktopRendererAssetCaches();createWindow()"),'cache cleanup must precede createWindow');
+console.log('Beta58.3 desktop renderer cache ownership contract PASS');
