@@ -102,7 +102,6 @@ function adapter(type,entityType,rpcNames){
     buildCommit:({payload,clientTx,identity,createdAt})=>{
       const resolved=resolveOperation(type,payload),created=createdAt||nowIso(),localId=deterministicLocalId(type,clientTx),order=resolved.rpc_payload?.p_order||{};
       const point4Identity=type==='sale'||type==='return'?assertPoint4Payload(type,resolved.rpc_payload):null;if(point4Identity&&point4Identity.tx!==clientTx)throw point4IdentityError('POINT4_IDENTITY_CLIENT_TX_MISMATCH');
-
       const branchId=num(order.branch_id??resolved.rpc_payload?.p_branch_id,runtimeBranch()),employeeId=num(order.employee_id??resolved.rpc_payload?.p_employee_id,runtimeEmployee());
       return {
         client_tx_id:clientTx,device_id:identity.device_id,business_id:identity.business_id,branch_id:branchId,employee_id:employeeId,
