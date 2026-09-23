@@ -107,7 +107,7 @@ function adapter(type,entityType,rpcNames){
         client_tx_id:clientTx,device_id:identity.device_id,business_id:identity.business_id,branch_id:branchId,employee_id:employeeId,
         operation_type:type,entity_type:entityType,local_entity_id:localId,local_shift_id:shiftId(type,resolved.rpc_payload),depends_on_tx_id:dependencyTx(type,resolved.rpc_payload),
         created_local_at:created,protocol_version:2,schema_version:2,status:'pending',
-        payload:{rpc_name:resolved.rpc_name,rpc_payload:clone(resolved.rpc_payload),point4_identity_classification:point4Identity?.classification||'NOT_APPLICABLE'},point4_context_envelope:null,
+        payload:{rpc_name:resolved.rpc_name,rpc_payload:clone(resolved.rpc_payload),point4_identity_classification:point4Identity?.classification||'NOT_APPLICABLE'},
         records:recordsFor(type,entityType,localId,resolved.rpc_payload,created)
       };
     }
