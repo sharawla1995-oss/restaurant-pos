@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('fs');
+const path=require('path');
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg)};
 const read=f=>fs.readFileSync(f,'utf8');
 const pkg=JSON.parse(read('package.json'));
@@ -7,7 +8,7 @@ const app=read('app.js');
 const recovery=read('beta55-4-runtime-recovery.js');
 const sync=read('scripts/sync-version.js');
 const loader=read('beta36-integration-loader.js');
-assert(pkg.version==='10.5.4-beta.58.3','expected beta58.1 package version');
+assert(pkg.version==='10.5.4-beta.58.3','expected beta58.3 package version');
 assert(app.includes('async function renderOrders(opts={})'),'new Orders renderer missing');
 assert(app.includes("ORDERS-DATE-WINDOW-V58.3"),'visible Orders runtime ownership marker missing');
 assert(app.includes('id="ordersFrom"')&&app.includes('id="ordersTo"'),'Orders date controls missing');
