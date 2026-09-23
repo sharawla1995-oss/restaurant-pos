@@ -41,6 +41,25 @@ jobs:
           node scripts/check-orders-runtime-corrective.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
+      - name: Verify packaged app.asar renderer ownership
+        shell: pwsh
+        run: |
+          $asar = Join-Path $PWD 'dist\win-unpacked\resources\app.asar'
+          if (!(Test-Path $asar)) { throw "packaged app.asar missing: $asar" }
+          $probe = Join-Path $env:RUNNER_TEMP 'sharawla-app-asar-probe'
+          if (Test-Path $probe) { Remove-Item $probe -Recurse -Force }
+          New-Item -ItemType Directory -Path $probe | Out-Null
+          npx asar extract $asar $probe
+          $pkg = Get-Content (Join-Path $probe 'package.json') -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.58.3') { throw "packaged version mismatch: $($pkg.version)" }
+          if ($pkg.main -ne 'main-beta44.js') { throw "packaged main mismatch: $($pkg.main)" }
+          $app = Get-Content (Join-Path $probe 'app.js') -Raw
+          if (!$app.Contains('ORDERS-DATE-WINDOW-V58.3')) { throw 'packaged app.js missing V58.3 marker' }
+          if (!$app.Contains('id="ordersFrom"') -or !$app.Contains('id="ordersTo"')) { throw 'packaged app.js missing Orders date controls' }
+          $main = Get-Content (Join-Path $probe 'main.js') -Raw
+          if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
+          if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }
+          Write-Host "PACKAGED APP.ASAR OWNERSHIP PASS version=$($pkg.version) main=$($pkg.main)"
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
