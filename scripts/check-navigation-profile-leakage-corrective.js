@@ -38,7 +38,7 @@ must('shared inventory navigation labels are profile-aware',
   has(app,"purchasing:'📥 المشتريات والاستلام'")
 );
 must('profile labels run before role visibility pass',
-  has(app,"function applyRoleNavigation(){\n  applyProfileNavigationLabels();")
+  /function applyRoleNavigation\(\)\{\r?\n\s*applyProfileNavigationLabels\(\);/.test(app)
 );
 
 must('role navigation iterates the full nav button list',
