@@ -3,7 +3,7 @@
 const fs=require('fs');
 const path=require('path');
 const ROOT=path.join(__dirname,'..');
-const app=fs.readFileSync(path.join(ROOT,'app.js'),'utf8');
+const app=fs.readFileSync(path.join(ROOT,'app.js'),'utf8').replace(/\r\n?/g,'\n');
 const registry=require(path.join(ROOT,'sharawla-navigation-registry.js'));
 
 const errors=[];
