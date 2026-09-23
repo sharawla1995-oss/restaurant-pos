@@ -1,0 +1,42 @@
+name: Unified Navigation 1E Coverage Gate
+
+on:
+  push:
+    branches:
+      - nav-registry-1e-coverage-gate
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 87e930ef45c24626b838e85afe0fe759b177955d
+          fetch-depth: 1
+
+      - name: Verify exact candidate
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "HEAD=$actual"
+          test "$actual" = "87e930ef45c24626b838e85afe0fe759b177955d"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Run registry gates through 1E
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/check-unified-navigation-registry.js
+          node scripts/check-unified-navigation-registry-1b.js
+          node scripts/check-unified-navigation-registry-1c.js
+          node scripts/check-unified-navigation-registry-1d-a.js
+          node scripts/check-unified-navigation-registry-1d-b-runtime-binding.js
+          node scripts/check-navigation-profile-leakage-corrective.js
+          node scripts/check-unified-navigation-registry-1e.js
+          node scripts/check-runtime-syntax.js
