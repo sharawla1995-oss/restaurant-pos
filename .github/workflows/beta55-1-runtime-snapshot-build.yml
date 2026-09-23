@@ -42,7 +42,7 @@ jobs:
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
-          name: sharawla-pos-10.5.4-beta.56-corrective-sh0007-x64
-          path: dist/Sharawla-POS-Setup-10.5.4-beta.56.exe
+          name: sharawla-pos-10.5.4-beta.57-rc-sh0007-x64
+          path: dist/Sharawla-POS-Setup-10.5.4-beta.57.exe
           if-no-files-found: error
           retention-days: 7
