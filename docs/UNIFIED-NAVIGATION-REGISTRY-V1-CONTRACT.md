@@ -82,3 +82,66 @@ Current protected cases remain:
 The checker also contains a negative detector fixture. A synthetic undeclared owner for both `orders` and `purchasing` must be rejected. This prevents 1C from merely restating Registry metadata without detecting additional source ownership.
 
 Batch 1C does not modify `showPage()`, does not add interception, does not activate fail-closed behavior, and does not perform Build/Deployment.
+
+
+## Batch 1E — Coverage Gate
+
+Batch 1E is classification/enforcement only. It does not take runtime ownership, change dispatch, change permissions, or activate fail-closed behavior.
+
+The gate requires every **current known business navigation route** to be classified as exactly one of:
+
+- `SHADOW_VERIFIED`
+- `CONFLICT_BLOCKED`
+- `DEFERRED_FIX`
+
+`NEW_TARGET` routes are not current navigation entries and are excluded from current-route coverage until they are actually implemented.
+
+The 1E runtime-surface detector covers the currently known navigation mechanisms and rejects new undeclared mechanisms, route IDs, custom navigation writers, or literal route keys. The coverage surface now explicitly includes:
+
+- classic `data-page`
+- Home route proxies via `data-home-page`
+- Beta54 `data-beta54-page`
+- Central Warehouse `data-beta55-supply-page`
+- HR group augmentation
+- Website Hub children
+- Pharmacy `data-pharmacy-page` and `data-pharmacy-home`
+- Retail Website Orders custom navigation and its Home proxy
+- diagnostic navigation IDs as non-business diagnostics
+
+The following newly discovered current routes are registered during 1E but remain `DEFERRED_FIX` until their own profile runtime/permission acceptance:
+
+- `retailWebsiteOrders`
+- `pharmacyCatalog`
+- `pharmacyBatches`
+- `pharmacyExpiry`
+- `pharmacyPrescriptions`
+- `pharmacyInsurance`
+- `pharmacyClaims`
+
+Diagnostics such as `ownerDiagnosticsNav` and `betaSelfTestNav` are explicitly classified as non-business diagnostic navigation and are not promoted into the business route registry.
+
+Runtime evidence accepted from 1D-B for this gate is limited to the routes/checks actually observed on SH-0007:
+
+- `customers` = `SHADOW_MATCH`
+- `orders` = `SHADOW_LOCKED_MATCH`
+- `foodIngredients` = `SHADOW_MATCH`
+- `foodRecipes` = `SHADOW_MATCH`
+- `foodOperations` = `SHADOW_MATCH`
+- `tables` = `SHADOW_MATCH`
+- Restaurant visibility of `marketSettings` = hidden / `SHADOW_MATCH`
+- Restaurant visibility of `retailOffers` = hidden / `SHADOW_MATCH`
+- `purchasing` = `SHADOW_CONFLICT_BLOCKED`
+
+Routes without accepted 1D-B runtime evidence remain explicitly deferred at 1E instead of being silently promoted.
+
+### 1E hard boundaries
+
+- Orders V58.3 remains locked.
+- `suppliers / purchasing / stockCount / transfers` remain `CONFLICT_BLOCKED`.
+- Website Payments remains `DEFERRED_FIX`.
+- Retail-only navigation must not leak into Restaurant.
+- Unknown current route, unknown entry mechanism, unknown navigation writer, or unknown navigation ID = gate FAIL.
+- The negative fixture must prove the detector rejects a synthetic rogue route/mechanism/writer.
+- 1E must not modify Point 4, Offline/Sync, stock ownership, printing, updater, licensing, Activation, Business Connection, Canonical Fingerprint, or any database/RPC.
+- 1E does not build or deploy anything by itself.
+- 1F remains a separate explicit approval gate. The existing pre-1F unknown-route fallback is intentionally preserved during 1E.
