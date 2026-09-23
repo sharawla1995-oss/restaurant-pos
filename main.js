@@ -7,6 +7,7 @@ const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
 const { installRuntimeSnapshotMain } = require('./beta56-runtime-snapshot-main');
 let db, SQL, mainWindow;
+let skipLastGoodCopyOnce=false;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
@@ -43,13 +44,25 @@ function writeLicenseStateFile(v){
     if(wroteTmp)try{fs.unlinkSync(tmp)}catch{}
   }
 }
-function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
+function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(!skipLastGoodCopyOnce&&fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}skipLastGoodCopyOnce=false;fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
+function openSqlJsCandidate(file){
+  if(!file||!fs.existsSync(file))return null;
+  const candidate=new SQL.Database(fs.readFileSync(file));
+  const check=candidate.exec('pragma quick_check');
+  const value=String(check?.[0]?.values?.[0]?.[0]||'').toLowerCase();
+  if(value!=='ok'){try{candidate.close()}catch{};throw new Error(`SQLite quick_check failed: ${value||'unknown'}`)}
+  return candidate;
+}
+function preserveRejectedDb(file,label){
+  try{if(!file||!fs.existsSync(file))return null;const target=path.join(backupDir(),`topburger-pos-recovery-rejected-${label}-${stamp()}.sqlite`);fs.copyFileSync(file,target);return target}catch{return null}
+}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
-  const p=dbPath();
-  if(fs.existsSync(p)){try{db=new SQL.Database(fs.readFileSync(p))}catch{try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}}
-  else if(fs.existsSync(lastGoodDbPath())){try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}
-  else db=new SQL.Database();
+  const p=dbPath(),lg=lastGoodDbPath();let primaryRejected=false,lastGoodRejected=false;
+  if(fs.existsSync(p)){try{db=openSqlJsCandidate(p)}catch{primaryRejected=true;preserveRejectedDb(p,'primary')}}
+  if(!db&&fs.existsSync(lg)){try{db=openSqlJsCandidate(lg)}catch{lastGoodRejected=true;preserveRejectedDb(lg,'lastgood')}}
+  if(!db)db=new SQL.Database();
+  if(primaryRejected||lastGoodRejected)skipLastGoodCopyOnce=true;
   db.run(`
 create table if not exists kv(key text primary key,value text not null,updated_at text not null default(datetime('now')));
 create table if not exists local_operations(id integer primary key autoincrement,client_tx_id text unique not null,type text not null,payload text not null,status text not null default 'pending',attempts integer not null default 0,last_error text,created_at text not null default(datetime('now')),updated_at text not null default(datetime('now')));
