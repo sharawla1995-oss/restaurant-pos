@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.58.1",
-  "description": "Sharawla POS V10.5.4 Beta 58.1 - SH-0007 Orders Runtime Corrective - Date Window + Pagination + Batch Cache + No Legacy Orders Prefetch",
+  "version": "10.5.4-beta.58.2",
+  "description": "Sharawla POS V10.5.4 Beta 58.2 - SH-0007 Orders Runtime Ownership Diagnostic - Visible Renderer Marker + Beta58 Performance Corrective",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
