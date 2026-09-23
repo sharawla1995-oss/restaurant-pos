@@ -7,7 +7,7 @@ const path=require('path');
 
 const root=path.resolve(__dirname,'..');
 const file=path.join(root,'supabase-point4-stock-v2-controlled-cutover.sql');
-const sql=fs.readFileSync(file,'utf8');
+const sql=fs.readFileSync(file,'utf8').replace(/\r\n?/g,'\n');
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
 function has(token,message){assert(sql.includes(token),message||`missing: ${token}`);}
