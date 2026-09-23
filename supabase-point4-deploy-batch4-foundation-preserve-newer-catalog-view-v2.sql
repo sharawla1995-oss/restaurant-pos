@@ -420,7 +420,7 @@ begin
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(v_emp,v_q.destination_branch_id,'inventory.supply.request.submit','inventory_supply_request',v_q.id,jsonb_build_object('source_location_id',v_q.source_location_id));
  return v_q.id;
 end;
-$function$
+$function$;
 
 create or replace function public.inventory_supply_request_decide_v1(
   p_request_id bigint,
