@@ -972,3 +972,62 @@ Rules:
 14. Only after accepted Beta evidence discuss Stable promotion.
 
 No item in this target map authorizes a Production write.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Navigation Registry 1F Runtime Gate
+
+> This section supersedes the 2026-09-23 Beta58 / Unified Navigation next-step text where it conflicts. Preserve older sections as historical evidence.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on **10.5.3 CLEAN**.
+- Current runtime acceptance target is **SH-0007 only**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- No automatic rebind and no Canonical Fingerprint mutation.
+
+### Orders V58.3 — CLOSED / ACCEPTED
+
+- The Beta58 Orders discrepancy is resolved and must not be reopened without contradictory regression evidence.
+- Packaged source was present in app.asar, but runtime ownership investigation proved the old Beta43 layer could execute renderOrders43(). Renderer ownership was corrected and protected by regression/packaged-ownership guards.
+- SH-0007 runtime acceptance passed for the V58.3 marker, date controls, Search, Today, Pagination and Details.
+- Orders V58.3 is **LOCKED_ACCEPTED_OWNER** during Navigation Registry work.
+
+### Unified Navigation Registry V1 — current status
+
+- **1A Static Shadow Inventory: CLOSED / PASS.** 39 routes; shadow-only.
+- **1B Dynamic Navigation Adapters: CLOSED / PASS.** Adapters cover current data-page, Beta54, Central Warehouse supply, HR group and Website Hub entry types; Actions remain non-routes.
+- **1C Ownership & Conflict Detection: CLOSED / PASS.** Runtime Source Graph / ownership evidence is enforced; undeclared ownership conflicts fail the contract.
+- **1D Shadow Runtime Audit / Pre-Bind work: CLOSED through its accepted gates.** Observation/non-interference boundaries preserved.
+- **1E Coverage Gate: CLOSED / PASS.**
+- **1F Fail-Closed Source + Packaging: PASS; final SH-0007 Runtime Acceptance remains OPEN.**
+
+Preserved classifications:
+- Orders = **LOCKED_ACCEPTED_OWNER / V58.3**.
+- suppliers / purchasing / stockCount / transfers = **CONFLICT_BLOCKED**; no canonical owner is selected implicitly.
+- websitePayments = **DEFERRED_FIX / KNOWN_PERMISSION_MISMATCH**.
+- Unknown route policy in the 1F candidate = **BLOCK**, never fallback to POS/Home/business renderer.
+
+### 1F accepted candidate for SH-0007-only runtime gate
+
+- Candidate commit: `54c5daa0cb475d708424c9ff959e9df184a98e5e`.
+- GitHub Actions Artifact ID: `10782640143`.
+- Artifact label: Navigation 1F Fail-Closed V2.
+- SHA256: `270b7ce4234c29f08e1deb9430ff4a4c3f083ad8f27282c42e`.
+- Source/packaging checks: **PASS** from 1A through 1F.
+- Packaged-installer inspection confirmed the old POS unknown-route fallback is absent.
+- This candidate is approved only for installation/runtime acceptance on **SH-0007**. It is not approved for SH-0005/SH-0006 or Stable promotion.
+
+## CURRENT EXACT NEXT STEP — 2026-09-24
+
+1. Install the approved Navigation 1F Fail-Closed V2 artifact on **SH-0007 only**.
+2. Confirm Sharawla opens normally; do not broaden testing before that startup check.
+3. Run exactly one final unknown-route runtime acceptance: request a fake/unknown route while observing the current screen.
+4. PASS requires all of the following together: current screen remains unchanged; POS does not open; Home does not open; no business renderer fallback occurs; runtime records `UNKNOWN_ROUTE_BLOCKED`.
+5. If PASS, close **1F = CLOSED / PASS** and therefore **Navigation Registry 1A → 1F = CLOSED / PASS**.
+6. If FAIL, preserve evidence and remain in 1F; do not proceed to later Product Map implementation.
+7. After 1F closure, refresh this Master checkpoint before starting the next Product Map phase.
+8. **Do not promote Stable yet.** Production remains untouched/read-only.
+
+No statement in this override authorizes a Production write.
