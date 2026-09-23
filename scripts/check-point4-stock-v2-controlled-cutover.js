@@ -52,7 +52,7 @@ for(const fn of [
   assert(new RegExp(`revoke all on function public\\.${fn}\\(`).test(sql),`client revoke missing: ${fn}`);
 }
 
-has("as $ select true $;",'4B-2 concurrency evidence gate must use valid dollar-quoted SQL and remain closed/pass');
+has("as $point4b2$ select true $point4b2$;",'4B-2 concurrency evidence gate must use valid tagged dollar-quoted SQL and remain closed/pass');
 assert(!sql.includes("as $ select true $;"),'malformed single-dollar SQL body delimiter must be rejected');
 assert(!sql.includes("as $ select true $;"),'untagged dollar quote is intentionally not used for this gate to avoid connector/transport ambiguity');
 before(
