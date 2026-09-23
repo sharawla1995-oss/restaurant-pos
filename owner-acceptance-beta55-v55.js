@@ -49,48 +49,97 @@ async function warehouseRoundtrip(ctx){
    const s=(shortages||[]).find(x=>Number(x.catalog_item_id)===catalog);
    if(!s||!eq(s.branch_quantity,2)||!eq(s.reorder_min_qty,4)||!eq(s.target_stock_qty,10)||!eq(s.shortage_qty,8)||!eq(s.internal_suggested_qty,8)||!eq(s.purchase_shortage_qty,0))throw new Error(`Initial shortage calculation mismatch: ${JSON.stringify(s)}`);
 
-   const createTx=tx(run,'REQ1');
-   const payload={p_route_id:route,p_items:[{catalog_item_id:catalog,quantity:8,line_note:'acceptance'}],p_notes:`SHARAWLA_ACCEPTANCE:${run}`,p_client_tx_id:createTx};
-   const r1=Number(await global.rpc('inventory_supply_shortage_request_create_v1',payload));
-   const r1b=Number(await global.rpc('inventory_supply_shortage_request_create_v1',payload));
-   if(!r1||r1!==r1b)throw new Error('Shortage request idempotency failed');
-   let lines=await global.rest('inventory_supply_request_items',`select=*&request_id=eq.${r1}&order=id`);if(lines?.length!==1)throw new Error('Request line missing');const line=lines[0];
-   await global.rpc('inventory_supply_request_decide_v1',{p_request_id:r1,p_approve:true,p_approved_items:[{item_id:Number(line.id),quantity:8}],p_note:'Acceptance reserve'});
-   lines=await global.rest('inventory_supply_request_items',`select=*&request_id=eq.${r1}&order=id`);if(!eq(lines[0]?.quantity_reserved,8))throw new Error(`Reservation mismatch=${lines[0]?.quantity_reserved}`);
+   const createRequest=async(suffix,quantity)=>{
+     const clientTx=tx(run,suffix);
+     const payload={p_route_id:route,p_request_type:'normal',p_items:[{catalog_item_id:catalog,quantity,line_note:'acceptance'}],p_notes:`SHARAWLA_ACCEPTANCE:${run}`,p_client_tx_id:clientTx};
+     const id=Number(await global.rpc('inventory_supply_request_create_v1',payload));
+     const replay=Number(await global.rpc('inventory_supply_request_create_v1',payload));
+     if(!id||id!==replay)throw new Error(`${suffix} create idempotency failed`);
+     const q=await global.rest('inventory_supply_requests',`select=id,status& id=eq.${id}&limit=1`.replace('& ', '&'));
+     if(q?.[0]?.status!=='draft')throw new Error(`${suffix} expected draft after create, got ${q?.[0]?.status}`);
+     const lines=await global.rest('inventory_supply_request_items',`select=*&request_id=eq.${id}&order=id`);
+     if(lines?.length!==1)throw new Error(`${suffix} request line missing`);
+     await global.rpc('inventory_supply_request_submit_v1',{p_request_id:id});
+     await global.rpc('inventory_supply_request_submit_v1',{p_request_id:id});
+     const submitted=await global.rest('inventory_supply_requests',`select=status,submitted_by_employee_id,submitted_at&id=eq.${id}&limit=1`);
+     if(submitted?.[0]?.status!=='submitted'||!submitted?.[0]?.submitted_by_employee_id||!submitted?.[0]?.submitted_at)throw new Error(`${suffix} submit state mismatch: ${JSON.stringify(submitted?.[0])}`);
+     const submitEvents=await global.rest('inventory_supply_request_events',`select=id&request_id=eq.${id}&to_status=eq.submitted`);
+     if(submitEvents?.length!==1)throw new Error(`${suffix} submit replay duplicated transition: events=${submitEvents?.length||0}`);
+     return {id,line:lines[0],clientTx};
+   };
 
-   const r2=Number(await global.rpc('inventory_supply_shortage_request_create_v1',{p_route_id:route,p_items:[{catalog_item_id:catalog,quantity:5,line_note:'reservation guard'}],p_notes:`SHARAWLA_ACCEPTANCE:${run}`,p_client_tx_id:tx(run,'REQ2')}));
-   const l2=await global.rest('inventory_supply_request_items',`select=*&request_id=eq.${r2}&order=id`);let guardBlocked=false;try{await global.rpc('inventory_supply_request_decide_v1',{p_request_id:r2,p_approve:true,p_approved_items:[{item_id:Number(l2[0].id),quantity:5}],p_note:'must fail'})}catch(e){guardBlocked=true}
-   if(!guardBlocked)throw new Error('Reservation overcommit guard did not block second approval');
-   await global.rpc('inventory_supply_request_cancel_v1',{p_request_id:r2,p_note:'Acceptance cleanup of blocked request'});
+   // Scenario A: create -> submit -> approve -> successful cancel and reservation release.
+   const a=await createRequest('REQ-CANCEL',8);
+   await global.rpc('inventory_supply_request_decide_v1',{p_request_id:a.id,p_approve:true,p_approved_items:[{item_id:Number(a.line.id),quantity:8}],p_note:'Acceptance reserve then cancel'});
+   let [aLine,aReq]=await Promise.all([
+     global.rest('inventory_supply_request_items',`select=quantity_approved,quantity_reserved,quantity_dispatched&request_id=eq.${a.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${a.id}&limit=1`)
+   ]);
+   if(aReq?.[0]?.status!=='approved'||!eq(aLine?.[0]?.quantity_approved,8)||!eq(aLine?.[0]?.quantity_reserved,8))throw new Error(`Scenario A approval/reservation mismatch: ${JSON.stringify({aReq,aLine})}`);
 
-   await global.rpc('inventory_supply_request_dispatch_v1',{p_request_id:r1,p_items:[{item_id:Number(line.id),quantity:6}],p_note:'Acceptance partial dispatch',p_client_tx_id:tx(run,'DISP')});
+   // Scenario B is submitted while A owns 8/10. Approval of 5 must be blocked by reservation accounting.
+   const d=await createRequest('REQ-DISPATCH',5);
+   let overcommitBlocked=false;
+   try{await global.rpc('inventory_supply_request_decide_v1',{p_request_id:d.id,p_approve:true,p_approved_items:[{item_id:Number(d.line.id),quantity:5}],p_note:'must fail while A reserved'})}catch(e){overcommitBlocked=true}
+   if(!overcommitBlocked)throw new Error('Reservation overcommit guard did not block second approval');
+   const dBlocked=await global.rest('inventory_supply_requests',`select=status&id=eq.${d.id}&limit=1`);
+   if(dBlocked?.[0]?.status!=='submitted')throw new Error(`Blocked approval mutated request status=${dBlocked?.[0]?.status}`);
+
+   await global.rpc('inventory_supply_request_cancel_v1',{p_request_id:a.id,p_note:'Acceptance release reservation'});
+   [aLine,aReq]=await Promise.all([
+     global.rest('inventory_supply_request_items',`select=quantity_reserved,quantity_dispatched&request_id=eq.${a.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${a.id}&limit=1`)
+   ]);
+   const aCancelEvents=await global.rest('inventory_supply_request_events',`select=id,details&request_id=eq.${a.id}&to_status=eq.cancelled`);
+   if(aReq?.[0]?.status!=='cancelled'||!eq(aLine?.[0]?.quantity_reserved,0)||!eq(aLine?.[0]?.quantity_dispatched,0)||aCancelEvents?.length!==1||aCancelEvents?.[0]?.details?.reservation_released!==true)throw new Error(`Scenario A cancel/release mismatch: ${JSON.stringify({aReq,aLine,aCancelEvents})}`);
+
+   // Reservation is free now: approve B, then partially dispatch through the official fulfillment RPC.
+   await global.rpc('inventory_supply_request_decide_v1',{p_request_id:d.id,p_approve:true,p_approved_items:[{item_id:Number(d.line.id),quantity:5}],p_note:'Acceptance reserve for dispatch'});
+   let [dLine,dReq]=await Promise.all([
+     global.rest('inventory_supply_request_items',`select=quantity_approved,quantity_reserved,quantity_dispatched,quantity_backordered&request_id=eq.${d.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${d.id}&limit=1`)
+   ]);
+   if(dReq?.[0]?.status!=='approved'||!eq(dLine?.[0]?.quantity_reserved,5))throw new Error(`Scenario B approval/reservation mismatch: ${JSON.stringify({dReq,dLine})}`);
+
+   await global.rpc('inventory_supply_request_dispatch_v1',{p_request_id:d.id,p_items:[{item_id:Number(d.line.id),quantity:4}],p_note:'Acceptance partial dispatch',p_client_tx_id:tx(run,'DISP')});
    const [sourceAfterDispatch,lineAfterDispatch,qAfterDispatch]=await Promise.all([
      global.rest('retail_inventory_balances',`select=quantity&branch_id=eq.${wh}&product_id=eq.${product}&limit=1`),
-     global.rest('inventory_supply_request_items',`select=quantity_dispatched,quantity_backordered,quantity_reserved&request_id=eq.${r1}&limit=1`),
-     global.rest('inventory_supply_requests',`select=status&id=eq.${r1}&limit=1`)
+     global.rest('inventory_supply_request_items',`select=quantity_dispatched,quantity_backordered,quantity_reserved&request_id=eq.${d.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${d.id}&limit=1`)
    ]);
-   if(!eq(sourceAfterDispatch?.[0]?.quantity,4)||!eq(lineAfterDispatch?.[0]?.quantity_dispatched,6)||!eq(lineAfterDispatch?.[0]?.quantity_backordered,2)||!eq(lineAfterDispatch?.[0]?.quantity_reserved,0)||qAfterDispatch?.[0]?.status!=='in_transit')throw new Error(`Dispatch/backorder mismatch: ${JSON.stringify({sourceAfterDispatch,lineAfterDispatch,qAfterDispatch})}`);
+   if(!eq(sourceAfterDispatch?.[0]?.quantity,6)||!eq(lineAfterDispatch?.[0]?.quantity_dispatched,4)||!eq(lineAfterDispatch?.[0]?.quantity_backordered,1)||!eq(lineAfterDispatch?.[0]?.quantity_reserved,0)||qAfterDispatch?.[0]?.status!=='in_transit')throw new Error(`Dispatch/backorder mismatch: ${JSON.stringify({sourceAfterDispatch,lineAfterDispatch,qAfterDispatch})}`);
+
+   // Cancel after a genuine dispatch must fail and must not mutate request/line/stock state.
+   let cancelAfterDispatchBlocked=false;
+   try{await global.rpc('inventory_supply_request_cancel_v1',{p_request_id:d.id,p_note:'must fail after dispatch'})}catch(e){cancelAfterDispatchBlocked=true}
+   if(!cancelAfterDispatchBlocked)throw new Error('Cancel after partial dispatch was not blocked');
+   const [sourceAfterBlockedCancel,lineAfterBlockedCancel,qAfterBlockedCancel]=await Promise.all([
+     global.rest('retail_inventory_balances',`select=quantity&branch_id=eq.${wh}&product_id=eq.${product}&limit=1`),
+     global.rest('inventory_supply_request_items',`select=quantity_dispatched,quantity_backordered,quantity_reserved&request_id=eq.${d.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${d.id}&limit=1`)
+   ]);
+   if(!eq(sourceAfterBlockedCancel?.[0]?.quantity,6)||!eq(lineAfterBlockedCancel?.[0]?.quantity_dispatched,4)||!eq(lineAfterBlockedCancel?.[0]?.quantity_backordered,1)||!eq(lineAfterBlockedCancel?.[0]?.quantity_reserved,0)||qAfterBlockedCancel?.[0]?.status!=='in_transit')throw new Error(`Blocked cancel mutated state: ${JSON.stringify({sourceAfterBlockedCancel,lineAfterBlockedCancel,qAfterBlockedCancel})}`);
 
    const receiveTx=tx(run,'REC');
-   const recPayload={p_request_id:r1,p_items:[{item_id:Number(line.id),quantity_received:5,quantity_damaged:1,quantity_shortage:0,notes:'Acceptance variance'}],p_final:true,p_note:'Acceptance receive',p_client_tx_id:receiveTx};
+   const recPayload={p_request_id:d.id,p_items:[{item_id:Number(d.line.id),quantity_received:3,quantity_damaged:1,quantity_shortage:0,notes:'Acceptance variance'}],p_final:true,p_note:'Acceptance receive',p_client_tx_id:receiveTx};
    const rr1=Number(await global.rpc('inventory_supply_request_receive_v1',recPayload));
    const rr2=Number(await global.rpc('inventory_supply_request_receive_v1',recPayload));
-   if(rr1!==r1||rr2!==r1)throw new Error(`Receive idempotency mismatch ${rr1}/${rr2}/${r1}`);
+   if(rr1!==d.id||rr2!==d.id)throw new Error(`Receive idempotency mismatch ${rr1}/${rr2}/${d.id}`);
    const [destFinal,lineFinal,qFinal,audits]=await Promise.all([
      global.rest('retail_inventory_balances',`select=quantity&branch_id=eq.${br}&product_id=eq.${product}&limit=1`),
-     global.rest('inventory_supply_request_items',`select=quantity_received,quantity_damaged,quantity_shortage,quantity_backordered&request_id=eq.${r1}&limit=1`),
-     global.rest('inventory_supply_requests',`select=status&id=eq.${r1}&limit=1`),
-     global.rest('audit_logs',`select=id,action&entity_type=eq.inventory_supply_request&entity_id=eq.${r1}&order=id`)
+     global.rest('inventory_supply_request_items',`select=quantity_received,quantity_damaged,quantity_shortage,quantity_backordered&request_id=eq.${d.id}&limit=1`),
+     global.rest('inventory_supply_requests',`select=status&id=eq.${d.id}&limit=1`),
+     global.rest('audit_logs',`select=id,action&entity_type=eq.inventory_supply_request&entity_id=eq.${d.id}&order=id`)
    ]);
-   if(!eq(destFinal?.[0]?.quantity,7)||!eq(lineFinal?.[0]?.quantity_received,5)||!eq(lineFinal?.[0]?.quantity_damaged,1)||!eq(lineFinal?.[0]?.quantity_shortage,0)||!eq(lineFinal?.[0]?.quantity_backordered,2)||qFinal?.[0]?.status!=='received')throw new Error(`Receive/final stock mismatch: ${JSON.stringify({destFinal,lineFinal,qFinal})}`);
-   if((audits||[]).length<3)throw new Error(`Audit evidence too small=${audits?.length||0}`);
-   evidence={warehouse_id:wh,branch_id:br,product_id:product,request_id:r1,source_start:10,source_after_dispatch:4,branch_start:2,branch_final:7,backorder:2,damaged:1,reservation_guard_blocked:guardBlocked,audit_rows:audits.length};
+   if(!eq(destFinal?.[0]?.quantity,5)||!eq(lineFinal?.[0]?.quantity_received,3)||!eq(lineFinal?.[0]?.quantity_damaged,1)||!eq(lineFinal?.[0]?.quantity_shortage,0)||!eq(lineFinal?.[0]?.quantity_backordered,1)||qFinal?.[0]?.status!=='received')throw new Error(`Receive/final stock mismatch: ${JSON.stringify({destFinal,lineFinal,qFinal})}`);
+   if((audits||[]).length<4)throw new Error(`Audit evidence too small=${audits?.length||0}`);
+   evidence={warehouse_id:wh,branch_id:br,product_id:product,cancel_request_id:a.id,dispatch_request_id:d.id,source_start:10,source_after_dispatch:6,branch_start:2,branch_final:5,backorder:1,damaged:1,submit_verified:true,reservation_guard_blocked:overcommitBlocked,reservation_release_verified:true,cancel_after_dispatch_blocked:cancelAfterDispatchBlocked,audit_rows:audits.length};
  }catch(e){original=e}
  try{clean=await cleanup(run)}catch(e){if(!original)original=e}
  const afterUnresolved=await offlineUnresolved();
  if(Number.isFinite(beforeUnresolved)&&Number.isFinite(afterUnresolved)&&beforeUnresolved!==afterUnresolved&&!original)original=new Error(`Offline unresolved changed ${beforeUnresolved}->${afterUnresolved}`);
  if(original)throw original;
- return {status:'PASS',detail:`reserve guard PASS; dispatch 6/backorder 2; receive 5 + damaged 1; stock 10→4 / 2→7; cleanup=zero`,evidence:{...evidence,cleanup_zero:Number(clean?.residue||0)===0,offline_unresolved_before:beforeUnresolved,offline_unresolved_after:afterUnresolved}};
+ return {status:'PASS',detail:`submit PASS; reserve/overcommit PASS; cancel+release PASS; dispatch 4/backorder 1; cancel-after-dispatch blocked; receive 3 + damaged 1; stock 10→6 / 2→5; cleanup=zero`,evidence:{...evidence,cleanup_zero:Number(clean?.residue||0)===0,offline_unresolved_before:beforeUnresolved,offline_unresolved_after:afterUnresolved}};
 }
 
 function register(){const reg=R();if(!reg||global.__SharawlaBeta55AcceptanceRegistered)return false;global.__SharawlaBeta55AcceptanceRegistered=true;reg.registerMany([
