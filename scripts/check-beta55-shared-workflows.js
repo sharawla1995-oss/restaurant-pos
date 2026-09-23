@@ -66,9 +66,9 @@ need(fixture,['sharawla_beta55_supply_acceptance_fixture_v1','sharawla_beta55_su
 const acc=read('owner-acceptance-beta55-v55.js'),accPerm=read('owner-acceptance-beta55-permissions-v55.js'),registry55=read('owner-acceptance-registry-v55.js'),lazy=read('owner-acceptance-lazy-loader-v47.js'),accUi=read('owner-acceptance-ui-v47.js');
 need(acc,['beta55.runtime-contract','beta55.ui-workflow-contract','beta55.warehouse-shortage-roundtrip','reservation_guard_blocked','inventory_supply_request_dispatch_v1','inventory_supply_request_receive_v1','cleanup_zero'],'Beta55 acceptance pack');
 need(accPerm,['beta55.permission-boundary-contract','inventory.supply.request.emergency','inventory.supply.stock.exact','inventory.supply.shortages.view','inventory.supply.shortages.create','legacy_permission!==null','__SharawlaBeta55EmergencyPermissionHardening'],'Beta55 permission acceptance pack');
-need(registry55,["const VERSION='10.5.4-beta.55'",'SH-0007','91826502-590e-4afa-8826-2c0f4b99c490','xihcxydjnzemflhedzor.supabase.co','READY_FOR_RC','harness_version:VERSION','lastComparableResult'],'Beta55 acceptance registry');
-need(lazy,['owner-acceptance-registry-v55.js?v=10.5.4-beta.55','owner-acceptance-beta55-v55.js?v=10.5.4-beta.55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.55','sharawla-beta55-acceptance-ready'],'Beta55 acceptance lazy loader');
-need(accUi,["const VERSION='10.5.4-beta.55'",'Full Sandbox','Beta55 — Warehouse / Purchasing / HR closure'],'Beta55 acceptance UI');
+need(registry55,[`const VERSION='${currentVersion}'`,'SH-0007','91826502-590e-4afa-8826-2c0f4b99c490','xihcxydjnzemflhedzor.supabase.co','READY_FOR_RC','harness_version:VERSION','lastComparableResult'],'Beta55 acceptance registry');
+need(lazy,[`owner-acceptance-registry-v55.js?v=${currentVersion}`,`owner-acceptance-beta55-v55.js?v=${currentVersion}`,`owner-acceptance-beta55-permissions-v55.js?v=${currentVersion}`,'sharawla-beta55-acceptance-ready'],'Beta55 acceptance lazy loader');
+need(accUi,[`const VERSION='${currentVersion}'`,'Full Sandbox','Beta55 — Warehouse / Purchasing / HR closure'],'Beta55 acceptance UI');
 
 const loader=read('beta36-integration-loader.js');
 const order=['beta55-ui-workflow-fixes.js','beta55-ui-hardening.js','beta55-central-warehouse-ui.js','beta55-central-warehouse-v2.js','beta55-emergency-permission-hardening.js','owner-acceptance-lazy-loader-v47.js'].map(x=>loader.indexOf(x));
