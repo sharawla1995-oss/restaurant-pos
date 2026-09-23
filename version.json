@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.58.1",
+  "version": "10.5.4-beta.58.2",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta58.1 SH-0007-only Orders Runtime Corrective. Preserves Beta58 today/date-range filtering, 100-row pagination and batched order cache, removes the legacy 300-order warm-runtime prefetch, and synchronizes late runtime-layer asset versions. Stable 10.5.3 Production remains untouched. Canonical Stock and Cutover remain OFF."
+  "notes": "SH-0007-only diagnostic build. Adds a visible ORDERS-DATE-WINDOW-V58.2 marker inside the intended Orders renderer to prove runtime ownership on the installed package. Preserves Beta58.1 date-window/pagination/batch-cache and no legacy 300-order warm prefetch. Production 10.5.3 untouched; Canonical Stock/Cutover OFF."
 }
