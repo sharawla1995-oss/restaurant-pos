@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.55.5",
+  "version": "10.5.4-beta.56",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta55.5 SH-0007-only hardening candidate. Keeps Beta55.4 recovery, formalizes offline page behavior for shifts, expenses, delivery settings, and products, prevents raw administrative mutations on cache-read pages while offline, and shields Website Management/sub-pages from Navigation Parity card leakage. Production SH-0005/SH-0006 and legacy 10.5.3 remain untouched."
+  "notes": "Beta56 SH-0007-only Point 4 Runtime Acceptance candidate. Includes the current Point 4 corrective/runtime acceptance source while keeping Production SH-0005/SH-0006 and Stable 10.5.3 untouched. Canonical Stock and Cutover remain OFF."
 }
