@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.58",
-  "description": "Sharawla POS V10.5.4 Beta 58 - SH-0007 Orders Performance RC - Date Window + Pagination + Batch Cache - Offline Engine V2",
+  "version": "10.5.4-beta.58.1",
+  "description": "Sharawla POS V10.5.4 Beta 58.1 - SH-0007 Orders Runtime Corrective - Date Window + Pagination + Batch Cache + No Legacy Orders Prefetch",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
@@ -23,7 +23,8 @@
     "check:point4-canonical-reconciliation-auditor": "node scripts/check-point4-canonical-reconciliation-auditor.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
-    "sync-version": "node scripts/sync-version.js"
+    "sync-version": "node scripts/sync-version.js",
+    "check:orders-runtime-corrective": "node scripts/check-orders-runtime-corrective.js"
   },
   "dependencies": {
     "sql.js": "1.8.0",
