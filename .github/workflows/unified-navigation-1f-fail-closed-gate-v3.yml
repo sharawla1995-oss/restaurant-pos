@@ -1,0 +1,60 @@
+name: Unified Navigation 1F Fail-Closed Gate V3
+
+on:
+  push:
+    branches:
+      - nav-registry-1f-fail-closed-gate-v3
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f3b2b41fccf417de520a6b3699a337734ad198d9
+          fetch-depth: 0
+
+      - name: Verify exact candidate and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "HEAD=$actual"
+          test "$actual" = "f3b2b41fccf417de520a6b3699a337734ad198d9"
+          git diff --name-only 87e930ef45c24626b838e85afe0fe759b177955d..f3b2b41fccf417de520a6b3699a337734ad198d9 | sort | tee /tmp/changed.txt
+          cat > /tmp/allowed.txt <<'EOF'
+          app.js
+          docs/UNIFIED-NAVIGATION-REGISTRY-V1-CONTRACT.md
+          scripts/check-navigation-profile-leakage-corrective.js
+          scripts/check-unified-navigation-registry-1e.js
+          scripts/check-unified-navigation-registry-1f.js
+          EOF
+          sort -o /tmp/allowed.txt /tmp/allowed.txt
+          diff -u /tmp/allowed.txt /tmp/changed.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Synchronize version in disposable runner
+        run: npm run sync-version
+
+      - name: Run registry gates through 1F
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/check-unified-navigation-registry.js
+          node scripts/check-unified-navigation-registry-1b.js
+          node scripts/check-unified-navigation-registry-1c.js
+          node scripts/check-unified-navigation-registry-1d-a.js
+          node scripts/check-unified-navigation-registry-1d-b-runtime-binding.js
+          node scripts/check-navigation-profile-leakage-corrective.js
+          node scripts/check-unified-navigation-registry-1e.js
+          node scripts/check-unified-navigation-registry-1f.js
+          node scripts/check-runtime-syntax.js
+          node scripts/check-beta55-restaurant-acceptance.js
+          node scripts/check-orders-performance-date-window.js
+          node scripts/check-orders-runtime-corrective.js
