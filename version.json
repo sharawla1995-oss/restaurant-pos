@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.57",
+  "version": "10.5.4-beta.58",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Beta57 SH-0007-only RC candidate promoted from the accepted Beta56 corrective evidence. Full Sandbox READY_FOR_RC / 100%. Production SH-0005/SH-0006 and Stable 10.5.3 remain untouched. Canonical Stock and Cutover remain OFF."
+  "notes": "Beta58 SH-0007-only Orders Performance RC candidate. Orders default to today with date-range filtering, 100-row pagination, and batched local order-cache refresh. Beta57 Full Sandbox was READY_FOR_RC / 100%. Production SH-0005/SH-0006 and Stable 10.5.3 remain untouched. Canonical Stock and Cutover remain OFF."
 }
