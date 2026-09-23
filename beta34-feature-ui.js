@@ -10,6 +10,8 @@ function runtimeConfig(){
     return raw&&typeof raw==='object'?raw:null;
   }catch{return null}
 }
+function isRestaurant(){return String(runtimeConfig()?.pos_profile||'').trim().toLowerCase()==='restaurant'}
+function isHomeActive(){const b=document.querySelector('#nav button[data-page="home"]');return !!b&&b.classList.contains('active')}
 function featureEnabled(code){
   const cfg=runtimeConfig();
   const core=global.SharawlaRuntimeCore;
@@ -17,10 +19,10 @@ function featureEnabled(code){
   return (Array.isArray(cfg?.enabled_features)?cfg.enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()).includes(String(code||'').trim().toLowerCase());
 }
 function ensureKitchenHomeCard(){
+  const existing=document.querySelector('#page [data-beta34-feature-card="food.kitchen"]');
+  if(!isRestaurant()||!isHomeActive()||!featureEnabled('food.kitchen')){if(existing)existing.remove();return false}
   const grid=document.querySelector('#page .home-grid');
   if(!grid)return false;
-  const existing=grid.querySelector('[data-beta34-feature-card="food.kitchen"]');
-  if(!featureEnabled('food.kitchen')){if(existing)existing.remove();return false}
   if(grid.querySelector('[data-home-page="kitchen"]'))return true;
   const button=document.createElement('button');
   button.className='home-card tone-amber';
