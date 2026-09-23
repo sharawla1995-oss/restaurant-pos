@@ -12,13 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: bff274084411b58d69e2d9bb01259b476d4e5ea1
+          ref: 0af3047f5910f709040aa97b431049fc5775591f
           fetch-depth: 0
-      - name: Verify pinned Beta56 source commit
+      - name: Verify pinned Beta57 RC source commit
         shell: pwsh
         run: |
           $actual = git rev-parse HEAD
-          if ($actual -ne "bff274084411b58d69e2d9bb01259b476d4e5ea1") { throw "Pinned source SHA mismatch: $actual" }
+          if ($actual -ne "0af3047f5910f709040aa97b431049fc5775591f") { throw "Pinned source SHA mismatch: $actual" }
       - uses: actions/setup-node@v4
         with:
           node-version: '16'
@@ -107,7 +107,7 @@ jobs:
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
-          gh release create $tag --repo "${{ github.repository }}" --target "bff274084411b58d69e2d9bb01259b476d4e5ea1" --prerelease --latest=false --title "Sharawla POS $version" --notes "SH-0007 Beta57 RC candidate. Full Sandbox READY_FOR_RC / 100%. Production untouched. Canonical Stock OFF. Cutover OFF. x64 SHA256: ${{ steps.hash.outputs.x64 }} ; ia32 SHA256: ${{ steps.hash.outputs.ia32 }}"
+          gh release create $tag --repo "${{ github.repository }}" --target "0af3047f5910f709040aa97b431049fc5775591f" --prerelease --latest=false --title "Sharawla POS $version" --notes "SH-0007 Beta57 RC candidate. Full Sandbox READY_FOR_RC / 100%. Production untouched. Canonical Stock OFF. Cutover OFF. x64 SHA256: ${{ steps.hash.outputs.x64 }} ; ia32 SHA256: ${{ steps.hash.outputs.ia32 }}"
           gh release upload $tag --repo "${{ github.repository }}" "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta57-sha256.txt
       - name: Verify Stable latest is not Beta
         shell: pwsh
