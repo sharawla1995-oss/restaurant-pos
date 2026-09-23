@@ -65,7 +65,7 @@ The checker currently permits only states used by the implemented stage. Future 
 
 Batch 1C is evidence/enforcement only. It does not resolve any conflict and it does not alter route dispatch.
 
-The 1C checker reads the Registry, the 1B Adapters, and the current source files. It validates four ownership states:
+The 1C checker reads the Registry, the 1B Adapters, and the current runtime source graph. The runtime graph starts from the script tags in `index.html` and follows local JavaScript filenames referenced by loaded scripts, so dormant/test-only files are not treated as owners merely because they exist in the repository. It validates four ownership states:
 
 - Single owner evidenced by source
 - Augmented owner with every augmentation layer declared

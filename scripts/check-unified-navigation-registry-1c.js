@@ -12,14 +12,17 @@ const negativeFixture=require(path.join(__dirname,'fixtures','navigation-ownersh
 const errors=[];
 const routeMap=new Map((registry.routes||[]).map(r=>[r.routeKey,r]));
 const routeKeys=[...routeMap.keys()];
-const sources=detector.loadRootSources(ROOT);
+const runtime=detector.loadRuntimeSources(ROOT);
+const sources=runtime.sources;
+const runtimeScripts=new Set(runtime.runtimeScripts);
 const observed=detector.discoverRendererOwners(sources,routeKeys);
 const navEvidence=detector.discoverNavigationEvidence(sources);
 const navOwnersSeen=new Set(navEvidence.map(x=>x.ownerLayer));
 
 function fileExists(name){return fs.existsSync(path.join(ROOT,name))}
+function runtimeHas(name){return runtimeScripts.has(name)}
 function hasAll(name,needles){
-  if(!fileExists(name))return false;
+  if(!runtimeHas(name)||!fileExists(name))return false;
   const s=fs.readFileSync(path.join(ROOT,name),'utf8');
   return needles.every(n=>s.includes(n));
 }
@@ -43,6 +46,8 @@ function declaredAugmentations(r){
   return [...new Set(out)];
 }
 
+if(runtime.missingRefs.length)errors.push('runtime script graph has missing local references: '+runtime.missingRefs.join(', '));
+
 const expectedRendererOwners={};
 const expectedNavigationOwners={};
 const expectedAugmentations={};
@@ -58,7 +63,8 @@ for(const r of registry.routes||[]){
 for(const [routeKey,expected] of Object.entries(expectedRendererOwners)){
   const seen=(observed.byRoute.get(routeKey)||[]).map(x=>x.ownerLayer);
   for(const owner of expected){
-    if(!seen.includes(owner))errors.push(routeKey+': expected renderer owner not evidenced in source: '+owner);
+    if(!runtimeHas(owner))errors.push(routeKey+': expected renderer owner is not runtime-loaded: '+owner);
+    if(!seen.includes(owner))errors.push(routeKey+': expected renderer owner not evidenced in runtime source: '+owner);
   }
 }
 
@@ -69,11 +75,12 @@ for(const row of detector.unexpectedRendererOwners(observed.byRoute,expectedRend
 for(const [routeKey,owners] of Object.entries(expectedNavigationOwners)){
   for(const owner of owners){
     if(owner==='app.js'){
-      if(!navOwnersSeen.has('app.js'))errors.push(routeKey+': app.js navigation evidence missing');
+      if(!runtimeHas('app.js')||!navOwnersSeen.has('app.js'))errors.push(routeKey+': app.js navigation evidence missing');
     }else if(owner==='websiteManagement hub'){
       if(!navOwnersSeen.has('websiteManagement hub'))errors.push(routeKey+': website hub navigation evidence missing');
-    }else if(!navOwnersSeen.has(owner)){
-      errors.push(routeKey+': navigation owner evidence missing: '+owner);
+    }else{
+      if(!runtimeHas(owner))errors.push(routeKey+': navigation owner is not runtime-loaded: '+owner);
+      if(!navOwnersSeen.has(owner))errors.push(routeKey+': navigation owner evidence missing: '+owner);
     }
   }
 }
@@ -83,6 +90,7 @@ for(const [routeKey,layers] of Object.entries(expectedAugmentations)){
   const declared=new Set(declaredAugmentations(r));
   for(const layer of layers){
     if(!fileExists(layer))errors.push(routeKey+': augmentation file missing: '+layer);
+    if(!runtimeHas(layer))errors.push(routeKey+': augmentation layer is not runtime-loaded: '+layer);
     if(!declared.has(layer))errors.push(routeKey+': augmentation not declared in registry: '+layer);
   }
 }
@@ -124,14 +132,14 @@ if(orders?.migrationStatus!=='LOCKED_ACCEPTED_OWNER'||orders?.rendererOwner!=='O
 
 // Adapter/source relationship checks.
 const adapterIds=new Set((adapters.adapters||[]).map(x=>x.id));
-if(adapterIds.has('data-beta54-page')&&!navOwnersSeen.has('beta54-shared-core-ui.js'))errors.push('data-beta54-page adapter has no source navigation evidence');
-if(adapterIds.has('data-beta55-supply-page')&&!navOwnersSeen.has('beta55-central-warehouse-ui.js'))errors.push('data-beta55-supply-page adapter has no source navigation evidence');
-if(adapterIds.has('data-beta55-hr-group')&&!navOwnersSeen.has('beta55-ui-workflow-fixes.js'))errors.push('data-beta55-hr-group adapter has no source augmentation evidence');
-if(adapterIds.has('data-site-tool')&&!navOwnersSeen.has('websiteManagement hub'))errors.push('data-site-tool adapter has no website hub source evidence');
+if(adapterIds.has('data-beta54-page')&&!navOwnersSeen.has('beta54-shared-core-ui.js'))errors.push('data-beta54-page adapter has no runtime navigation evidence');
+if(adapterIds.has('data-beta55-supply-page')&&!navOwnersSeen.has('beta55-central-warehouse-ui.js'))errors.push('data-beta55-supply-page adapter has no runtime navigation evidence');
+if(adapterIds.has('data-beta55-hr-group')&&!navOwnersSeen.has('beta55-ui-workflow-fixes.js'))errors.push('data-beta55-hr-group adapter has no runtime augmentation evidence');
+if(adapterIds.has('data-site-tool')&&!navOwnersSeen.has('websiteManagement hub'))errors.push('data-site-tool adapter has no website hub runtime evidence');
 
 // Four required evidence classes plus SINGLE from an ordinary one-owner route.
 const caseSeen=new Set();
-for(const [routeKey,p] of Object.entries(ownership.policies))caseSeen.add(p.case);
+for(const p of Object.values(ownership.policies))caseSeen.add(p.case);
 for(const [routeKey,rows] of observed.byRoute.entries()){
   const owners=[...new Set(rows.map(x=>x.ownerLayer))];
   const p=ownership.policies[routeKey];
@@ -165,4 +173,4 @@ if(errors.length){
 const conflicts=[...observed.byRoute.entries()].filter(([,rows])=>new Set(rows.map(x=>x.ownerLayer)).size>1).map(([k])=>k);
 const augmented=Object.entries(ownership.policies).filter(([,p])=>p.case==='AUGMENTED').map(([k])=>k);
 console.log('Unified Navigation Registry 1C: PASS');
-console.log('renderer_bindings='+observed.bindings.length+'; conflicts='+conflicts.length+'; augmented='+augmented.length+'; nav_evidence='+navEvidence.length+'; negative_detection=PASS');
+console.log('runtime_scripts='+runtime.runtimeScripts.length+'; renderer_bindings='+observed.bindings.length+'; conflicts='+conflicts.length+'; augmented='+augmented.length+'; nav_evidence='+navEvidence.length+'; negative_detection=PASS');

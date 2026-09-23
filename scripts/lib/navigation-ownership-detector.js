@@ -5,6 +5,51 @@ const path=require('path');
 
 function uniq(xs){return [...new Set(xs)]}
 
+function normalizeLocalJsRef(raw){
+  let s=String(raw||'').trim();
+  if(!s||/^https?:\/\//i.test(s)||s.startsWith('//'))return null;
+  s=s.split('#')[0].split('?')[0].replace(/^\.\//,'');
+  if(!s.endsWith('.js')||s.startsWith('../')||path.isAbsolute(s))return null;
+  return s.replace(/\\/g,'/');
+}
+
+function scriptRefsFromHtml(source){
+  return [...String(source||'').matchAll(/<script[^>]+src=["']([^"']+\.js(?:\?[^"']*)?)["']/gi)]
+    .map(m=>normalizeLocalJsRef(m[1])).filter(Boolean);
+}
+
+function scriptRefsFromJs(source){
+  return [...String(source||'').matchAll(/['"]([^'"]+\.js(?:\?[^'"]*)?)['"]/g)]
+    .map(m=>normalizeLocalJsRef(m[1])).filter(Boolean);
+}
+
+function loadRuntimeSources(root){
+  const indexPath=path.join(root,'index.html');
+  if(!fs.existsSync(indexPath))throw new Error('index.html missing');
+  const index=fs.readFileSync(indexPath,'utf8');
+  const entryScripts=uniq(scriptRefsFromHtml(index));
+  const queue=[...entryScripts],seen=new Set(),sources={},missingRefs=[];
+
+  while(queue.length){
+    const rel=queue.shift();
+    if(seen.has(rel))continue;
+    seen.add(rel);
+    const full=path.join(root,rel);
+    if(!fs.existsSync(full)){
+      missingRefs.push(rel);
+      continue;
+    }
+    const source=fs.readFileSync(full,'utf8');
+    sources[rel]=source;
+    for(const ref of scriptRefsFromJs(source)){
+      const refPath=path.join(root,ref);
+      if(fs.existsSync(refPath)&&!seen.has(ref))queue.push(ref);
+    }
+  }
+
+  return {index,entryScripts,runtimeScripts:[...seen].filter(x=>sources[x]),sources,missingRefs:uniq(missingRefs)};
+}
+
 function extractRendererBindings(fileName,source,routeKeys){
   const allowed=new Set(routeKeys||[]);
   const out=[];
@@ -87,17 +132,6 @@ function discoverNavigationEvidence(sources){
   return evidence;
 }
 
-function loadRootSources(root){
-  const out={};
-  for(const name of fs.readdirSync(root)){
-    const full=path.join(root,name);
-    if(!name.endsWith('.js'))continue;
-    if(!fs.statSync(full).isFile())continue;
-    out[name]=fs.readFileSync(full,'utf8');
-  }
-  return out;
-}
-
 function unexpectedRendererOwners(observedByRoute,expectedByRoute){
   const unexpected=[];
   for(const [routeKey,rows] of observedByRoute.entries()){
@@ -110,10 +144,13 @@ function unexpectedRendererOwners(observedByRoute,expectedByRoute){
 }
 
 module.exports=Object.freeze({
+  normalizeLocalJsRef,
+  scriptRefsFromHtml,
+  scriptRefsFromJs,
+  loadRuntimeSources,
   extractRendererBindings,
   discoverRendererOwners,
   discoverNavigationEvidence,
-  loadRootSources,
   unexpectedRendererOwners,
   uniq
 });
