@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs');
-const read=p=>fs.readFileSync(p,'utf8');
+const read=p=>fs.readFileSync(p,'utf8').replace(/\r\n?/g,'\n');
 const need=(src,t,msg=t)=>{if(!src.includes(t))throw new Error(`Beta45 Phase 8 gate missing: ${msg}`)};
 const forbid=(src,t,msg=t)=>{if(src.toLowerCase().includes(t.toLowerCase()))throw new Error(`Beta45 Phase 8 gate forbidden: ${msg}`)};
 
@@ -8,6 +8,7 @@ const main=read('beta45-offline-v2-safety.js');
 const runtime=read('beta45-offline-v2-safety-runtime.js');
 const wrapper=read('main-beta44.js');
 const preload=read('preload.js');
+const app=read('app.js');
 const pkg=JSON.parse(read('package.json'));
 
 new Function(main);new Function(runtime);new Function(wrapper);new Function(preload);
@@ -24,11 +25,23 @@ for(const t of [
 ])need(main,t);
 
 for(const t of [
-  'a.authVerify({identity,email,password','offline_authorized:true','a.authEnroll({identity,license,bootstrap:boot',
-  'loadOfflineBootstrap=async function','requireSafe(\'تغيير الترخيص/النشاط\'','requireSafe(\'إعادة ضبط البيانات\'','requireSafe(\'استعادة Backup\'',
+  "SHARAWLA_OFFLINE_AUTH_55_3_WRAPPER_REMOVED — app.js owns online enrollment/read-back.",
+  "Phase 8 keeps only safety/report guards; app.js owns Offline Authentication.",
+  'requireSafe(\'تغيير الترخيص/النشاط\'','requireSafe(\'إعادة ضبط البيانات\'','requireSafe(\'استعادة Backup\'',
   'pre-license-change','pre-reset','pre-restore','Report','localReport({branch_id','Cloud Consolidated Report',
   'هذا تقرير تشغيلي محلي للجهاز الحالي فقط','سجّل الدخول أونلاين لتجديد جلسة Cloud'
 ])need(runtime,t);
+
+for(const t of [
+  'SHARAWLA_OFFLINE_AUTH_55_3_OFFICIAL — authoritative Offline Auth ownership lives in app.js.',
+  'async function enrollOfflineAuthAfterOfficialBootstrap(email,password)',
+  'a.authEnroll({identity,license,bootstrap,email:',
+  'if(!a?.authVerify)',
+  'const verified=await a.authVerify({',
+  'verified?.offline_authorized!==true',
+  "await odbSet('bootstrap',verified.bootstrap)",
+  "x.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED'"
+])need(app,t,`app.js authoritative Offline Auth contract: ${t}`);
 
 for(const t of [
   'offline-v2-guard-state.json','guard-missing','guard-stale','integrity-failed','unresolved-work',
