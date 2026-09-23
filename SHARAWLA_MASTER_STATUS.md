@@ -1,7 +1,7 @@
 # Sharawla Platform — Master Status
 
 > Official continuation checkpoint for the Sharawla project.  
-> Last updated: 2026-09-17  
+> Last updated: 2026-09-23  
 > Rule: in every new chat/session, read this file first, then verify the relevant GitHub/Sharawla Cloud facts before any write. Do not continue from chat memory alone.  
 > Rule: execute only the **Exact Next Step** recorded here unless new verified evidence requires updating this checkpoint first.
 
@@ -756,3 +756,219 @@ Run a **Disposable PostgreSQL Compile Gate** isolated completely from Beta and P
 Until this gate closes: **Accepted Source Implementation = 0/46; Batch 1 UNACCEPTED; Batch 2 BLOCKED; Beta Write = 0; Production untouched.**
 
 If any verification contradicts this file, stop, preserve evidence, update this checkpoint with the verified truth, and only then continue.
+
+
+---
+
+## 2026-09-23 CURRENT OVERRIDE — Beta57/Beta58 + Product Map
+
+> This section supersedes older **EXACT NEXT STEP** text above where it conflicts with this newer verified checkpoint. Preserve the older sections as historical evidence; do not resume from their stale counters or next-step instructions without fresh verification.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on 10.5.3 CLEAN.
+- Current development/acceptance target remains SH-0007 only.
+- Canonical Stock = OFF.
+- Cutover = OFF.
+- No automatic rebind or Canonical Fingerprint mutation.
+
+### Point 4 current consolidated status
+
+- Ownership Mapping = **61/61 CLOSED**: Direct 40/40, Transitive 15/15, Document/In-flight Barriers 6/6.
+- Pre-Cutover Guard Contracts = **46/46 Evidence-Complete**.
+- Current accepted Source Implementation checkpoint = **38/46**.
+- Formal Deferred = **#11, #12, #35, #36, #37**.
+- Runtime Verified historical counter remains **5/46** unless a contract-specific runtime mapping/report explicitly proves an increment. Do not infer Runtime Verified from broad sandbox success alone.
+- Corrective Batch 4 V2 was deployed to isolated Beta and structurally verified; Production remained untouched.
+
+### Beta56 / Beta57 acceptance
+
+- Beta56 corrective Full Sandbox evidence commit: `5b24059d02e0cc04ccef70b1662925fc27f7ee38`.
+- Full Sandbox run: `ACC-20260923-070827-PFCEK` → **READY_FOR_RC / 100%**.
+- Beta57 RC source commit: `0af3047f5910f709040aa97b431049fc5775591f`.
+- Beta57 installed Full Acceptance run: `ACC-20260923-074331-VU2OV` → **READY_FOR_RC / 100% / FAIL=0**.
+- Stable promotion is intentionally paused pending the Orders/runtime/UI performance discrepancy described below.
+
+### Beta58 Orders Performance candidate
+
+Verified source commits:
+- `7453fefed1eb6c0c2637d67feec6abbed7ea2ddd` — bound Orders by server-side date window + pagination and replace sequential cache writes with batch cache.
+- `1b0bf6b17aa3cf16db9ec20fd0de29e26470bcfc` — static Orders performance/date-window guard.
+- `46b71c9f2829a7a63ba278a808eeab88544e690c` — bump candidate to 10.5.4-beta.58.
+- `94837e7e993f9d731fcf5b9575fb36cd1432a58b` — synchronize beta58 version metadata.
+- `ed0bbfe8cb543f8ac1efbbba394793d0e81e2c42` — Beta58 Orders Performance sandbox build workflow.
+
+Intended Orders behavior:
+- default = today only;
+- server-side From/To date bounds;
+- page size = 100;
+- pagination;
+- one batch cache merge/write per page;
+- preserve lazy order details, printing, returns, and Offline fallback.
+
+On-device SH-0007 evidence:
+- installed application reports Beta58;
+- Orders screen still appears as the old UI and remains slow;
+- new date-range controls are not visible;
+- therefore installed runtime behavior does **not yet match** the intended Beta58 source contract.
+- Runtime investigation also found `beta55-4-runtime-recovery.js` still prefetches up to 300 recent Orders during warm-cache startup. This is a confirmed legacy performance path, but by itself does not explain the missing new Orders UI.
+
+### UI / Navigation audit — confirmed design debt
+
+- Current navigation is layered across core app routing, Restaurant Engine, Beta54 shared UI, Restaurant Closure UI, and Beta55 Navigation Parity.
+- Core `showPage()` has no dedicated `websiteOrders` route or `renderWebsiteOrders()`.
+- Website pending orders are currently embedded in Delivery Orders.
+- Unknown core routes silently fall back to POS; future unified routing must fail closed instead of silently opening Cashier.
+- Website configuration and operational Website Orders are currently split across Delivery Orders, Reports, and Website Management.
+- Heavy-data screens needing a bounded-query performance pass include Orders, Delivery Orders, Returns, Customers, Treasury, HR and large-period Reports.
+- Current permission model is page-centric and has known composite boundaries that need explicit redesign; do not silently change business policy before Permissions V2.
+
+### Approved target product map
+
+The target architecture is **Sharawla Core + Activity Profiles**, not a Restaurant-only fork.
+
+Sharawla Core owns shared capabilities such as:
+- Businesses and Locations;
+- Users and Permissions;
+- Customers and Products;
+- Payments / Split Payment;
+- Inventory and Purchasing;
+- Finance and Reports;
+- Integrations;
+- Offline/Sync;
+- Audit;
+- Support;
+- AI action infrastructure.
+
+Restaurant Profile adds:
+- Kitchen;
+- Delivery;
+- Pickup;
+- Tables;
+- Ingredients;
+- Recipes / Food Cost;
+- Production / Waste;
+- restaurant-specific online-order workflow.
+
+Target Restaurant navigation:
+- Home.
+- Sales: POS, Orders, Returns, Customers, Promotions.
+- Operations: Online Orders, Delivery, Kitchen, Tables when enabled.
+- Inventory & Purchasing: Inventory, Ingredients, Suppliers, Purchasing/Receiving, Supplier Returns, Branch Supply Requests, Stock Count, Transfers, Recipes/Food Cost, Production/Waste.
+- HR: Employees, Advances, Adjustments/Bonuses/Overtime, Payroll.
+- Finance: Treasury, Expenses, Shifts/Settlements.
+- Reports.
+- Website configuration.
+- Integrations.
+- Sharawla Customer Support.
+- Sharawla AI.
+- Administration / Settings.
+
+### Online Orders target
+
+- Rename operational concept from Website Orders to **Online Orders**.
+- Current source: Sharawla Website.
+- Future connector-ready sources: Talabat, Hurry Up, and approved custom providers.
+- One unified operational inbox with explicit Source + Delivery/Pickup.
+- Target lifecycle: New → Accepted/Preparing → Ready → Delivery dispatch or Pickup handoff → Completed, with rejected/cancelled history.
+- Notification Details should open an order-detail modal without forcing the cashier away from the active screen.
+- After acceptance, the order must enter the normal Sharawla Order Engine rather than a second invoice system.
+- External platform integration requires official API/webhook/partner credentials; do not invent provider APIs.
+
+### Locations / Central Warehouse target
+
+Location types must support at least:
+- Restaurant Branch;
+- Warehouse;
+- Central Warehouse;
+- Central Kitchen.
+
+Target branch-supply workflow:
+Branch Request → Warehouse Review → Full/Partial Approval → Picking → Dispatch → In Transit → Branch Receipt → Receipt Variance.
+
+Creating a request alone must not mutate physical stock.
+Future Central Kitchen flow may transform ingredients into semi-finished/finished production and transfer output to branches with cost lineage.
+
+### Permissions V2 target
+
+Canonical model:
+`Page + Action + Location Scope`
+
+- Admin controls who receives AI access and all other privileged capabilities.
+- Ready-made roles may seed permissions, but per-user additions/removals remain possible.
+- Examples of action-level permissions: View, Create, Edit Draft, Approve, Receive, Cancel, Return, View Cost, Correct Historical Transaction.
+- Location scope can restrict the same action to selected branches/warehouses.
+- AI permissions never exceed the effective permissions granted to the human user plus explicit AI capability grants.
+
+### Integrations foundation target
+
+Create a generic Integrations framework rather than hard-coding providers.
+
+Online Order Connectors:
+- Sharawla Website;
+- Talabat / Hurry Up / Custom only when official integration material is available.
+
+Loyalty & Rewards Connectors:
+- future Sharawla Loyalty;
+- external providers such as telecom/bank/reward programs when the merchant has official API/credentials.
+
+Generic external rewards lifecycle:
+Identify Customer → Request OTP/Redemption → Verify → Redeem → Provider Reference → Settlement → Reversal/Refund.
+
+External-provider OTP must be issued/verified by the provider, not fabricated by Sharawla.
+
+### Sharawla Customer Support target
+
+Create a platform-level Customer Support experience, separate from the operational AI assistant:
+- Support Chat;
+- real Support Ticket/session ID;
+- Device Diagnostics / safe Support Snapshot;
+- Knowledge Base;
+- Human Escalation;
+- Support History;
+- Support Plans / Entitlements / Usage;
+- Support Admin Dashboard.
+
+The customer-facing experience may be branded as Sharawla Customer Support / Sharawla Support Assistant, but must not falsely claim a human agent is present when only AI is responding.
+The architecture must allow future Basic/Premium/Paid Support plans without rebuilding the support workflow.
+
+### Sharawla AI Operator target
+
+Platform-level feature, **disabled by default** and grantable by Admin to selected users.
+
+Target capability levels:
+Read → Create → Modify → Approve → Historical Correction.
+
+Rules:
+- AI authority = effective user permissions + explicit AI grants + location scope.
+- No unrestricted/free-form SQL or direct arbitrary database mutation.
+- Use a controlled **Sharawla Actions Layer** with validated business actions, permission checks, impact analysis where needed, confirmation policy, idempotency, and audit.
+- Historical correction may update the operational current state and dependent inventory/reporting consistently, while preserving a protected internal audit trail.
+- Ordinary operational screens may show the corrected state; audit history must not be destructively erased.
+- Critical security/device identity operations remain outside autonomous AI authority unless a separately reviewed contract explicitly allows them.
+
+### Mobile / Tablet — deferred post-Core stabilization
+
+- Do not convert the Electron Windows app directly into an APK.
+- Future Sharawla Mobile/Tablet is a separate client sharing Cloud, Business/Location, Users/Permissions, APIs/RPCs and Actions.
+- Mobile can start Online-first for dashboards, reports, approvals, inventory, purchasing, orders and delivery.
+- Full offline Tablet POS requires a dedicated Mobile Offline Store + Outbox/Inbox compatible with Point 4 identity/idempotency.
+
+## CURRENT EXACT NEXT STEP — 2026-09-23
+
+1. **Do not promote Stable yet.**
+2. Resolve the Beta58 discrepancy first: prove what packaged/runtime code actually owns the Orders screen on SH-0007 and why the new date-range UI is absent.
+3. Include the legacy 300-Order Runtime Recovery prefetch in the performance investigation.
+4. After Beta58 Orders is proven/fixed, implement a single Unified Navigation Registry and close missing/broken routes.
+5. Build the dedicated Online Orders operational route/inbox.
+6. Reorganize menus according to the approved product map without deleting existing working functionality.
+7. Implement Permissions V2: Page + Action + Location.
+8. Formalize Location/Central Warehouse operational workflow.
+9. Apply bounded-query/date-window/pagination performance rules to the other heavy screens.
+10. Add Integrations Foundation.
+11. Add Sharawla Customer Support foundation.
+12. Add Sharawla Actions Layer, then Sharawla AI Operator.
+13. Run Full UI Navigation Acceptance + Full Sandbox/Regression on SH-0007.
+14. Only after accepted Beta evidence discuss Stable promotion.
+
+No item in this target map authorizes a Production write.
