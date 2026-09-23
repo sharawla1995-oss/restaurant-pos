@@ -67,8 +67,7 @@ begin
  v_event_id:='ov2-'||md5(v_tx||':'||v_digest);
  insert into public.offline_v2_server_receipts(client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id,server_version,result_json) values(v_tx,v_event_id,2,v_digest,v_operation,v_rpc,v_device_id,v_sequence,v_branch,v_employee,auth.uid(),v_entity_id,'transport-v1',v_result);
  return jsonb_build_object('ok',true,'acknowledged',true,'duplicate',false,'idempotent_replay',false,'client_tx_id',v_tx,'protocol_version',2,'payload_digest',v_digest,'server_event_id',v_event_id,'server_entity_id',v_entity_id,'server_version','transport-v1','result',v_result);
-end;$function$
-
+end;$function$;
 
 update public.permission_actions_v2
 set legacy_permission=null
