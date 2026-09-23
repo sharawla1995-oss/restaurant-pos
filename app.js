@@ -509,6 +509,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
+  if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;
   if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings')||allowed.has('websiteAppearance')||allowed.has('financialSettings');
