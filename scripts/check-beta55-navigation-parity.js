@@ -1,7 +1,8 @@
 const fs=require('fs');
 const path=require('path');
 const root=path.resolve(__dirname,'..');
-const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const read=f=>fs.readFileSync(path.join(root,f),'utf8').replace(/\r\n?/g,'\n');
+const currentVersion=String(JSON.parse(read('package.json')).version||'').trim();
 const need=(src,token,label)=>{if(!src.includes(token))throw new Error(`Beta55 navigation parity gate failed: ${label||token}`)};
 const forbid=(src,token,label)=>{if(src.includes(token))throw new Error(`Beta55 navigation parity gate failed: forbidden ${label||token}`)};
 
@@ -17,8 +18,8 @@ for(const token of [
 ])need(parity,token,`runtime ${token}`);
 
 const loader=read('beta36-integration-loader.js');
-need(loader,"['beta55-navigation-parity','beta55-navigation-parity.js?v=10.5.4-beta.55']",'navigation runtime loader');
-need(loader,"['owner-acceptance-beta55-navigation','owner-acceptance-beta55-navigation-v55.js?v=10.5.4-beta.55']",'navigation acceptance loader');
+need(loader,`['beta55-navigation-parity','beta55-navigation-parity.js?v=${currentVersion}']`,'navigation runtime loader');
+need(loader,`['owner-acceptance-beta55-navigation','owner-acceptance-beta55-navigation-v55.js?v=${currentVersion}']`,'navigation acceptance loader');
 if(loader.indexOf("['beta55-navigation-parity'")>loader.indexOf("['owner-acceptance-beta55-navigation'"))throw new Error('Beta55 navigation parity gate failed: acceptance loads before parity runtime');
 
 const acceptance=read('owner-acceptance-beta55-navigation-v55.js');
