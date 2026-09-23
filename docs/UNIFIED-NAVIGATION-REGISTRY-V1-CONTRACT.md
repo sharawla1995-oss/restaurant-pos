@@ -145,3 +145,27 @@ Routes without accepted 1D-B runtime evidence remain explicitly deferred at 1E i
 - 1E must not modify Point 4, Offline/Sync, stock ownership, printing, updater, licensing, Activation, Business Connection, Canonical Fingerprint, or any database/RPC.
 - 1E does not build or deploy anything by itself.
 - 1F remains a separate explicit approval gate. The existing pre-1F unknown-route fallback is intentionally preserved during 1E.
+
+
+## Batch 1F — Fail-Closed Activation
+
+Batch 1F is separately approved and changes only the legacy unknown-route fallback in `app.js`.
+
+Before 1F, an unknown key reaching `showPage()` could fall through to `renderPOS`. After 1F:
+
+`Unknown Route → BLOCK → Diagnostic Event / Console / Toast`
+
+No unknown route is allowed to invoke POS, Home, another guessed renderer, a click proxy, storage write, RPC, REST call, or network write.
+
+The existing known `showPage` renderer mappings remain unchanged and explicit in `PAGE_RENDERERS`. Dynamic owners such as Restaurant Closure, Beta54 Shared Core, Central Warehouse, Pharmacy, and Retail Website Orders keep their existing dispatch mechanisms and are not taken over by 1F.
+
+The in-app 1F diagnostic surface is bounded memory only (maximum 50 entries) and emits `sharawla-navigation-route-blocked`; it does not persist or upload diagnostics.
+
+### 1F protected boundaries
+
+- Orders V58.3 remains mapped to `renderOrders`.
+- `suppliers / purchasing / stockCount / transfers` remain `CONFLICT_BLOCKED`.
+- Website Payments remains `DEFERRED_FIX`.
+- Registry mode remains `shadow`; 1F does not claim canonical ownership for unresolved/deferred routes.
+- No Point 4, Offline/Sync, stock ownership, printing, updater, licensing, Activation, Business Connection, Canonical Fingerprint, database schema, RPC, or Production change is part of 1F.
+- Runtime acceptance must use a synthetic unknown route on SH-0007 only and prove that the current business page does not change and no business renderer is invoked.
