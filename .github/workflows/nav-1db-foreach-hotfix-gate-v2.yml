@@ -1,0 +1,39 @@
+name: 1D-B Nav forEach Hotfix Gate V2
+
+on:
+  push:
+    branches:
+      - nav-registry-1d-b-foreach-hotfix-gate-v2
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 11159d36868bfac8934a8d5e300bb02a3ab9bea4
+          fetch-depth: 1
+      - name: Verify exact candidate
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          echo "HEAD=$actual"
+          test "$actual" = "11159d36868bfac8934a8d5e300bb02a3ab9bea4"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm run sync-version
+      - name: Run gates
+        shell: bash
+        run: |
+          node scripts/check-navigation-profile-leakage-corrective.js
+          node scripts/check-runtime-syntax.js
+          node scripts/check-unified-navigation-registry-1c.js
+          node scripts/check-unified-navigation-registry-1d-a.js
+          node scripts/check-unified-navigation-registry-1d-b-runtime-binding.js
+          node scripts/check-beta55-restaurant-acceptance.js
+          node scripts/check-orders-performance-date-window.js
+          node scripts/check-orders-runtime-corrective.js
