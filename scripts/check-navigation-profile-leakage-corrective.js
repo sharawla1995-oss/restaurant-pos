@@ -104,8 +104,11 @@ must('restaurant closure normalizes existing sidebar button labels',
 );
 
 must('Orders V58.3 marker preserved',has(app,'ORDERS-DATE-WINDOW-V58.3'));
-must('unknown-route fallback not changed in this corrective',
-  has(app,"}[p]||renderPOS)")
+const oneFActivated=
+  has(app,'const PAGE_RENDERERS=Object.freeze({')&&
+  has(app,"if(typeof renderer!=='function'){blockUnknownRoute(p);return;}");
+must('unknown-route dispatch remains known-safe',
+  oneFActivated||has(app,"}[p]||renderPOS)")
 );
 must('websitePayments deferred permission behavior unchanged',
   has(app,"if(page==='websitePayments')return isAdmin()||allowed.has('financialSettings')||allowed.has('websiteAppearance');")
@@ -117,4 +120,4 @@ if(errors.length){
   process.exit(1);
 }
 console.log('Navigation Profile Leakage Corrective: PASS');
-console.log('retail_profile_leak=blocked; shared_inventory_labels=profile-aware; food_home_injection=restaurant-home-only; restaurant_labels=normalized; orders_v58_3=preserved; unknown_route_fallback=unchanged');
+console.log('retail_profile_leak=blocked; shared_inventory_labels=profile-aware; food_home_injection=restaurant-home-only; restaurant_labels=normalized; orders_v58_3=preserved; unknown_route_dispatch=known-safe');
