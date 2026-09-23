@@ -1,0 +1,108 @@
+name: Beta56 Manual Windows Prerelease
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: beta56-manual-prerelease
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: beta56-offline-ownership-consolidation
+          fetch-depth: 0
+      - name: Verify release source branch
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -ne "beta56-offline-ownership-consolidation") { throw "Wrong release branch" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Validate unique Beta version
+        id: ver
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          $version = [string]$pkg.version
+          if ($version -ne [string]$ver.version) { throw "package.json/version.json mismatch" }
+          if ([string]$ver.channel -ne "beta") { throw "version.json channel must be beta" }
+          if ($version -notmatch '^10\.5\.4-beta\.[0-9]+$') { throw "Invalid Beta version: $version" }
+          $tag = "v$version"
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Release already exists: $tag" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+      - name: Synchronize runtime version
+        run: node scripts/sync-version.js
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source and regression gates
+        run: npm run check
+      - name: Stamp Beta update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+      - name: Build Windows x64
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-x64.exe" -Force
+          Remove-Item dist -Recurse -Force
+      - name: Build Windows ia32
+        run: npm run dist -- --win --ia32 --publish never
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "ia32 installer not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
+      - name: Compute installer SHA256
+        id: hash
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 hashes unexpectedly match" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content beta56-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta56-sha256.txt -Encoding ascii
+      - name: Create Beta prerelease only
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          gh release create $tag --repo "${{ github.repository }}" --target "${{ github.sha }}" --prerelease --latest=false --title "Sharawla POS $version" --notes "SH-0007 Point 4 Runtime Acceptance candidate. Production untouched. Canonical Stock OFF. Cutover OFF. x64 SHA256: ${{ steps.hash.outputs.x64 }} ; ia32 SHA256: ${{ steps.hash.outputs.ia32 }}"
+          gh release upload $tag --repo "${{ github.repository }}" "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta56-sha256.txt
+      - name: Verify Stable latest is not Beta
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest points to Beta: $latestStableTag" }
+          Write-Host "Stable latest remains $latestStableTag"
