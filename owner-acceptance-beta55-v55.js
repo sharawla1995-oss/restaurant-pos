@@ -55,7 +55,7 @@ async function warehouseRoundtrip(ctx){
      const id=Number(await global.rpc('inventory_supply_request_create_v1',payload));
      const replay=Number(await global.rpc('inventory_supply_request_create_v1',payload));
      if(!id||id!==replay)throw new Error(`${suffix} create idempotency failed`);
-     const q=await global.rest('inventory_supply_requests',`select=id,status& id=eq.${id}&limit=1`.replace('& ', '&'));
+     const q=await global.rest('inventory_supply_requests',`select=id,status&id=eq.${id}&limit=1`);
      if(q?.[0]?.status!=='draft')throw new Error(`${suffix} expected draft after create, got ${q?.[0]?.status}`);
      const lines=await global.rest('inventory_supply_request_items',`select=*&request_id=eq.${id}&order=id`);
      if(lines?.length!==1)throw new Error(`${suffix} request line missing`);
