@@ -27,6 +27,20 @@ must('app blocks retail-only routes outside retail profile',
   has(app,"if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;")
 );
 
+must('shared inventory navigation labels are profile-aware',
+  has(app,"function applyProfileNavigationLabels(){") &&
+  has(app,"profile==='restaurant'") &&
+  has(app,"stockCount:'🧮 جرد الخامات'") &&
+  has(app,"transfers:'🔄 تحويلات الخامات'") &&
+  has(app,"purchasing:'📥 مشتريات الخامات'") &&
+  has(app,"stockCount:'🧮 الجرد'") &&
+  has(app,"transfers:'🔄 تحويلات الفروع'") &&
+  has(app,"purchasing:'📥 المشتريات والاستلام'")
+);
+must('profile labels run before role visibility pass',
+  has(app,"function applyRoleNavigation(){\n  applyProfileNavigationLabels();")
+);
+
 must('marketSettings hidden by default in source shell',
   /<button data-page="marketSettings" class="hidden">/.test(index)
 );
@@ -96,4 +110,4 @@ if(errors.length){
   process.exit(1);
 }
 console.log('Navigation Profile Leakage Corrective: PASS');
-console.log('retail_profile_leak=blocked; food_home_injection=restaurant-home-only; restaurant_labels=normalized; orders_v58_3=preserved; unknown_route_fallback=unchanged');
+console.log('retail_profile_leak=blocked; shared_inventory_labels=profile-aware; food_home_injection=restaurant-home-only; restaurant_labels=normalized; orders_v58_3=preserved; unknown_route_fallback=unchanged');
