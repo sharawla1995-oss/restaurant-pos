@@ -1,13 +1,14 @@
 'use strict';
 const fs=require('fs');const vm=require('vm');
 function must(v,msg){if(!v)throw new Error(msg)}
-const runtime=fs.readFileSync('beta55-print-order-type.js','utf8');
+const currentVersion=String(JSON.parse(fs.readFileSync('package.json','utf8')).version||'').trim();
+const runtime=fs.readFileSync('beta55-print-order-type.js','utf8').replace(/\r\n?/g,'\n');
 const acceptance=fs.readFileSync('owner-acceptance-beta55-print-v55.js','utf8');
 const loader=fs.readFileSync('beta36-integration-loader.js','utf8');
 const lazy=fs.readFileSync('owner-acceptance-lazy-loader-v47.js','utf8');
 for(const token of ['دليفري','DELIVERY','تيك أواي','TAKEAWAY','استلام فرع','PICKUP','صالة','DINE-IN','رسوم التوصيل','الإجمالي'])must(runtime.includes(token),`runtime missing ${token}`);
-must(loader.includes("['beta55-print-order-type','beta55-print-order-type.js?v=10.5.4-beta.55']"),'integration loader missing print runtime');
-must(lazy.includes("['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=10.5.4-beta.55']"),'lazy loader missing print acceptance');
+must(loader.includes(`['beta55-print-order-type','beta55-print-order-type.js?v=${currentVersion}']`),'integration loader missing print runtime');
+must(lazy.includes(`['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=${currentVersion}']`),'lazy loader missing print acceptance');
 must(acceptance.includes("id:'beta55.restaurant-print-order-type'"),'acceptance id missing');
 const baseCustomer=()=>'<div class="receipt"><div>BASE</div></div>';
 const basePrep=()=>'<div class="receipt"><div class="r-totals"><div><span>إجمالي الأصناف</span><b>100.00 ج.م</b></div></div></div>';
