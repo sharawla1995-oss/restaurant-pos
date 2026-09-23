@@ -56,6 +56,9 @@ jobs:
           $app = Get-Content (Join-Path $probe 'app.js') -Raw
           if (!$app.Contains('ORDERS-DATE-WINDOW-V58.3')) { throw 'packaged app.js missing V58.3 marker' }
           if (!$app.Contains('id="ordersFrom"') -or !$app.Contains('id="ordersTo"')) { throw 'packaged app.js missing Orders date controls' }
+          $offline43 = Get-Content (Join-Path $probe 'beta43-offline-core.js') -Raw
+          if (!$offline43.Contains('if(!base.renderOrders){try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{}}')) { throw 'packaged Beta43 Orders fallback guard missing' }
+          if ($offline43.Contains("`n  try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{};")) { throw 'packaged Beta43 still overrides Orders renderer unconditionally' }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw
           if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
           if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }
