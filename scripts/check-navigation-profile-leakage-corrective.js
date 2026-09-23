@@ -41,6 +41,13 @@ must('profile labels run before role visibility pass',
   has(app,"function applyRoleNavigation(){\n  applyProfileNavigationLabels();")
 );
 
+must('role navigation iterates the full nav button list',
+  has(app,"$$('#nav button[data-page]').forEach")
+);
+must('role navigation never calls forEach on querySelector single element',
+  !has(app,"$('#nav button[data-page]').forEach")
+);
+
 must('marketSettings hidden by default in source shell',
   /<button data-page="marketSettings" class="hidden">/.test(index)
 );
