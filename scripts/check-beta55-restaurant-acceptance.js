@@ -1,7 +1,8 @@
 const fs=require('fs');
 const path=require('path');
 const root=path.resolve(__dirname,'..');
-const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const read=f=>fs.readFileSync(path.join(root,f),'utf8').replace(/\r\n?/g,'\n');
+const currentVersion=String(JSON.parse(read('package.json')).version||'').trim();
 const need=(src,token,label)=>{if(!src.includes(token))throw new Error(`Beta55 Restaurant Acceptance gate failed: ${label||token}`)};
 const forbid=(src,token,label)=>{if(src.includes(token))throw new Error(`Beta55 Restaurant Acceptance gate failed: forbidden ${label||token}`)};
 
@@ -21,7 +22,7 @@ for(const token of [
 for(const feature of ['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'])need(pack,feature,`required feature ${feature}`);
 
 const lazy=read('owner-acceptance-lazy-loader-v47.js');
-need(lazy,'owner-acceptance-beta55-restaurant-v55.js?v=10.5.4-beta.55','Restaurant acceptance lazy load');
+need(lazy,`owner-acceptance-beta55-restaurant-v55.js?v=${currentVersion}`,'Restaurant acceptance lazy load');
 
 const syntax=read('scripts/check-runtime-syntax.js');
 need(syntax,"'owner-acceptance-beta55-restaurant-v55.js'",'Restaurant acceptance syntax gate');
