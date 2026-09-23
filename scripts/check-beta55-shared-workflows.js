@@ -2,6 +2,7 @@ const fs=require('fs');
 const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const currentVersion=String(JSON.parse(read('package.json')).version||'').trim();
 function need(src,tokens,label){for(const t of tokens)if(!src.includes(t))throw new Error(`${label} missing: ${t}`)}
 
 const ui=read('beta55-ui-workflow-fixes.js');
