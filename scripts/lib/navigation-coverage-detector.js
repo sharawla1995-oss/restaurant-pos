@@ -17,7 +17,7 @@ function discoverCoverageSurface(sources,index=''){
   const scan=(file,src)=>{
     const text=String(src||'');
     for(const m of text.matchAll(/dataset\.([A-Za-z0-9_]*Page)\s*=/g))add(datasetPage,m[1],file);
-    for(const m of text.matchAll(/data-([a-z0-9-]*page)(?=[="'\s>])/gi))add(dataPageAttrs,m[1],file);
+    for(const m of text.matchAll(/data-([a-z0-9-]*page)(?=[=\"'\\s>\\]])/gi))add(dataPageAttrs,m[1],file);
     for(const m of text.matchAll(/#([A-Za-z0-9_-]*Nav)\b/g))add(navIds,m[1],file);
     for(const m of text.matchAll(/id\s*=\s*['"]([A-Za-z0-9_-]*Nav)['"]/g))add(navIds,m[1],file);
     for(const m of text.matchAll(/data-page\s*=\s*["']([A-Za-z][A-Za-z0-9_-]*)["']/g))literalRoutes.add(m[1]);
