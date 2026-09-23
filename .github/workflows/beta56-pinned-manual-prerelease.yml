@@ -44,8 +44,9 @@ jobs:
           if ([string]$ver.channel -ne "beta") { throw "version.json channel must be beta" }
           if ($version -notmatch '^10\.5\.4-beta\.[0-9]+$') { throw "Invalid Beta version: $version" }
           $tag = "v$version"
-          gh release view $tag --repo "${{ github.repository }}" *> $null
+          $existing = gh api "repos/${{ github.repository }}/releases/tags/$tag" --silent 2>$null
           if ($LASTEXITCODE -eq 0) { throw "Release already exists: $tag" }
+          if ($LASTEXITCODE -ne 1) { throw "Unable to verify release uniqueness for $tag (gh exit=$LASTEXITCODE)" }
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
       - name: Capture Stable latest before Beta release
