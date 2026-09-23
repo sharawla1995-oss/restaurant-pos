@@ -189,8 +189,14 @@ const indexSource=source('index.html');
 if(!/<button data-page="marketSettings" class="hidden">/.test(indexSource))fail('marketSettings default hidden boundary missing');
 if(!/<button data-page="retailOffers" class="hidden">/.test(indexSource))fail('retailOffers default hidden boundary missing');
 
-// 1F is still separate and must NOT be activated by 1E.
-if(!appSource.includes('}[p]||renderPOS)'))fail('1F boundary changed: unknown-route fallback no longer matches pre-1F baseline');
+// 1E remains valid across the separately-approved 1F transition.
+// Before 1F, the historical fallback is expected. After 1F, only the explicit
+// fail-closed guard is accepted; 1E itself still does not activate it.
+const oneFActivated=
+  appSource.includes('const PAGE_RENDERERS=Object.freeze({')&&
+  appSource.includes("if(typeof renderer!=='function'){blockUnknownRoute(p);return;}");
+const preOneFBaseline=appSource.includes('}[p]||renderPOS)');
+if(!oneFActivated&&!preOneFBaseline)fail('navigation dispatch is neither the pre-1F baseline nor the explicit 1F fail-closed transition');
 
 // Negative detector: an unknown mechanism, nav id, writer and literal route must be rejected.
 const fixtureSurface=coverageDetector.discoverCoverageSurface(negativeFixture.sources,negativeFixture.index);
