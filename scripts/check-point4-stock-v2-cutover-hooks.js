@@ -5,14 +5,15 @@ const fs=require('fs');
 const path=require('path');
 
 const root=path.resolve(__dirname,'..');
-const sql=fs.readFileSync(path.join(root,'supabase-point4-stock-v2-cutover-hooks.sql'),'utf8');
-const cutover=fs.readFileSync(path.join(root,'supabase-point4-stock-v2-controlled-cutover.sql'),'utf8');
-const auditor=fs.readFileSync(path.join(root,'point4-stock-reconciliation-auditor.sql'),'utf8');
+const normalize=s=>s.replace(/\r\n?/g,'\n');
+const sql=normalize(fs.readFileSync(path.join(root,'supabase-point4-stock-v2-cutover-hooks.sql'),'utf8'));
+const cutover=normalize(fs.readFileSync(path.join(root,'supabase-point4-stock-v2-controlled-cutover.sql'),'utf8'));
+const auditor=normalize(fs.readFileSync(path.join(root,'point4-stock-reconciliation-auditor.sql'),'utf8'));
 const supply=[
   'supabase-beta55-central-warehouse-foundation.sql',
   'supabase-beta55-central-warehouse-fulfillment.sql',
   'supabase-beta55-central-warehouse-visibility-shortages.sql'
-].map(name=>fs.readFileSync(path.join(root,name),'utf8')).join('\n');
+].map(name=>normalize(fs.readFileSync(path.join(root,name),'utf8'))).join('\n');
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
 function has(text,token,message){assert(text.includes(token),message||`missing: ${token}`);}
@@ -23,7 +24,7 @@ function body(text,name){
   return next<0?text.slice(start):text.slice(start,start+1+next);
 }
 
-assert(cutover.includes("as $ select true $"),'4B-2 concurrency evidence gate is not closed/pass');
+assert(cutover.includes("as $point4b2$ select true $point4b2$;"),'4B-2 concurrency evidence gate is not closed/pass');
 for(const fn of [
   'inventory_stock_resolve_cutover_route_v2',
   'inventory_stock_declare_cutover_hooks_v2',
