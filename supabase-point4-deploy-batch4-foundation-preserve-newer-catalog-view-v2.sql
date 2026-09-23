@@ -529,7 +529,7 @@ begin
     'inventory.supply.request.cancel','inventory_supply_request',v_q.id,jsonb_build_object('from_status',v_q.status,'reservation_released',true));
   return v_q.id;
 end;
-$function$
+$function$;
 
 -- inventory_supply_request_prepare_v1(bigint,text)
 
