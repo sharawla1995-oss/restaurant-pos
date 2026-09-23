@@ -5,7 +5,7 @@ const fs=require('fs');
 const path=require('path');
 
 const root=path.resolve(__dirname,'..');
-const sql=fs.readFileSync(path.join(root,'supabase-point4-stock-v2-foundation.sql'),'utf8');
+const sql=fs.readFileSync(path.join(root,'supabase-point4-stock-v2-foundation.sql'),'utf8').replace(/\r\n?/g,'\n');
 const locationFoundation=fs.readFileSync(path.join(root,'supabase-beta55-central-warehouse-foundation.sql'),'utf8');
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
