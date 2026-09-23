@@ -45,7 +45,7 @@ must('role navigation iterates the full nav button list',
   has(app,"$$('#nav button[data-page]').forEach")
 );
 must('role navigation never calls forEach on querySelector single element',
-  !has(app,"$('#nav button[data-page]').forEach")
+  !/\n\s{2}\$\('#nav button\[data-page\]'\)\.forEach/.test(app)
 );
 
 must('marketSettings hidden by default in source shell',
