@@ -18,7 +18,7 @@ for(const a of adapters.adapters||[]){
   if(!['route','group','hub-child'].includes(a.kind))errors.push(a.id+': unsupported adapter kind '+a.kind);
 }
 
-for(const id of ['data-page','data-beta54-page','data-beta55-supply-page','data-beta55-hr-group','data-site-tool']){
+for(const id of ['data-page','data-home-page','data-beta54-page','data-beta55-supply-page','data-beta55-hr-group','data-site-tool','data-pharmacy-page','data-pharmacy-home','custom-retail-website-orders','data-beta29-website-orders-card']){
   if(!adapterIds.has(id))errors.push('missing required adapter: '+id);
 }
 
@@ -41,8 +41,28 @@ for(const [tool,routeKey] of Object.entries(adapters.websiteHubMap||{})){
   if(!d||d.routeKey!==routeKey||d.kind!=='hub-child')errors.push('Website hub normalization failed: '+tool);
 }
 
+const home=adapters.normalizeDescriptor({type:'data-home-page',value:'orders'});
+if(!home||home.routeKey!=='orders'||home.navigationKey!=='home:orders')errors.push('Home route proxy normalization failed');
+
+for(const key of adapters.pharmacyRoutes||[]){
+  if(!routeMap.has(key))errors.push('Pharmacy route missing from registry: '+key);
+  const nav=adapters.normalizeDescriptor({type:'data-pharmacy-page',value:key});
+  const card=adapters.normalizeDescriptor({type:'data-pharmacy-home',value:key});
+  if(!nav||nav.routeKey!==key||nav.kind!=='route')errors.push('Pharmacy nav normalization failed: '+key);
+  if(!card||card.routeKey!==key||card.kind!=='route')errors.push('Pharmacy home normalization failed: '+key);
+}
+const retailWeb=adapters.normalizeDescriptor({type:'custom-retail-website-orders'});
+if(!retailWeb||retailWeb.routeKey!=='retailWebsiteOrders'||!routeMap.has('retailWebsiteOrders'))errors.push('Retail Website Orders custom adapter mismatch');
+const retailWebCard=adapters.normalizeDescriptor({type:'data-beta29-website-orders-card',value:'1'});
+if(!retailWebCard||retailWebCard.routeKey!=='retailWebsiteOrders')errors.push('Retail Website Orders home-card adapter mismatch');
+
 for(const id of ['manageBranchesBtn','addBranchBtn','changeBranchBtn','logoutMenuBtn']){
   if(adapters.nonRouteControls?.[id]!=='action')errors.push(id+' must remain classified as non-route action');
+}
+for(const id of ['ownerDiagnosticsNav','betaSelfTestNav']){
+  if(adapters.nonRouteControls?.[id]!=='diagnostic')errors.push(id+' must remain classified as diagnostic non-business navigation');
+  const d=adapters.classifyDomElement({id,dataset:{}});
+  if(!d||d.kind!=='diagnostic'||d.routeKey!==null)errors.push(id+' diagnostic classification failed');
 }
 
 const unknown=adapters.normalizeDescriptor({type:'data-site-tool',value:'__unknown__'});
