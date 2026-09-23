@@ -819,8 +819,69 @@ if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false)
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,marketSettings:renderRetailMarketSettings,retailOffers:renderRetailOffers,stockCount:renderRetailStockCount,transfers:renderRetailTransfers,suppliers:renderRetailSuppliers,purchasing:renderRetailPurchasing,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
+const PAGE_RENDERERS=Object.freeze({
+  home:renderHome,
+  pos:renderPOS,
+  orders:renderOrders,
+  returns:renderReturns,
+  customers:renderCustomers,
+  deliveryOrders:renderDeliveryOrders,
+  deliverySettings:renderDeliverySettings,
+  delivery:renderDeliveryOrders,
+  kitchen:renderKitchen,
+  shifts:renderShifts,
+  inventory:renderInventory,
+  marketSettings:renderRetailMarketSettings,
+  retailOffers:renderRetailOffers,
+  stockCount:renderRetailStockCount,
+  transfers:renderRetailTransfers,
+  suppliers:renderRetailSuppliers,
+  purchasing:renderRetailPurchasing,
+  expenses:renderExpenses,
+  products:renderProducts,
+  promoCodes:renderPromoCodes,
+  branchProductAvailability:renderWebsiteAvailability,
+  websiteManagement:renderWebsiteManagement,
+  websiteBranchSettings:renderWebsiteBranchSettings,
+  websitePayments:renderWebsitePayments,
+  websiteAppearance:renderWebsiteAppearance,
+  reports:renderReports,
+  users:renderUsers,
+  settings:renderSettings
+});
+const navigationFailClosedEvents=[];
+function blockUnknownRoute(p){
+  const routeKey=String(p??'').trim()||'(empty)';
+  const entry=Object.freeze({
+    type:'UNKNOWN_ROUTE_BLOCKED',
+    routeKey,
+    profile:String(sharawlaRuntimeConfig?.pos_profile||'').trim().toLowerCase()||null,
+    at:new Date().toISOString()
+  });
+  navigationFailClosedEvents.push(entry);
+  if(navigationFailClosedEvents.length>50)navigationFailClosedEvents.shift();
+  try{console.error('[NAV-FAIL-CLOSED] Unknown route blocked',entry)}catch{}
+  try{document.dispatchEvent(new CustomEvent('sharawla-navigation-route-blocked',{detail:entry}))}catch{}
+  try{toast('تم حظر مسار غير معروف')}catch{}
+  return false;
+}
+window.__SharawlaNavigationFailClosedV1=Object.freeze({
+  version:'1.0.0-1f',
+  mode:'FAIL_CLOSED',
+  events:()=>navigationFailClosedEvents.map(x=>({...x}))
+});
+async function showPage(p){
+  try{
+    const renderer=PAGE_RENDERERS[p];
+    if(typeof renderer!=='function'){blockUnknownRoute(p);return;}
+    if(!state.activeBranchId){renderBranchPicker();return;}
+    if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}
+    navActive(p);
+    $('#pageTitle').textContent=runtimePageTitle(p);
+    await renderer();
+  }catch(e){toast(e.message)}
+}
 
 
 async function renderHome(){
