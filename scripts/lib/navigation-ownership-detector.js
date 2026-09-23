@@ -9,7 +9,7 @@ function normalizeLocalJsRef(raw){
   let s=String(raw||'').trim();
   if(!s||/^https?:\/\//i.test(s)||s.startsWith('//'))return null;
   s=s.split('#')[0].split('?')[0].replace(/^\.\//,'');
-  if(!s.endsWith('.js')||s.startsWith('../')||path.isAbsolute(s))return null;
+  if(!/^[A-Za-z0-9_./-]+\.js$/.test(s)||s.startsWith('../')||path.isAbsolute(s))return null;
   return s.replace(/\\/g,'/');
 }
 
