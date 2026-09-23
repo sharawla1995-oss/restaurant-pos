@@ -83,6 +83,12 @@ function addKnownCustomOwners(bindings,sources,routeKeys){
     add('internalSupply','render','beta55-central-warehouse-ui.js','custom-supply-owner');
   }
 
+  const retailWebsite=sources['retail-website-pos.js']||'';
+  if(retailWebsite.includes('retailWebsiteOrdersNav')&&
+     retailWebsite.includes('global.renderRetailWebsiteOrders=render')){
+    add('retailWebsiteOrders','renderRetailWebsiteOrders','retail-website-pos.js','custom-retail-website-orders-owner');
+  }
+
   return bindings;
 }
 
@@ -128,6 +134,17 @@ function discoverNavigationEvidence(sources){
 
   if(app.includes('data-site-tool')||app.includes('dataset.siteTool')){
     evidence.push({ownerLayer:'websiteManagement hub',mechanism:'hub-child'});
+  }
+
+  const pharmacy=sources['pharmacy-ui.js']||'';
+  if((pharmacy.includes('data-pharmacy-page')||pharmacy.includes('dataset.pharmacyPage'))&&
+     pharmacy.includes('stopImmediatePropagation()')&&pharmacy.includes('function open(')){
+    evidence.push({ownerLayer:'pharmacy-ui.js',mechanism:'pharmacy-capture'});
+  }
+
+  const retailWebsite=sources['retail-website-pos.js']||'';
+  if(retailWebsite.includes('retailWebsiteOrdersNav')&&retailWebsite.includes('b.onclick=render')){
+    evidence.push({ownerLayer:'retail-website-pos.js',mechanism:'custom-retail-website-orders'});
   }
   return evidence;
 }
