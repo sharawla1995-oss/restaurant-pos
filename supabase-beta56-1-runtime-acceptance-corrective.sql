@@ -1,3 +1,5 @@
+begin;
+
 -- Beta56.1 corrective: normalize JSON null Point4 context + remove legacy inheritance from sensitive warehouse permissions.
 CREATE OR REPLACE FUNCTION public.sharawla_offline_v2_apply_event_core_v1(p_event jsonb)
  RETURNS jsonb
@@ -73,3 +75,5 @@ update public.permission_actions_v2
 set legacy_permission=null
 where code in ('inventory.supply.request.emergency','inventory.supply.shortages.view','inventory.supply.shortages.create')
   and legacy_permission is not null;
+
+commit;
