@@ -1,4 +1,4 @@
-name: Beta56 Corrective Runtime Acceptance Sandbox Build
+name: Beta58 Orders Performance Sandbox Build
 
 on:
   push:
@@ -37,12 +37,13 @@ jobs:
           node scripts/check-offline-auth-authoritative-order.js
           node scripts/check-beta55-5-runtime-hardening.js
           node scripts/check-version.js
+          node scripts/check-orders-performance-date-window.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Upload SH-0007 sandbox installer
         uses: actions/upload-artifact@v4
         with:
-          name: sharawla-pos-10.5.4-beta.57-rc-sh0007-x64
-          path: dist/Sharawla-POS-Setup-10.5.4-beta.57.exe
+          name: sharawla-pos-10.5.4-beta.58-orders-performance-sh0007-x64
+          path: dist/Sharawla-POS-Setup-10.5.4-beta.58.exe
           if-no-files-found: error
           retention-days: 7
