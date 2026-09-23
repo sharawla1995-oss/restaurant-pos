@@ -329,7 +329,9 @@ function install43(){
   if(base.saveOfflineShiftClose){try{saveOfflineShiftClose=saveOfflineShiftClose43}catch{};try{global.saveOfflineShiftClose=saveOfflineShiftClose43}catch{}}
   try{remapQueuedShift=remapQueuedShift43}catch{};try{global.remapQueuedShift=remapQueuedShift43}catch{};
   try{syncOfflineQueue=syncOfflineQueue43}catch{};try{global.syncOfflineQueue=syncOfflineQueue43}catch{};
-  try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{};
+  // Beta58.3+: app.js owns the Orders renderer (date window + server pagination).
+  // Keep renderOrders43 as historical/offline implementation only; do not override the newer renderer.
+  if(!base.renderOrders){try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{}}
   try{updateNextBonBadge=updateNextBonBadge43}catch{};try{global.updateNextBonBadge=updateNextBonBadge43}catch{};
   try{updatePendingSyncBadge=updatePendingSyncBadge43}catch{};try{global.updatePendingSyncBadge=updatePendingSyncBadge43}catch{};
   try{offlineOrderNo=offlineOrderNo43}catch{};try{global.offlineOrderNo=offlineOrderNo43}catch{};
