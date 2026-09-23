@@ -100,7 +100,7 @@ for(const sig of contract.signatures||[]){
       if(!ownerSource.includes(t))fail(sig.routeKey+': source token missing from '+sig.sourceOwner+': '+t);
     }
     const matching=[];
-    for(const entry of runtime.sources.entries()){
+    for(const entry of Object.entries(runtime.sources||{})){
       const name=entry[0],source=entry[1];
       if(tokens.length&&tokens.every(function(t){return source.includes(t)}))matching.push(name);
     }
