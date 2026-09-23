@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.56",
-  "description": "Sharawla POS V10.5.4 Beta 56 - SH-0007 Point 4 Runtime Acceptance Candidate - Offline Engine V2",
+  "version": "10.5.4-beta.57",
+  "description": "Sharawla POS V10.5.4 Beta 57 - SH-0007 RC Candidate - Point 4 Corrective + Full Sandbox 100%",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
