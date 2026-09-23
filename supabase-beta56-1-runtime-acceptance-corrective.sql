@@ -48,10 +48,10 @@ begin
   when 'create_retail_pos_order_atomic' then v_result:=public.create_retail_pos_order_atomic(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments');v_entity_id:=nullif(v_result#>>'{order,id}','');
   when 'create_retail_variant_pos_order_atomic_v1' then v_result:=public.create_retail_variant_pos_order_atomic_v1(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments');v_entity_id:=nullif(v_result#>>'{order,id}','');
   when 'create_food_pos_order_atomic_v1' then
-   if v_envelope is null then raise exception 'Food Offline Context envelope مطلوبة';end if;
+   if v_envelope is null or jsonb_typeof(v_envelope)='null' then raise exception 'Food Offline Context envelope مطلوبة';end if;
    v_result:=public.create_food_pos_order_atomic_with_context_v1(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments',v_envelope);v_entity_id:=nullif(v_result#>>'{order,id}','');
   when 'create_food_retail_pos_order_atomic_v1' then
-   if v_envelope is null then raise exception 'Food Retail Offline Context envelope مطلوبة';end if;
+   if v_envelope is null or jsonb_typeof(v_envelope)='null' then raise exception 'Food Retail Offline Context envelope مطلوبة';end if;
    v_result:=public.create_food_retail_pos_order_atomic_with_context_v1(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments',coalesce((v_payload->>'p_use_variants')::boolean,false),v_envelope);v_entity_id:=nullif(v_result#>>'{order,id}','');
   when 'create_order_return_idempotent' then v_return_id:=public.create_order_return_idempotent((v_payload->>'p_order_id')::bigint,v_payload->>'p_reason',v_payload->>'p_notes',v_payload->'p_items',v_payload->'p_payments',v_payload->>'p_client_tx_id');v_entity_id:=v_return_id::text;v_result:=jsonb_build_object('return_id',v_return_id);
   when 'create_retail_order_return_idempotent' then v_return_id:=public.create_retail_order_return_idempotent((v_payload->>'p_order_id')::bigint,v_payload->>'p_reason',v_payload->>'p_notes',v_payload->'p_items',v_payload->'p_payments',v_payload->>'p_client_tx_id');v_entity_id:=v_return_id::text;v_result:=jsonb_build_object('return_id',v_return_id);
