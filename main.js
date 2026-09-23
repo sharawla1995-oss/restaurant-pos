@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session: electronSession } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -801,7 +801,20 @@ function registerIpc(){
  ipcMain.handle('print:current',async(_e,opts={})=>new Promise(resolve=>{if(!mainWindow)return resolve({ok:false,error:'window unavailable'});mainWindow.webContents.print({silent:!!opts.silent,deviceName:opts.deviceName||'',printBackground:true},(ok,reason)=>resolve({ok,error:reason||null}))}));
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(async resolve=>{const w=new BrowserWindow({show:false,width:420,height:900,webPreferences:{sandbox:true}});try{let deviceName=String(opts.deviceName||'');if(deviceName){const ps=await w.webContents.getPrintersAsync();const wanted=deviceName.trim().toLowerCase();const hit=ps.find(p=>String(p.name||'').trim().toLowerCase()===wanted||String(p.displayName||'').trim().toLowerCase()===wanted);if(hit)deviceName=hit.name}const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));await w.loadURL(data);setTimeout(()=>{if(w.isDestroyed())return resolve({ok:false,error:'print window closed'});w.webContents.print({silent:!!opts.silent,deviceName,printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null,deviceName})})},300)}catch(err){try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})}}));
 }
+async function clearDesktopRendererAssetCaches(){
+  // Electron owns desktop offline/runtime state natively. A historical PWA service worker/cache
+  // must never be allowed to serve an older index.html/app.js over a newly installed desktop build.
+  try{
+    const s=electronSession.defaultSession;
+    await s.clearCache();
+    await s.clearStorageData({storages:['serviceworkers','cachestorage']});
+    return {ok:true};
+  }catch(e){
+    console.warn('Desktop renderer asset cache cleanup failed',e&&e.message||e);
+    return {ok:false,error:String(e&&e.message||e)};
+  }
+}
 function createWindow(){mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:700,autoHideMenuBar:true,backgroundColor:'#fff',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:false}});mainWindow.loadFile('index.html')}
-app.whenReady().then(async()=>{await openDb();try{runPostUpdateHealthCheck()}catch(e){logUpdateEvent('HEALTH_CHECK_ERROR',{version:app.getVersion(),error:String(e&&e.message||e)})}registerIpc();installRuntimeSnapshotMain();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
+app.whenReady().then(async()=>{await openDb();try{runPostUpdateHealthCheck()}catch(e){logUpdateEvent('HEALTH_CHECK_ERROR',{version:app.getVersion(),error:String(e&&e.message||e)})}registerIpc();installRuntimeSnapshotMain();try{createBackup('startup');pruneBackups(30)}catch{}await clearDesktopRendererAssetCaches();createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
 app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
