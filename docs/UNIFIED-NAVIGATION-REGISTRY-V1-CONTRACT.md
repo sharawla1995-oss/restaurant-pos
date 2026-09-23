@@ -59,3 +59,26 @@ The checker currently permits only states used by the implemented stage. Future 
 1A Static Route Inventory → 1B Dynamic Navigation Adapters → 1C Ownership/Conflict Detection → 1D Shadow Runtime Audit → 1E Coverage Gate → 1F Fail-Closed Activation.
 
 1F is a separate gate and must not be activated merely because earlier stages succeed.
+
+
+## Batch 1C — Ownership & Conflict Detection
+
+Batch 1C is evidence/enforcement only. It does not resolve any conflict and it does not alter route dispatch.
+
+The 1C checker reads the Registry, the 1B Adapters, and the current source files. It validates four ownership states:
+
+- Single owner evidenced by source
+- Augmented owner with every augmentation layer declared
+- Multi-owner conflict explicitly declared and CONFLICT_BLOCKED
+- Deferred/locked routes preserved without normalization
+
+Current protected cases remain:
+
+- `orders` = `LOCKED_ACCEPTED_OWNER`
+- `purchasing` = `CONFIRMED_MULTI_OWNER / CONFLICT_BLOCKED`
+- `suppliers / stockCount / transfers` = ownership review and `CONFLICT_BLOCKED`
+- `websitePayments` = `DEFERRED_FIX / KNOWN_PERMISSION_MISMATCH`
+
+The checker also contains a negative detector fixture. A synthetic undeclared owner for both `orders` and `purchasing` must be rejected. This prevents 1C from merely restating Registry metadata without detecting additional source ownership.
+
+Batch 1C does not modify `showPage()`, does not add interception, does not activate fail-closed behavior, and does not perform Build/Deployment.
