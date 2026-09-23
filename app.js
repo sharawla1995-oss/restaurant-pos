@@ -534,7 +534,7 @@ function applyProfileNavigationLabels(){
 }
 function applyRoleNavigation(){
   applyProfileNavigationLabels();
-  $('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
+  $$('#nav button[data-page]').forEach(b=>b.classList.toggle('hidden',!canAccessPage(b.dataset.page)));
 }
 function allowedBranchIds(){if(isAdmin())return state.branches.map(b=>Number(b.id));const ids=(state.employeeBranches||[]).map(x=>Number(x.branch_id));if(!ids.length&&state.employee?.branch_id)ids.push(Number(state.employee.branch_id));return [...new Set(ids)]}
 function allowedBranches(){const ids=new Set(allowedBranchIds().map(String));return state.branches.filter(b=>ids.has(String(b.id)))}
