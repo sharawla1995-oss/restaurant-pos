@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('fs');
 const path=require('path');
+const root=path.resolve(__dirname,'..');
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg)};
 const read=f=>fs.readFileSync(f,'utf8');
 const pkg=JSON.parse(read('package.json'));
