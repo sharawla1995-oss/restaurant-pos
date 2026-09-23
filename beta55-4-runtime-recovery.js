@@ -4,7 +4,7 @@
 // Beta55.4 — SH-0007 regression recovery layer.
 // Scope: offline read fallbacks, open-shift continuity, reconnect reconciliation,
 // and offline bon sequencing. Authentication/fingerprint/licensing are untouched.
-const VERSION='10.5.4-beta.55.4';
+const VERSION='10.5.4-beta.58.1';
 const CACHE_PREFIX='sharawla55.4:read:';
 const BON_PREFIX='sharawla55.4:bon:';
 let installed=false;
@@ -201,7 +201,6 @@ async function warmRuntimeCaches(){
  const b=branchId();const calls=[
   ['shifts',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=100`],
   ['expenses',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=500`],
-  ['orders',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=300`],
   ['delivery_drivers',`select=*&branch_id=eq.${b}&order=active.desc,name`],
   ['delivery_zones',`select=*&branch_id=eq.${b}&order=active.desc,name`],
   ['driver_settlements',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=50`]
