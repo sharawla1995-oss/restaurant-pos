@@ -1,0 +1,49 @@
+name: Unified Navigation 1E Discovery
+
+on:
+  push:
+    branches:
+      - nav-registry-1e-coverage-discovery
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3fa651472a309e5e5539982fbedcdfd704de2c54
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Discover runtime navigation mechanisms
+        shell: bash
+        run: |
+          node <<'NODE'
+          const path=require('path');
+          const {loadRuntimeSources}=require('./scripts/lib/navigation-ownership-detector.js');
+          const g=loadRuntimeSources(process.cwd());
+          const out={runtimeScripts:g.runtimeScripts.length,datasetPage:{},dataPageAttrs:{},navIds:{},navWriters:[]};
+          for(const [file,src] of Object.entries(g.sources)){
+            const ds=[...src.matchAll(/dataset\.([A-Za-z0-9_]*Page)\s*=/g)].map(m=>m[1]);
+            const attrs=[...src.matchAll(/data-([a-z0-9-]*page)(?=[="'\s>])/gi)].map(m=>m[1]);
+            const ids=[
+              ...[...src.matchAll(/#([A-Za-z0-9_-]*Nav)\b/g)].map(m=>m[1]),
+              ...[...src.matchAll(/id\s*=\s*['"]([A-Za-z0-9_-]*Nav)['"]/g)].map(m=>m[1])
+            ];
+            for(const x of new Set(ds))(out.datasetPage[x]??=[]).push(file);
+            for(const x of new Set(attrs))(out.dataPageAttrs[x]??=[]).push(file);
+            for(const x of new Set(ids))(out.navIds[x]??=[]).push(file);
+            if(/querySelector\(['"]#nav['"]\)/.test(src)&&/createElement\(['"]button['"]\)/.test(src)){
+              out.navWriters.push(file);
+            }
+          }
+          for(const k of ['datasetPage','dataPageAttrs','navIds']){
+            for(const x of Object.keys(out[k])) out[k][x]=[...new Set(out[k][x])].sort();
+          }
+          out.navWriters=[...new Set(out.navWriters)].sort();
+          console.log(JSON.stringify(out,null,2));
+          NODE
