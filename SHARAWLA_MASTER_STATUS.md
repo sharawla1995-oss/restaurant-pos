@@ -2631,3 +2631,45 @@ Correction:
 - X0 prefix baseline and X0A supplement are both preserved as evidence.
 
 X1-X4 deployment remains NOT STARTED.
+
+
+### PHARMACY-OFFLINE-SUPPORT-MATRIX.md
+
+`docs/PHARMACY-OFFLINE-SUPPORT-MATRIX.md`
+
+Pharmacy Offline staged policy design is CLOSED; current Pharmacy sale remains Online-only and generic Pharmacy Offline return is unsafe until dedicated return ownership exists.
+
+
+### PHARMACY-ACCEPTANCE-V2-DESIGN.md
+
+`docs/PHARMACY-ACCEPTANCE-V2-DESIGN.md`
+
+Pharmacy Acceptance V2 design is CLOSED; execution waits for a dedicated Pharmacy Beta environment.
+
+
+### PHARMACY-PERMISSIONS-ACTION-MATRIX.md
+
+`docs/PHARMACY-PERMISSIONS-ACTION-MATRIX.md`
+
+Pharmacy Permissions Action Matrix is CLOSED for design; current active pharmacy.* Action rows = 0.
+
+
+### PHARMACY-BETA-ENVIRONMENT-PROVISIONING-PLAN.md
+
+`docs/PHARMACY-BETA-ENVIRONMENT-PROVISIONING-PLAN.md`
+
+Pharmacy Beta environment plan is CLOSED; no Pharmacy Business/device/backend currently exists.
+
+
+### PHARMACY-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md
+
+`docs/PHARMACY-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md`
+
+Pharmacy Product Map/capability binding design is CLOSED; runtime feature/page enforcement remains open.
+
+
+### PHARMACY-COSTING-REPORTS-V1-CONTRACT.md
+
+`docs/PHARMACY-COSTING-REPORTS-V1-CONTRACT.md`
+
+Pharmacy costing/reports design is CLOSED; batch-level historical COGS is not currently authoritative until cost snapshots and return ownership are implemented.
