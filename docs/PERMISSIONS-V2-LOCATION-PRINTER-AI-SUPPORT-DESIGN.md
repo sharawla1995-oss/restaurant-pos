@@ -893,7 +893,122 @@ For each logical Printer Role:
 - missing station binding is fail-visible;
 - no physical printer name is required in Sharawla Cloud.
 
-## 19. Current status
+
+## 19. Dual Runtime Authority Migration Contract
+
+### Confirmed current state
+
+On SH-0007, a read-only evaluation of all 107 canonical Cloud Features through
+`evaluate_sharawla_feature_access_cloud_v2` currently returns:
+
+- catalog: 107
+- allowed: 9
+- denied: 98
+
+The allowed set is currently Core-only.
+The isolated Beta Business currently has no active commercial package/add-on entitlement from the historical runtime entitlement tests.
+
+At the same time, the POS continues to use the established Runtime Config / `enabled_features` path for existing application capabilities.
+
+Therefore:
+
+**Runtime Snapshot V2 must not replace the existing feature gate globally.**
+
+A global switch would cause valid existing POS behavior to disappear because commercial/readiness entitlement for the historical catalog is not yet populated as a full replacement contract.
+
+### Authority policy
+
+#### Legacy catalog behavior
+
+All existing pre-expansion POS Features keep their current accepted Runtime Config authority until a dedicated migration proves commercial/readiness parity.
+
+Do not change Restaurant/Retail/Pharmacy/etc. visibility merely because Snapshot V2 currently denies a historical Feature.
+
+#### New commercial root features
+
+The following new capabilities are Snapshot-managed from their first implementation:
+
+- food.kitchen_stations
+- support.center
+- ai.operator
+
+For these Features:
+
+`Runtime Snapshot V2 allowed=true`
+
+is mandatory before their UI or behavior may activate.
+
+No fallback to Runtime Config `enabled_features`.
+No local setting may self-enable them.
+No Business Feature override alone may self-entitle them.
+
+### Renderer contract
+
+Introduce one explicit helper for Snapshot-managed capability checks, conceptually:
+
+`snapshotFeatureAllowed(featureCode)`
+
+Rules:
+1. Desktop must have a valid safe Runtime Snapshot.
+2. The requested Feature must exist in snapshot decisions.
+3. Decision must be `allowed=true`.
+4. Any missing/expired/unverifiable snapshot decision = DENY.
+5. UI visibility and backend-sensitive entry actions must both consume the same result.
+6. Offline use is allowed only from the already verified, unexpired Last Known Safe snapshot.
+
+The helper must not silently consult Runtime Config as a fallback for Snapshot-managed Features.
+
+### Existing capability helper remains
+
+The existing `SharawlaRuntimeCore.featureEnabled(config, code)` stays unchanged for legacy capabilities during this migration phase.
+
+The code must make authority obvious at call sites:
+- legacy feature -> Runtime Config helper
+- new commercial root feature -> Snapshot helper
+
+Do not hide the distinction inside an ambiguous fallback chain.
+
+### Future full migration
+
+A future project may move historical Features from Runtime Config authority to signed Snapshot authority only after:
+
+1. commercial package model covers the intended historical baseline;
+2. entitlement parity is measured per Profile/Business;
+3. readiness statuses are accepted for the migrated set;
+4. dependencies are complete;
+5. Shadow comparison shows no unintended visibility regression;
+6. offline signed snapshot behavior passes;
+7. explicit migration version/gate is approved.
+
+That migration is NOT part of Kitchen Stations / Support / AI V1.
+
+### Acceptance
+
+For each new Snapshot-managed Feature:
+
+Denied state:
+- Feature absent from navigation/UI;
+- direct route is blocked;
+- local setting cannot activate it;
+- Business override without entitlement cannot activate it.
+
+Entitled state:
+- valid signed snapshot contains allowed=true;
+- Feature becomes visible only after snapshot refresh/acceptance;
+- user Action + Location permissions still apply.
+
+Expired/cancelled state:
+- refreshed signed snapshot denies Feature;
+- Feature disappears/blocks cleanly;
+- offline device may use only a still-valid previously signed snapshot until its signed expiry;
+- no locally extended grace is invented.
+
+### Current evidence note
+
+The current SH-0007 snapshot is intentionally not a replacement authority for the historical 107 Feature catalog.
+This is a migration fact, not an error to be “fixed” by weakening Commercial or Readiness gates.
+
+## 20. Current status
 
 Design discovery: CLOSED for this checkpoint.
 Runtime implementation: NOT STARTED.
