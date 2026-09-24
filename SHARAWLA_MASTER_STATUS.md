@@ -2810,3 +2810,23 @@ Before any Retail provisioning:
 - keep Production SH-0005/SH-0006 on immutable 10.5.3 CLEAN.
 
 Retail preparation may remain documentation/read-only until that gate is closed.
+
+
+## Pharmacy Sale / Return Integrity
+
+Authoritative design:
+`docs/PHARMACY-SALE-RETURN-INTEGRITY-CONTRACT.md`
+
+Status:
+- design = CLOSED;
+- implementation = NOT STARTED;
+- current Pharmacy sale owner = PARTIAL / NOT CLOSED;
+- Pharmacy-specific return owner = MISSING;
+- prescription backend enforcement = OPEN;
+- insurance financial closure = OPEN;
+- FEFO backend enforcement = OPEN;
+- controlled-drug operational/audit owner = OPEN;
+- Pharmacy Offline sale remains Online-only;
+- generic Offline Pharmacy return fallback is an integrity risk and must be blocked before Pharmacy runtime closure.
+
+No DB/Runtime/Cloud/Production mutation was performed.
