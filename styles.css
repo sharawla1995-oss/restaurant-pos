@@ -425,3 +425,18 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
  .cart .delivery-fields{grid-template-columns:1fr}
  .cart .cart-items{min-height:180px}
 }
+
+
+/* Sharawla Product Map Navigation V1 — presentation only */
+.sidebar nav .sharawla-nav-group-label{
+  margin:12px 10px 4px;
+  padding:8px 2px 5px;
+  border-top:1px solid #ffffff18;
+  color:#8fa0b5;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.02em;
+  pointer-events:none;
+  user-select:none;
+}
+.sidebar nav .sharawla-nav-group-label + button{margin-top:0}
