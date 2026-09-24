@@ -829,7 +829,36 @@ if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false)
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
+function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
+
+// SHARED-INVENTORY-PURCHASING-ROUTER-V1
+// One Core route owner. Existing Restaurant and Retail renderers remain unchanged profile adapters.
+const SHARED_INVENTORY_PURCHASING_ROUTES=Object.freeze(new Set(['suppliers','purchasing','stockCount','transfers']));
+function sharedInventoryPurchasingFailClosed(route,profile,code='PROFILE_ADAPTER_MISSING'){
+  $('#page').innerHTML=`<div class="panel" data-shared-inventory-route-fail-closed="${esc(code)}"><h2>📦 المخزون والمشتريات</h2><div class="empty">المسار (${esc(route)}) لا يملك Adapter معتمدًا للنشاط (${esc(profile||'غير محدد')}). تم إيقافه بأمان.</div></div>`;
+}
+async function renderSharedInventoryPurchasingRoute(route){
+  const key=String(route||'').trim();
+  if(!SHARED_INVENTORY_PURCHASING_ROUTES.has(key))return sharedInventoryPurchasingFailClosed(key,currentPosProfile(),'ROUTE_NOT_SHARED');
+  const profile=currentPosProfile();
+  if(profile==='restaurant'){
+    const api=window.__SharawlaRestaurantClosureV55;
+    if(typeof api?.renderSharedRoute==='function')return api.renderSharedRoute(key);
+    return sharedInventoryPurchasingFailClosed(key,profile,'RESTAURANT_ADAPTER_MISSING');
+  }
+  if(profile==='retail'){
+    const adapters=Object.freeze({
+      suppliers:renderRetailSuppliers,
+      purchasing:renderRetailPurchasing,
+      stockCount:renderRetailStockCount,
+      transfers:renderRetailTransfers
+    });
+    const fn=adapters[key];
+    if(typeof fn==='function')return fn();
+    return sharedInventoryPurchasingFailClosed(key,profile,'RETAIL_ADAPTER_MISSING');
+  }
+  return sharedInventoryPurchasingFailClosed(key,profile,'PROFILE_ADAPTER_MISSING');
+}
 const PAGE_RENDERERS=Object.freeze({
   home:renderHome,
   pos:renderPOS,
@@ -845,10 +874,10 @@ const PAGE_RENDERERS=Object.freeze({
   inventory:renderInventory,
   marketSettings:renderRetailMarketSettings,
   retailOffers:renderRetailOffers,
-  stockCount:renderRetailStockCount,
-  transfers:renderRetailTransfers,
-  suppliers:renderRetailSuppliers,
-  purchasing:renderRetailPurchasing,
+  stockCount:(...args)=>renderSharedInventoryPurchasingRoute('stockCount',...args),
+  transfers:(...args)=>renderSharedInventoryPurchasingRoute('transfers',...args),
+  suppliers:(...args)=>renderSharedInventoryPurchasingRoute('suppliers',...args),
+  purchasing:(...args)=>renderSharedInventoryPurchasingRoute('purchasing',...args),
   expenses:renderExpenses,
   products:renderProducts,
   promoCodes:renderPromoCodes,

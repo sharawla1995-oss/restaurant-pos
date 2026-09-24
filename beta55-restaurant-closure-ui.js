@@ -1,7 +1,8 @@
 (function(global){
 'use strict';
 const VERSION='10.5.4-beta.55-restaurant-closure.1';
-const PAGES=new Set(['foodIngredients','foodRecipes','foodOperations','suppliers','purchasing','stockCount','transfers','tables']);
+const PAGES=new Set(['foodIngredients','foodRecipes','foodOperations','tables']);
+const SHARED_ROUTES=new Set(['suppliers','purchasing','stockCount','transfers']);
 const TITLE={foodIngredients:'الخامات',foodRecipes:'الوصفات وFood Cost',foodOperations:'الإنتاج والهالك',suppliers:'الموردين',purchasing:'مشتريات الخامات',stockCount:'جرد الخامات',transfers:'تحويلات الخامات',tables:'الصالات والترابيزات'};
 const FEATURE={foodIngredients:'food.ingredients',foodRecipes:'food.recipes'};
 const FOOD_OP_FEATURES=['food.prep','food.production','food.waste','food.costing'];
@@ -30,7 +31,21 @@ function style(){if(document.querySelector('#beta55RestaurantClosureStyle'))retu
 
 function ensureNavButton(page,label,icon,afterPage){const nav=document.querySelector('#nav');if(!nav)return null;let b=nav.querySelector(`button[data-page="${page}"]`);if(!b){b=document.createElement('button');b.type='button';b.dataset.page=page;const after=nav.querySelector(`button[data-page="${afterPage}"]`);if(after)after.insertAdjacentElement('afterend',b);else nav.insertBefore(b,document.querySelector('#logoutMenuBtn'));}b.textContent=`${icon} ${label}`;return b}
 function mountNav(){if(!isRestaurant())return;style();ensureNavButton('tables','الصالات والترابيزات','🪑','kitchen');ensureNavButton('foodOperations','الإنتاج والهالك','🏭','inventory');ensureNavButton('foodRecipes','الوصفات وFood Cost','🍲','inventory');ensureNavButton('foodIngredients','الخامات','🧪','inventory');for(const p of PAGES){const b=document.querySelector(`#nav button[data-page="${p}"]`);if(b)b.classList.toggle('hidden',!canPage(p))}}
-async function openPage(page){if(!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');setActive(page);const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';try{await ({foodIngredients:renderIngredients,foodRecipes:renderRecipes,foodOperations:renderFoodOperations,suppliers:renderSuppliers,purchasing:renderPurchasing,stockCount:renderStockCount,transfers:renderTransfers,tables:renderTables}[page])()}catch(e){if(root)root.innerHTML=`<div class="panel"><div class="empty">${esc(e?.message||String(e))}</div></div>`;toast(e?.message||String(e))}}
+async function openPage(page){if(!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');setActive(page);const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';try{const fn=({foodIngredients:renderIngredients,foodRecipes:renderRecipes,foodOperations:renderFoodOperations,tables:renderTables}[page]);if(typeof fn!=='function')throw new Error('Restaurant Closure route غير معروف');await fn()}catch(e){if(root)root.innerHTML=`<div class="panel"><div class="empty">${esc(e?.message||String(e))}</div></div>`;toast(e?.message||String(e))}}
+async function renderSharedRoute(page){
+  if(!isRestaurant())throw new Error('Restaurant shared adapter رفض Profile غير Restaurant');
+  if(!SHARED_ROUTES.has(page))throw new Error('Shared inventory route غير معروف');
+  if(!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');
+  const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';
+  try{
+    const fn=({suppliers:renderSuppliers,purchasing:renderPurchasing,stockCount:renderStockCount,transfers:renderTransfers}[page]);
+    if(typeof fn!=='function')throw new Error('Restaurant shared adapter غير متاح');
+    await fn();
+  }catch(e){
+    if(root)root.innerHTML=`<div class="panel"><div class="empty">${esc(e?.message||String(e))}</div></div>`;
+    toast(e?.message||String(e));
+  }
+}
 
 function unitOptions(units,selected=''){return (units||[]).map(u=>`<option value="${esc(u.code)}" ${String(u.code)===String(selected)?'selected':''}>${esc(u.name_ar||u.code)} (${esc(u.code)})</option>`).join('')}
 async function foodBaseData(){const b=branch();const [ingredients,stock,units]=await Promise.all([rest('ingredients','select=*&order=active.desc,name'),rest('ingredient_stock',`select=*&branch_id=eq.${b}`).catch(()=>[]),rest('inventory_units','select=*&active=eq.true&order=sort_order,code')]);return{ingredients,stock,units}}
@@ -77,6 +92,6 @@ function openSessionForm(tableId,done){const m=modal('فتح جلسة ترابي
 function attachOrderForm(sessionId,orders,links,done){const used=new Set(links.map(x=>String(x.order_id))),available=orders.filter(o=>!used.has(String(o.id)));const m=modal('ربط طلب صالة',`<label>الطلب<select data-order><option value="">اختر طلب صالة</option>${available.map(o=>`<option value="${o.id}">${esc(o.bon_number||o.invoice_number||o.id)} — ${money(o.total)} — ${new Date(o.created_at).toLocaleString('ar-EG')}</option>`).join('')}</select></label><div class="modal-actions"><button class="primary" data-save>ربط</button></div>`);m.querySelector('[data-save]').onclick=async()=>{if(!m.querySelector('[data-order]').value)return toast('اختر الطلب');try{await rpc('restaurant_table_session_attach_order_v1',{p_session_id:sessionId,p_order_id:Number(m.querySelector('[data-order]').value)});m.remove();toast('تم ربط الطلب بالجلسة');done()}catch(e){toast(e.message)}}}
 
 function interceptNav(){const nav=document.querySelector('#nav');if(!nav||nav.dataset.restaurantClosureWired==='1')return;nav.dataset.restaurantClosureWired='1';nav.addEventListener('click',e=>{if(!isRestaurant())return;const b=e.target.closest('button[data-page]');if(!b||!PAGES.has(b.dataset.page))return;e.preventDefault();e.stopImmediatePropagation();openPage(b.dataset.page)},true)}
-function boot(){if(wired)return;wired=true;const run=()=>{if(isRestaurant()){mountNav();interceptNav()}};run();const mo=new MutationObserver(()=>{if(isRestaurant())mountNav()});mo.observe(document.body,{childList:true,subtree:true});global.__SharawlaRestaurantClosureV55=Object.freeze({version:VERSION,pages:[...PAGES],openPage,canPage})}
+function boot(){if(wired)return;wired=true;const run=()=>{if(isRestaurant()){mountNav();interceptNav()}};run();const mo=new MutationObserver(()=>{if(isRestaurant())mountNav()});mo.observe(document.body,{childList:true,subtree:true});global.__SharawlaRestaurantClosureV55=Object.freeze({version:VERSION,pages:[...PAGES],sharedRoutes:[...SHARED_ROUTES],openPage,renderSharedRoute,canPage})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })(window);

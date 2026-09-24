@@ -1541,3 +1541,77 @@ Goal: define one Core owner per shared workflow with profile adapters, without c
 After those ownership conflicts are resolved and runtime-accepted, advance to **Permissions V2: Page + Action + Location**.
 
 No statement in this override authorizes a Production write or Stable promotion.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Shared Inventory/Purchasing Route Ownership V1
+
+> Supersedes the prior ownership-conflict status for suppliers / purchasing / stockCount / transfers.
+
+Candidate **10.5.4-beta.58.23** consolidates route ownership only.
+
+### One Core route owner
+
+The shared route keys:
+- suppliers
+- purchasing
+- stockCount
+- transfers
+
+are now dispatched by:
+
+`app.js → renderSharedInventoryPurchasingRoute(route)`
+
+### Profile adapters
+
+- Restaurant → existing Beta55 Restaurant Closure business renderers.
+- Retail → existing Retail business renderers in app.js.
+- Other profiles → **Fail-Closed** until a dedicated approved adapter exists.
+
+No profile may silently fall back to Restaurant or Retail.
+
+### Preserved behavior
+
+This change does not alter:
+- Restaurant Food supplier/purchase/count/transfer RPCs.
+- Retail supplier/purchase/count/transfer RPCs.
+- Advanced Purchasing business logic.
+- Point 4, Canonical Stock or Cutover.
+- Offline ownership.
+- Printing, licensing, updater or Production devices.
+
+`advanced-purchasing-v1.js` remains a Retail-only augmentation, not a route owner.
+`beta55-ui-workflow-fixes.js` remains an action/workspace augmentation, not a route owner.
+
+### Registry closure
+
+For all four routes:
+- profile = core
+- renderer owner = app.js
+- navigation owner = app.js
+- dispatch = Core showPage → profile adapter
+- conflictStatus = NONE
+- migrationStatus = REGISTERED_SHADOW
+
+### Runtime acceptance gate
+
+On SH-0007 Restaurant, verify:
+1. Suppliers opens the existing Restaurant suppliers screen.
+2. Purchasing opens the existing Restaurant raw-material purchasing screen.
+3. Stock Count opens the existing Restaurant raw-material count screen.
+4. Transfers opens the existing Restaurant raw-material transfer screen.
+5. No Retail tables/wording leak into Restaurant.
+6. Product Map, Touch UX, Inventory Overview and Settings Hub remain normal.
+
+A later Retail acceptance must confirm the same route keys reach the existing Retail adapters.
+
+### NEXT PHASE AFTER RUNTIME PASS
+
+After this route-ownership gate passes, Menu/Function Cleanup is structurally closed enough to begin:
+
+**Permissions V2 — Page + Action + Location**
+
+Kitchen Stations remains planned behind its prerequisite sequence.
+
+Production SH-0005 / SH-0006 remain untouched/read-only.

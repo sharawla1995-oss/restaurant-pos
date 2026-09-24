@@ -44,6 +44,7 @@ jobs:
           node scripts/check-pos-profile-routing-v1.js
           node scripts/check-settings-hub-v1.js
           node scripts/check-kitchen-labels-plan-v1.js
+          node scripts/check-shared-inventory-purchasing-routing-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -118,6 +119,12 @@ jobs:
           if (!$app.Contains('تفعيل تشغيل المطبخ')) { throw 'packaged app.js missing explicit Kitchen operational label' }
           $restaurantEngineText = Get-Content (Join-Path $probe 'restaurant-engine.js') -Raw
           if (!$restaurantEngineText.Contains('الوصول إلى شاشة المطبخ')) { throw 'packaged Restaurant engine missing explicit Kitchen permission label' }
+          if (!$app.Contains('SHARED-INVENTORY-PURCHASING-ROUTER-V1')) { throw 'packaged app.js missing shared inventory/purchasing Core router' }
+          if (!$app.Contains('data-shared-inventory-route-fail-closed')) { throw 'packaged shared-route fail-closed guard missing' }
+          $restaurantClosureText = Get-Content (Join-Path $probe 'beta55-restaurant-closure-ui.js') -Raw
+          if (!$restaurantClosureText.Contains("const PAGES=new Set(['foodIngredients','foodRecipes','foodOperations','tables'])")) { throw 'packaged Restaurant capture still owns shared inventory routes' }
+          if (!$restaurantClosureText.Contains('renderSharedRoute')) { throw 'packaged Restaurant shared adapter API missing' }
+          if (!$navRegistryText.Contains("renderer:'renderSharedInventoryPurchasingRoute'")) { throw 'packaged Navigation Registry missing shared Core route owner' }
           if (!$settingsHubCssText.Contains('.settings-hub-tabs')) { throw 'packaged Settings Hub tab CSS missing' }
           $settingsHubRef = "settings-hub-v1.css?v=$($pkg.version)"
           if (!$indexText.Contains($settingsHubRef)) { throw "packaged index missing versioned Settings Hub reference: $settingsHubRef" }

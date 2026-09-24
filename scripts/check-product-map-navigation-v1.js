@@ -62,7 +62,7 @@ need(css.includes('.sidebar nav .sharawla-nav-group-label'),'Product Map label s
 
 need(/routeKey:'orders'[^\n]+conflictStatus:'LOCKED'[^\n]+migrationStatus:L/.test(reg),'Orders V58.3 locked-owner marker regressed');
 for(const route of ['suppliers','purchasing','stockCount','transfers']){
-  need(new RegExp("routeKey:'"+route+"'[^\\n]+migrationStatus:C").test(reg),route+' conflict-blocked marker regressed');
+  need(new RegExp("routeKey:'"+route+"'[^\\n]+profile:'core'[^\\n]+renderer:'renderSharedInventoryPurchasingRoute'[^\\n]+rendererOwner:'app\\.js'[^\\n]+conflictStatus:'NONE'[^\\n]+migrationStatus:S").test(reg),route+' Core profile-router ownership regressed');
 }
 need(/routeKey:'websitePayments'[^\n]+migrationStatus:D/.test(reg),'websitePayments deferred marker regressed');
 
@@ -72,4 +72,4 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Restaurant Product Map Navigation V1: PASS');
-console.log('mode=restaurant-product-map; presentation-only; registry=read-only-metadata; route-owners=unchanged; permissions=unchanged');
+console.log('mode=restaurant-product-map; presentation-only; registry=read-only-metadata; shared-inventory-owner=core-profile-router; permissions=unchanged');
