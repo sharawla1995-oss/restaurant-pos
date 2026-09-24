@@ -12,13 +12,18 @@ const toastLocal=v=>typeof global.toast==='function'?global.toast(v):console.log
 const branchId=()=>Number(global.currentBranchId?.()||global.state?.activeBranchId||0);
 const isOnline=()=>typeof navigator==='undefined'||navigator.onLine!==false;
 
-function paymentOptions(order){
- const methods=(global.state?.paymentMethods||[]).filter(x=>x.active!==false&&String(x.code||'').toLowerCase()!=='mixed');
- const links=global.state?.branchPaymentMethods||[];
+async function paymentOptions(order){
  const bid=Number(order?.branch_id||branchId());
- if(!links.length)return methods;
- const activeIds=new Set(links.filter(x=>Number(x.branch_id)===bid&&x.active!==false).map(x=>String(x.payment_method_id)));
- return methods.filter(x=>activeIds.has(String(x.id)));
+ // Delivery completion is Online-only. Resolve payment eligibility from the
+ // server at the action boundary instead of trusting bootstrap-time caches.
+ const [methods,links]=await Promise.all([
+  global.rest('payment_methods','select=id,code,name,active,sort_order&active=eq.true&order=sort_order,id'),
+  global.rest('branch_payment_methods',`select=branch_id,payment_method_id,active,is_default&branch_id=eq.${bid}&active=eq.true`)
+ ]);
+ const activeIds=new Set((links||[]).map(x=>String(x.payment_method_id)));
+ return (methods||[])
+  .filter(x=>x.active!==false&&String(x.code||'').toLowerCase()!=='mixed'&&activeIds.has(String(x.id)))
+  .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
 }
 
 async function markDeliveredInteractive(orderId,hostModal=null){
@@ -26,7 +31,7 @@ async function markDeliveredInteractive(orderId,hostModal=null){
  const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
  const order=rows?.[0];
  if(!order){toastLocal('الأوردر غير موجود');return true}
- const methods=paymentOptions(order);
+ const methods=await paymentOptions(order);
  if(!methods.length){toastLocal('لا توجد طريقة دفع متاحة لهذا الفرع');return true}
  const wrap=document.createElement('div');wrap.className='modal';
  wrap.innerHTML=`<div class="modal-card"><h2>✅ تأكيد تسليم الدليفري</h2><p>بون <b>${escLocal(global.bonDisplay?.(order)||order.bon_number||order.id)}</b> • ${moneyLocal(order.total)}</p><p class="muted">اختر طريقة الدفع الفعلية التي استلمها المندوب من العميل.</p><label>طريقة الدفع<select data-final-payment>${methods.map(m=>`<option value="${escLocal(m.code)}" ${String(m.code)===String(order.payment_method)?'selected':''}>${escLocal(m.name||m.code)}</option>`).join('')}</select></label><div class="modal-actions"><button class="secondary" data-cancel>إلغاء</button><button class="primary" data-confirm>تأكيد التسليم</button></div></div>`;
