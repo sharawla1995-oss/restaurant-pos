@@ -509,6 +509,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
+  if(page==='onlineOrders')return canAccessPage('deliveryOrders');
   if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;
   if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
@@ -826,6 +827,7 @@ const PAGE_RENDERERS=Object.freeze({
   orders:renderOrders,
   returns:renderReturns,
   customers:renderCustomers,
+  onlineOrders:renderDeliveryOrders,
   deliveryOrders:renderDeliveryOrders,
   deliverySettings:renderDeliverySettings,
   delivery:renderDeliveryOrders,
