@@ -2381,8 +2381,6 @@ async function renderDeliveryOrders(){
   $('#deliverySearch').oninput=draw;
   $('#deliveryFilter').onclick=e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;$$('#deliveryFilter button').forEach(x=>x.classList.toggle('active',x===b));draw()};
   $('#page').onclick=async e=>{
-    const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
-    const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
     const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
   };
   draw();
