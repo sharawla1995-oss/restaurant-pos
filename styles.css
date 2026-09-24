@@ -352,7 +352,7 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar .brand{position:relative;padding-left:44px}
 .sidebar-close{margin-right:auto;width:34px;height:34px;min-width:34px;border:1px solid #ffffff2e;background:#ffffff10;color:#fff;border-radius:9px;display:grid;place-items:center;font-weight:900}
 .sidebar-close:hover{background:#ffffff1d}
-.cart-items{min-height:72px}
+.cart-items{min-height:180px}
 .cart-foot{flex-shrink:0;background:inherit;position:relative;z-index:2}
 .delivery-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
 .delivery-fields>label{margin:0;min-width:0}
@@ -399,3 +399,29 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .retail-cart{min-height:0}
 .retail-sale-head{grid-template-columns:1fr 1fr}
 @media(max-width:900px){.retail-checkout-shell{grid-template-columns:1fr;height:auto}.retail-scan-row{grid-template-columns:1fr}.retail-cart{min-height:560px}}
+
+/* Beta58.11: compact restaurant cashier chrome, preserve Top Burger cart ownership. */
+.cart .next-bon-badge{padding:6px 10px;margin-bottom:6px;border-radius:10px;min-height:36px}
+.cart .next-bon-badge span{font-size:12px}
+.cart .next-bon-badge b{font-size:20px}
+.cart .cart-head{padding:8px 10px;gap:6px}
+.cart .cart-head input,.cart .cart-head select{padding:7px 9px;min-height:34px}
+.cart .delivery-fields{padding:7px 10px;gap:6px;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.cart .delivery-fields input,.cart .delivery-fields select,.cart .delivery-fields textarea{padding:7px 9px;min-height:34px}
+.cart .delivery-fields #deliveryAddress{height:38px;min-height:38px;resize:none}
+.cart .delivery-fee-manual{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px;font-size:12px}
+.cart .customer-hint{padding:2px 10px 4px;min-height:0;line-height:1.25}
+.cart .cart-items{flex:1 1 auto;overflow:auto;padding:6px 10px}
+.cart .cart-item{padding:7px 0}
+.cart .cart-foot{padding:7px 10px}
+.cart .totline{margin:3px 0;font-size:13px}
+.cart .grand{font-size:18px}
+.cart .promo-pos-box{margin:5px 0}
+.cart .promo-pos-entry input{padding:7px 9px;min-height:34px}
+.cart .promo-pos-entry button{padding:7px 10px}
+.cart .pay-actions{gap:5px;margin-top:6px}
+.cart .pay-actions button{padding:8px 6px;font-size:12px}
+@media(max-width:900px){
+ .cart .delivery-fields{grid-template-columns:1fr}
+ .cart .cart-items{min-height:180px}
+}
