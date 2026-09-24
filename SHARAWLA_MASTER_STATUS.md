@@ -1273,3 +1273,94 @@ Important Product Map behavior:
 10. Production remains untouched/read-only.
 
 No statement in this override authorizes a Production write or Stable promotion.
+
+
+---
+
+## 2026-09-24 HARD ARCHITECTURE RULE — Multi-Industry by Design
+
+This rule applies to all future Sharawla source, UI, navigation, permissions, reporting, integrations, support and AI work.
+
+### Core principle
+
+Sharawla is one **Multi-Industry Platform**, not a Restaurant application with later patches for other activities.
+
+Every new feature must be classified before implementation as either:
+
+- **Sharawla Core** — shared platform capability; or
+- **Profile-specific capability** — owned by one or more Activity Profiles through explicit profile contracts.
+
+Do not build a Restaurant-only implementation first and attempt to generalize it later when the capability is fundamentally shared.
+
+### Required supported profile direction
+
+The architecture must remain compatible with at least:
+
+- Restaurant / Cafe
+- Retail / Market
+- Logistics / Shipping Company
+- Membership / Gym
+- Warehouse / Central Warehouse
+
+Additional profiles such as Pharmacy and Service/Maintenance continue to use the same Core + Profile model.
+
+### Shared Core direction
+
+Shared Core includes, where applicable:
+
+- Customers
+- Employees / Users separation
+- Users / Roles / Permissions
+- Page + Action + Location authorization
+- Locations
+- Inventory foundation
+- Purchasing foundation
+- Finance / Treasury / Expenses / Shifts
+- Reports
+- Offline / Sync
+- Integrations foundation
+- Customer Support platform
+- Sharawla Actions API
+- Sharawla AI Operator
+- Device / update / printing / licensing foundations
+
+### Profile-specific examples
+
+- Restaurant / Cafe: Kitchen, Delivery, Pickup, Tables, Recipes, Food Cost, Production/Waste.
+- Retail / Market: Variants, Barcode, Weighted Items, Retail Offers, Retail stock workflows.
+- Logistics / Shipping: Shipments, Waybills, Tracking, Zones, Drivers, Client Settlements, Returns.
+- Membership / Gym: Members, Plans, Renewals, Freezes, Check-ins, Classes, Bookings.
+- Warehouse: Location stock, receiving, transfers, supply requests, central warehouse operations.
+- Pharmacy: medication catalog/batches/expiry/prescriptions/insurance profile features.
+
+### Mandatory implementation checks
+
+Before accepting any new feature, route, screen or action:
+
+1. Identify whether it is Core or Profile-specific.
+2. Use authoritative Runtime Config / profile metadata; do not guess the profile.
+3. Avoid hard-coded Restaurant labels or behavior in shared Core.
+4. Shared navigation labels must be profile-aware where wording differs by activity.
+5. One route must have one known owner, one renderer/dispatch path, and an explicit permission boundary.
+6. Permissions must be designed for future **Page + Action + Location** scope.
+7. Reports and Actions must preserve profile boundaries and location scope.
+8. Integrations, Support and AI must act through controlled contracts/APIs rather than activity-specific shortcuts.
+9. Offline identity/idempotency and Point 4 ownership rules remain shared architectural invariants.
+10. A profile-specific implementation must not leak into unrelated profiles; profile-leakage regression checks are required before acceptance.
+
+### Product Map consequence
+
+The approved Product Map is a profile-aware framework, not a Restaurant-only fixed menu.
+
+For example, the same profile-operations section may display:
+- Restaurant: تشغيل المطعم
+- Retail: تشغيل المتجر
+- Pharmacy: تشغيل الصيدلية
+- Logistics: تشغيل اللوجستيات
+- Membership/Gym: تشغيل العضويات
+- Warehouse: تشغيل المخزن
+- Service: تشغيل الخدمات
+
+Profile-specific sections/routes appear only when the authoritative profile/capability/permission model allows them.
+
+This rule does not authorize any Production write, Canonical Stock activation, Cutover, or Stable promotion.
