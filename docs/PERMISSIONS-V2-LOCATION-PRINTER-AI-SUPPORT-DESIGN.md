@@ -604,7 +604,153 @@ Priority B — harden with Action-aware RLS or guarded owners:
 Priority C — keep read paths compatible while write ownership is tightened.
 
 
-## 17. Current status
+
+## 17. Runtime Snapshot Catalog Expansion Transition Contract
+
+### Confirmed current constraints
+
+- Canonical Feature catalog currently has 107 rows.
+- Latest sealed validated readiness baseline has 107 rows.
+- Sealed readiness headers are immutable.
+- Rows belonging to a sealed readiness baseline are immutable.
+- `runtime-access-snapshot-v2` currently rejects any build where `feature_count !== 107`.
+- The Cloud snapshot builder already loops over the canonical `features` table and builds one decision per Feature.
+- The desktop snapshot consumer does not require a hard-coded 107 decision count; it verifies signature, hash, device/business/environment binding, expiry and anti-rollback state.
+
+Therefore the fixed 107 belongs to the Cloud transition guard, not to the durable client contract.
+
+### Phase A — make the snapshot guard catalog-driven while catalog is still 107
+
+Do this before inserting any new Feature.
+
+Cloud builder preflight must verify, before reserving a snapshot sequence:
+
+1. canonical Feature count is positive;
+2. latest sealed validated baseline exists;
+3. baseline row count equals canonical Feature count;
+4. every canonical Feature has exactly one row in that baseline;
+5. decision builder will iterate exactly the canonical Feature set.
+
+The builder should return explicit metadata:
+- feature_count
+- baseline_row_count
+- baseline_version
+- optional catalog_digest
+
+The Edge Function must replace the literal `107` check with:
+
+- `feature_count > 0`
+- `feature_count === Object.keys(payload_base.decisions).length`
+- `feature_count === baseline_row_count`
+
+and fail closed on any mismatch.
+
+Keep:
+- snapshot_version = 1 unless a genuinely incompatible payload contract is introduced;
+- composition_version = 2;
+- Ed25519 signing;
+- canonicalization_version = 1;
+- monotonic device snapshot sequence.
+
+Additional signed metadata is backward-compatible with the current consumer because the signature canonicalization already includes unknown payload fields.
+
+### Phase A acceptance
+
+While catalog is still 107:
+
+- SH-0007 online snapshot refresh = PASS;
+- decision_count = 107;
+- baseline_row_count = 107;
+- signature verification = PASS;
+- cached offline snapshot load = PASS;
+- high-water sequence increases only after a valid online snapshot is accepted;
+- no Production device is enabled for V2 snapshot routing.
+
+Only after this passes may catalog expansion begin.
+
+### Phase B — atomic catalog + readiness expansion
+
+Never insert a new Feature in a standalone committed transaction while the active sealed baseline still covers only the old catalog.
+
+Use one controlled Cloud transaction for a catalog generation change:
+
+1. create the new Feature row(s);
+2. add profile eligibility mappings;
+3. add feature dependencies;
+4. create a new readiness baseline in `draft`;
+5. copy/derive readiness rows for all existing Features;
+6. add readiness rows for every new Feature;
+7. validate that baseline row count equals the new canonical Feature count;
+8. validate no duplicate/missing Feature rows;
+9. mark validation_status = passed;
+10. seal the new baseline;
+11. commit once.
+
+External snapshot requests must see either:
+- old catalog + old complete baseline, or
+- new catalog + new complete sealed baseline.
+
+They must never observe a committed partial generation.
+
+### New Feature initial state
+
+A newly cataloged capability may be present while still unavailable:
+
+- `implemented=false` and readiness `planned`, or
+- `implemented=true` with readiness no stronger than actual evidence supports.
+
+Do not mark a Feature production-ready because its schema row exists.
+
+Profile eligibility is not entitlement.
+
+For optional commercial capabilities:
+- profile mapping establishes eligibility;
+- Package/Paid Add-on establishes entitlement;
+- Business override may further disable;
+- Readiness gates environment use;
+- Runtime Snapshot V2 is the device authority.
+
+### Kitchen Stations eligibility rule
+
+For `food.kitchen_stations`:
+- Restaurant profile: eligible;
+- required=false;
+- no automatic Business entitlement;
+- Sharawla Admin entitlement required;
+- current `food.kitchen` behavior remains independent and unchanged when Stations is denied.
+
+### Support and AI eligibility rule
+
+For `support.*` and `ai.*`:
+- treat them as cross-profile Sharawla capabilities, not Restaurant-only behavior;
+- add profile eligibility deliberately for supported profiles;
+- required=false;
+- Business cannot self-entitle;
+- Runtime UI remains hidden when snapshot decision is denied.
+
+### Phase C — entitlement test after expanded snapshot is healthy
+
+After SH-0007 accepts a signed snapshot for the expanded catalog:
+
+1. test denied state first;
+2. grant one isolated Beta entitlement from Sharawla Admin;
+3. refresh signed snapshot;
+4. verify only the intended Feature changes to allowed;
+5. suspend/cancel entitlement;
+6. refresh again;
+7. verify the Feature returns to denied;
+8. verify offline cache honors the last valid signed snapshot until expiry and never invents entitlement.
+
+### Rollback rule
+
+If expanded catalog snapshot validation fails:
+- do not weaken signature/count/baseline checks;
+- do not re-enable a fixed-count shortcut;
+- do not alter Production routing;
+- restore the last known complete Cloud catalog generation only through an explicit corrective migration.
+
+
+## 18. Current status
 
 Design discovery: CLOSED for this checkpoint.
 Runtime implementation: NOT STARTED.
