@@ -29,11 +29,27 @@ need(js.includes("if(node.dataset?.pharmacyPage)return String(node.dataset.pharm
 need(js.includes("if(node.matches?.('[data-beta55-hr-group]'))return '__hr_group__';"),'HR grouped-unit preservation missing');
 
 for(const pair of [
-  ["'online-orders':'operations'",'Online Orders/Delivery must group under Operations'],
-  ["'digital-channels':'website'",'Digital channels must group under Website'],
-  ["employees:'hr'",'Employee routes must group under HR'],
+  ["'online-orders':'online-orders'",'Online Orders must have its own Product Map section'],
+  ["operations:'restaurant-operations'",'Restaurant operations alias missing'],
+  ["'digital-channels':'website'",'Digital channels must group under Website Management'],
+  ["employees:'hr'",'Employee routes must group under Employees'],
+  ["integrations:'integrations'",'Integrations reserved group alias missing'],
   ["settings:'administration'",'Settings routes must group under Administration']
 ]) need(js.includes(pair[0]),pair[1]);
+
+for(const label of ['المبيعات','الطلبات الأونلاين','تشغيل المطعم','المخزون والمشتريات','الموظفون','المالية','التقارير','إدارة الموقع','التكاملات','الإدارة والإعدادات']){
+  need(js.includes("label:'"+label+"'"),'Restaurant Product Map label missing: '+label);
+}
+for(const pair of [
+  ["onlineOrders:'online-orders'",'onlineOrders must stay in its own operational inbox section'],
+  ["deliveryOrders:'restaurant-operations'",'Delivery Orders must live under Restaurant Operations'],
+  ["delivery:'restaurant-operations'",'Delivery alias must live under Restaurant Operations'],
+  ["kitchen:'restaurant-operations'",'Kitchen must live under Restaurant Operations'],
+  ["tables:'restaurant-operations'",'Tables must live under Restaurant Operations'],
+  ["foodOperations:'inventory-purchasing'",'Production/Waste must live under Inventory & Purchasing']
+]) need(js.includes(pair[0]),pair[1]);
+
+need(js.includes("never invents a button just to make an empty section visible"),'Empty Integrations section must not create a fake route/button');
 
 need(js.includes("nav.appendChild(frag);"),'Top-level units must remain direct #nav children');
 need(js.includes("planSignature(plan)===currentSignature(nav)"),'Idempotent structure audit missing');
@@ -47,9 +63,9 @@ for(const route of ['suppliers','purchasing','stockCount','transfers']){
 need(/routeKey:'websitePayments'[^\n]+migrationStatus:D/.test(reg),'websitePayments deferred marker regressed');
 
 if(fail.length){
-  console.error('Product Map Navigation V1 Phase 1: FAIL');
+  console.error('Restaurant Product Map Navigation V1: FAIL');
   fail.forEach(x=>console.error('- '+x));
   process.exit(1);
 }
-console.log('Product Map Navigation V1 Phase 1: PASS');
-console.log('mode=presentation-only; registry=read-only-metadata; route-owners=unchanged; permissions=unchanged');
+console.log('Restaurant Product Map Navigation V1: PASS');
+console.log('mode=restaurant-product-map; presentation-only; registry=read-only-metadata; route-owners=unchanged; permissions=unchanged');

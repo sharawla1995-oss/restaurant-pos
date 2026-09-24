@@ -3,27 +3,33 @@
 
 // Sharawla Product Map Navigation V1 — Phase 1
 // Presentation-only grouping layer. It MUST NOT dispatch routes or change permissions.
-const VERSION='1.0.0-product-map-phase1';
+const VERSION='1.1.0-restaurant-product-map';
 
 const GROUPS=Object.freeze([
+  // Restaurant Product Map Reference. Home is the first section/route and has no
+  // extra heading so the sidebar does not duplicate "الرئيسية".
   Object.freeze({key:'home',label:null,order:0}),
   Object.freeze({key:'sales',label:'المبيعات',order:10}),
-  Object.freeze({key:'operations',label:'العمليات',order:20}),
-  Object.freeze({key:'inventory-purchasing',label:'المخزون والمشتريات',order:30}),
-  Object.freeze({key:'hr',label:'الموارد البشرية',order:40}),
-  Object.freeze({key:'finance',label:'المالية',order:50}),
-  Object.freeze({key:'reports',label:'التقارير',order:60}),
-  Object.freeze({key:'website',label:'الموقع والقنوات الرقمية',order:70}),
-  Object.freeze({key:'administration',label:'الإدارة والإعدادات',order:80}),
-  Object.freeze({key:'other',label:'أخرى',order:90})
+  Object.freeze({key:'online-orders',label:'الطلبات الأونلاين',order:20}),
+  Object.freeze({key:'restaurant-operations',label:'تشغيل المطعم',order:30}),
+  Object.freeze({key:'inventory-purchasing',label:'المخزون والمشتريات',order:40}),
+  Object.freeze({key:'hr',label:'الموظفون',order:50}),
+  Object.freeze({key:'finance',label:'المالية',order:60}),
+  Object.freeze({key:'reports',label:'التقارير',order:70}),
+  Object.freeze({key:'website',label:'إدارة الموقع',order:80}),
+  // Reserved until an approved Integrations route exists. The grouping layer
+  // never invents a button just to make an empty section visible.
+  Object.freeze({key:'integrations',label:'التكاملات',order:90}),
+  Object.freeze({key:'administration',label:'الإدارة والإعدادات',order:100}),
+  Object.freeze({key:'other',label:'أخرى',order:110})
 ]);
 
 const GROUP_ALIAS=Object.freeze({
   home:'home',
   overview:'home',
   sales:'sales',
-  'online-orders':'operations',
-  operations:'operations',
+  'online-orders':'online-orders',
+  operations:'restaurant-operations',
   'inventory-purchasing':'inventory-purchasing',
   employees:'hr',
   hr:'hr',
@@ -31,8 +37,20 @@ const GROUP_ALIAS=Object.freeze({
   reports:'reports',
   'digital-channels':'website',
   website:'website',
+  integrations:'integrations',
   administration:'administration',
   settings:'administration'
+});
+
+// Presentation-only exceptions required by the approved Restaurant Product Map.
+// These do not select or replace route/render owners.
+const ROUTE_GROUP_OVERRIDES=Object.freeze({
+  onlineOrders:'online-orders',
+  deliveryOrders:'restaurant-operations',
+  delivery:'restaurant-operations',
+  kitchen:'restaurant-operations',
+  tables:'restaurant-operations',
+  foodOperations:'inventory-purchasing'
 });
 
 const ROUTE_ORDER=Object.freeze([
@@ -70,6 +88,7 @@ function routeFromUnit(node){
 
 function groupForRoute(routeKey,rows){
   if(routeKey==='__hr_group__')return 'hr';
+  if(Object.prototype.hasOwnProperty.call(ROUTE_GROUP_OVERRIDES,routeKey))return ROUTE_GROUP_OVERRIDES[routeKey];
   const row=rows.find(x=>String(x.routeKey)===String(routeKey));
   if(!row)return 'other';
   return GROUP_ALIAS[String(row.group||'other')]||'other';
