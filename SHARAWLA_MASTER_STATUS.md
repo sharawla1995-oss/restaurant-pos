@@ -1188,3 +1188,88 @@ No statement in this override authorizes a Production write or Stable promotion.
 10. Production remains untouched/read-only.
 
 No statement in this override authorizes a Production write or Stable promotion.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Approved 11-Section Product Map Runtime Gate
+
+> This section supersedes the earlier Product Map Phase 1 runtime-gate text where it conflicts. Preserve older sections as historical evidence.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on **10.5.3 CLEAN**.
+- Runtime acceptance target remains **SH-0007 only**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- No automatic rebind and no Canonical Fingerprint mutation.
+- Orders V58.3, Online Orders + Delivery + Driver Settlement + Shift Cash closure, Offline/Point 4, printing, licensing, updater and device identity remain locked.
+
+### Authoritative Product Map reference
+
+The approved Restaurant Product Map reference is now the following 11-section structure:
+
+1. الرئيسية
+2. المبيعات
+3. الطلبات الأونلاين
+4. تشغيل المطعم
+5. المخزون والمشتريات
+6. الموظفون
+7. المالية
+8. التقارير
+9. إدارة الموقع
+10. التكاملات
+11. الإدارة والإعدادات
+
+Architecture remains **Sharawla Core + Activity Profiles**. The Product Map layer is presentation/navigation organization only and must not own route dispatch, business renderers, RPC/REST behavior, permissions, or operational logic.
+
+Important Product Map behavior:
+- Online Orders is a dedicated source/channel intake and pre-acceptance section.
+- Delivery stays under Restaurant Operations as the physical fulfillment workflow.
+- Food Production/Waste belongs under Inventory & Purchasing in the Restaurant Product Map.
+- Integrations is a reserved section until an approved Integrations route exists; Product Map must not invent a fake route/button merely to display an empty section.
+- Product-operation labels are profile-aware through authoritative Runtime Config. Restaurant shows **تشغيل المطعم**; Retail/Pharmacy and other profiles must not inherit Restaurant wording.
+- Existing route owners, page permissions, location modes, profile rules and click/dispatch mechanisms remain unchanged.
+- `suppliers / purchasing / stockCount / transfers` remain explicit ownership-conflict items and are not resolved by this grouping phase.
+- `websitePayments` remains the known deferred permission mismatch.
+
+### Source + Packaging status
+
+- Candidate version: **10.5.4-beta.58.17**.
+- Initial 11-section mapping commit: `b43a320def40ddf789c4896956320b812cf814b8`.
+- Profile-aware correction commit: `f9aa1948c1ddd267d0600f61a11d73978e87fdb6`.
+- Packaged-verification correction commit / accepted candidate HEAD: `ec6ce3793e0bebc9183e78da5860c388d3af2686`.
+- Candidate validation: **PASS**.
+- Windows x64 build: **PASS**.
+- Packaged app.asar verification: **PASS**.
+- GitHub Actions run: `36028923277` → **SUCCESS**.
+- Artifact ID: `10821037575`.
+- Artifact name: `sharawla-pos-ec6ce3793e0bebc9183e78da5860c388d3af2686-sh0007-x64`.
+- Artifact digest: `sha256:b9406db28ab65f575fcdfbb62e85024f82478f1bd319d62bf25a10575cdff390`.
+- 58.15 is superseded and must not be used for Product Map runtime acceptance.
+- 58.16 was an intermediate source candidate and is superseded by the profile-aware 58.17 candidate.
+
+### CURRENT EXACT NEXT STEP — 58.17 Product Map Runtime Acceptance
+
+1. Install **10.5.4-beta.58.17** on **SH-0007 only**.
+2. Confirm Sharawla starts normally; login and branch selection must remain normal.
+3. Open the sidebar after dynamic navigation layers finish loading.
+4. For the Restaurant profile, confirm the visible Product Map organization follows the approved reference where implemented/available:
+   - الرئيسية;
+   - المبيعات;
+   - الطلبات الأونلاين;
+   - تشغيل المطعم;
+   - المخزون والمشتريات;
+   - الموظفون;
+   - المالية;
+   - التقارير;
+   - إدارة الموقع;
+   - الإدارة والإعدادات.
+   The Integrations section may remain absent until an approved Integrations route exists; absence alone is not a failure.
+5. Click representative existing routes and confirm each still opens through its existing owner. At minimum: POS, Orders, Online Orders, Delivery, Inventory, Employees if visible, Treasury if visible, Reports, Website Management if visible, Settings.
+6. Confirm sidebar scrolling works and no existing route/button disappears merely because of grouping.
+7. Confirm Orders retains V58.3 and Online Orders/Delivery retain the accepted Beta58.14 behavior.
+8. PASS closes this Product Map runtime gate and allows the roadmap to advance to **Permissions V2: Page + Action + Location**, followed by the dedicated permission-mismatch fix.
+9. FAIL preserves exact evidence and remains in this gate. Do not promote Stable.
+10. Production remains untouched/read-only.
+
+No statement in this override authorizes a Production write or Stable promotion.
