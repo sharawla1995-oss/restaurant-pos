@@ -1031,3 +1031,42 @@ Preserved classifications:
 8. **Do not promote Stable yet.** Production remains untouched/read-only.
 
 No statement in this override authorizes a Production write.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Navigation Registry 1F CLOSED / PASS
+
+> This section supersedes the earlier 2026-09-24 1F Runtime Gate next-step text where it conflicts. Preserve older sections as historical evidence.
+
+### Runtime acceptance evidence — SH-0007 only
+
+- Navigation 1F branch-selection regression root cause was proven at runtime: `navActive('home')` raised `TypeError: $(...).forEach is not a function` from `app.js`.
+- Corrective integration commit: `f6ed9f7ce96c4d0959f3763fdb6e4fd2d5eb692d` on `beta56-offline-ownership-consolidation`.
+- Corrective source restores `$$('#nav button').forEach(...)` and adds a targeted 1F regression guard against the single-element `$().forEach` failure.
+- SH-0007 branch selection was re-tested after the correction and reported working normally.
+- Final unknown-route runtime test used `showPage('__sharawla_unknown_route_test__')` and recorded `UNKNOWN_ROUTE_BLOCKED` for profile `restaurant` at `2026-09-24T00:37:01.325Z`.
+- No POS/Home/business-renderer fallback was accepted as part of this gate.
+
+### Official closure
+
+- **Navigation Registry 1F Runtime Acceptance: CLOSED / PASS.**
+- **Unified Navigation Registry 1A → 1F: CLOSED / PASS.**
+- Orders V58.3 remains **CLOSED / LOCKED_ACCEPTED_OWNER**.
+- suppliers / purchasing / stockCount / transfers remain **CONFLICT_BLOCKED**; this closure does not choose owners for them.
+- websitePayments remains **DEFERRED_FIX / KNOWN_PERMISSION_MISMATCH**.
+- Point 4 / Offline ownership rules are unchanged. The preserved unresolved legacy offline evidence is not deleted or reset by this closure.
+- Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on 10.5.3 CLEAN.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+
+## CURRENT EXACT NEXT STEP — AFTER NAVIGATION 1F CLOSURE
+
+1. Do **not** promote Stable yet.
+2. Start the next Product Map phase from the accepted Unified Navigation Registry baseline.
+3. First implementation target: create the dedicated **Online Orders operational route/inbox**, extracting website-order operations from Delivery while preserving the Unified Order Engine and existing business behavior.
+4. Keep Delivery as the physical delivery workflow; Online Orders owns source/channel intake and pre-acceptance lifecycle.
+5. Preserve Orders V58.3, Offline/Point 4, printing, licensing, device identity, updater, and all Production behavior.
+6. Do not resolve Purchasing ownership or websitePayments permission mismatch implicitly during the Online Orders phase; keep those explicit blockers/deferred items until their dedicated evidence/fix phases.
+7. After source implementation, run registry/permission/profile-leakage regression gates before any SH-0007 build.
+
+No statement in this override authorizes a Production write or Stable promotion.
