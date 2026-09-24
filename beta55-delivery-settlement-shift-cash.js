@@ -26,6 +26,38 @@ async function paymentOptions(order){
   .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
 }
 
+async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
+ if(!isOnline()){toastLocal('تعديل طريقة الدفع متاح Online فقط');return false}
+ const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
+ const order=rows?.[0];
+ if(!order){toastLocal('الأوردر غير موجود');return true}
+ if(order.order_type!=='delivery'){toastLocal('تعديل طريقة الدفع من هذه الشاشة متاح للدليفري فقط');return true}
+ if(!['out_for_delivery','delivered','completed'].includes(String(order.status||''))){toastLocal('يمكن تعديل طريقة الدفع بعد خروج الطلب مع المندوب');return true}
+ if(order.driver_settled_at!=null){toastLocal('لا يمكن تغيير طريقة الدفع بعد تسوية عهدة هذا الطلب');return true}
+ const methods=await paymentOptions(order);
+ if(!methods.length){toastLocal('لا توجد طريقة دفع متاحة لهذا الفرع');return true}
+ const wrap=document.createElement('div');wrap.className='modal';
+ wrap.innerHTML=`<div class="modal-card"><h2>💳 تعديل طريقة الدفع</h2><p>بون <b>${escLocal(global.bonDisplay?.(order)||order.bon_number||order.id)}</b> • ${moneyLocal(order.total)}</p><p class="muted">اختر طريقة الدفع الفعلية. لو الطلب لم يُسلّم بعد، تأكيد التغيير سيؤكد التسليم أيضًا لأن طريقة الدفع النهائية تُثبت عند التسليم.</p><label>طريقة الدفع<select data-change-payment>${methods.map(m=>`<option value="${escLocal(m.code)}" ${String(m.code)===String(order.payment_method)?'selected':''}>${escLocal(m.name||m.code)}</option>`).join('')}</select></label><div class="modal-actions"><button class="secondary" data-cancel>إلغاء</button><button class="primary" data-confirm>حفظ طريقة الدفع</button></div></div>`;
+ document.body.appendChild(wrap);
+ return new Promise(resolve=>{
+  wrap.onclick=async e=>{
+   if(e.target===wrap||e.target.closest('[data-cancel]')){wrap.remove();resolve(true);return}
+   const ok=e.target.closest('[data-confirm]');if(!ok)return;
+   const method=wrap.querySelector('[data-change-payment]')?.value||order.payment_method;
+   if(String(method)===String(order.payment_method)){toastLocal('طريقة الدفع لم تتغير');wrap.remove();resolve(true);return}
+   ok.disabled=true;
+   try{
+    const out=await global.rpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-PAYMENT-CHANGE')});
+    wrap.remove();hostModal?.remove?.();
+    const custody=num(out?.custody_amount);
+    toastLocal(custody>0?`تم تغيير طريقة الدفع — ${moneyLocal(custody)} عهدة على المندوب`:'تم تغيير طريقة الدفع — لا توجد عهدة كاش على المندوب');
+    if(typeof global.renderDeliveryOrders==='function')await global.renderDeliveryOrders();
+    resolve(true);
+   }catch(err){ok.disabled=false;toastLocal(err?.message||String(err));resolve(true)}
+  };
+ });
+}
+
 async function markDeliveredInteractive(orderId,hostModal=null){
  if(!isOnline())return false;
  const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
@@ -53,6 +85,14 @@ async function markDeliveredInteractive(orderId,hostModal=null){
   };
  });
 }
+
+document.addEventListener('click',e=>{
+ const btn=e.target.closest?.('[data-change-delivery-payment]');if(!btn)return;
+ if(!isOnline())return;
+ const id=Number(btn.dataset.changeDeliveryPayment||lastDeliveryDetailId||0);if(!id)return;
+ e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+ changeDeliveryPaymentInteractive(id,btn.closest('.modal')).catch(err=>toastLocal(err?.message||String(err)));
+},true);
 
 // Capture the order id before the legacy detail modal is opened. The modal's
 // delivered button has no id attribute, so this keeps the interception additive.
@@ -236,6 +276,6 @@ if(baseRenderDeliverySettings){
  global.renderDeliverySettings=async function(){await baseRenderDeliverySettings.apply(this,arguments);try{await enhanceDeliverySettings()}catch(err){console.warn('Beta55 delivery settlement UI',err)}};
 }
 
-global.__SharawlaDeliverySettlementShiftCashV55=Object.freeze({version:VERSION,markDeliveredInteractive,enhanceDeliverySettings,onlineSettlementOnly:true,shiftCashV2:true});
+global.__SharawlaDeliverySettlementShiftCashV55=Object.freeze({version:VERSION,markDeliveredInteractive,changeDeliveryPaymentInteractive,enhanceDeliverySettings,onlineSettlementOnly:true,shiftCashV2:true});
 global.dispatchEvent(new CustomEvent('sharawla-beta55-delivery-settlement-ready',{detail:{version:VERSION}}));
 })(window);
