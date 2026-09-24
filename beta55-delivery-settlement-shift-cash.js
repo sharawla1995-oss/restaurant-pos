@@ -245,7 +245,11 @@ async function enhanceDeliverySettings(){
  const panels=[...page.querySelectorAll('.panel')];
  const panel=panels.find(p=>p.querySelector('h2')?.textContent?.includes('تسويات المناديب'));
  if(!panel)return;
- let pending=[];try{pending=await global.rpc('delivery_driver_pending_v2',{p_branch_id:bid})||[]}catch(err){panel.insertAdjacentHTML('beforeend',`<p class="negative">${escLocal(err?.message||String(err))}</p>`);return}
+ // Fail closed before the first await. app.js initially renders the legacy
+ // settlement controls, whose handler settles by payment_method + order total.
+ // A user could click that stale owner while the V2 pending RPC was loading.
+ panel.innerHTML='<h2>💰 عهد وتسويات المناديب</h2><p class="muted" data-settlement-v2-loading>جاري تحميل العهد النقدية الفعلية...</p>';
+ let pending=[];try{pending=await global.rpc('delivery_driver_pending_v2',{p_branch_id:bid})||[]}catch(err){panel.innerHTML=`<h2>💰 عهد وتسويات المناديب</h2><p class="negative">${escLocal(err?.message||String(err))}</p>`;return}
  const settlements=await global.rest('driver_settlements',`select=id,driver_id,branch_id,employee_id,orders_count,amount,created_at,receiving_shift_id,status&branch_id=eq.${bid}&status=eq.posted&order=created_at.desc&limit=50`).catch(()=>[]);
  const byDriver=new Map();
  for(const o of pending){const k=Number(o.driver_id);if(!byDriver.has(k))byDriver.set(k,[]);byDriver.get(k).push(o)}
