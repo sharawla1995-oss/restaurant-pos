@@ -51,7 +51,13 @@ jobs:
           New-Item -ItemType Directory -Path $probe | Out-Null
           npx asar extract $asar $probe
           $pkg = Get-Content (Join-Path $probe 'package.json') -Raw | ConvertFrom-Json
-          if ($pkg.version -notmatch '^10[.]5[.]4-beta[.]58[.]([0-9]+)
+          $versionPrefix = '10.5.4-beta.58.'
+          if (!$pkg.version.StartsWith($versionPrefix)) { throw "packaged version format mismatch: $($pkg.version)" }
+          $patchText = $pkg.version.Substring($versionPrefix.Length)
+          $patchNumber = 0
+          if (![int]::TryParse($patchText, [ref]$patchNumber)) { throw "packaged beta patch is not numeric: $($pkg.version)" }
+          if ($patchNumber -lt 3) { throw "packaged version too old: $($pkg.version)" }
+          if ($pkg.main -ne 'main-beta44.js') { throw "packaged main mismatch: $($pkg.main)" }
           $app = Get-Content (Join-Path $probe 'app.js') -Raw
           if (!$app.Contains('ORDERS-DATE-WINDOW-V58.3')) { throw 'packaged app.js missing V58.3 marker' }
           if (!$app.Contains('id="ordersFrom"') -or !$app.Contains('id="ordersTo"')) { throw 'packaged app.js missing Orders date controls' }
