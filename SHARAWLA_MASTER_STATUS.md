@@ -2176,3 +2176,225 @@ There is no Cutover activation.
 The immediate continuation point is:
 
 **58.26 SH-0007 Full Acceptance → shared-route runtime acceptance → touch runtime pass → close Menu Cleanup → Permissions V2 → Locations/Printer Roles → Sharawla Admin Kitchen Stations entitlement → Kitchen Stations V1.**
+
+
+---
+
+## NO-LAPTOP DESIGN CHECKPOINT — 2026-09-24
+
+Status: DOCUMENTATION / READ-ONLY DISCOVERY ONLY.
+
+No Runtime source, SQL deployment, version, Production device, Canonical Stock or Cutover change was performed in this design checkpoint.
+
+### Runtime baseline remains unchanged
+
+- SH-0007 candidate remains `10.5.4-beta.58.26`.
+- Runtime code baseline remains equivalent to `047a468a56855a33412deb4f20fdad0189f02dd9`.
+- All commits after that baseline in the current branch are documentation-only.
+- SH-0005 / SH-0006 remain immutable on `10.5.3 CLEAN`.
+
+### Permissions V2 discovery
+
+Confirmed existing layers:
+- Page permission: `employee_permissions`.
+- Action Permissions V2: `permission_actions_v2`, `employee_action_permissions_v2`, `has_action_permission_v2`.
+- Branch access: `employee_branches`, `has_branch_access`.
+- Runtime advanced-permissions UI is already loaded and supports Inherit / Allow / Deny.
+
+Confirmed that modern Food / Purchasing / Transfers / Tables / Delivery Settlement owners already enforce Action V2 + Location guards in major paths.
+
+Confirmed Core Restaurant gaps still requiring V2 owner completion:
+- sale;
+- return;
+- shift open/close/cash;
+- expense;
+- online-order accept/reject/payment review;
+- kitchen/order lifecycle direct writes;
+- customer edit/address/import;
+- catalog/promotions;
+- delivery setup;
+- website/settings;
+- branch/user administration.
+
+Final authorization target:
+`Page + Action + Location`.
+
+### Location identity decision
+
+Do not join Sharawla Cloud and operational Business locations by different DB IDs or display names.
+
+Canonical cross-system key:
+`business_branches.code <-> branches.location_code`.
+
+Existing `employee_branches` remains the broad location ceiling.
+Action-specific Location Scope V2 is additive and may never expand beyond that ceiling.
+
+Beta note:
+- operational branch #1 = TEST;
+- operational branch #3 = hgolj;
+- #3 has no observed orders/shifts/expenses/stock/delivery/print state but has employee-branch links;
+- treat #3 as Beta residue/investigation; do not delete automatically.
+
+### Printer Roles V1 decision
+
+Keep physical Windows printer mapping device-local.
+
+New logical role mappings should be stored in Native SQLite `kv`, not Cloud and not final-owner browser localStorage.
+
+Initial roles:
+- customer_receipt;
+- default_prep;
+- report.
+
+Kitchen Stations adds:
+- `kitchen_station:<station_code>`;
+- optional `expo`.
+
+Unbound required station printer = fail-visible. No arbitrary silent Windows-default fallback.
+
+### Runtime Snapshot / entitlement discovery
+
+SH-0007 already has signed Runtime Snapshot V2:
+- device/business/environment/fingerprint binding;
+- expiry;
+- SHA-256 hash;
+- Ed25519 verification;
+- monotonic sequence / anti-rollback;
+- offline Last Known Safe cache.
+
+Cloud snapshot decision authority already composes:
+- trusted environment;
+- commercial entitlement;
+- Business override;
+- dependencies;
+- readiness.
+
+Critical catalog expansion gate:
+- current Feature catalog = 107;
+- latest sealed validated readiness baseline = 107/107;
+- current V2 Edge Function still contains a fixed `feature_count === 107` transition guard.
+
+Before any new Feature is added, replace the fixed-count transition assumption with a catalog-driven complete-baseline check while still at 107, prove SH-0007 snapshot health, then expand catalog + full readiness baseline atomically as one generation.
+
+### Dual runtime authority decision
+
+Do NOT globally replace historical Runtime Config `enabled_features` with Snapshot V2 yet.
+
+Read-only SH-0007 evaluation currently shows:
+- canonical catalog = 107;
+- Snapshot allowed = 9;
+- Snapshot denied = 98.
+
+The current historical POS feature surface therefore remains on the accepted Runtime Config authority until a separate parity migration exists.
+
+New commercial root Features are Snapshot-managed from day one:
+- `food.kitchen_stations`;
+- `support.center`;
+- `ai.operator`.
+
+For those new Features:
+- signed Snapshot ALLOW is mandatory;
+- no Runtime Config fallback;
+- no local self-enable;
+- no Business override self-entitlement.
+
+### Sharawla Admin consolidation discovery
+
+Existing Admin work already provides the needed building blocks:
+
+1. Capability Matrix / V4 Capabilities:
+   - Profile / Activity Category / Business override.
+
+2. Commercial Management:
+   - Base packages;
+   - paid add-ons;
+   - entitlement lifecycle;
+   - commercial entitlement inspector.
+
+3. Runtime Snapshot V2:
+   - final device decision.
+
+Final Admin model must keep these statuses visibly separate:
+- Eligible;
+- Entitled;
+- Runtime Allowed.
+
+A Business Feature override must not create a paid/commercial entitlement.
+
+### Root entitlement model
+
+Cloud root product Features:
+- `food.kitchen_stations` — Add-on, Restaurant eligible V1, depends on `food.kitchen`.
+- `support.center` — Standard/package capability, cross-profile where supported, depends on `core.licensing + core.audit`.
+- `ai.operator` — Add-on, cross-profile where supported, depends on `core.permissions + core.audit`.
+
+User operations are Action Permissions V2, not extra Cloud Feature rows.
+
+Support Actions:
+- support.ticket.create;
+- support.ticket.view_own;
+- support.diagnostics.share;
+- support.history.view;
+- support.escalation.request.
+
+AI Actions:
+- ai.use;
+- ai.read;
+- ai.create;
+- ai.modify;
+- ai.approve;
+- ai.historical_correction.
+
+### Support / AI security decision
+
+Sharawla Support tickets are Cloud-owned and Business/device-scoped.
+Business scope must be derived from verified device identity, not trusted from arbitrary client input.
+
+Diagnostics are opt-in, minimal and must exclude secrets/tokens/full DB dumps by default.
+
+Sharawla AI is NOT a privileged database identity.
+
+AI writes must:
+- use the signed-in Business user identity;
+- require `ai.operator` Snapshot ALLOW;
+- require AI Action Permission;
+- require underlying domain Action Permission;
+- require Location Scope;
+- pass normal business invariants;
+- execute only through an explicit allowlisted owner;
+- never use arbitrary dynamic RPC/table execution;
+- write authoritative AI audit evidence in the same DB transaction as the mutation.
+
+The current best-effort renderer `audit()` helper is NOT sufficient for AI audit because it can silently fail under RLS.
+
+### Documentation artifacts
+
+POS design:
+`docs/PERMISSIONS-V2-LOCATION-PRINTER-AI-SUPPORT-DESIGN.md`
+
+Sharawla Admin V4 design:
+`docs/V4-CAPABILITY-COMMERCIAL-RUNTIME-CONSOLIDATION.md`
+on branch `v4-cloud-admin-work`.
+
+### Gate remains unchanged
+
+Do not start Runtime/DB implementation from this design work until:
+
+1. SH-0007 `10.5.4-beta.58.26` Full Acceptance PASS.
+2. `beta55.restaurant-full-roundtrip = PASS`.
+3. `cleanup_zero = true`.
+4. Offline unresolved count unchanged.
+5. Shared Routes runtime clicks PASS.
+6. Representative Touch runtime PASS.
+7. Menu & Function Cleanup can be formally closed.
+
+Then implementation order:
+Permissions V2 Core completion
+-> Location Scope V2
+-> Location Code identity
+-> Device / Printer Roles V1
+-> Snapshot catalog expansion gate
+-> Sharawla Admin entitlement wiring
+-> Kitchen Stations V1
+-> Support Center
+-> Sharawla AI Operator.
