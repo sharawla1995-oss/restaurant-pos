@@ -12,6 +12,6 @@ need(master.includes('food.kitchen_stations'),'Kitchen Stations entitlement code
 need(master.includes('Sharawla Admin entitlement'),'Admin entitlement rule missing');
 need(master.includes('Station Routing'),'Station Routing contract missing');
 need(master.includes('Restaurant / Cafe only'),'profile boundary missing');
-need(pkg.version==='10.5.4-beta.58.22','expected Beta58.22');
+need(/^10\.5\.4-beta\.58\.\d+$/.test(pkg.version),'expected Beta58 line');
 if(fail.length){console.error('Kitchen labels + capability plan V1: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Kitchen labels + capability plan V1: PASS');

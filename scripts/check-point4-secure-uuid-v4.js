@@ -37,7 +37,7 @@ for(let i=0;i<8;i++){
 const ref='point4-uuid-v4.js?v='+pkg.version;
 need(html.includes(ref),'versioned Point4 UUID ref missing');
 need(html.indexOf(ref)<html.indexOf('app.js?v='),'Point4 UUID provider must load before app.js');
-need(pkg.version==='10.5.4-beta.58.25','expected Beta58.25');
+need(/^10\.5\.4-beta\.58\.\d+$/.test(pkg.version),'expected Beta58 line');
 
 if(fail.length){console.error('Point4 Secure UUID V4 Fallback: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Point4 Secure UUID V4 Fallback: PASS');

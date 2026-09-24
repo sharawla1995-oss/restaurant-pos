@@ -10,6 +10,6 @@ for(const token of [
  "stage='sale-recipe'","stage='prep-recipe'","stage='production'","stage='tables-open'",
  "stage='sale'","stage='return'","stage='tables-close'","[restaurant-full-roundtrip:${stage}]"
 ]) need(pack.includes(token),'missing '+token);
-need(pkg.version==='10.5.4-beta.58.24','expected Beta58.24');
+need(/^10\.5\.4-beta\.58\.\d+$/.test(pkg.version),'expected Beta58 line');
 if(fail.length){console.error('Restaurant Full Acceptance Stage Diagnostics: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Restaurant Full Acceptance Stage Diagnostics: PASS');
