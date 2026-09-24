@@ -136,6 +136,9 @@ if(adapterIds.has('data-beta54-page')&&!navOwnersSeen.has('beta54-shared-core-ui
 if(adapterIds.has('data-beta55-supply-page')&&!navOwnersSeen.has('beta55-central-warehouse-ui.js'))errors.push('data-beta55-supply-page adapter has no runtime navigation evidence');
 if(adapterIds.has('data-beta55-hr-group')&&!navOwnersSeen.has('beta55-ui-workflow-fixes.js'))errors.push('data-beta55-hr-group adapter has no runtime augmentation evidence');
 if(adapterIds.has('data-site-tool')&&!navOwnersSeen.has('websiteManagement hub'))errors.push('data-site-tool adapter has no website hub runtime evidence');
+if(adapterIds.has('data-pharmacy-page')&&!navOwnersSeen.has('pharmacy-ui.js'))errors.push('data-pharmacy-page adapter has no pharmacy runtime navigation evidence');
+if(adapterIds.has('data-pharmacy-home')&&!navOwnersSeen.has('pharmacy-ui.js'))errors.push('data-pharmacy-home adapter has no pharmacy runtime navigation evidence');
+if(adapterIds.has('custom-retail-website-orders')&&!navOwnersSeen.has('retail-website-pos.js'))errors.push('Retail Website Orders adapter has no runtime navigation evidence');
 
 // Four required evidence classes plus SINGLE from an ordinary one-owner route.
 const caseSeen=new Set();

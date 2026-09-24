@@ -82,3 +82,90 @@ Current protected cases remain:
 The checker also contains a negative detector fixture. A synthetic undeclared owner for both `orders` and `purchasing` must be rejected. This prevents 1C from merely restating Registry metadata without detecting additional source ownership.
 
 Batch 1C does not modify `showPage()`, does not add interception, does not activate fail-closed behavior, and does not perform Build/Deployment.
+
+
+## Batch 1E — Coverage Gate
+
+Batch 1E is classification/enforcement only. It does not take runtime ownership, change dispatch, change permissions, or activate fail-closed behavior.
+
+The gate requires every **current known business navigation route** to be classified as exactly one of:
+
+- `SHADOW_VERIFIED`
+- `CONFLICT_BLOCKED`
+- `DEFERRED_FIX`
+
+`NEW_TARGET` routes are not current navigation entries and are excluded from current-route coverage until they are actually implemented.
+
+The 1E runtime-surface detector covers the currently known navigation mechanisms and rejects new undeclared mechanisms, route IDs, custom navigation writers, or literal route keys. The coverage surface now explicitly includes:
+
+- classic `data-page`
+- Home route proxies via `data-home-page`
+- Beta54 `data-beta54-page`
+- Central Warehouse `data-beta55-supply-page`
+- HR group augmentation
+- Website Hub children
+- Pharmacy `data-pharmacy-page` and `data-pharmacy-home`
+- Retail Website Orders custom navigation and its Home proxy
+- diagnostic navigation IDs as non-business diagnostics
+
+The following newly discovered current routes are registered during 1E but remain `DEFERRED_FIX` until their own profile runtime/permission acceptance:
+
+- `retailWebsiteOrders`
+- `pharmacyCatalog`
+- `pharmacyBatches`
+- `pharmacyExpiry`
+- `pharmacyPrescriptions`
+- `pharmacyInsurance`
+- `pharmacyClaims`
+
+Diagnostics such as `ownerDiagnosticsNav` and `betaSelfTestNav` are explicitly classified as non-business diagnostic navigation and are not promoted into the business route registry.
+
+Runtime evidence accepted from 1D-B for this gate is limited to the routes/checks actually observed on SH-0007:
+
+- `customers` = `SHADOW_MATCH`
+- `orders` = `SHADOW_LOCKED_MATCH`
+- `foodIngredients` = `SHADOW_MATCH`
+- `foodRecipes` = `SHADOW_MATCH`
+- `foodOperations` = `SHADOW_MATCH`
+- `tables` = `SHADOW_MATCH`
+- Restaurant visibility of `marketSettings` = hidden / `SHADOW_MATCH`
+- Restaurant visibility of `retailOffers` = hidden / `SHADOW_MATCH`
+- `purchasing` = `SHADOW_CONFLICT_BLOCKED`
+
+Routes without accepted 1D-B runtime evidence remain explicitly deferred at 1E instead of being silently promoted.
+
+### 1E hard boundaries
+
+- Orders V58.3 remains locked.
+- `suppliers / purchasing / stockCount / transfers` remain `CONFLICT_BLOCKED`.
+- Website Payments remains `DEFERRED_FIX`.
+- Retail-only navigation must not leak into Restaurant.
+- Unknown current route, unknown entry mechanism, unknown navigation writer, or unknown navigation ID = gate FAIL.
+- The negative fixture must prove the detector rejects a synthetic rogue route/mechanism/writer.
+- 1E must not modify Point 4, Offline/Sync, stock ownership, printing, updater, licensing, Activation, Business Connection, Canonical Fingerprint, or any database/RPC.
+- 1E does not build or deploy anything by itself.
+- 1F remains a separate explicit approval gate. The existing pre-1F unknown-route fallback is intentionally preserved during 1E.
+
+
+## Batch 1F — Fail-Closed Activation
+
+Batch 1F is separately approved and changes only the legacy unknown-route fallback in `app.js`.
+
+Before 1F, an unknown key reaching `showPage()` could fall through to `renderPOS`. After 1F:
+
+`Unknown Route → BLOCK → Diagnostic Event / Console / Toast`
+
+No unknown route is allowed to invoke POS, Home, another guessed renderer, a click proxy, storage write, RPC, REST call, or network write.
+
+The existing known `showPage` renderer mappings remain unchanged and explicit in `PAGE_RENDERERS`. Dynamic owners such as Restaurant Closure, Beta54 Shared Core, Central Warehouse, Pharmacy, and Retail Website Orders keep their existing dispatch mechanisms and are not taken over by 1F.
+
+The in-app 1F diagnostic surface is bounded memory only (maximum 50 entries) and emits `sharawla-navigation-route-blocked`; it does not persist or upload diagnostics.
+
+### 1F protected boundaries
+
+- Orders V58.3 remains mapped to `renderOrders`.
+- `suppliers / purchasing / stockCount / transfers` remain `CONFLICT_BLOCKED`.
+- Website Payments remains `DEFERRED_FIX`.
+- Registry mode remains `shadow`; 1F does not claim canonical ownership for unresolved/deferred routes.
+- No Point 4, Offline/Sync, stock ownership, printing, updater, licensing, Activation, Business Connection, Canonical Fingerprint, database schema, RPC, or Production change is part of 1F.
+- Runtime acceptance must use a synthetic unknown route on SH-0007 only and prove that the current business page does not change and no business renderer is invoked.
