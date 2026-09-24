@@ -1070,3 +1070,55 @@ No statement in this override authorizes a Production write.
 7. After source implementation, run registry/permission/profile-leakage regression gates before any SH-0007 build.
 
 No statement in this override authorizes a Production write or Stable promotion.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Online Orders + Delivery Runtime Closure
+
+> This section supersedes the earlier post-Navigation-1F next-step text where it conflicts. Preserve earlier sections as historical evidence.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on **10.5.3 CLEAN**.
+- Current acceptance target remains **SH-0007 / isolated Beta only**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- No automatic rebind and no Canonical Fingerprint mutation.
+
+### Online Orders / Delivery closure
+
+- Dedicated **Online Orders** route/inbox is implemented and no longer owned by Delivery intake.
+- Online Orders owns source/channel intake and pre-acceptance lifecycle; accepted orders enter the normal Sharawla Order Engine.
+- Delivery remains the physical fulfillment workflow after acceptance.
+- Server-side date/window/pagination and bounded Orders behavior remain preserved.
+- Delivery final payment is resolved at delivery completion; Cash creates driver custody and Wallet/Instapay create zero Cash custody.
+- Driver Custody / Settlement V2 is the accepted settlement owner.
+- Settlement state rebuilds after navigation and one settlement does not settle unrelated orders.
+- Shift close now fails closed while source-shift driver Cash custody remains unsettled.
+- Both `close_pos_shift_v2` and the preserved Legacy `close_pos_shift_idempotent` are protected against pending custody bypass.
+- After settlement, shift close succeeds normally.
+- Cashier layout regression introduced during Beta58.9 was corrected and the Top Burger-style cart ownership/proportions are accepted again.
+- Accepted SH-0007 runtime candidate: **10.5.4-beta.58.14**.
+- Source HEAD at closure: `2ff0cb005407500430d2b9c1d262c88ef71f2c2e`.
+- Beta58.14 build: **SUCCESS**.
+- Operational Beta evidence:
+  - POS Delivery Cash settlement and post-settlement shift close: **PASS**.
+  - Website-source synthetic acceptance order `website_orders.id=2` was accepted into normal `orders.id=124`, `source=website`, Delivery, delivered, final payment Wallet, Cash custody `0.00`: **PASS**.
+- No real public Website frontend is required for this runtime gate; the synthetic order was created through the existing Beta Website-order RPC to exercise the same operational intake path.
+- **Online Orders + Delivery + Driver Settlement + Shift Cash Integration = CLOSED / PASS.**
+
+Do not reopen this area without contradictory runtime evidence.
+
+## CURRENT EXACT NEXT STEP — AFTER ONLINE ORDERS / DELIVERY CLOSURE
+
+1. Do **not** promote Stable yet.
+2. Continue the approved Product Map phase from the accepted Unified Navigation Registry baseline.
+3. First implementation target: reorganize the existing sidebar into the approved Product Map groups without deleting or changing working routes.
+4. Preserve every current route owner, permission check, profile rule, and click/dispatch mechanism.
+5. Product Map grouping is presentation/navigation organization only; it must not resolve `suppliers / purchasing / stockCount / transfers` ownership conflicts implicitly.
+6. Keep `websitePayments` as the existing deferred permission mismatch; do not silently repair it in this phase.
+7. Orders V58.3, Online Orders closure, Delivery/Settlement V2, Offline/Point 4, printing, licensing, updater, device identity and Production behavior remain locked.
+8. Add a static regression gate before any SH-0007 build.
+9. Only after source/static PASS may a SH-0007-only candidate be built for visual/navigation acceptance.
+
+No statement in this override authorizes a Production write or Stable promotion.
