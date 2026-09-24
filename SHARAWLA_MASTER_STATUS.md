@@ -2901,3 +2901,23 @@ Immediate prerequisite remains:
 Restaurant SH-0007 58.26 -> G0 -> G1 -> G2 -> G3.
 
 No Pharmacy Runtime/DB/Cloud/Production mutation has been authorized by this roadmap.
+
+
+## Pharmacy V1 Implementation Batch Plan
+
+Execution preparation:
+`docs/PHARMACY-V1-IMPLEMENTATION-BATCH-PLAN.md`
+
+This translates the official 31-Gate roadmap into small controlled implementation batches PH-P0 through PH-P23.
+
+No executable Pharmacy batch may start before:
+- Restaurant SH-0007 G0 PASS;
+- G1 PASS;
+- G2 PASS;
+- G3 CLOSED;
+- Pharmacy PH0 environment/safety authorization.
+
+Current Pharmacy implementation batches:
+PREPARED / NOT STARTED.
+
+No DB/Runtime/Cloud/Production mutation was performed.
