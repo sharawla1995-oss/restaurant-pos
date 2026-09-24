@@ -271,10 +271,17 @@ Current isolated Beta operational database contains:
 - branch id=1, name TEST
 - branch id=3, name hgolj
 
-The second branch has no observed orders, shifts, expenses, ingredient stock, delivery zones/drivers, or print settings, but has employee-branch links.
+Branch #3 is not arbitrary residue. Read-only audit and the deployed Acceptance fixture confirm it is currently selected as the required `other_branch_id` for Restaurant Full Acceptance whenever branch #1 is the primary test branch.
 
-Do not delete or alter it during this design phase.
-Treat as Beta residue/investigation item until provenance is understood.
+The fixture explicitly requires an active second branch with employee access and fails with `ACCEPTANCE_SECOND_BRANCH_REQUIRED` if none exists. The roundtrip uses that second branch for opening ingredient stock and stock-transfer dispatch/receive evidence.
+
+Historical acceptance audit rows on branch #3 include `B55R-ADJ-MAIN-B2` adjustments and transfer receives from branch #1.
+
+Therefore:
+- do not delete/deactivate branch #3 before G0;
+- do not remove Beta Admin/test employee access to it before G0;
+- treat it as current Acceptance infrastructure;
+- after G0/G3, decide whether to replace it with a deliberately named/location-coded Beta fixture branch before Location Code finalization.
 
 Cloud SH-0007 is linked to Cloud branch `Test`.
 
