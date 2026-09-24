@@ -1055,7 +1055,6 @@ function refreshDeliveryDrivers(){const el=$('#deliveryDriver');if(!el)return;co
 
 function toggleDeliveryFields(){
  const delivery=$('#orderType')?.value==='delivery';
- $('.cart')?.classList.toggle('delivery-mode',delivery);
  $('#deliveryFields')?.classList.toggle('hidden',!delivery);
  $('#deliveryFeeLine')?.classList.toggle('hidden',!delivery);
 }
