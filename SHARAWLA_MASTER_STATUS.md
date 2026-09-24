@@ -2673,3 +2673,140 @@ Pharmacy Product Map/capability binding design is CLOSED; runtime feature/page e
 `docs/PHARMACY-COSTING-REPORTS-V1-CONTRACT.md`
 
 Pharmacy costing/reports design is CLOSED; batch-level historical COGS is not currently authoritative until cost snapshots and return ownership are implemented.
+
+
+## Retail Closure Preparation — Design Complete
+
+Status:
+DOCUMENTATION / READ-ONLY PREPARATION COMPLETE.
+
+No Retail runtime deployment, Cloud provisioning, operational DB mutation, or Production mutation has been performed by this preparation phase.
+
+Authoritative Retail preparation documents:
+
+- `docs/RETAIL-CLOSURE-AUDIT-2026-09-24.md`
+- `docs/RETAIL-REPORTS-V1-CONTRACT.md`
+- `docs/RETAIL-OFFLINE-SUPPORT-MATRIX.md`
+- `docs/RETAIL-ACCEPTANCE-V2-DESIGN.md`
+- `docs/RETAIL-PERMISSIONS-ACTION-MATRIX.md`
+- `docs/RETAIL-BETA-ENVIRONMENT-PROVISIONING-PLAN.md`
+- `docs/RETAIL-MENU-UX-CLEANUP-DESIGN.md`
+
+### Confirmed Retail facts
+
+- Retail POS Profile is implemented=true and active=true.
+- Current Sharawla Cloud Retail Business count = 0.
+- Generic active Activity Category = `retail / التجارة والتجزئة`.
+- Specific Retail vertical categories exist but are currently inactive.
+- Current source/backend already contains substantial Retail POS, inventory, purchasing, website, variants, advanced purchasing and Offline sale/return foundations.
+- Retail is a closure/hardening project, not a greenfield build.
+
+### Mandatory Retail closure gaps
+
+1. Dedicated Retail Beta environment and genuine runtime evidence.
+2. Permissions/Cross-Profile security hardening.
+3. Retail Reports/Finance V1 implementation.
+4. Explicit Offline product promise for management operations.
+5. Modern Retail Acceptance V2 implementation.
+6. Menu/UX cleanup and removal of developer-facing SQL/Beta instructions.
+7. Add-on acceptance for Variants and Advanced Purchasing features that are actually sold/enabled.
+
+### Retail V1 Offline product promise — recommended
+
+Guaranteed Offline:
+- sale;
+- return for sufficiently cached orders;
+- shift open/close;
+- expenses;
+- local printing.
+
+Online required:
+- suppliers/purchasing;
+- stock count;
+- transfers;
+- manual inventory management;
+- website intake;
+- admin/settings;
+- full reporting.
+
+This remains a product-policy decision until formally approved.
+
+### Retail menu target
+
+Retail navigation groups:
+
+1. الرئيسية
+2. المبيعات
+3. الطلبات والقنوات
+4. الأصناف والتسعير
+5. المخزون
+6. الموردون والمشتريات
+7. المالية والتقارير
+8. الموقع والتوصيل
+9. الإدارة والإعدادات
+
+Retail Website Orders should become a canonical registered route instead of DOM-only injected ownership.
+
+### Retail reporting target
+
+Retail Reports V1 must close:
+- sale-time COGS;
+- return COGS reversal from original order-item cost;
+- gross profit/margin;
+- inventory valuation;
+- movement ledger;
+- purchasing/supplier reporting;
+- Landed Cost impact;
+- variant-level reporting when entitled;
+- permission/location-scoped export/print.
+
+### Retail security target
+
+Backend authority:
+trusted Profile=retail
+AND Action
+AND Location where applicable
+AND business invariants.
+
+Representative expected denials:
+- PROFILE_MISMATCH
+- ACTION_DENIED
+- LOCATION_DENIED
+
+### Retail Beta environment target
+
+Preferred topology:
+- dedicated Retail Beta customer/business;
+- Activity Category = active generic retail;
+- POS Profile = retail;
+- dedicated Cloud branch;
+- dedicated Primary license;
+- dedicated device;
+- dedicated Business Connection;
+- dedicated operational Supabase backend cloned from the accepted Beta schema baseline after Restaurant G0-G3 closure.
+
+Do not repurpose SH-0007 for convenience.
+
+### Exact Retail execution order after Restaurant G0-G3
+
+RG0 — provision dedicated Retail Beta environment.
+RG1 — navigation/profile/menu cleanup runtime pass.
+RG2 — POS core + sale/return/offline/idempotency.
+RG3 — inventory.
+RG4 — purchasing.
+RG5 — entitled add-ons.
+RG6 — website.
+RG7 — Permissions/Cross-Profile.
+RG8 — Reports/Finance.
+RG9 — Touch/Printing/Backup/Update.
+RG10 — Retail Closure.
+
+### Immediate project priority remains Restaurant
+
+Before any Retail provisioning:
+- install/run current Restaurant candidate on SH-0007;
+- close G0-G3;
+- preserve cleanup zero and Offline unresolved equality;
+- keep Production SH-0005/SH-0006 on immutable 10.5.3 CLEAN.
+
+Retail preparation may remain documentation/read-only until that gate is closed.
