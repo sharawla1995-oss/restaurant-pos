@@ -2495,7 +2495,7 @@ X2 trusted Profile binding:
 `docs/CROSS-PROFILE-TRUSTED-PROFILE-BINDING-X2.md`
 
 Status:
-- X0 owner inventory discovery = CLOSED.
+- X0 prefix owner inventory = CLOSED as limited baseline; exhaustive semantic inventory remains OPEN via X0A.
 - X1 ACL classification design = CLOSED.
 - X2 trusted Profile binding design = CLOSED.
 - X1/X2 deployment = NOT STARTED.
@@ -2603,3 +2603,31 @@ Status:
 - Shared Delivery registry metadata still needs runtime/source correction later.
 - Weighted Sales split recorded: decimal/fraction quantity remains Retail baseline; scale/embedded barcode behavior becomes commerce.weight_sales capability target.
 - No Runtime/Cloud/DB mutation was performed.
+
+
+### Pharmacy Closure preparation
+
+Read-only audit:
+`docs/PHARMACY-CLOSURE-AUDIT-2026-09-24.md`
+
+Current conclusion:
+- Pharmacy Profile is implemented/active with substantial UI/schema foundations.
+- Critical gaps include Pharmacy-specific return/batch restoration, backend prescription enforcement, controlled-drug operational enforcement, insurance line reconciliation, Offline sale/return policy, reports, and full acceptance.
+- Current Cloud Pharmacy Business count = 0.
+- Current isolated Beta Pharmacy fixture rows = 0.
+- No Runtime/DB/Cloud mutation was performed.
+
+
+### Cross-Profile owner inventory correction X0A
+
+Supplement:
+`docs/CROSS-PROFILE-ENTRYPOINT-SUPPLEMENT-X0A.md`
+
+Correction:
+- original X0 count 88 was a prefix-family inventory, not exhaustive;
+- broader name scan found 21 additional profile-token entrypoints, including create_retail_* and create_pharmacy_pos_order_atomic;
+- current named profile-token surface = 109 functions;
+- exhaustive semantic owner inventory remains OPEN until runtime/call-graph/shared-owner reconciliation;
+- X0 prefix baseline and X0A supplement are both preserved as evidence.
+
+X1-X4 deployment remains NOT STARTED.
