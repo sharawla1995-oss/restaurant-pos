@@ -42,6 +42,7 @@ jobs:
           node scripts/check-inventory-overview-v1.js
           node scripts/check-touch-customer-v1.js
           node scripts/check-pos-profile-routing-v1.js
+          node scripts/check-settings-hub-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -72,16 +73,19 @@ jobs:
           $index = Join-Path $probe 'index.html'
           $inventoryOverview = Join-Path $probe 'inventory-overview-v1.js'
           $touchCss = Join-Path $probe 'touch-ux-v1.css'
+          $settingsHubCss = Join-Path $probe 'settings-hub-v1.css'
           if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
           if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
           if (!(Test-Path $index)) { throw 'packaged index.html missing' }
           if (!(Test-Path $inventoryOverview)) { throw 'packaged Inventory Overview runtime missing' }
           if (!(Test-Path $touchCss)) { throw 'packaged Touch UX stylesheet missing' }
+          if (!(Test-Path $settingsHubCss)) { throw 'packaged Settings Hub stylesheet missing' }
           $productMapText = Get-Content $productMap -Raw
           $navRegistryText = Get-Content $navRegistry -Raw
           $indexText = Get-Content $index -Raw
           $inventoryOverviewText = Get-Content $inventoryOverview -Raw
           $touchCssText = Get-Content $touchCss -Raw
+          $settingsHubCssText = Get-Content $settingsHubCss -Raw
           if (!$productMapText.Contains('1.1.1-profile-aware-product-map')) { throw 'packaged Product Map profile-aware marker missing' }
           if (!$productMapText.Contains("restaurant:'تشغيل المطعم'")) { throw 'packaged Restaurant Product Map label missing' }
           if (!$productMapText.Contains("pharmacy:'تشغيل الصيدلية'")) { throw 'packaged Pharmacy profile-aware label missing' }
@@ -109,6 +113,10 @@ jobs:
           if (!$app.Contains("if(profile==='retail')return renderRetailPOS()")) { throw 'packaged Retail POS adapter missing' }
           if (!$app.Contains('data-pos-profile-fail-closed="PROFILE_NOT_POS"')) { throw 'packaged non-POS fail-closed guard missing' }
           if (!$app.Contains("status:['delivery','pickup'].includes(orderType)?'new':'completed'")) { throw 'packaged Pickup lifecycle gate missing' }
+          if (!$app.Contains('data-settings-hub-v1="1"')) { throw 'packaged Settings Hub marker missing' }
+          if (!$settingsHubCssText.Contains('.settings-hub-tabs')) { throw 'packaged Settings Hub tab CSS missing' }
+          $settingsHubRef = "settings-hub-v1.css?v=$($pkg.version)"
+          if (!$indexText.Contains($settingsHubRef)) { throw "packaged index missing versioned Settings Hub reference: $settingsHubRef" }
           if (!$touchCssText.Contains('@media (any-pointer: coarse)')) { throw 'packaged Touch UX coarse-pointer gate missing' }
           if (!$touchCssText.Contains('--sharawla-touch-target:46px')) { throw 'packaged Touch UX target size marker missing' }
           $touchRef = "touch-ux-v1.css?v=$($pkg.version)"
