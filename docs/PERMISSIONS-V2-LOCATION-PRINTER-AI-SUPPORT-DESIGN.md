@@ -390,13 +390,32 @@ No partial 107/108 state is acceptable.
 This is Sharawla customer support for the Business owner/operator.
 It is not the Business's own customer CRM.
 
-Proposed feature family:
+### Cloud entitlement
+
+Use one root Cloud Feature:
 - support.center
-- support.chat
-- support.tickets
-- support.diagnostics
-- support.history
-- support.human_escalation
+
+Do not model every Support button as a separate Sharawla Cloud Feature.
+
+Recommended commercial behavior:
+- feature_class = standard;
+- eligible across supported POS Profiles;
+- required=false;
+- included only through the Business's commercial package / entitlement;
+- Sharawla Admin remains the source of entitlement.
+
+A future premium support product may introduce a separate commercial entitlement only when packaging genuinely requires it.
+
+### Operational user actions
+
+Use Permissions V2 for user-level authority:
+- support.ticket.create
+- support.ticket.view_own
+- support.diagnostics.share
+- support.history.view
+- support.escalation.request
+
+Support diagnostics sharing must be explicit and auditable.
 
 Flow:
 Support Chat
@@ -405,17 +424,32 @@ Support Chat
 -> Resolution or Human Escalation
 -> Support History
 
-Sharawla Cloud owns entitlement and service plan.
-
-Runtime visibility must be feature-gated.
-Support diagnostics must not bypass device, permission, privacy or audit boundaries.
+Runtime visibility requires signed Snapshot allowance for support.center.
+Individual actions still require user Action Permission.
 
 ## 12. Sharawla AI Operator
 
 Sharawla AI is separate from Customer Support.
 
-Proposed feature family:
+### Cloud entitlement
+
+Use one root Cloud Feature:
 - ai.operator
+
+Recommended commercial behavior:
+- feature_class = add_on;
+- eligible across supported POS Profiles;
+- required=false;
+- no automatic Business entitlement;
+- enabled only by Sharawla Admin commercial entitlement.
+
+Do not create Cloud Feature rows for ai.read / ai.create / ai.modify / ai.approve.
+Those are user authorization levels, not commercial product entitlements.
+
+### Operational user actions
+
+Use Permissions V2:
+- ai.use
 - ai.read
 - ai.create
 - ai.modify
@@ -423,20 +457,22 @@ Proposed feature family:
 - ai.historical_correction
 
 Default:
-- OFF until entitled by Sharawla Admin.
+- ai.operator Cloud entitlement is OFF until granted;
+- per-user AI Actions are also denied until granted according to role policy.
 
-Effective AI authority must never exceed the signed-in user's authority.
+Effective AI authority must never exceed the signed-in user's existing domain authority.
 
 Final authorization:
-Cloud entitlement
+Signed Cloud entitlement for ai.operator
 AND User Page Permission
-AND User Action Permission
-AND User Location Scope
-AND AI-specific action level.
+AND User AI Action Permission
+AND Underlying domain Action Permission
+AND User Location Scope.
 
 Examples:
-- a cashier denied Returns cannot ask AI to create a return;
+- a cashier denied Returns cannot ask AI to create a return even with ai.create;
 - a manager scoped to one branch cannot ask AI to modify another branch;
+- ai.approve does not grant purchasing approval unless food.purchasing.approve is also allowed;
 - historical correction requires explicit high-risk approval and immutable audit evidence.
 
 High-risk AI actions require:
@@ -470,8 +506,8 @@ Business users may configure an already-entitled feature, but may not grant them
 10. Sharawla Admin entitlement wiring.
 11. food.kitchen_stations.
 12. Kitchen Stations V1.
-13. support.* capability family.
-14. ai.* capability family.
+13. support.center + Support Action Permissions.
+14. ai.operator + AI Action Permissions.
 15. Cross-profile acceptance.
 
 ## 15. Acceptance requirements for Permissions V2
