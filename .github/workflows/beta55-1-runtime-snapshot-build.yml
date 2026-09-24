@@ -1,4 +1,4 @@
-name: Beta58.3 Desktop Renderer Cache Corrective Build
+name: Beta58.4 SH-0007 Online Orders Acceptance Build
 
 on:
   push:
@@ -51,7 +51,7 @@ jobs:
           New-Item -ItemType Directory -Path $probe | Out-Null
           npx asar extract $asar $probe
           $pkg = Get-Content (Join-Path $probe 'package.json') -Raw | ConvertFrom-Json
-          if ($pkg.version -notmatch '^10\.5\.4-beta\.58\.[3-9][0-9]*
+          if ($pkg.version -notmatch '^10\.5\.4-beta\.58\.[3-9][0-9]*$') { throw "packaged version mismatch: $($pkg.version)" }
           if ($pkg.main -ne 'main-beta44.js') { throw "packaged main mismatch: $($pkg.main)" }
           $app = Get-Content (Join-Path $probe 'app.js') -Raw
           if (!$app.Contains('ORDERS-DATE-WINDOW-V58.3')) { throw 'packaged app.js missing V58.3 marker' }
@@ -68,24 +68,5 @@ jobs:
         with:
           name: sharawla-pos-${{ github.sha }}-sh0007-x64
           path: dist/Sharawla-POS-Setup-*.exe
-          if-no-files-found: error
-          retention-days: 7
-) { throw "packaged version mismatch: $($pkg.version)" }
-          if ($pkg.main -ne 'main-beta44.js') { throw "packaged main mismatch: $($pkg.main)" }
-          $app = Get-Content (Join-Path $probe 'app.js') -Raw
-          if (!$app.Contains('ORDERS-DATE-WINDOW-V58.3')) { throw 'packaged app.js missing V58.3 marker' }
-          if (!$app.Contains('id="ordersFrom"') -or !$app.Contains('id="ordersTo"')) { throw 'packaged app.js missing Orders date controls' }
-          $offline43 = Get-Content (Join-Path $probe 'beta43-offline-core.js') -Raw
-          if (!$offline43.Contains('if(!base.renderOrders){try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{}}')) { throw 'packaged Beta43 Orders fallback guard missing' }
-          if ($offline43.Contains("`n  try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{};")) { throw 'packaged Beta43 still overrides Orders renderer unconditionally' }
-          $main = Get-Content (Join-Path $probe 'main.js') -Raw
-          if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
-          if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }
-          Write-Host "PACKAGED APP.ASAR OWNERSHIP PASS version=$($pkg.version) main=$($pkg.main)"
-      - name: Upload SH-0007 sandbox installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: sharawla-pos-10.5.4-beta.58.3-desktop-renderer-cache-corrective-sh0007-x64
-          path: dist/Sharawla-POS-Setup-10.5.4-beta.58.3.exe
           if-no-files-found: error
           retention-days: 7
