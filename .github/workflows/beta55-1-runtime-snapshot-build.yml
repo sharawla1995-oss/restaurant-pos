@@ -40,6 +40,7 @@ jobs:
           node scripts/check-orders-performance-date-window.js
           node scripts/check-orders-runtime-corrective.js
           node scripts/check-inventory-overview-v1.js
+          node scripts/check-touch-customer-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -69,14 +70,17 @@ jobs:
           $navRegistry = Join-Path $probe 'sharawla-navigation-registry.js'
           $index = Join-Path $probe 'index.html'
           $inventoryOverview = Join-Path $probe 'inventory-overview-v1.js'
+          $touchCss = Join-Path $probe 'touch-ux-v1.css'
           if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
           if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
           if (!(Test-Path $index)) { throw 'packaged index.html missing' }
           if (!(Test-Path $inventoryOverview)) { throw 'packaged Inventory Overview runtime missing' }
+          if (!(Test-Path $touchCss)) { throw 'packaged Touch UX stylesheet missing' }
           $productMapText = Get-Content $productMap -Raw
           $navRegistryText = Get-Content $navRegistry -Raw
           $indexText = Get-Content $index -Raw
           $inventoryOverviewText = Get-Content $inventoryOverview -Raw
+          $touchCssText = Get-Content $touchCss -Raw
           if (!$productMapText.Contains('1.1.1-profile-aware-product-map')) { throw 'packaged Product Map profile-aware marker missing' }
           if (!$productMapText.Contains("restaurant:'تشغيل المطعم'")) { throw 'packaged Restaurant Product Map label missing' }
           if (!$productMapText.Contains("pharmacy:'تشغيل الصيدلية'")) { throw 'packaged Pharmacy profile-aware label missing' }
@@ -97,6 +101,12 @@ jobs:
           if (!$inventoryOverviewText.Contains('CORE_PROFILE_AWARE_READ_ONLY')) { throw 'packaged Inventory Overview read-only marker missing' }
           if (!$inventoryOverviewText.Contains('PROFILE_ADAPTER_MISSING')) { throw 'packaged Inventory Overview fail-closed profile guard missing' }
           if (!$app.Contains('INVENTORY-OVERVIEW-V1-CORE-DELEGATE')) { throw 'packaged app.js missing Inventory Overview delegate' }
+          if (!$app.Contains('CUSTOMERS-MANUAL-CREATE-V1')) { throw 'packaged app.js missing manual customer create marker' }
+          if (!$app.Contains('id="newCustomerBtn"')) { throw 'packaged app.js missing new customer button' }
+          if (!$touchCssText.Contains('@media (any-pointer: coarse)')) { throw 'packaged Touch UX coarse-pointer gate missing' }
+          if (!$touchCssText.Contains('--sharawla-touch-target:46px')) { throw 'packaged Touch UX target size marker missing' }
+          $touchRef = "touch-ux-v1.css?v=$($pkg.version)"
+          if (!$indexText.Contains($touchRef)) { throw "packaged index missing versioned Touch UX reference: $touchRef" }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw
           if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
           if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }

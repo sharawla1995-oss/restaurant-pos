@@ -17,7 +17,9 @@ for(const token of [
  "global.rpc('create_pos_order_atomic'","global.rpc('create_order_return_idempotent'",
  'food_theoretical_consumption_v1','food_theoretical_consumption_net_v1','food_production_variance_v1',
  'restaurant_floor_save_v1','restaurant_table_save_v1','restaurant_table_session_open_v1','restaurant_table_session_attach_order_v1','restaurant_table_session_close_v1',
- 'offline_unresolved_before','offline_unresolved_after','cleanup_zero'
+ 'offline_unresolved_before','offline_unresolved_after','cleanup_zero',
+ 'POINT4_IDENTITY_V1','point4Uuid','line_uid:saleLineUid',"point4Effect('sale',saleLineUid)",
+ 'original_source_document_id:saleSourceDocumentId',"point4Effect('sale_return',returnLineUid)"
 ])need(pack,token,`pack ${token}`);
 for(const feature of ['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'])need(pack,feature,`required feature ${feature}`);
 

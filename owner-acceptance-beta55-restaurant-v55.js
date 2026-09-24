@@ -6,6 +6,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const eq=(a,b,eps=.005)=>Math.abs(Number(a||0)-Number(b||0))<=eps;
 const tx=(run,s)=>`${run}-B55R-${s}`;
 const marker=run=>`SHARAWLA_ACCEPTANCE:${run}:B55R`;
+const POINT4_IDENTITY_V1='sharawla.point4.identity.v1';
+const point4Uuid=()=>{const v=String(global.crypto?.randomUUID?.()||'').trim().toLowerCase();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v))throw new Error('Acceptance Point4 UUIDv4 unavailable');return v};
+const point4Effect=(effect,lineUid)=>`v1:stock:${effect}:${lineUid}`;
 const cfg=()=>{try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}};
 const branch=()=>Number(global.currentBranchId?.()||0);
 async function cleanup(run){const out=await global.rpc('sharawla_beta55_restaurant_acceptance_cleanup_v1',{p_run_id:run});if(out?.ok!==true||Number(out?.residue||0)!==0)throw new Error(`Restaurant cleanup failed: ${JSON.stringify(out)}`);return out}
@@ -131,9 +134,12 @@ async function restaurantRoundtrip(ctx){
    const tableSession2=Number(await global.rpc('restaurant_table_session_open_v1',sessionPayload));
    if(!tableSession||tableSession!==tableSession2)throw new Error('Table session idempotency failed');
 
+   // Point4 Identity V1 must match the real POS boundary: generate once, then reuse
+   // the exact payload for the idempotent retry.
+   const saleTx=tx(run,'SALE'),saleDocumentUid=point4Uuid(),saleSourceDocumentId=`uuid:${saleDocumentUid}`,saleLineUid=point4Uuid();
    const salePayload={
-     p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'dinein',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:tx(run,'SALE'),notes:marker(run)},
-     p_items:[{product_id:product,product_name:`B55 Restaurant ${run}`,quantity:1,unit_price:100,cost:0,total:100,notes:null,modifiers:[],removed:[]}],
+     p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'dinein',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:saleTx,document_uid:saleDocumentUid,source_document_id:saleSourceDocumentId,point4_identity_contract:POINT4_IDENTITY_V1,notes:marker(run)},
+     p_items:[{product_id:product,product_name:`B55 Restaurant ${run}`,quantity:1,unit_price:100,cost:0,total:100,notes:null,modifiers:[],removed:[],line_uid:saleLineUid,effect_line_key:point4Effect('sale',saleLineUid)}],
      p_payments:[{method:'cash',amount:100}]
    };
    const sale=await global.rpc('create_pos_order_atomic',salePayload);
@@ -144,7 +150,8 @@ async function restaurantRoundtrip(ctx){
    const theo=await global.rest('food_theoretical_consumption_v1',`select=theoretical_base_quantity,theoretical_cost&branch_id=eq.${b1}&ingredient_id=eq.${main}&order=business_date.desc&limit=1`);
    if(!theo?.[0]||Number(theo[0].theoretical_base_quantity)<199.999)throw new Error(`Theoretical consumption missing: ${JSON.stringify(theo)}`);
 
-   const retPayload={p_order_id:orderId,p_reason:'acceptance',p_notes:marker(run),p_items:[{order_item_id:orderItem,quantity:1}],p_payments:[{method:'cash',amount:100}],p_client_tx_id:tx(run,'RETURN')};
+   const returnTx=tx(run,'RETURN'),returnDocumentUid=point4Uuid(),returnSourceDocumentId=`uuid:${returnDocumentUid}`,returnLineUid=point4Uuid();
+   const retPayload={p_order_id:orderId,p_reason:'acceptance',p_notes:marker(run),p_items:[{order_item_id:orderItem,quantity:1,line_uid:returnLineUid,effect_line_key:point4Effect('sale_return',returnLineUid),source_document_id:returnSourceDocumentId,original_source_document_id:saleSourceDocumentId}],p_payments:[{method:'cash',amount:100}],p_client_tx_id:returnTx};
    const ret=Number(await global.rpc('create_order_return_idempotent',retPayload));
    const ret2=Number(await global.rpc('create_order_return_idempotent',retPayload));
    if(!ret||ret!==ret2||!eq((await stock(b1,main)).quantity,5700))throw new Error('Recipe return restore/idempotency failed');
