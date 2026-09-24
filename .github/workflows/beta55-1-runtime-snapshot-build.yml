@@ -64,6 +64,19 @@ jobs:
           $offline43 = Get-Content (Join-Path $probe 'beta43-offline-core.js') -Raw
           if (!$offline43.Contains('if(!base.renderOrders){try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{}}')) { throw 'packaged Beta43 Orders fallback guard missing' }
           if ($offline43.Contains("`n  try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{};")) { throw 'packaged Beta43 still overrides Orders renderer unconditionally' }
+          $productMap = Join-Path $probe 'product-map-navigation-v1.js'
+          $navRegistry = Join-Path $probe 'sharawla-navigation-registry.js'
+          $productMapCheck = Join-Path $probe 'scripts\check-product-map-navigation-v1.js'
+          if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
+          if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
+          if (!(Test-Path $productMapCheck)) { throw 'packaged Product Map checker missing' }
+          Push-Location $probe
+          try {
+            node .\scripts\check-product-map-navigation-v1.js
+            if ($LASTEXITCODE -ne 0) { throw "packaged Product Map checker failed with exit code $LASTEXITCODE" }
+          } finally {
+            Pop-Location
+          }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw
           if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
           if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }

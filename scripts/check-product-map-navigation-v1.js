@@ -4,11 +4,14 @@ const html=fs.readFileSync('index.html','utf8');
 const js=fs.readFileSync('product-map-navigation-v1.js','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const reg=fs.readFileSync('sharawla-navigation-registry.js','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const runtimeVersion=String(pkg.version||'');
 const fail=[];
 const need=(ok,msg)=>{if(!ok)fail.push(msg)};
 
-need((html.match(/sharawla-navigation-registry\.js\?v=10\.5\.4-beta\.58\.15/g)||[]).length===1,'Runtime registry metadata must load exactly once');
-need((html.match(/product-map-navigation-v1\.js\?v=10\.5\.4-beta\.58\.15/g)||[]).length===1,'Product Map layer must load exactly once');
+need(runtimeVersion.startsWith('10.5.4-beta.58.'),'Product Map candidate must stay on Beta58 acceptance line');
+need(html.split('sharawla-navigation-registry.js?v='+runtimeVersion).length-1===1,'Runtime registry metadata must load exactly once at package version');
+need(html.split('product-map-navigation-v1.js?v='+runtimeVersion).length-1===1,'Product Map layer must load exactly once at package version');
 need(html.indexOf('sharawla-navigation-registry.js')<html.indexOf('product-map-navigation-v1.js'),'Registry metadata must load before Product Map layer');
 
 need(js.includes('Presentation-only grouping layer. It MUST NOT dispatch routes or change permissions.'),'Presentation-only contract marker missing');
