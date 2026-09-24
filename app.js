@@ -2412,10 +2412,13 @@ async function renderOnlineOrders(opts={}){
   ];
   const matchesView=(entry,view)=>view==='all'||entry.lifecycle.state===view||(view==='rejected_cancelled'&&['rejected','cancelled'].includes(entry.lifecycle.state));
   const lifecycleLabel=state=>({new:'جديد',accepted:'مقبول',in_fulfillment:'قيد التنفيذ',completed:'مكتمل',rejected:'مرفوض',cancelled:'ملغي',unknown:'غير معروف'}[state]||state);
-  let view='new';
+  let view='new',fulfillmentFilter='all';
+  const fulfillmentType=entry=>resolveOnlineOrderFulfillment(entry.row).type||'unknown';
+  const matchesFulfillment=(entry,filter)=>filter==='all'||fulfillmentType(entry)===filter;
   const draw=()=>{
-    const rows=entries.filter(x=>matchesView(x,view));
+    const rows=entries.filter(x=>matchesView(x,view)&&matchesFulfillment(x,fulfillmentFilter));
     const buttons=views.map(([key,label])=>`<button class="${view===key?'active':''}" data-online-view="${key}">${label}</button>`).join('');
+    const fulfillmentButtons=[['all','كل الأنواع'],['delivery','🚚 توصيل'],['pickup','🏪 استلام فرع']].map(([key,label])=>`<button class="${fulfillmentFilter===key?'active':''}" data-online-fulfillment="${key}">${label}</button>`).join('');
     const body=rows.map(entry=>{
       const w=entry.row,isSource=entry.kind==='source',isNew=entry.lifecycle.state==='new';
       const idLabel=entry.identity?.source_order_id!=null?`WEB-${String(entry.identity.source_order_id).padStart(5,'0')}${entry.identity.canonical_order_id!=null?` → ${esc(bonDisplay(w))}`:''}`:esc(bonDisplay(w));
@@ -2426,7 +2429,7 @@ async function renderOnlineOrders(opts={}){
       const sourceActions=isSource&&isNew?`<button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button>`:'';
       return `<div class="delivery-row website-pending"><span class="delivery-row-id"><b>${idLabel} • ${esc(entry.channel.label)} • ${type}</b><small>الحالة: ${esc(lifecycleLabel(entry.lifecycle.state))}</small><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${customer}</b>${phone}<small class="web-pending-address">${address}</small></span><strong>${money(w.total)}</strong><span>${sourceActions}</span></div>`;
     }).join('');
-    $('#page').innerHTML=`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الأونلاين <span class="status-pill">${entries.length}</span></h2></div><div class="grid2"><label>من تاريخ<input id="onlineOrdersFrom" type="date" value="${esc(from)}"></label><label>إلى تاريخ<input id="onlineOrdersTo" type="date" value="${esc(to)}"></label></div><div class="actions" style="margin-bottom:12px"><button class="primary" id="onlineOrdersSearch">بحث</button><button class="secondary" id="onlineOrdersToday">اليوم</button></div><div class="delivery-filter" id="onlineOrdersFilter">${buttons}</div><div class="delivery-rows">${body||'<div class="empty">لا توجد طلبات مطابقة</div>'}</div><div class="actions" style="margin-top:12px"><button class="secondary" id="onlineOrdersPrev" ${page<=1?'disabled':''}>السابق</button><span class="tag">صفحة ${page}</span><button class="secondary" id="onlineOrdersNext" ${hasNext?'':'disabled'}>التالي</button></div></div>`;
+    $('#page').innerHTML=`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الأونلاين <span class="status-pill">${entries.length}</span></h2></div><div class="grid2"><label>من تاريخ<input id="onlineOrdersFrom" type="date" value="${esc(from)}"></label><label>إلى تاريخ<input id="onlineOrdersTo" type="date" value="${esc(to)}"></label></div><div class="actions" style="margin-bottom:12px"><button class="primary" id="onlineOrdersSearch">بحث</button><button class="secondary" id="onlineOrdersToday">اليوم</button></div><div class="delivery-filter" id="onlineOrdersFilter">${buttons}</div><div class="delivery-filter" id="onlineOrdersFulfillmentFilter" style="margin-top:8px">${fulfillmentButtons}</div><div class="delivery-rows">${body||'<div class="empty">لا توجد طلبات مطابقة</div>'}</div><div class="actions" style="margin-top:12px"><button class="secondary" id="onlineOrdersPrev" ${page<=1?'disabled':''}>السابق</button><span class="tag">صفحة ${page}</span><button class="secondary" id="onlineOrdersNext" ${hasNext?'':'disabled'}>التالي</button></div></div>`;
   };
   draw();
   const rerun=p=>{const f=$('#onlineOrdersFrom').value,t=$('#onlineOrdersTo').value;if(!f||!t)return toast('حدد التاريخ');if(f>t)return toast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');renderOnlineOrders({from:f,to:t,page:p})};
@@ -2436,6 +2439,7 @@ async function renderOnlineOrders(opts={}){
   $('#onlineOrdersNext').onclick=()=>hasNext&&rerun(page+1);
   $('#page').onclick=async e=>{
     const filter=e.target.closest('[data-online-view]');if(filter){view=filter.dataset.onlineView;draw();return}
+    const fulfillment=e.target.closest('[data-online-fulfillment]');if(fulfillment){fulfillmentFilter=fulfillment.dataset.onlineFulfillment;draw();return}
     const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
     const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
     const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders({from,to,page});showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
