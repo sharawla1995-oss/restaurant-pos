@@ -2577,3 +2577,17 @@ Status:
 - implementation/execution = NOT STARTED;
 - historical Beta23 suite remains evidence only and is not final authority;
 - current Retail closure requires a dedicated isolated Retail Beta Business/device/backend.
+
+
+### RETAIL-PERMISSIONS-ACTION-MATRIX.md
+
+`docs/RETAIL-PERMISSIONS-ACTION-MATRIX.md`
+
+Retail Permissions Action Matrix is CLOSED for design; no Action rows/backend wiring have been deployed.
+
+
+### RETAIL-BETA-ENVIRONMENT-PROVISIONING-PLAN.md
+
+`docs/RETAIL-BETA-ENVIRONMENT-PROVISIONING-PLAN.md`
+
+Retail Beta provisioning design is CLOSED; no Retail Business/device/backend currently exists.
