@@ -11,6 +11,9 @@ need(/onlineOrders:renderOnlineOrders/.test(app),'Online Orders renderer binding
 need(/if\(page==='onlineOrders'\).*canAccessPage\('deliveryOrders'\)/.test(app),'Compatibility permission bridge regressed');
 need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'Accept RPC ownership regressed');
 need((app.match(/rpc\('reject_website_order'/g)||[]).length===1,'Reject RPC ownership regressed');
+need(/data-online-fulfillment/.test(app),'Online Orders fulfillment type filter missing');
+need(/\['all','كل الأنواع'\].*\['delivery','🚚 توصيل'\].*\['pickup','🏪 استلام فرع'\]/.test(app),'Online Orders fulfillment filter options missing');
+need(/resolveOnlineOrderFulfillment\(entry\.row\)/.test(app),'Online Orders type filter must consume generic fulfillment boundary');
 if(fail.length){console.error('Online Orders Batch 14 Navigation UI Consolidation: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Online Orders Batch 14 Navigation UI Consolidation: PASS');
 console.log('sidebar=onlineOrders; home=onlineOrders; registry=data-page/index.html; delivery=separate; compat-permission=preserved');
