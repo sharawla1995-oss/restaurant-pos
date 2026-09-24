@@ -2565,3 +2565,15 @@ Retail Reports V1 design is CLOSED; implementation remains open.
 `docs/RETAIL-OFFLINE-SUPPORT-MATRIX.md`
 
 Retail Offline support matrix is CLOSED for design; POS-critical Offline is the recommended V1 promise.
+
+
+### Retail Acceptance V2
+
+Final Retail acceptance design:
+`docs/RETAIL-ACCEPTANCE-V2-DESIGN.md`
+
+Status:
+- design = CLOSED;
+- implementation/execution = NOT STARTED;
+- historical Beta23 suite remains evidence only and is not final authority;
+- current Retail closure requires a dedicated isolated Retail Beta Business/device/backend.
