@@ -2830,3 +2830,46 @@ Status:
 - generic Offline Pharmacy return fallback is an integrity risk and must be blocked before Pharmacy runtime closure.
 
 No DB/Runtime/Cloud/Production mutation was performed.
+
+
+## Pharmacy Closure Preparation — current checkpoint
+
+Authoritative Pharmacy preparation documents include:
+
+- `docs/PHARMACY-CLOSURE-AUDIT-2026-09-24.md`
+- `docs/PHARMACY-COSTING-REPORTS-V1-CONTRACT.md`
+- `docs/PHARMACY-OFFLINE-SUPPORT-MATRIX.md`
+- `docs/PHARMACY-PERMISSIONS-ACTION-MATRIX.md`
+- `docs/PHARMACY-ACCEPTANCE-V2-DESIGN.md`
+- `docs/PHARMACY-BETA-ENVIRONMENT-PROVISIONING-PLAN.md`
+- `docs/PHARMACY-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md`
+- `docs/PHARMACY-SALE-RETURN-INTEGRITY-CONTRACT.md`
+- `docs/PHARMACY-MENU-UX-CLEANUP-DESIGN.md`
+
+Current confirmed Pharmacy blockers:
+1. Pharmacy-specific return owner is missing.
+2. Sale-to-batch allocation is not yet line-bound by order_item_id.
+3. Prescription enforcement is UI-only today.
+4. FEFO is not yet a backend invariant.
+5. controlled_drug is not yet protected by a dedicated operational/audit owner.
+6. Insurance claim items are not created/reconciled by the current sale owner.
+7. Insurance split remains client-influenced instead of fully server-derived.
+8. Pharmacy sale is Online-only.
+9. Generic Offline Pharmacy return fallback is unsafe and must be blocked until the Pharmacy return owner exists.
+10. Pharmacy Profile-specific Action/Location/ACL hardening remains open.
+11. No Pharmacy Business/device/backend has been provisioned yet.
+
+Cloud reference:
+- Pharmacy Profile id = fa4320e5-0aa5-4df2-8fd8-5f2ea400f453
+- Pharmacy Activity Category id = bc12f7a0-1247-442c-b2cd-3f105c27c7de
+- current Pharmacy Business count = 0
+
+Pharmacy Menu/UX target:
+- canonical registry-owned Pharmacy routes;
+- no MutationObserver/setInterval route ownership;
+- use "تواريخ الصلاحية والتنبيهات" instead of ambiguous "الصلاحيات والتنبيهات";
+- feature-aware prescriptions/alternatives/insurance/claims/controlled-drug UI;
+- no Beta/SQL implementation messages in customer-facing UX;
+- valid claim transition actions instead of unrestricted status dropdown.
+
+No DB/Runtime/Cloud/Production mutation was performed by this checkpoint.
