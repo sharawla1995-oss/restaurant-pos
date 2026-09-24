@@ -903,6 +903,7 @@ async function renderHome(){
   activeDelivery=(activeDelivery||[]).filter(o=>ids.includes(Number(o.branch_id)));
   const cards=[
     ['pos','🧾','الكاشير','بيع وإنشاء أوردر جديد','mint'],
+    ['onlineOrders','🌐','الطلبات الأونلاين','استقبال ومتابعة طلبات القنوات الرقمية','green'],
     ['deliveryOrders','🛵','طلبات الدليفري',`${activeDelivery.length} طلب نشط`,'amber'],
     ['orders','📋','الطلبات','متابعة وطباعة الطلبات','blue'],
     ['returns','↩️','المرتجعات','مرتجع كلي أو جزئي من الفاتورة','rose'],
