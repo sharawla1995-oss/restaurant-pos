@@ -2470,3 +2470,17 @@ This is mandatory before:
 - V1 Production Ready security closure.
 
 It does not change the immediate SH-0007 58.26 G0-G3 runtime gate.
+
+
+### Cross-Profile owner inventory X0
+
+Read-only owner inventory:
+`docs/CROSS-PROFILE-OWNER-INVENTORY-X0.md`
+
+Current Beta schema inventory:
+- 88 audited functions across Retail / Pharmacy / Logistics / Membership / Service;
+- 0 / 88 currently consume Action V2;
+- X0 discovery baseline = CLOSED;
+- X1 ACL hardening / X2 Profile guard / X3 Action+Location / X4 negative matrix = NOT STARTED.
+
+This does not change the immediate G0-G3 Restaurant gate.
