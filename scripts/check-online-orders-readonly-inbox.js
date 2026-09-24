@@ -1,0 +1,24 @@
+'use strict';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const registry=fs.readFileSync('sharawla-navigation-registry.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
+need(/onlineOrders:renderOnlineOrders/.test(app),'onlineOrders must own read-only inbox renderer');
+const block=(app.match(/async function renderOnlineOrders\(\)[\s\S]*?\n}\n\nasync function renderDeliveryOrders/)||[])[0]||'';
+need(!!block,'renderOnlineOrders block missing');
+need(/website_orders/.test(block),'raw website inbox fetch missing');
+need(/data-web-details/.test(block),'details action missing');
+need(/data-web-receipt/.test(block),'payment receipt view missing');
+need(!/data-web-accept/.test(block),'Batch 2 must not move Accept');
+need(!/data-web-reject/.test(block),'Batch 2 must not move Reject');
+need(!/accept_website_order/.test(block),'Batch 2 must not call Accept RPC');
+need(!/reject_website_order/.test(block),'Batch 2 must not call Reject RPC');
+need(/routeKey:'onlineOrders'[^\n]+renderer:'renderOnlineOrders'/.test(registry),'registry renderer ownership missing');
+need(/routeKey:'onlineOrders'[^\n]+READ_ONLY_INBOX_FOUNDATION/.test(registry),'registry read-only marker missing');
+need(!/data-page="onlineOrders"/.test(html),'Batch 2 must not expose sidebar yet');
+need((app.match(/accept_website_order/g)||[]).length===1,'Accept ownership count changed');
+need((app.match(/reject_website_order/g)||[]).length===1,'Reject ownership count changed');
+if(fail.length){console.error('Online Orders Batch 2 Read-Only Inbox: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
+console.log('Online Orders Batch 2 Read-Only Inbox: PASS');
+console.log('route=onlineOrders; renderer=renderOnlineOrders; actions=details,receipt; accept_reject=legacy-owner; nav_exposed=false');
