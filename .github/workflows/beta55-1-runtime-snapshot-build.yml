@@ -73,7 +73,12 @@ jobs:
           $productMapText = Get-Content $productMap -Raw
           $navRegistryText = Get-Content $navRegistry -Raw
           $indexText = Get-Content $index -Raw
-          if (!$productMapText.Contains('1.0.0-product-map-phase1')) { throw 'packaged Product Map phase marker missing' }
+          if (!$productMapText.Contains('1.1.1-profile-aware-product-map')) { throw 'packaged Product Map profile-aware marker missing' }
+          if (!$productMapText.Contains("restaurant:'تشغيل المطعم'")) { throw 'packaged Restaurant Product Map label missing' }
+          if (!$productMapText.Contains("pharmacy:'تشغيل الصيدلية'")) { throw 'packaged Pharmacy profile-aware label missing' }
+          if (!$productMapText.Contains("retail:'تشغيل المتجر'")) { throw 'packaged Retail profile-aware label missing' }
+          if (!$productMapText.Contains("onlineOrders:'online-orders'")) { throw 'packaged Online Orders section mapping missing' }
+          if (!$productMapText.Contains("foodOperations:'inventory-purchasing'")) { throw 'packaged Food Operations inventory grouping missing' }
           if (!$productMapText.Contains('Presentation-only grouping layer. It MUST NOT dispatch routes or change permissions.')) { throw 'packaged Product Map presentation-only marker missing' }
           if (!$productMapText.Contains('REGISTRY_MISSING')) { throw 'packaged Product Map fail-closed registry guard missing' }
           if (!$navRegistryText.Contains("routeKey:'orders'")) { throw 'packaged Navigation Registry missing Orders route' }
