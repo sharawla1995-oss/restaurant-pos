@@ -827,7 +827,7 @@ const PAGE_RENDERERS=Object.freeze({
   orders:renderOrders,
   returns:renderReturns,
   customers:renderCustomers,
-  onlineOrders:renderDeliveryOrders,
+  onlineOrders:renderOnlineOrders,
   deliveryOrders:renderDeliveryOrders,
   deliverySettings:renderDeliverySettings,
   delivery:renderDeliveryOrders,
@@ -2317,6 +2317,17 @@ async function openWebsiteOrderReview(id,action=null){
   return await new Promise(resolve=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card website-order-review-modal"><h2>🌐 WEB-${String(w.id).padStart(5,'0')} • مراجعة الطلب</h2><p class="web-review-warning">راجع العنوان والمنطقة والأصناف قبل ${action==='accept'?'الاستلام':action==='reject'?'الرفض':'اتخاذ القرار'}.</p>${websiteOrderDetailsHTML(d)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${action==='reject'?'<button class="danger" data-confirm>رفض الطلب</button>':action==='accept'?'<button class="primary" data-confirm>✅ استلام الطلب</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){m.remove();resolve(false);return}if(e.target.closest('[data-confirm]')){m.remove();resolve(true)}}});
  }catch(e){toast(e.message);return false}
 }
+async function renderOnlineOrders(){
+  $('#page').innerHTML='<div class="panel"><h2>🌐 الطلبات الأونلاين</h2><div class="empty">جاري التحميل...</div></div>';
+  const webOrders=await rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`).catch(()=>[]);
+  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}</span></div>`).join('')}</div></div>`:'<div class="panel website-orders-panel"><h2>🌐 الطلبات الجديدة</h2><div class="empty">لا توجد طلبات أونلاين جديدة</div></div>';
+  $('#page').innerHTML=websitePanel;
+  $('#page').onclick=async e=>{
+    const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
+    const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
+  };
+}
+
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
   const [orders,drivers,webOrders]=await Promise.all([
