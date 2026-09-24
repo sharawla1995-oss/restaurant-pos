@@ -2431,3 +2431,11 @@ Batch implementation plan:
 `docs/PERMISSIONS-V2-IMPLEMENTATION-BATCH-PLAN.md`
 
 This plan is documentation-only until G0/G1/G2/G3 runtime gates are closed.
+
+
+### SH-0007 runtime operator checklist
+
+When the laptop/device is available, execute:
+`docs/SH0007-58-26-RUNTIME-OPERATOR-CHECKLIST.md`
+
+This checklist closes G0 -> G3 and is the only runtime work that precedes Permissions V2 implementation.
