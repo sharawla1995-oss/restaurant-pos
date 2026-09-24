@@ -2551,3 +2551,17 @@ Current conclusion:
 - SH-0007 remains Restaurant Beta and is not repurposed by this audit.
 
 No DB/Runtime/Cloud mutation was performed.
+
+
+### RETAIL-REPORTS-V1-CONTRACT.md
+
+`docs/RETAIL-REPORTS-V1-CONTRACT.md`
+
+Retail Reports V1 design is CLOSED; implementation remains open.
+
+
+### RETAIL-OFFLINE-SUPPORT-MATRIX.md
+
+`docs/RETAIL-OFFLINE-SUPPORT-MATRIX.md`
+
+Retail Offline support matrix is CLOSED for design; POS-critical Offline is the recommended V1 promise.
