@@ -2386,10 +2386,39 @@ async function rejectOnlineOrderFromChannel(orderRef,opts={}){
 
 async function renderOnlineOrders(){
   $('#page').innerHTML='<div class="panel"><h2>🌐 الطلبات الأونلاين</h2><div class="empty">جاري التحميل...</div></div>';
-  const webOrders=await rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`).catch(()=>[]);
-  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${esc(resolveOnlineOrderChannel('website').label)} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>الحالة: ${onlineOrderLifecycleState(w,'source').state==='new'?'جديد':esc(onlineOrderLifecycleState(w,'source').state)}</small><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button></span></div>`).join('')}</div></div>`:'<div class="panel website-orders-panel"><h2>🌐 الطلبات الجديدة</h2><div class="empty">لا توجد طلبات أونلاين جديدة</div></div>';
-  $('#page').innerHTML=websitePanel;
+  const [sourceRows,canonicalRows]=await Promise.all([
+    rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&order=created_at.desc&limit=100`).catch(()=>[]),
+    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&source=eq.website&order=created_at.desc&limit=100`).catch(()=>[])
+  ]);
+  const source=(sourceRows||[]).map(w=>({kind:'source',row:w,lifecycle:onlineOrderLifecycleState(w,'source'),channel:resolveOnlineOrderChannel('website')}));
+  const canonical=(canonicalRows||[]).map(o=>({kind:'canonical',row:o,lifecycle:onlineOrderLifecycleState(o,'canonical'),channel:resolveOnlineOrderChannel(o.source||'website')}));
+  const entries=[...source,...canonical].sort((a,b)=>new Date(b.row.created_at||0)-new Date(a.row.created_at||0));
+  const views=[
+    ['all','الكل'],['new','جديد'],['accepted','مقبول'],['in_fulfillment','قيد التنفيذ'],['completed','مكتمل'],['rejected_cancelled','مرفوض / ملغي']
+  ];
+  const matchesView=(entry,view)=>view==='all'||entry.lifecycle.state===view||(view==='rejected_cancelled'&&['rejected','cancelled'].includes(entry.lifecycle.state));
+  const lifecycleLabel=state=>({new:'جديد',accepted:'مقبول',in_fulfillment:'قيد التنفيذ',completed:'مكتمل',rejected:'مرفوض',cancelled:'ملغي',unknown:'غير معروف'}[state]||state);
+  let view='new';
+  const draw=()=>{
+    const rows=entries.filter(x=>matchesView(x,view));
+    const buttons=views.map(([key,label])=>`<button class="${view===key?'active':''}" data-online-view="${key}">${label}</button>`).join('');
+    const body=rows.map(entry=>{
+      const w=entry.row,isSource=entry.kind==='source',isNew=entry.lifecycle.state==='new';
+      const idLabel=isSource?`WEB-${String(w.id).padStart(5,'0')}`:esc(bonDisplay(w));
+      const type=w.order_type==='pickup'?'🏪 استلام فرع':w.order_type==='delivery'?'🛵 دليفري':esc(w.order_type||'طلب');
+      const customer=esc(w.customer_name||w.customer_phone||'عميل');
+      const phone=w.customer_phone?`<small>${esc(w.customer_phone)}</small>`:'';
+      const address=w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`;
+      const sourceActions=isSource&&isNew?`<button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button>`:'';
+      return `<div class="delivery-row website-pending"><span class="delivery-row-id"><b>${idLabel} • ${esc(entry.channel.label)} • ${type}</b><small>الحالة: ${esc(lifecycleLabel(entry.lifecycle.state))}</small><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${customer}</b>${phone}<small class="web-pending-address">${address}</small></span><strong>${money(w.total)}</strong><span>${sourceActions}</span></div>`;
+    }).join('');
+    $('#page').innerHTML=`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الأونلاين <span class="status-pill">${entries.length}</span></h2><div class="delivery-filter" id="onlineOrdersFilter">${buttons}</div></div><div class="delivery-rows">${body||'<div class="empty">لا توجد طلبات مطابقة</div>'}</div></div>`;
+  };
+  draw();
   $('#page').onclick=async e=>{
+    const filter=e.target.closest('[data-online-view]');if(filter){view=filter.dataset.onlineView;draw();return}
+    const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
+    const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
     const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
     const rej=e.target.closest('[data-online-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.onlineReject),{source:rej.dataset.onlineSource});if(!result.rejected)return;toast('تم رفض الطلب');return renderOnlineOrders()}catch(err){return toast(err.message)}}
   };
