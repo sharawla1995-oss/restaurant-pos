@@ -30,25 +30,29 @@ need(js.includes("if(node.matches?.('[data-beta55-hr-group]'))return '__hr_group
 
 for(const pair of [
   ["'online-orders':'online-orders'",'Online Orders must have its own Product Map section'],
-  ["operations:'restaurant-operations'",'Restaurant operations alias missing'],
+  ["operations:'profile-operations'",'Restaurant operations alias missing'],
   ["'digital-channels':'website'",'Digital channels must group under Website Management'],
   ["employees:'hr'",'Employee routes must group under Employees'],
   ["integrations:'integrations'",'Integrations reserved group alias missing'],
   ["settings:'administration'",'Settings routes must group under Administration']
 ]) need(js.includes(pair[0]),pair[1]);
 
-for(const label of ['المبيعات','الطلبات الأونلاين','تشغيل المطعم','المخزون والمشتريات','الموظفون','المالية','التقارير','إدارة الموقع','التكاملات','الإدارة والإعدادات']){
+for(const label of ['المبيعات','الطلبات الأونلاين','المخزون والمشتريات','الموظفون','المالية','التقارير','إدارة الموقع','التكاملات','الإدارة والإعدادات']){
   need(js.includes("label:'"+label+"'"),'Restaurant Product Map label missing: '+label);
 }
 for(const pair of [
   ["onlineOrders:'online-orders'",'onlineOrders must stay in its own operational inbox section'],
-  ["deliveryOrders:'restaurant-operations'",'Delivery Orders must live under Restaurant Operations'],
-  ["delivery:'restaurant-operations'",'Delivery alias must live under Restaurant Operations'],
-  ["kitchen:'restaurant-operations'",'Kitchen must live under Restaurant Operations'],
-  ["tables:'restaurant-operations'",'Tables must live under Restaurant Operations'],
+  ["deliveryOrders:'profile-operations'",'Delivery Orders must live under Restaurant Operations'],
+  ["delivery:'profile-operations'",'Delivery alias must live under Restaurant Operations'],
+  ["kitchen:'profile-operations'",'Kitchen must live under Restaurant Operations'],
+  ["tables:'profile-operations'",'Tables must live under Restaurant Operations'],
   ["foodOperations:'inventory-purchasing'",'Production/Waste must live under Inventory & Purchasing']
 ]) need(js.includes(pair[0]),pair[1]);
 
+need(js.includes("restaurant:'تشغيل المطعم'"),'Restaurant operations label must be profile-aware');
+need(js.includes("pharmacy:'تشغيل الصيدلية'"),'Pharmacy operations label must not leak Restaurant wording');
+need(js.includes("retail:'تشغيل المتجر'"),'Retail operations label must not leak Restaurant wording');
+need(js.includes("SharawlaRuntimeConfig?.current?.()?.pos_profile"),'Profile-aware label must use authoritative Runtime Config');
 need(js.includes("never invents a button just to make an empty section visible"),'Empty Integrations section must not create a fake route/button');
 
 need(js.includes("nav.appendChild(frag);"),'Top-level units must remain direct #nav children');

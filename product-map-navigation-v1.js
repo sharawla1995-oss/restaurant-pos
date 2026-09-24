@@ -3,7 +3,7 @@
 
 // Sharawla Product Map Navigation V1 — Phase 1
 // Presentation-only grouping layer. It MUST NOT dispatch routes or change permissions.
-const VERSION='1.1.0-restaurant-product-map';
+const VERSION='1.1.1-profile-aware-product-map';
 
 const GROUPS=Object.freeze([
   // Restaurant Product Map Reference. Home is the first section/route and has no
@@ -11,7 +11,7 @@ const GROUPS=Object.freeze([
   Object.freeze({key:'home',label:null,order:0}),
   Object.freeze({key:'sales',label:'المبيعات',order:10}),
   Object.freeze({key:'online-orders',label:'الطلبات الأونلاين',order:20}),
-  Object.freeze({key:'restaurant-operations',label:'تشغيل المطعم',order:30}),
+  Object.freeze({key:'profile-operations',label:'تشغيل النشاط',order:30}),
   Object.freeze({key:'inventory-purchasing',label:'المخزون والمشتريات',order:40}),
   Object.freeze({key:'hr',label:'الموظفون',order:50}),
   Object.freeze({key:'finance',label:'المالية',order:60}),
@@ -29,7 +29,7 @@ const GROUP_ALIAS=Object.freeze({
   overview:'home',
   sales:'sales',
   'online-orders':'online-orders',
-  operations:'restaurant-operations',
+  operations:'profile-operations',
   'inventory-purchasing':'inventory-purchasing',
   employees:'hr',
   hr:'hr',
@@ -46,10 +46,10 @@ const GROUP_ALIAS=Object.freeze({
 // These do not select or replace route/render owners.
 const ROUTE_GROUP_OVERRIDES=Object.freeze({
   onlineOrders:'online-orders',
-  deliveryOrders:'restaurant-operations',
-  delivery:'restaurant-operations',
-  kitchen:'restaurant-operations',
-  tables:'restaurant-operations',
+  deliveryOrders:'profile-operations',
+  delivery:'profile-operations',
+  kitchen:'profile-operations',
+  tables:'profile-operations',
   foodOperations:'inventory-purchasing'
 });
 
@@ -67,6 +67,24 @@ const ROUTE_ORDER=Object.freeze([
 ]);
 
 const routeRank=new Map(ROUTE_ORDER.map((x,i)=>[x,i]));
+
+const PROFILE_OPERATION_LABELS=Object.freeze({
+  restaurant:'تشغيل المطعم',
+  retail:'تشغيل المتجر',
+  pharmacy:'تشغيل الصيدلية',
+  logistics:'تشغيل اللوجستيات',
+  membership:'تشغيل العضويات',
+  warehouse:'تشغيل المخزن',
+  service:'تشغيل الخدمات'
+});
+
+function activeProfile(){
+  try{return String(global.SharawlaRuntimeConfig?.current?.()?.pos_profile||'').trim().toLowerCase()}catch{return ''}
+}
+function groupLabel(group){
+  if(group.key!=='profile-operations')return group.label||'';
+  return PROFILE_OPERATION_LABELS[activeProfile()]||group.label||'تشغيل النشاط';
+}
 let syncing=false,queued=false,observer=null;
 
 function registryRoutes(){
@@ -106,7 +124,7 @@ function makeLabel(group){
   el.className='sharawla-nav-group-label';
   el.dataset.productMapNavV1='1';
   el.dataset.navGroup=group.key;
-  el.textContent=group.label||'';
+  el.textContent=groupLabel(group);
   el.setAttribute('aria-hidden','true');
   return el;
 }

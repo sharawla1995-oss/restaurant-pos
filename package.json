@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.58.16",
-  "description": "Sharawla POS V10.5.4 Beta 58.16 - SH-0007 Restaurant Product Map 11-Section Reference",
+  "version": "10.5.4-beta.58.17",
+  "description": "Sharawla POS V10.5.4 Beta 58.17 - SH-0007 Profile-Aware Product Map Reference",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
