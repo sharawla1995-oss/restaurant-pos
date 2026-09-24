@@ -180,9 +180,9 @@ if(baseRenderShifts){
  global.renderShifts=async function(){
   await baseRenderShifts.apply(this,arguments);
   try{
-   const emp=Number(global.state?.employee?.id||0),bid=branchId();
-   const rows=await global.rest('shifts',`select=*&branch_id=eq.${bid}&employee_id=eq.${emp}&status=eq.open&closed_at=is.null&order=opened_at.desc&limit=1`);
-   const open=rows?.[0];if(!open)return;
+   const bid=branchId();
+   const open=typeof global.getOpenShift==='function'?await global.getOpenShift():null;
+   if(!open)return;
    const metrics=await global.shiftMetrics(open);
    const root=document.querySelector('.shift-current');if(!root)return;
    root.querySelector('[data-driver-shift-cash-v2]')?.remove();
@@ -196,18 +196,18 @@ if(baseRenderShifts){
    if(closeBtn){
     const legacyClose=closeBtn.onclick;
     closeBtn.onclick=async()=>{
-     const actual=Number(document.querySelector('#closingCash')?.value);
-     if(!Number.isFinite(actual)||actual<0){toastLocal('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');return}
-     const fresh=await global.shiftMetrics(open);
-     const pending=(fresh.orders||[]).filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));
-     if(pending.length){toastLocal(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);return}
-     const unsettled=num(fresh.driverCustodyUnsettled);
-     if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
-     if(!isOnline())return legacyClose?.();
-     closeBtn.disabled=true;
      try{
+      const actual=Number(document.querySelector('#closingCash')?.value);
+      if(!Number.isFinite(actual)||actual<0){toastLocal('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');return}
+      const fresh=await global.shiftMetrics(open);
+      const pending=(fresh.orders||[]).filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));
+      if(pending.length){toastLocal(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);return}
+      const unsettled=num(fresh.driverCustodyUnsettled);
+      if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
+      if(!isOnline())return await legacyClose?.();
+      closeBtn.disabled=true;
       const closed=await global.rpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
-      try{await global.odbSet?.(`openShift:${global.state?.employee?.id}:${bid}`,null)}catch{}
+      try{await global.odbSet?.(`openShift:${open.employee_id}:${bid}`,null)}catch{}
       const diff=num(closed?.cash_difference);
       toastLocal(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${moneyLocal(Math.abs(diff))}`);
       try{if(global.topBurgerDesktop?.backup?.create)await global.topBurgerDesktop.backup.create('shift-close')}catch{}
@@ -216,7 +216,10 @@ if(baseRenderShifts){
       if(typeof global.openShiftReport==='function'){
        try{const employees=await global.rest('employees','select=id,name,branch_id,role,active&order=name');await global.openShiftReport(closed,employees||[])}catch{}
       }
-     }catch(err){toastLocal(err?.message||String(err));closeBtn.disabled=false}
+     }catch(err){
+      closeBtn.disabled=false;
+      toastLocal(err?.message||String(err));
+     }
     };
    }
   }catch(err){console.warn('Beta55 shift cash UI enhancement',err)}
