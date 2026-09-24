@@ -2388,7 +2388,7 @@ async function renderDeliveryOrders(){
     const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
     const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
     const acc=e.target.closest('[data-web-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.webAccept),{source:'website'});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderDeliveryOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
-    const rej=e.target.closest('[data-web-reject]');if(rej){if(!await openWebsiteOrderReview(Number(rej.dataset.webReject),'reject'))return;try{await rpc('reject_website_order',{p_website_order_id:Number(rej.dataset.webReject)});toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
+    const rej=e.target.closest('[data-web-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.webReject),{source:'website'});if(!result.rejected)return;toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
     const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
   };
   draw();
