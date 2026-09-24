@@ -2921,3 +2921,57 @@ Current Pharmacy implementation batches:
 PREPARED / NOT STARTED.
 
 No DB/Runtime/Cloud/Production mutation was performed.
+
+
+## Retail V1 Official Closure Roadmap
+
+Authoritative roadmap:
+`docs/RETAIL-V1-OFFICIAL-CLOSURE-ROADMAP.md`
+
+Official sequence:
+R0 -> R24
+
+This supersedes the coarse RG0-RG10 summary as the detailed Retail closure authority.
+
+Highlights:
+- dedicated Retail Business/device/backend;
+- Point4 stock ownership baseline without reopening platform Point4;
+- trusted Retail Profile + Action + Location + ACL from the start;
+- explicit Product/Barcode/Decimal/Weighted-sales capability alignment;
+- POS / Return / Customers / Offers / Inventory / Count / Transfers / Purchasing;
+- Variants and Advanced Purchasing as independently closed Add-ons;
+- Delivery/Pickup / Website / Offline;
+- Retail Reports/Finance;
+- Printing/Touch/UX;
+- Security final closure;
+- Diagnostics/Recovery;
+- Full Acceptance;
+- Multi-Branch / Windows / UAT;
+- Final Closure / Release.
+
+Evidence model:
+SOURCE / CLOUD-DB / RUNTIME / ACCEPTANCE / ROLLBACK
+with PASS / FAIL / OPEN / justified N/A.
+
+No Runtime/DB/Cloud/Production mutation was performed.
+
+
+## Retail V1 Implementation Batch Plan
+
+Execution preparation:
+`docs/RETAIL-V1-IMPLEMENTATION-BATCH-PLAN.md`
+
+Controlled implementation batches:
+RET-P0 -> RET-P22
+
+No executable Retail batch starts before:
+- Restaurant SH-0007 G0 PASS;
+- G1 PASS;
+- G2 PASS;
+- G3 CLOSED;
+- Retail R0 environment provisioning authorization.
+
+Current Retail implementation batches:
+PREPARED / NOT STARTED.
+
+No Runtime/DB/Cloud/Production mutation was performed.
