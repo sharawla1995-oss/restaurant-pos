@@ -518,7 +518,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
-  if(page==='onlineOrders')return canAccessPage('deliveryOrders');
+  if(page==='onlineOrders'){if(!runtimeAllowsPage(page)||!runtimeOperationalAllowsPage(page))return false;return canAccessPage('deliveryOrders')}
   if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;
   if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
