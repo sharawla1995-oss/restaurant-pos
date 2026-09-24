@@ -2423,3 +2423,11 @@ G0 Full Acceptance
 -> G12 Cross-Profile / Release Continuation.
 
 It does not change Runtime, SQL deployment, package version, Production state, Canonical Stock or Cutover.
+
+
+### Permissions V2 implementation preparation
+
+Batch implementation plan:
+`docs/PERMISSIONS-V2-IMPLEMENTATION-BATCH-PLAN.md`
+
+This plan is documentation-only until G0/G1/G2/G3 runtime gates are closed.
