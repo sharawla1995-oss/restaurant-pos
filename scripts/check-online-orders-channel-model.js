@@ -1,0 +1,22 @@
+'use strict';
+const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
+const model=(app.match(/function resolveOnlineOrderChannel\([\s\S]*?\n}\nfunction onlineOrderNotificationRoute/)||[])[0]||'';
+const route=(app.match(/function onlineOrderNotificationRoute\([\s\S]*?\n}/)||[])[0]||'';
+const accept=(app.match(/async function acceptOnlineOrderFromChannel\([\s\S]*?\n}\n\nfunction onlineOrderLifecycleState/)||[])[0]||'';
+const reject=(app.match(/async function rejectOnlineOrderFromChannel\([\s\S]*?\n}\n\nasync function renderOnlineOrders/)||[])[0]||'';
+need(/source==='website'.*channel:'web'.*source:'website'.*connector:'website'/.test(model),'website channel mapping missing');
+need(/supported:true/.test(model),'website support marker missing');
+need(/connector:null.*supported:false/.test(model),'unknown connector must fail closed');
+need(/resolveOnlineOrderChannel\(source\)/.test(route),'notification route must consume channel model');
+need(/channel\.supported\?'onlineOrders':null/.test(route),'notification unknown channel must remain blocked');
+need(/resolveOnlineOrderChannel\(opts\.source\|\|'website'\)/.test(accept),'Accept must consume channel model');
+need(/if\(!channel\.supported\)/.test(accept),'Accept unsupported channel guard missing');
+need(/accepted:true,source,channel/.test(accept),'Accept channel metadata missing');
+need(/resolveOnlineOrderChannel\(opts\.source\|\|'website'\)/.test(reject),'Reject must consume channel model');
+need(/rejected:true,source,channel/.test(reject),'Reject channel metadata missing');
+need(/resolveOnlineOrderChannel\('website'\)\.label/.test(app),'Online Inbox source label not channel-derived');
+need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'Accept RPC ownership regressed');
+need((app.match(/rpc\('reject_website_order'/g)||[]).length===1,'Reject RPC ownership regressed');
+if(fail.length){console.error('Online Orders Batch 9 Channel Model: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
+console.log('Online Orders Batch 9 Channel Model: PASS');
+console.log('core=channel/source/connector; website=adapter; unknown=fail-closed; rpc-owners=preserved');
