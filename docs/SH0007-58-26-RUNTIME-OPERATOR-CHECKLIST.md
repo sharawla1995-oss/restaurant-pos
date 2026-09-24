@@ -98,6 +98,9 @@ Before Full Sandbox:
 - confirm normal navigation loads;
 - confirm no unexpected Production data;
 - confirm Offline queue status is visible;
+- confirm a second active Beta branch is still accessible to the test admin;
+- current fixture evidence expects branch #3 `hgolj` to satisfy `other_branch_id` when branch #1 TEST is primary;
+- do not deactivate/delete that second branch before G0;
 - note unresolved count before test.
 
 Record:
