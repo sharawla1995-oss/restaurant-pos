@@ -2232,8 +2232,11 @@ Action-specific Location Scope V2 is additive and may never expand beyond that c
 Beta note:
 - operational branch #1 = TEST;
 - operational branch #3 = hgolj;
-- #3 has no observed orders/shifts/expenses/stock/delivery/print state but has employee-branch links;
-- treat #3 as Beta residue/investigation; do not delete automatically.
+- deployed Restaurant Acceptance fixture explicitly requires a second active accessible branch and currently selects #3 as `other_branch_id`;
+- historical Acceptance audit rows on #3 confirm B55R secondary-branch stock adjustments and transfer receives from branch #1;
+- #3 is therefore current Acceptance infrastructure, not disposable residue;
+- do not delete/deactivate #3 or remove test-admin access before G0;
+- after G0/G3, decide whether to retain/rename/code it as the deliberate Beta fixture location before Location Code finalization.
 
 ### Printer Roles V1 decision
 
