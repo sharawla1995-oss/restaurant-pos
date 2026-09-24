@@ -2591,3 +2591,15 @@ Retail Permissions Action Matrix is CLOSED for design; no Action rows/backend wi
 `docs/RETAIL-BETA-ENVIRONMENT-PROVISIONING-PLAN.md`
 
 Retail Beta provisioning design is CLOSED; no Retail Business/device/backend currently exists.
+
+
+### Retail Product Map + capability alignment
+
+Design:
+`docs/RETAIL-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md`
+
+Status:
+- Retail Product Map design = CLOSED.
+- Shared Delivery registry metadata still needs runtime/source correction later.
+- Weighted Sales split recorded: decimal/fraction quantity remains Retail baseline; scale/embedded barcode behavior becomes commerce.weight_sales capability target.
+- No Runtime/Cloud/DB mutation was performed.
