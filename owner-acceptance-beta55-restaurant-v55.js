@@ -7,7 +7,7 @@ const eq=(a,b,eps=.005)=>Math.abs(Number(a||0)-Number(b||0))<=eps;
 const tx=(run,s)=>`${run}-B55R-${s}`;
 const marker=run=>`SHARAWLA_ACCEPTANCE:${run}:B55R`;
 const POINT4_IDENTITY_V1='sharawla.point4.identity.v1';
-const point4Uuid=()=>{const v=String(global.crypto?.randomUUID?.()||'').trim().toLowerCase();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v))throw new Error('Acceptance Point4 UUIDv4 unavailable');return v};
+const point4Uuid=()=>{const provider=global.__SharawlaPoint4UuidV4;if(!provider||typeof provider.next!=='function')throw new Error('Acceptance Point4 UUIDv4 provider unavailable');return provider.next()};
 const point4Effect=(effect,lineUid)=>`v1:stock:${effect}:${lineUid}`;
 const cfg=()=>{try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}};
 const branch=()=>Number(global.currentBranchId?.()||0);

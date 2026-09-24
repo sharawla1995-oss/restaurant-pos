@@ -46,6 +46,7 @@ jobs:
           node scripts/check-kitchen-labels-plan-v1.js
           node scripts/check-shared-inventory-purchasing-routing-v1.js
           node scripts/check-restaurant-acceptance-stage-v1.js
+          node scripts/check-point4-secure-uuid-v4.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -77,18 +78,21 @@ jobs:
           $inventoryOverview = Join-Path $probe 'inventory-overview-v1.js'
           $touchCss = Join-Path $probe 'touch-ux-v1.css'
           $settingsHubCss = Join-Path $probe 'settings-hub-v1.css'
+          $point4Uuid = Join-Path $probe 'point4-uuid-v4.js'
           if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
           if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
           if (!(Test-Path $index)) { throw 'packaged index.html missing' }
           if (!(Test-Path $inventoryOverview)) { throw 'packaged Inventory Overview runtime missing' }
           if (!(Test-Path $touchCss)) { throw 'packaged Touch UX stylesheet missing' }
           if (!(Test-Path $settingsHubCss)) { throw 'packaged Settings Hub stylesheet missing' }
+          if (!(Test-Path $point4Uuid)) { throw 'packaged Point4 UUID provider missing' }
           $productMapText = Get-Content $productMap -Raw
           $navRegistryText = Get-Content $navRegistry -Raw
           $indexText = Get-Content $index -Raw
           $inventoryOverviewText = Get-Content $inventoryOverview -Raw
           $touchCssText = Get-Content $touchCss -Raw
           $settingsHubCssText = Get-Content $settingsHubCss -Raw
+          $point4UuidText = Get-Content $point4Uuid -Raw
           if (!$productMapText.Contains('1.1.1-profile-aware-product-map')) { throw 'packaged Product Map profile-aware marker missing' }
           if (!$productMapText.Contains("restaurant:'تشغيل المطعم'")) { throw 'packaged Restaurant Product Map label missing' }
           if (!$productMapText.Contains("pharmacy:'تشغيل الصيدلية'")) { throw 'packaged Pharmacy profile-aware label missing' }
@@ -116,6 +120,10 @@ jobs:
           if (!$app.Contains("if(profile==='retail')return renderRetailPOS()")) { throw 'packaged Retail POS adapter missing' }
           if (!$app.Contains('data-pos-profile-fail-closed="PROFILE_NOT_POS"')) { throw 'packaged non-POS fail-closed guard missing' }
           if (!$app.Contains("status:['delivery','pickup'].includes(orderType)?'new':'completed'")) { throw 'packaged Pickup lifecycle gate missing' }
+          if (!$point4UuidText.Contains('1.0.0-secure-fallback')) { throw 'packaged Point4 UUID secure fallback marker missing' }
+          if (!$point4UuidText.Contains("mode:'WEB_CRYPTO_SECURE_ONLY'")) { throw 'packaged Point4 UUID secure-only marker missing' }
+          if ($point4UuidText.Contains('Math.random') -or $point4UuidText.Contains('Date.now')) { throw 'packaged Point4 UUID contains insecure fallback' }
+          if (!$app.Contains('window.__SharawlaPoint4UuidV4')) { throw 'packaged app.js missing Point4 UUID provider delegation' }
           if (!$app.Contains('data-settings-hub-v1="1"')) { throw 'packaged Settings Hub marker missing' }
           if (!$app.Contains('تفعيل تشغيل المطبخ')) { throw 'packaged app.js missing explicit Kitchen operational label' }
           $restaurantEngineText = Get-Content (Join-Path $probe 'restaurant-engine.js') -Raw
@@ -133,6 +141,9 @@ jobs:
           if (!$indexText.Contains($settingsHubRef)) { throw "packaged index missing versioned Settings Hub reference: $settingsHubRef" }
           if (!$touchCssText.Contains('@media (any-pointer: coarse)')) { throw 'packaged Touch UX coarse-pointer gate missing' }
           if (!$touchCssText.Contains('--sharawla-touch-target:46px')) { throw 'packaged Touch UX target size marker missing' }
+          $point4UuidRef = "point4-uuid-v4.js?v=$($pkg.version)"
+          if (!$indexText.Contains($point4UuidRef)) { throw "packaged index missing versioned Point4 UUID reference: $point4UuidRef" }
+          if ($indexText.IndexOf($point4UuidRef) -gt $indexText.IndexOf('app.js?v=')) { throw 'packaged Point4 UUID provider loads after app.js' }
           $touchRef = "touch-ux-v1.css?v=$($pkg.version)"
           if (!$indexText.Contains($touchRef)) { throw "packaged index missing versioned Touch UX reference: $touchRef" }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw

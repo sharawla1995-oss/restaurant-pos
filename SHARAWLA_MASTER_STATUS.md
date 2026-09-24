@@ -1615,3 +1615,39 @@ After this route-ownership gate passes, Menu/Function Cleanup is structurally cl
 Kitchen Stations remains planned behind its prerequisite sequence.
 
 Production SH-0005 / SH-0006 remain untouched/read-only.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Beta58.25 Point4 Secure UUID Runtime Fix
+
+### Trigger evidence
+
+SH-0007 Full Acceptance on **10.5.4-beta.58.22** had one automated failure:
+`beta55.restaurant-full-roundtrip — POINT4_IDENTITY_UUID_V4_REQUIRED`.
+
+Read-only inspection of Beta DB function bodies showed Restaurant sale/return SQL does not emit that code. Source inspection located the code in the renderer Point 4 UUID helper: native `crypto.randomUUID()` was preferred, but the old fallback used generic timestamp/Math.random text, which Point 4 correctly rejected as non-UUID-v4.
+
+### 58.25 correction
+
+- Adds one shared Point 4 UUID provider: `point4-uuid-v4.js`.
+- Native path: `crypto.randomUUID()`.
+- Secure compatibility path: `crypto.getRandomValues()` with RFC4122 UUID-v4 version/variant bits.
+- No Math.random fallback.
+- No timestamp fallback.
+- If secure Web Crypto is absent, identity remains fail-closed with `POINT4_IDENTITY_UUID_V4_REQUIRED`.
+- POS sale/return identity and Restaurant Full Acceptance fixture share the same provider.
+- Keeps 58.23 Shared Inventory/Purchasing Core Route Ownership and 58.24 Restaurant acceptance stage diagnostics intact.
+
+### Safety
+
+- No Supabase migration.
+- No Point 4 guard weakening.
+- No Canonical Stock/Cutover activation.
+- No Production write.
+- SH-0005 / SH-0006 remain untouched on 10.5.3 CLEAN.
+
+### Runtime gate
+
+Install 58.25 on SH-0007 only and rerun Full Acceptance.
+If Restaurant Full Roundtrip still fails, 58.24 stage diagnostics must identify the exact stage in the error text.
