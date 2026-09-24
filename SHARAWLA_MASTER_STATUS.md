@@ -2442,3 +2442,31 @@ When the laptop/device is available, execute:
 `docs/SH0007-58-26-RUNTIME-OPERATOR-CHECKLIST.md`
 
 This checklist closes G0 -> G3 and is the only runtime work that precedes Permissions V2 implementation.
+
+
+### Cross-Profile backend authorization audit
+
+Read-only Beta audit artifact:
+`docs/CROSS-PROFILE-BACKEND-AUTHORIZATION-AUDIT.md`
+
+Confirmed platform finding:
+- profile-specific UI/navigation isolation is not yet sufficient as a backend authorization boundary;
+- multiple Retail / Pharmacy / Logistics / Membership / Service owners are SECURITY DEFINER and currently do not consume Action V2 or an explicit trusted Profile guard;
+- some owners rely only on authentication, branch access, business invariants, or legacy permissions;
+- PUBLIC/anon EXECUTE privilege is still present on many of those public SECURITY DEFINER functions, although internal auth guards may still reject anonymous calls.
+
+No fix was deployed in this checkpoint.
+
+Required closure:
+- owner inventory;
+- EXECUTE grant hardening for sensitive mutating owners;
+- trusted Profile/Capability owner guard;
+- Action V2 + Location enforcement;
+- cross-profile negative RPC matrix.
+
+This is mandatory before:
+- Cross-Profile Closure;
+- any Sharawla AI action that could reach those owners;
+- V1 Production Ready security closure.
+
+It does not change the immediate SH-0007 58.26 G0-G3 runtime gate.
