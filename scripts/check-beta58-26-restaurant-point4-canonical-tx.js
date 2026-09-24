@@ -21,7 +21,7 @@ need(sql.includes("inventory_stock_assert_legacy_write_allowed_v2"),'Point4 clea
 need(sql.includes("delete from public.food_return_consumption_snapshots"),'return snapshot cleanup missing');
 need(sql.includes("delete from public.orders where id=any(v_orders)"),'order cleanup missing');
 need(!/create\s+or\s+replace\s+function\s+public\.(create_pos_order_atomic|create_food_pos_order_atomic_v1|create_order_return_idempotent|create_food_order_return_idempotent_v1)/i.test(sql),'business sale/return runtime must remain untouched');
-need(pkg.version==='10.5.4-beta.58.26','expected Beta58.26');
+need(/^10\.5\.4-beta\.58\.(?:2[6-9]|[3-9][0-9]|[1-9][0-9]{2,})$/.test(pkg.version),'expected Beta58.26+ line');
 
 if(fail.length){console.error('Beta58.26 Restaurant Point4 Canonical TX Acceptance: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Beta58.26 Restaurant Point4 Canonical TX Acceptance: PASS');

@@ -32,6 +32,7 @@ jobs:
         run: |
           npm run sync-version
           node scripts/check-runtime-syntax.js
+          node scripts/check-beta58-27-nav-foreach.js
           node scripts/check-beta55-restaurant-acceptance.js
           node scripts/check-beta56-runtime-snapshot-consumer.js
           node scripts/check-offline-auth-authoritative-order.js
