@@ -20,6 +20,7 @@
     shifts:'pos',
     returns:'returns',
     customers:'customers',
+    onlineOrders:'delivery',
     deliveryOrders:'delivery',
     deliverySettings:'delivery',
     delivery:'delivery',
@@ -45,7 +46,7 @@
 
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',
-    deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
+    onlineOrders:'الطلبات الأونلاين',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
     kitchen:'المطبخ',tables:'الصالات والترابيزات',shifts:'الشيفت',inventory:'المخزون',
     foodIngredients:'الخامات',foodRecipes:'الوصفات وFood Cost',foodOperations:'الإنتاج والهالك',
     stockCount:'جرد الخامات',transfers:'تحويلات الخامات',suppliers:'الموردين',purchasing:'مشتريات الخامات',
@@ -93,6 +94,7 @@
   ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
 
   const OPERATIONAL_FLAGS=Object.freeze({
+    onlineOrders:'enable_delivery',
     deliveryOrders:'enable_delivery',
     delivery:'enable_delivery',
     kitchen:'enable_kitchen',
