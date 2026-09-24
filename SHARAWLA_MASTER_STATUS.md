@@ -1651,3 +1651,23 @@ Read-only inspection of Beta DB function bodies showed Restaurant sale/return SQ
 
 Install 58.25 on SH-0007 only and rerun Full Acceptance.
 If Restaurant Full Roundtrip still fails, 58.24 stage diagnostics must identify the exact stage in the error text.
+
+
+---
+
+## 2026-09-24 Beta58.26 — Restaurant Point4 Canonical TX Acceptance Corrective
+
+- Preserves 58.23 Shared Inventory/Purchasing Core Route Ownership.
+- Preserves 58.24 Restaurant Full Acceptance stage diagnostics.
+- Preserves 58.25 secure Point4 UUID v4 provider.
+- Root cause confirmed in Offline V2 Transport `assertPoint4Payload`:
+  once canonical Point4 Identity V1 is present, `client_tx_id` must also be canonical UUIDv4.
+- Historical Restaurant acceptance still used `ACC-...-B55R-SALE/RETURN` TX strings.
+- 58.26 changes only Restaurant acceptance sale/return TX generation to the shared secure UUID v4 provider.
+- Retry calls reuse the exact same UUID-bearing payloads.
+- Beta-only acceptance cleanup is corrected to find UUID-TX Orders/Returns through the existing acceptance notes marker and order lineage.
+- No business sale/return RPC replacement.
+- No Point4 guard weakening.
+- Canonical Stock OFF. Cutover OFF.
+- Production SH-0005/SH-0006 untouched.
+- Runtime target: Full Acceptance Restaurant roundtrip PASS and cleanup residue 0 on SH-0007.

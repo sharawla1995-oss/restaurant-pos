@@ -153,7 +153,7 @@ async function restaurantRoundtrip(ctx){
    stage='sale';
    // Point4 Identity V1 must match the real POS boundary: generate once, then reuse
    // the exact payload for the idempotent retry.
-   const saleTx=tx(run,'SALE'),saleDocumentUid=point4Uuid(),saleSourceDocumentId=`uuid:${saleDocumentUid}`,saleLineUid=point4Uuid();
+   const saleTx=point4Uuid(),saleDocumentUid=point4Uuid(),saleSourceDocumentId=`uuid:${saleDocumentUid}`,saleLineUid=point4Uuid();
    const salePayload={
      p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'dinein',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:saleTx,document_uid:saleDocumentUid,source_document_id:saleSourceDocumentId,point4_identity_contract:POINT4_IDENTITY_V1,notes:marker(run)},
      p_items:[{product_id:product,product_name:`B55 Restaurant ${run}`,quantity:1,unit_price:100,cost:0,total:100,notes:null,modifiers:[],removed:[],line_uid:saleLineUid,effect_line_key:point4Effect('sale',saleLineUid)}],
@@ -168,7 +168,7 @@ async function restaurantRoundtrip(ctx){
    if(!theo?.[0]||Number(theo[0].theoretical_base_quantity)<199.999)throw new Error(`Theoretical consumption missing: ${JSON.stringify(theo)}`);
 
    stage='return';
-   const returnTx=tx(run,'RETURN'),returnDocumentUid=point4Uuid(),returnSourceDocumentId=`uuid:${returnDocumentUid}`,returnLineUid=point4Uuid();
+   const returnTx=point4Uuid(),returnDocumentUid=point4Uuid(),returnSourceDocumentId=`uuid:${returnDocumentUid}`,returnLineUid=point4Uuid();
    const retPayload={p_order_id:orderId,p_reason:'acceptance',p_notes:marker(run),p_items:[{order_item_id:orderItem,quantity:1,line_uid:returnLineUid,effect_line_key:point4Effect('sale_return',returnLineUid),source_document_id:returnSourceDocumentId,original_source_document_id:saleSourceDocumentId}],p_payments:[{method:'cash',amount:100}],p_client_tx_id:returnTx};
    const ret=Number(await global.rpc('create_order_return_idempotent',retPayload));
    const ret2=Number(await global.rpc('create_order_return_idempotent',retPayload));
