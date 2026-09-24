@@ -2337,7 +2337,15 @@ async function acceptOnlineOrderFromChannel(orderRef,opts={}){
   ]);
   const order=orders?.[0];
   if(!order)throw new Error('تم استلام الطلب لكن تعذر تحميله للطباعة');
-  return {accepted:true,source,source_order_id:websiteOrderId,order_id:orderId,order,items:items||[]};
+  const fulfillment=resolveOnlineOrderFulfillment(order);
+  return {accepted:true,source,source_order_id:websiteOrderId,order_id:orderId,order,items:items||[],fulfillment};
+}
+
+function resolveOnlineOrderFulfillment(order){
+  const type=String(order?.order_type||'').toLowerCase();
+  if(type==='delivery')return Object.freeze({type:'delivery',operationRoute:'deliveryOrders',profileHandler:'restaurant-delivery'});
+  if(type==='pickup')return Object.freeze({type:'pickup',operationRoute:'deliveryOrders',profileHandler:'restaurant-pickup'});
+  return Object.freeze({type:type||'unknown',operationRoute:null,profileHandler:null});
 }
 
 async function rejectOnlineOrderFromChannel(orderRef,opts={}){
@@ -2394,7 +2402,8 @@ function deliveryOrderCard(o){const drv=driverName(o.driver_id);const web=o.sour
 async function openDeliveryOrderDetails(id){
  const [orders,items]=await Promise.all([rest('orders',`select=*&id=eq.${id}`),rest('order_items',`select=*&order_id=eq.${id}&order=id`)]);const o=orders[0];if(!o)return toast('الأوردر غير موجود');o._driver_name=driverName(o.driver_id);
  const m=document.createElement('div');m.className='modal';
- const isPickup=o.source==='website'&&o.order_type==='pickup';
+ const fulfillment=resolveOnlineOrderFulfillment(o);
+ const isPickup=fulfillment.type==='pickup';
  const action=o.status==='new'
    ?'<button class="primary" data-preparing>🍳 جاري التجهيز</button>'
    :o.status==='preparing'
