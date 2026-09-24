@@ -487,7 +487,124 @@ For each sensitive action:
 
 No action is considered protected merely because a button is hidden.
 
-## 16. Current status
+
+## 16. Restaurant Page -> Action -> Location Matrix
+
+Legend:
+- EXISTING = already present in `permission_actions_v2` and confirmed in the current Beta backend.
+- NEW = required for the final Permissions V2 contract.
+- PAGE = page permission remains the read/navigation boundary.
+- LOCATION = action must be evaluated against the target operational location.
+
+| Restaurant surface | Action code | State | Location rule |
+|---|---|---:|---|
+| POS / cashier | sales.create | NEW | LOCATION: selling branch |
+| POS / cashier | sales.discount.apply | NEW | LOCATION: selling branch |
+| Returns | returns.create | NEW | LOCATION: original/selling branch |
+| Customers | customers.create | EXISTING | Business-wide data, caller still constrained to an allowed operating location |
+| Customers | customers.edit | NEW | Business-wide data; action permission required |
+| Customers | customers.address.manage | NEW | Business-wide data; action permission required |
+| Customers | customers.import | NEW | Business-wide bulk action; explicit permission required |
+| Delivery | delivery.mark_delivered | EXISTING | LOCATION: order branch |
+| Delivery | delivery.payment.change_at_delivery | EXISTING | LOCATION: order branch |
+| Delivery | orders.driver.assign | NEW | LOCATION: order branch |
+| Pickup | pickup.complete | NEW | LOCATION: order branch |
+| Delivery settings | delivery.settlement.view | EXISTING | LOCATION: branch |
+| Delivery settings | delivery.settlement.create | EXISTING | LOCATION: branch |
+| Delivery settings | delivery.drivers.manage | NEW | LOCATION: branch |
+| Delivery settings | delivery.zones.manage | NEW | LOCATION: branch |
+| Kitchen | kitchen.status.update | NEW | LOCATION: order branch |
+| Tables | restaurant.tables.use | EXISTING | LOCATION: branch |
+| Tables configuration | restaurant.tables.manage | EXISTING | LOCATION: branch |
+| Shifts | shifts.open | NEW | LOCATION: branch |
+| Shifts | shifts.close | NEW | LOCATION: branch |
+| Shifts | shifts.cash.view | NEW | LOCATION: branch |
+| Expenses | expenses.create | NEW | LOCATION: branch |
+| Expenses | expenses.edit | NEW | LOCATION: branch |
+| Ingredients | food.ingredients.manage | EXISTING | Business catalog action |
+| Ingredient conversions | food.ingredients.conversion.manage | EXISTING | Business catalog action |
+| Ingredient stock adjustment | food.ingredients.stock.adjust | EXISTING | LOCATION: branch/warehouse stock owner |
+| Recipes | food.recipes.manage | EXISTING | Business catalog action |
+| Recipes | food.recipes.activate | EXISTING | Business catalog action |
+| Prep | food.prep.manage | EXISTING | Business catalog action |
+| Production | food.production.start | EXISTING | LOCATION: branch |
+| Production | food.production.complete | EXISTING | LOCATION: branch |
+| Waste | food.waste.post | EXISTING | LOCATION: branch |
+| Suppliers | food.suppliers.manage | EXISTING | Business supplier catalog |
+| Purchasing | food.purchasing.create | EXISTING | LOCATION: purchasing branch |
+| Purchasing | food.purchasing.approve | EXISTING | LOCATION: purchase branch |
+| Purchasing | food.purchasing.receive | EXISTING | LOCATION: receiving branch |
+| Purchasing | food.purchasing.return | EXISTING | LOCATION: purchase/return branch |
+| Purchasing | food.purchasing.cancel | EXISTING | LOCATION: purchase branch |
+| Stock count | food.stock_count.post | EXISTING | LOCATION: counted location |
+| Transfers | food.transfer.create | EXISTING | LOCATION: source + destination access |
+| Transfers | food.transfer.receive | EXISTING | LOCATION: destination |
+| Transfers | food.transfer.cancel | EXISTING | LOCATION: transfer source / ownership rule |
+| Products | catalog.categories.manage | NEW | Business catalog action |
+| Products | catalog.products.manage | NEW | Business catalog action |
+| Products | catalog.variants.manage | NEW | Business catalog action |
+| Products | catalog.modifiers.manage | NEW | Business catalog action |
+| Branch product availability | catalog.branch_availability.manage | NEW | LOCATION: branch |
+| Promo codes | promotions.manage | NEW | Business-wide, but any branch restrictions inside the promo must also be authorized |
+| Online order intake | online_orders.accept | NEW | LOCATION: order branch |
+| Online order intake | online_orders.reject | NEW | LOCATION: order branch |
+| Online payment review | online_orders.payment.review | NEW | LOCATION: order branch |
+| Website | website.settings.manage | NEW | Business-wide |
+| Website | website.branch_schedule.manage | NEW | LOCATION: branch |
+| Website | website.product_availability.manage | NEW | LOCATION: branch |
+| Website | website.appearance.manage | NEW | Business-wide |
+| Website | website.payment_methods.manage | NEW | LOCATION when branch-specific |
+| Reports | reports.export | EXISTING | Must not export data outside the user's permitted locations |
+| Branch management | branches.create | NEW | Business admin scope |
+| Branch management | branches.edit | NEW | LOCATION: target branch |
+| Branch management | branches.activate | NEW | LOCATION: target branch |
+| Branch management | branches.delete | NEW | LOCATION: target branch; existing no-movement safety still applies |
+| Branch management | branches.copy_configuration | NEW | LOCATION: source + target |
+| Settings | settings.business_identity.manage | NEW | Business-wide |
+| Settings | settings.printing.manage | NEW | LOCATION: branch; physical printer mapping remains device-local |
+| Settings | settings.financial.manage | NEW | LOCATION: branch |
+| Settings | settings.operational.manage | NEW | Business/branch according to setting owner |
+| Capabilities | settings.capabilities | EXISTING | Business-level; must never self-grant Sharawla Cloud entitlement |
+| Users | users.view | NEW | Business admin scope |
+| Users | users.create | NEW | Business admin scope |
+| Users | users.edit | NEW | Business admin scope |
+| Users | users.activate | NEW | Business admin scope |
+| Users | users.password.reset | NEW | Business admin scope |
+| Users | users.page_permissions.manage | NEW | Business admin scope |
+| Users | users.action_permissions.manage | NEW | Business admin scope |
+| Users | users.location_scope.manage | NEW | Business admin scope |
+
+### Matrix rules
+
+1. A Page permission never implies all Actions on that page.
+2. An Action Allow never expands location access.
+3. A Location Allow never grants a missing Page or Action permission.
+4. Admin bypass behavior, where intentionally retained, must remain explicit in the backend owner and be audit-visible.
+5. Any direct REST write that remains in UI after Permissions V2 must be protected by RLS using the same Action + Location semantics, or be replaced by a guarded RPC owner.
+6. High-risk write owners should prefer guarded RPCs over generic direct table UPDATE/INSERT.
+7. Offline replay must preserve the original branch/location identity and must not recalculate authority against a different location.
+8. Report/export actions must filter to the employee's effective location scope, not merely hide UI navigation.
+
+### Direct-write migration priority
+
+Priority A — move behind guarded owners first:
+- order lifecycle status changes;
+- driver assignment;
+- customer create/edit/address writes;
+- expense edits;
+- user/permission/location-scope administration.
+
+Priority B — harden with Action-aware RLS or guarded owners:
+- products/categories/variants/modifiers;
+- promo codes;
+- website settings;
+- delivery drivers/zones;
+- branch print/financial/payment settings.
+
+Priority C — keep read paths compatible while write ownership is tightened.
+
+
+## 17. Current status
 
 Design discovery: CLOSED for this checkpoint.
 Runtime implementation: NOT STARTED.
