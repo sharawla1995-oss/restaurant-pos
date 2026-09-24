@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
+const boundary=(app.match(/async function acceptOnlineOrderFromChannel\([\s\S]*?\n}\n\nasync function renderOnlineOrders/)||[])[0]||'';
+const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\n}\n\nasync function renderDeliveryOrders/)||[])[0]||'';
+need(!!boundary,'generic accept boundary missing');
+need(/source=String\(opts\.source\|\|'website'\)/.test(boundary),'source adapter boundary missing');
+need(/source!=='website'/.test(boundary),'unknown channel must fail closed');
+need(/getOpenShift\(\)/.test(boundary),'existing open-shift precondition missing');
+need(/openWebsiteOrderReview\(websiteOrderId,'accept'\)/.test(boundary),'existing review confirmation missing');
+need(/rpc\('accept_website_order'/.test(boundary),'website adapter RPC missing');
+need(/rest\('orders'/.test(boundary)&&/rest\('order_items'/.test(boundary),'canonical handoff reload missing');
+need(/data-online-accept/.test(inbox),'Online Inbox Accept action missing');
+need(/acceptOnlineOrderFromChannel/.test(inbox),'Online Inbox must call generic boundary');
+need(!/rpc\('accept_website_order'/.test(inbox),'Online Inbox must not call website RPC directly');
+need(/data-web-accept/.test(app),'legacy Delivery compatibility Accept must remain during migration');
+need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'website Accept RPC must have one runtime owner');
+need((app.match(/reject_website_order/g)||[]).length===1,'Reject must remain unchanged in Batch 3');
+if(fail.length){console.error('Online Orders Batch 3 Accept Boundary: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
+console.log('Online Orders Batch 3 Accept Boundary: PASS');
+console.log('action=accept; boundary=core-channel-adapter; website_rpc_owner=single; legacy_compat=true; reject=unchanged');
