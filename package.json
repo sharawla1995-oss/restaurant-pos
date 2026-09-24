@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.58.5",
-  "description": "Sharawla POS V10.5.4 Beta 58.5 - SH-0007 Delivery Settlement Runtime Ownership Acceptance Candidate",
+  "version": "10.5.4-beta.58.6",
+  "description": "Sharawla POS V10.5.4 Beta 58.6 - SH-0007 Driver Settlement Single-Owner V2 Acceptance Candidate",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
