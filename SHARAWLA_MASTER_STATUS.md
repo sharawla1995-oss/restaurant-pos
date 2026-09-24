@@ -2537,3 +2537,17 @@ Design chain status:
 The X4 matrix requires direct backend negative tests across Restaurant / Retail / Pharmacy / Logistics / Membership / Service and remains a prerequisite for Cross-Profile Closure, AI write enablement, and V1 Production Ready security closure.
 
 No DB/Runtime/Production change was made.
+
+
+### Retail Closure preparation
+
+Read-only audit:
+`docs/RETAIL-CLOSURE-AUDIT-2026-09-24.md`
+
+Current conclusion:
+- Retail profile is implemented/active and has substantial source/backend coverage.
+- No Retail Business currently exists in Sharawla Cloud, so current Retail runtime closure evidence is absent.
+- Mandatory remaining closure tracks include Retail runtime acceptance, Retail Reports/Finance, Permissions/Cross-Profile hardening, Offline management-operation policy, and modernized Retail acceptance.
+- SH-0007 remains Restaurant Beta and is not repurposed by this audit.
+
+No DB/Runtime/Cloud mutation was performed.
