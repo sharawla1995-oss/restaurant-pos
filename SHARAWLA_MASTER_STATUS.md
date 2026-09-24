@@ -1122,3 +1122,69 @@ Do not reopen this area without contradictory runtime evidence.
 9. Only after source/static PASS may a SH-0007-only candidate be built for visual/navigation acceptance.
 
 No statement in this override authorizes a Production write or Stable promotion.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Product Map Navigation Phase 1
+
+> This section supersedes the previous post-Online-Orders next step where it conflicts.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on **10.5.3 CLEAN**.
+- Runtime acceptance target remains **SH-0007 only**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- No automatic rebind and no Canonical Fingerprint mutation.
+
+### Phase 1 implementation status
+
+- Product Map Navigation Phase 1 is **SOURCE + PACKAGING PASS / RUNTIME VISUAL ACCEPTANCE OPEN**.
+- Candidate version: **10.5.4-beta.58.15**.
+- Runtime implementation commit: `fedd5fecf2021d5ad4af84df8ba36ae75d375100`.
+- Packaged verification correction commits:
+  - `9be32cb32788cbd40f655a9038f776c7ee02e2b3` — first packaged verification attempt; rejected because source checker scripts are intentionally not shipped inside app.asar.
+  - `84600ab70f3e3bd6583ff143f5be9bf7812153d8` — corrected packaged verification against runtime files directly.
+- Final accepted source HEAD for runtime gate: `84600ab70f3e3bd6583ff143f5be9bf7812153d8`.
+- GitHub Actions run: `35974574403` → **SUCCESS**.
+- Artifact ID: `10797222851`.
+- Artifact name: `sharawla-pos-84600ab70f3e3bd6583ff143f5be9bf7812153d8-sh0007-x64`.
+- Artifact digest: `sha256:68f76d9420440997349ff799027991afc1b22babd4d4b01d04461dffd9c2d9a3`.
+
+### Preserved invariants
+
+- The Product Map layer is presentation-only and owns no route click/dispatch behavior.
+- It calls no `showPage`, RPC, REST or business renderer.
+- Existing buttons/route units remain the same runtime nodes; the layer only reorders top-level navigation units and inserts non-interactive group labels.
+- The accepted Unified Navigation Registry is loaded at runtime as read-only metadata before Product Map grouping.
+- Existing route owners, permissions, profile rules and dispatch mechanisms are unchanged.
+- Orders V58.3 remains locked.
+- Online Orders + Delivery + Driver Settlement + Shift Cash closure remains locked.
+- `suppliers / purchasing / stockCount / transfers` remain explicit ownership-conflict items; Phase 1 does not choose owners for them.
+- `websitePayments` remains the known deferred permission mismatch.
+- HR grouped navigation units are preserved.
+- Product Map grouping is idempotent and fails closed if the Navigation Registry metadata is unavailable.
+- Packaged `app.asar` verification proves the Product Map runtime, Navigation Registry metadata, versioned `index.html` references and load order are present in the actual installer payload.
+
+## CURRENT EXACT NEXT STEP — PRODUCT MAP PHASE 1 RUNTIME GATE
+
+1. Install **10.5.4-beta.58.15** on **SH-0007 only**.
+2. Confirm Sharawla starts and login/branch selection still work normally.
+3. Open the sidebar after all dynamic navigation layers finish loading.
+4. PASS requires visible Product Map grouping with the existing routes preserved under:
+   - Sales;
+   - Operations;
+   - Inventory & Purchasing;
+   - HR;
+   - Finance;
+   - Reports;
+   - Website / Digital Channels;
+   - Administration / Settings.
+5. Click representative existing routes from the groups and confirm each still opens its existing screen through its existing owner. At minimum: POS, Orders, Online Orders, Delivery, Inventory, Employees if visible, Treasury if visible, Reports, Website Management if visible, Settings.
+6. Confirm sidebar scrolling still works and no route/button disappears merely because of grouping.
+7. Confirm Orders keeps the accepted V58.3 UI and Online Orders/Delivery keep the accepted Beta58.14 behavior.
+8. If PASS, close Product Map Navigation Phase 1 and continue to the next Product Map implementation phase.
+9. If FAIL, preserve the exact visual/runtime evidence and remain in Phase 1; do not promote Stable.
+10. Production remains untouched/read-only.
+
+No statement in this override authorizes a Production write or Stable promotion.
