@@ -39,6 +39,7 @@ jobs:
           node scripts/check-version.js
           node scripts/check-orders-performance-date-window.js
           node scripts/check-orders-runtime-corrective.js
+          node scripts/check-inventory-overview-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -67,12 +68,15 @@ jobs:
           $productMap = Join-Path $probe 'product-map-navigation-v1.js'
           $navRegistry = Join-Path $probe 'sharawla-navigation-registry.js'
           $index = Join-Path $probe 'index.html'
+          $inventoryOverview = Join-Path $probe 'inventory-overview-v1.js'
           if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
           if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
           if (!(Test-Path $index)) { throw 'packaged index.html missing' }
+          if (!(Test-Path $inventoryOverview)) { throw 'packaged Inventory Overview runtime missing' }
           $productMapText = Get-Content $productMap -Raw
           $navRegistryText = Get-Content $navRegistry -Raw
           $indexText = Get-Content $index -Raw
+          $inventoryOverviewText = Get-Content $inventoryOverview -Raw
           if (!$productMapText.Contains('1.1.1-profile-aware-product-map')) { throw 'packaged Product Map profile-aware marker missing' }
           if (!$productMapText.Contains("restaurant:'تشغيل المطعم'")) { throw 'packaged Restaurant Product Map label missing' }
           if (!$productMapText.Contains("pharmacy:'تشغيل الصيدلية'")) { throw 'packaged Pharmacy profile-aware label missing' }
@@ -84,9 +88,15 @@ jobs:
           if (!$navRegistryText.Contains("routeKey:'orders'")) { throw 'packaged Navigation Registry missing Orders route' }
           $registryRef = "sharawla-navigation-registry.js?v=$($pkg.version)"
           $productMapRef = "product-map-navigation-v1.js?v=$($pkg.version)"
+          $inventoryOverviewRef = "inventory-overview-v1.js?v=$($pkg.version)"
           if (!$indexText.Contains($registryRef)) { throw "packaged index missing versioned Navigation Registry reference: $registryRef" }
           if (!$indexText.Contains($productMapRef)) { throw "packaged index missing versioned Product Map reference: $productMapRef" }
+          if (!$indexText.Contains($inventoryOverviewRef)) { throw "packaged index missing versioned Inventory Overview reference: $inventoryOverviewRef" }
           if ($indexText.IndexOf($registryRef) -gt $indexText.IndexOf($productMapRef)) { throw 'packaged Product Map loads before Navigation Registry metadata' }
+          if (!$inventoryOverviewText.Contains('1.0.0-core-profile-aware')) { throw 'packaged Inventory Overview marker missing' }
+          if (!$inventoryOverviewText.Contains('CORE_PROFILE_AWARE_READ_ONLY')) { throw 'packaged Inventory Overview read-only marker missing' }
+          if (!$inventoryOverviewText.Contains('PROFILE_ADAPTER_MISSING')) { throw 'packaged Inventory Overview fail-closed profile guard missing' }
+          if (!$app.Contains('INVENTORY-OVERVIEW-V1-CORE-DELEGATE')) { throw 'packaged app.js missing Inventory Overview delegate' }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw
           if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
           if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }
