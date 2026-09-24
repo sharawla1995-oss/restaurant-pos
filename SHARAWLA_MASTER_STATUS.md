@@ -2484,3 +2484,22 @@ Current Beta schema inventory:
 - X1 ACL hardening / X2 Profile guard / X3 Action+Location / X4 negative matrix = NOT STARTED.
 
 This does not change the immediate G0-G3 Restaurant gate.
+
+
+### Cross-Profile X1 / X2 design closure
+
+X1 ACL classification:
+`docs/CROSS-PROFILE-ACL-CLASSIFICATION-X1.md`
+
+X2 trusted Profile binding:
+`docs/CROSS-PROFILE-TRUSTED-PROFILE-BINDING-X2.md`
+
+Status:
+- X0 owner inventory discovery = CLOSED.
+- X1 ACL classification design = CLOSED.
+- X2 trusted Profile binding design = CLOSED.
+- X1/X2 deployment = NOT STARTED.
+- X3 Action + Location = NOT STARTED.
+- X4 negative matrix = NOT STARTED.
+
+No DB/Runtime/Production change was made.
