@@ -41,6 +41,7 @@ jobs:
           node scripts/check-orders-runtime-corrective.js
           node scripts/check-inventory-overview-v1.js
           node scripts/check-touch-customer-v1.js
+          node scripts/check-pos-profile-routing-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -103,6 +104,11 @@ jobs:
           if (!$app.Contains('INVENTORY-OVERVIEW-V1-CORE-DELEGATE')) { throw 'packaged app.js missing Inventory Overview delegate' }
           if (!$app.Contains('CUSTOMERS-MANUAL-CREATE-V1')) { throw 'packaged app.js missing manual customer create marker' }
           if (!$app.Contains('id="newCustomerBtn"')) { throw 'packaged app.js missing new customer button' }
+          if (!$app.Contains('POS-PROFILE-ROUTING-V1')) { throw 'packaged explicit POS profile routing marker missing' }
+          if (!$app.Contains("if(profile==='restaurant')return renderRestaurantPOS()")) { throw 'packaged Restaurant POS adapter missing' }
+          if (!$app.Contains("if(profile==='retail')return renderRetailPOS()")) { throw 'packaged Retail POS adapter missing' }
+          if (!$app.Contains('data-pos-profile-fail-closed="PROFILE_NOT_POS"')) { throw 'packaged non-POS fail-closed guard missing' }
+          if (!$app.Contains("status:['delivery','pickup'].includes(orderType)?'new':'completed'")) { throw 'packaged Pickup lifecycle gate missing' }
           if (!$touchCssText.Contains('@media (any-pointer: coarse)')) { throw 'packaged Touch UX coarse-pointer gate missing' }
           if (!$touchCssText.Contains('--sharawla-touch-target:46px')) { throw 'packaged Touch UX target size marker missing' }
           $touchRef = "touch-ux-v1.css?v=$($pkg.version)"

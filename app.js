@@ -928,7 +928,8 @@ function bonDisplay(o){return Number(o?.bon_number)>0?String(o.bon_number):(o?.o
 async function updateNextBonBadge(){const el=$('#nextBonBadge');if(!el)return;try{const sh=await getOpenShift();if(!sh){el.innerHTML='<span>رقم البون التالي</span><b>—</b><small>افتح وردية</small>';return}const r=await rest('shift_bon_counters',`select=next_number&shift_id=eq.${sh.id}&limit=1`).catch(()=>[]);let next=Number(r?.[0]?.next_number||0);if(!next){const oo=await rest('orders',`select=bon_number&shift_id=eq.${sh.id}&order=bon_number.desc&limit=1`).catch(()=>[]);next=Number(oo?.[0]?.bon_number||0)+1}el.innerHTML=`<span>رقم البون التالي</span><b>${next||1}</b><small>وردية #${sh.id}</small>`}catch(e){el.innerHTML='<span>رقم البون التالي</span><b>—</b>'}}
 function invoiceDisplay(o){return Number(o?.invoice_number)>0?String(o.invoice_number):'-';}
 function discountAllowed(){return isAdmin()||hasFeaturePermission('discount');}
-function isRetailProfile(){return String(sharawlaRuntimeConfig?.pos_profile||'').trim().toLowerCase()==='retail'}
+function currentPosProfile(){return String(sharawlaRuntimeConfig?.pos_profile||'').trim().toLowerCase()}
+function isRetailProfile(){return currentPosProfile()==='retail'}
 const retailMarket={productSettings:new Map(),offers:[],offerProducts:[],loadedBranch:null};
 function retailBarcodeValue(v){return String(v??'').trim()}
 function retailProductSetting(productId){return retailMarket.productSettings.get(String(productId))||{product_id:Number(productId),unit_type:'piece',allow_decimal:false,qty_step:1,min_qty:1,barcode_mode:'normal',embedded_divisor:1000,online_enabled:true}}
@@ -1002,15 +1003,14 @@ async function renderRetailPOS(){
  $('#resumeRetailSale').onclick=async()=>{try{const rows=await rest('retail_suspended_sales',`select=*&branch_id=eq.${Number(currentBranchId())}&order=created_at.desc&limit=30`);if(!rows.length)return toast('لا توجد فواتير معلقة');const promptText='اختر رقم الفاتورة المعلقة:\n'+rows.map(x=>`${x.id} - ${x.label||'بدون اسم'} - ${fmtDate(x.created_at)}`).join('\n');const id=await uiPrompt(promptText,String(rows[0].id),{title:'استرجاع بيع معلق',type:'number'});if(id===null)return;const row=rows.find(x=>String(x.id)===String(id));if(!row)return toast('رقم غير صحيح');if(state.cart.length&&!await uiConfirm('سيتم استبدال السلة الحالية بالفاتورة المعلقة. متابعة؟'))return;state.cart=Array.isArray(row.cart)?row.cart:[];if($('#customerPhone'))$('#customerPhone').value=row.customer?.phone||'';if($('#customerName'))$('#customerName').value=row.customer?.name||'';if($('#discount'))$('#discount').value=Number(row.financial?.discount||0);if($('#discountType')&&row.financial?.discount_type)$('#discountType').value=row.financial.discount_type;await rpc('retail_delete_suspended_sale',{p_id:Number(row.id)});drawCart();toast('تم استرجاع الفاتورة')}catch(e){toast(e.message)}};
  drawRetailProducts();drawCart();updateNextBonBadge();setTimeout(()=>scan?.focus(),0);
 }
-function renderPOS(){
- if(isRetailProfile())return renderRetailPOS();
+function renderRestaurantPOS(){
  $('#page').innerHTML=`<div class="pos-layout"><section class="catalog">
  <div class="catalog-tools"><input id="productSearch" placeholder="🔎 بحث سريع عن صنف"></div>
  <div class="cat-tabs" id="catTabs"><button data-cat="all" class="active">الكل</button>${state.categories.map(c=>`<button data-cat="${c.id}">${esc(c.name)}</button>`).join('')}</div>
  <div class="products-grid" id="productsGrid"></div></section>
  <aside class="cart">
   <div class="next-bon-badge" id="nextBonBadge"><span>رقم البون التالي</span><b>...</b></div><div class="cart-head sales-head">
-   <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery&&moduleEnabled('delivery')?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
+   <select id="orderType"><option value="takeaway">تيك أواي</option>${moduleEnabled('pickup')?'<option value="pickup">استلام من الفرع</option>':''}${state.settings.enable_delivery&&moduleEnabled('delivery')?`<option value="delivery">دليفري</option>`:''}${moduleEnabled('tables')?'<option value="dinein">صالة</option>':''}</select>
    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل">
    <input id="customerName" placeholder="اسم العميل">
   </div>
@@ -1050,6 +1050,19 @@ function renderPOS(){
  let customerLookupTimer; $('#customerPhone').addEventListener('input',()=>{clearTimeout(customerLookupTimer);customerLookupTimer=setTimeout(lookupCustomerByPhone,350)}); $('#customerPhone').addEventListener('blur',lookupCustomerByPhone);
  $('.pay-actions').onclick=e=>{const b=e.target.closest('[data-pay]');if(b)return checkout(b.dataset.pay);if(e.target.closest('[data-mixed-pay]'))return openMixedPayment()};
  toggleDeliveryFields();refreshDeliveryDrivers();drawProducts();drawCart();updateNextBonBadge();
+}
+function renderPOS(){
+ // POS-PROFILE-ROUTING-V1 — explicit adapters only; never use Restaurant as a default fallback.
+ const profile=currentPosProfile();
+ if(profile==='restaurant')return renderRestaurantPOS();
+ if(profile==='retail')return renderRetailPOS();
+ if(profile==='pharmacy'){
+   const fn=window.SharawlaPharmacyUI?.renderPOS;
+   if(typeof fn==='function')return fn();
+   $('#page').innerHTML='<div class="panel" data-pos-profile-fail-closed="PHARMACY_ADAPTER_MISSING"><h2>💊 كاشير الصيدلية</h2><div class="empty">Pharmacy POS Adapter غير محمل — تم إيقاف المسار بأمان.</div></div>';
+   return;
+ }
+ $('#page').innerHTML=`<div class="panel" data-pos-profile-fail-closed="PROFILE_NOT_POS"><h2>نقطة البيع</h2><div class="empty">النشاط (${esc(profile||'غير محدد')}) لا يملك POS Adapter معتمدًا في هذا المسار.</div></div>`;
 }
 function refreshDeliveryDrivers(){const el=$('#deliveryDriver');if(!el)return;const branch=currentBranchId();const current=el.value;const list=state.drivers.filter(d=>d.active!==false&&(!branch||String(d.branch_id)===String(branch)));el.innerHTML='<option value="">المندوب — يحدد لاحقًا</option>'+list.map(d=>`<option value="${d.id}">${esc(d.name)}${d.phone?` — ${esc(d.phone)}`:''}</option>`).join('');if(list.some(d=>String(d.id)===String(current)))el.value=current;}
 
@@ -1250,7 +1263,7 @@ async function checkout(payment,payments=null){
   const orderPayload={
     branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
-    status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
+    status:['delivery','pickup'].includes(orderType)?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
     delivery_address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,delivery_area:area,
     delivery_zone_id:orderType==='delivery'&&$('#deliveryZone')?.value?Number($('#deliveryZone').value):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:isRetailProfile()&&c.retailOfferDiscount?`Retail Offers: ${c.retailOfferDiscount}`:null
@@ -2453,20 +2466,20 @@ async function renderOnlineOrders(opts={}){
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
   const [orders,drivers]=await Promise.all([
-    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,source.eq.website)&order=created_at.desc&limit=300`),
+    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,order_type.eq.pickup)&order=created_at.desc&limit=300`),
     rest('delivery_drivers','select=*&active=eq.true&order=name')
   ]);
   state.drivers=drivers||[];
-  const all=(orders||[]).filter(o=>o.status!=='cancelled'&&(o.order_type==='delivery'||(o.source==='website'&&o.order_type==='pickup')));
+  const all=(orders||[]).filter(o=>o.status!=='cancelled'&&['delivery','pickup'].includes(String(o.order_type||'')));
   const active=all.filter(o=>['new','preparing','ready','out_for_delivery'].includes(o.status));
-  const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
+  const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>['delivered','completed'].includes(o.status)).length};
   $('#page').innerHTML=`<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
   <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">تم الاستلام</button><button data-filter="preparing">جاري التجهيز</button><button data-filter="ready">جاهز</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
   let filter='active';
   const draw=()=>{
     const q=($('#deliverySearch')?.value||'').trim().toLowerCase();
     const rows=all.filter(o=>{
-      const ok=filter==='all'||(filter==='active'?['new','preparing','ready','out_for_delivery'].includes(o.status):o.status===filter);
+      const ok=filter==='all'||(filter==='active'?['new','preparing','ready','out_for_delivery'].includes(o.status):filter==='delivered'?['delivered','completed'].includes(o.status):o.status===filter);
       const hay=[o.order_number,o.customer_name,o.customer_phone,o.delivery_area,o.delivery_address,branchName(o.branch_id)].join(' ').toLowerCase();
       return ok&&(!q||hay.includes(q));
     });
