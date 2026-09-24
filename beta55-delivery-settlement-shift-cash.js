@@ -237,6 +237,40 @@ if(baseShiftReportHTML){
 }
 
 // ---------------------------------------------------------------------------
+// Delivery Orders: operational driver-custody settlement belongs with delivered
+// orders. The server RPC remains the sole accounting authority.
+// ---------------------------------------------------------------------------
+async function enhanceDeliveryOrdersSettlement(){
+ if(!isOnline())return;
+ const bid=branchId();if(!bid)return;
+ const page=document.querySelector('#page');if(!page||!page.querySelector('#deliveryRows'))return;
+ let pending=[];try{pending=await global.rpc('delivery_driver_pending_v2',{p_branch_id:bid})||[]}catch(err){console.warn('delivery_driver_pending_v2',err);return}
+ const rows=(pending||[]).filter(o=>num(o.custody_amount)>0);
+ if(!rows.length)return;
+ const byDriver=new Map();for(const o of rows){const did=Number(o.driver_id);if(!byDriver.has(did))byDriver.set(did,[]);byDriver.get(did).push(o)}
+ const drivers=global.state?.drivers||[];
+ const cards=[...byDriver].map(([did,items])=>{const d=drivers.find(x=>Number(x.id)===did);const amount=items.reduce((a,x)=>a+num(x.custody_amount),0);return `<div class="driver-custody-card panel"><div class="section-head"><div><h3>🛵 ${escLocal(d?.name||`مندوب #${did}`)}</h3><p>عهدة كاش غير مسواة: <b>${moneyLocal(amount)}</b> • ${items.length} طلب</p></div><button class="primary" data-delivery-settle-all-v2="${did}">تسوية كل العهدة</button></div><div class="table-wrap"><table><thead><tr><th>البون</th><th>العهدة</th><th>التسليم</th><th></th></tr></thead><tbody>${items.map(o=>`<tr><td>${escLocal(o.bon_number||o.invoice_number||o.order_id)}</td><td>${moneyLocal(o.custody_amount)}</td><td>${escLocal(global.fmtDate?.(o.delivered_at)||o.delivered_at||'-')}</td><td><button class="secondary" data-delivery-settle-order-v2="${o.order_id}" data-driver-v2="${did}">تسوية العهدة</button></td></tr>`).join('')}</tbody></table></div></div>`}).join('');
+ const host=document.createElement('div');host.className='panel delivery-custody-v2';host.setAttribute('data-delivery-custody-v2','');host.innerHTML=`<div class="section-head"><div><h2>💰 عهد المناديب</h2><p>تظهر هنا طلبات الدليفري المسلمة التي ما زال عليها كاش فعلي مع المندوب.</p></div></div>${cards}`;
+ const queue=page.querySelector('.delivery-queue-panel');queue?.insertAdjacentElement('beforebegin',host);
+ host.querySelectorAll('[data-delivery-settle-order-v2]').forEach(btn=>btn.onclick=async e=>{
+  e.preventDefault();e.stopPropagation();
+  const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.deliverySettleOrderV2);const row=rows.find(x=>Number(x.order_id)===oid);if(!row)return;
+  if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row.custody_amount)} من المندوب وتسوية عهدة هذا الطلب؟`)))return;
+  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal('تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+ });
+ host.querySelectorAll('[data-delivery-settle-all-v2]').forEach(btn=>btn.onclick=async e=>{
+  e.preventDefault();e.stopPropagation();
+  const did=Number(btn.dataset.deliverySettleAllV2),items=byDriver.get(did)||[],amount=items.reduce((a,x)=>a+num(x.custody_amount),0);
+  if(global.uiConfirm&&!(await global.uiConfirm(`استلام وتسوية كل عهدة المندوب: ${items.length} طلب بإجمالي ${moneyLocal(amount)}؟`)))return;
+  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:null,p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal('تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+ });
+}
+const baseRenderDeliveryOrdersSettlement=typeof global.renderDeliveryOrders==='function'?global.renderDeliveryOrders:null;
+if(baseRenderDeliveryOrdersSettlement){
+ global.renderDeliveryOrders=async function(){await baseRenderDeliveryOrdersSettlement.apply(this,arguments);try{await enhanceDeliveryOrdersSettlement()}catch(err){console.warn('Beta55 delivery orders settlement UI',err)}};
+}
+
+// ---------------------------------------------------------------------------
 // Delivery settings: keep existing driver/zone CRUD, replace only settlement UI.
 // ---------------------------------------------------------------------------
 async function enhanceDeliverySettings(){
