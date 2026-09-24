@@ -2503,3 +2503,19 @@ Status:
 - X4 negative matrix = NOT STARTED.
 
 No DB/Runtime/Production change was made.
+
+
+### Cross-Profile X3 Action + Location design
+
+Design artifact:
+`docs/ACTION-LOCATION-AUTHORIZATION-X3-DESIGN.md`
+
+Status:
+- existing Action V2 inheritance behavior confirmed;
+- existing broad branch access behavior confirmed;
+- Action-specific Location scope semantics frozen;
+- absence of Action-location rows = inherit broad employee_branches;
+- explicit scoped rows = restricted allow-list within broad ceiling;
+- X3 deployment = NOT STARTED.
+
+No DB/Runtime/Production change was made.
