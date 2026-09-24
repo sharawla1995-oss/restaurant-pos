@@ -2398,3 +2398,26 @@ Permissions V2 Core completion
 -> Kitchen Stations V1
 -> Support Center
 -> Sharawla AI Operator.
+
+
+### Post-58.26 implementation gate map
+
+Execution/acceptance matrix:
+`docs/POST-58-26-IMPLEMENTATION-GATES.md`
+
+This document is documentation-only and defines the ordered gates:
+G0 Full Acceptance
+-> G1 Shared Routes
+-> G2 Touch
+-> G3 Menu Cleanup
+-> G4 Permissions V2
+-> G5 Location Scope / Location Code
+-> G6 Printer Roles
+-> G7 Snapshot Catalog Expansion
+-> G8 Sharawla Admin Entitlement Wiring
+-> G9 Kitchen Stations
+-> G10 Support Center
+-> G11 Sharawla AI Operator
+-> G12 Cross-Profile / Release Continuation.
+
+It does not change Runtime, SQL deployment, package version, Production state, Canonical Stock or Cutover.
