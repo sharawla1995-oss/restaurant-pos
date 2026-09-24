@@ -2873,3 +2873,31 @@ Pharmacy Menu/UX target:
 - valid claim transition actions instead of unrestricted status dropdown.
 
 No DB/Runtime/Cloud/Production mutation was performed by this checkpoint.
+
+
+## Pharmacy V1 Official Closure Roadmap
+
+Authoritative roadmap:
+`docs/PHARMACY-V1-OFFICIAL-31-GATE-ROADMAP.md`
+
+This is the official 31-Gate Pharmacy V1 closure sequence.
+
+Key corrections recorded in the roadmap:
+- do not reopen the full Point4 investigation; Platform Point4 baseline remains closed and Pharmacy adds Batch ownership closure;
+- dedicated Pharmacy Business/device/backend is required after Restaurant SH-0007 G0-G3;
+- Units/Packs is a mandatory Pharmacy closure track;
+- Supplier AP/payments/balance is required for full purchasing/financial closure;
+- security is built into each owner from Gate 2 onward, while Gates 22/23 are final completeness/security closure;
+- Service Charge is not a mandatory Pharmacy concept unless configured;
+- Offline closure may intentionally mark Insurance/Controlled paths ONLINE_ONLY_FAIL_CLOSED when that is the approved product policy;
+- Diagnostics and Acceptance tests are built incrementally and consolidated at Gates 24/26;
+- final closure requires Multi-Branch, Windows, UAT, Final Closure and Release gates.
+
+Evidence model per Gate:
+SOURCE / CLOUD-DB / RUNTIME / ACCEPTANCE / ROLLBACK
+with PASS / FAIL / OPEN / justified N/A.
+
+Immediate prerequisite remains:
+Restaurant SH-0007 58.26 -> G0 -> G1 -> G2 -> G3.
+
+No Pharmacy Runtime/DB/Cloud/Production mutation has been authorized by this roadmap.
