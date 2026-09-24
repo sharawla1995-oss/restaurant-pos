@@ -2338,7 +2338,27 @@ async function acceptOnlineOrderFromChannel(orderRef,opts={}){
   const order=orders?.[0];
   if(!order)throw new Error('تم استلام الطلب لكن تعذر تحميله للطباعة');
   const fulfillment=resolveOnlineOrderFulfillment(order);
-  return {accepted:true,source,source_order_id:websiteOrderId,order_id:orderId,order,items:items||[],fulfillment};
+  const lifecycle=onlineOrderLifecycleState(order,'canonical');
+  return {accepted:true,source,source_order_id:websiteOrderId,order_id:orderId,order,items:items||[],fulfillment,lifecycle};
+}
+
+function onlineOrderLifecycleState(input,phase='source'){
+  const status=String(input?.status||input||'').toLowerCase();
+  if(phase==='source'){
+    if(status==='pending')return Object.freeze({state:'new',terminal:false});
+    if(status==='accepted')return Object.freeze({state:'accepted',terminal:false});
+    if(status==='rejected')return Object.freeze({state:'rejected',terminal:true});
+    if(status==='cancelled')return Object.freeze({state:'cancelled',terminal:true});
+    return Object.freeze({state:'unknown',terminal:false});
+  }
+  if(phase==='canonical'){
+    if(status==='new')return Object.freeze({state:'accepted',terminal:false});
+    if(['preparing','ready','out_for_delivery'].includes(status))return Object.freeze({state:'in_fulfillment',terminal:false});
+    if(['delivered','completed'].includes(status))return Object.freeze({state:'completed',terminal:true});
+    if(status==='cancelled')return Object.freeze({state:'cancelled',terminal:true});
+    return Object.freeze({state:'unknown',terminal:false});
+  }
+  return Object.freeze({state:'unknown',terminal:false});
 }
 
 function resolveOnlineOrderFulfillment(order){
@@ -2355,13 +2375,13 @@ async function rejectOnlineOrderFromChannel(orderRef,opts={}){
   if(!Number.isFinite(websiteOrderId)||websiteOrderId<=0)throw new Error('رقم الطلب الأونلاين غير صالح');
   if(!await openWebsiteOrderReview(websiteOrderId,'reject'))return {rejected:false,cancelled:true};
   await rpc('reject_website_order',{p_website_order_id:websiteOrderId});
-  return {rejected:true,source,source_order_id:websiteOrderId};
+  return {rejected:true,source,source_order_id:websiteOrderId,lifecycle:onlineOrderLifecycleState('rejected','source')};
 }
 
 async function renderOnlineOrders(){
   $('#page').innerHTML='<div class="panel"><h2>🌐 الطلبات الأونلاين</h2><div class="empty">جاري التحميل...</div></div>';
   const webOrders=await rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`).catch(()=>[]);
-  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button></span></div>`).join('')}</div></div>`:'<div class="panel website-orders-panel"><h2>🌐 الطلبات الجديدة</h2><div class="empty">لا توجد طلبات أونلاين جديدة</div></div>';
+  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>الحالة: ${onlineOrderLifecycleState(w,'source').state==='new'?'جديد':esc(onlineOrderLifecycleState(w,'source').state)}</small><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button></span></div>`).join('')}</div></div>`:'<div class="panel website-orders-panel"><h2>🌐 الطلبات الجديدة</h2><div class="empty">لا توجد طلبات أونلاين جديدة</div></div>';
   $('#page').innerHTML=websitePanel;
   $('#page').onclick=async e=>{
     const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
