@@ -71,7 +71,7 @@
   const PERMISSION_DEFS=Object.freeze([
     ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],['tables','🪑 الصالات والترابيزات'],
     ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['promoCodes','🎟️ البرومو كود'],['deliverySettings','إعدادات الدليفري'],
-    ['kitchen','المطبخ'],['inventory','المخزون'],['foodIngredients','🧪 الخامات'],['foodRecipes','🍲 الوصفات وFood Cost'],['foodOperations','🏭 الإنتاج والهالك'],
+    ['kitchen','👨‍🍳 الوصول إلى شاشة المطبخ'],['inventory','المخزون'],['foodIngredients','🧪 الخامات'],['foodRecipes','🍲 الوصفات وFood Cost'],['foodOperations','🏭 الإنتاج والهالك'],
     ['stockCount','🧮 جرد الخامات'],['transfers','🔄 تحويلات الخامات'],['suppliers','🚚 الموردين'],['purchasing','📥 مشتريات الخامات'],['settings','الإعدادات'],
     ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
     ['websiteBranchSettings','🔥 إدارة استقبال طلبات الموقع ومدة التجهيز'],

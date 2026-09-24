@@ -1437,3 +1437,107 @@ PASS closes the first Menu/Function Cleanup item and moves the audit to:
 **Customers manual create + POS order-type capability gating + Settings/Delivery Settings split planning + ownership unification for Suppliers/Purchasing/StockCount/Transfers.**
 
 No Stable promotion is authorized by this checkpoint.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Cleanup Progress + Kitchen Stations Planned Capability
+
+> This section supersedes earlier exact-next-step text where it conflicts. Older sections remain historical evidence.
+
+### Safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**: SH-0005 + SH-0006 on **10.5.3 CLEAN**.
+- All current runtime work remains **SH-0007 Beta only**.
+- Canonical Stock = **OFF**. Cutover = **OFF**.
+- No automatic Rebind and no Canonical Fingerprint mutation.
+- Printing, updater, licensing, Offline/Point 4 and accepted Orders/Delivery runtime owners remain protected.
+
+### Cleanup progress
+
+- **58.18** — Core Profile-Aware Inventory Overview V1.
+- **58.19** — Manual Customer creation + Touch UX V1 + Acceptance fixture aligned with Point 4 Identity V1.
+- **58.20** — Explicit POS Profile Routing + Pickup capability/lifecycle gating.
+- **58.21** — Touch-Friendly Settings Hub V1.
+
+### Kitchen terminology cleanup
+
+Kitchen intentionally has separate gates:
+- Page permission: **الوصول إلى شاشة المطبخ**.
+- Operational setting: **تفعيل تشغيل المطبخ**.
+
+Do not collapse these gates; they answer different questions.
+
+### Planned optional commercial capability — Kitchen Stations
+
+Feature code: `food.kitchen_stations`
+
+Commercial / entitlement rule:
+- **Sharawla Admin entitlement** is authoritative.
+- **Restaurant / Cafe only** in the first implementation.
+- A Business or Branch cannot self-enable this feature if Sharawla Admin has not entitled it.
+- Entitlement OFF preserves current single-Kitchen + single-preparation-receipt behavior.
+- Entitlement ON allows an authorized Business admin to configure branch-level Stations.
+
+Target architecture:
+
+`Order → Lines → Station Routing → Kitchen Screen / Prep Printer → Station Completion → Order Ready`
+
+Station examples:
+- شاورما
+- بيتزا
+- مكرونة
+- مشروبات
+- حلويات
+- Master / Expo
+
+Required V1 contracts:
+1. Station definitions are scoped by Location/Branch.
+2. Category may provide the default Station.
+3. Product may override the Category Station.
+4. One item line may route to one or more approved Stations only through an explicit routing contract.
+5. Every Station receives the same Order/Bon identity while seeing only its assigned preparation lines.
+6. Item notes, modifiers and removals stay attached to the routed line.
+7. Station states are independent: New → Preparing → Ready.
+8. The Order cannot become Ready until all required Stations are Ready.
+9. Unmapped lines fail visibly into an **Unassigned** queue and are never silently dropped.
+10. Optional **Master / Expo** may receive the complete order for final assembly.
+11. Station output mode may be Screen only / Printer only / Screen + Printer.
+12. Printer selection uses a logical **Printer Role** per Station, with the Windows device name bound locally on the device.
+13. Touch UI is mandatory for Station screens: large cards and large action targets.
+14. Permissions and Location Scope apply to Station management and Station operation.
+15. Existing single-Kitchen behavior is compatibility behavior only when entitlement is OFF.
+
+### Implementation order for Kitchen Stations
+
+Kitchen Stations does **not** begin as runtime implementation yet.
+
+Required prerequisites:
+1. Menu/Function cleanup closure.
+2. Permissions V2 — Page + Action + Location.
+3. Locations + Device/Printer Role foundation.
+4. Sharawla Admin entitlement wiring for `food.kitchen_stations`.
+5. Kitchen Stations V1 source → static gates → SH-0007 acceptance.
+
+### 58.22 scope
+
+58.22 is a small cleanup candidate only:
+- clarify Kitchen permission vs operational-enable labels;
+- record the Kitchen Stations commercial-capability contract;
+- no DB migration;
+- no Kitchen Stations runtime implementation;
+- no printing behavior change.
+
+### CURRENT EXACT NEXT STEP AFTER 58.22
+
+Continue Menu/Function cleanup with the four still-conflicted shared inventory/purchasing routes:
+- `suppliers`
+- `purchasing`
+- `stockCount`
+- `transfers`
+
+Goal: define one Core owner per shared workflow with profile adapters, without changing business rules and without activating Canonical Stock/Cutover.
+
+After those ownership conflicts are resolved and runtime-accepted, advance to **Permissions V2: Page + Action + Location**.
+
+No statement in this override authorizes a Production write or Stable promotion.
