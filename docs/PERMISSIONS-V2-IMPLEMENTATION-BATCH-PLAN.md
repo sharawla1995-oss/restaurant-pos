@@ -525,7 +525,7 @@ branches.location_code
 
 ## Beta prerequisite
 
-Investigate operational branch #3 `hgolj` before assigning final codes or deleting anything.
+Branch #3 `hgolj` is currently a required Restaurant Full Acceptance secondary-branch fixture. Do not delete/deactivate it or remove test-admin access before G0. After G0/G3, either deliberately retain/rename/code it as the Beta fixture location or replace the fixture contract with another explicit second test location before assigning final Location Codes.
 
 ## P9 acceptance
 
