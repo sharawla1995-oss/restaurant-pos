@@ -2372,9 +2372,11 @@ The current best-effort renderer `audit()` helper is NOT sufficient for AI audit
 POS design:
 `docs/PERMISSIONS-V2-LOCATION-PRINTER-AI-SUPPORT-DESIGN.md`
 
-Sharawla Admin V4 design:
-`docs/V4-CAPABILITY-COMMERCIAL-RUNTIME-CONSOLIDATION.md`
-on branch `v4-cloud-admin-work`.
+Sharawla Admin entitlement/runtime control design:
+`docs/SHARAWLA-ADMIN-ENTITLEMENT-CONTROL-DESIGN.md`
+
+Post-58.26 implementation/acceptance gates:
+`docs/POST-58-26-IMPLEMENTATION-GATES.md`
 
 ### Gate remains unchanged
 
