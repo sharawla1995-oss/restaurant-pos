@@ -1671,3 +1671,508 @@ If Restaurant Full Roundtrip still fails, 58.24 stage diagnostics must identify 
 - Canonical Stock OFF. Cutover OFF.
 - Production SH-0005/SH-0006 untouched.
 - Runtime target: Full Acceptance Restaurant roundtrip PASS and cleanup residue 0 on SH-0007.
+
+
+---
+
+## 2026-09-24 OFFICIAL CONTINUATION CHECKPOINT — Beta58.26 + Cleanup / Touch / Kitchen Stations
+
+> This is the current authoritative continuation checkpoint. It supersedes earlier "CURRENT EXACT NEXT STEP" text where there is a conflict. Earlier sections remain historical evidence.
+
+### 1. Hard safety boundary
+
+- Top Burger Production remains **READ-ONLY / UNTOUCHED**:
+  - SH-0005 — الدقي — 10.5.3 CLEAN.
+  - SH-0006 — العشرين — 10.5.3 CLEAN.
+- SH-0007 remains the isolated Beta device / Business "تجريبي" / Branch TEST.
+- Beta operational backend remains the isolated SH-0007 backend.
+- Canonical Stock = **OFF**.
+- Cutover = **OFF**.
+- No automatic Rebind.
+- Canonical Fingerprint remains immutable.
+- No Production Beta deployment is authorized.
+- Printing / updater / licensing / Business Connection / Offline ownership / accepted Orders + Delivery owners remain protected unless a dedicated regression proves otherwise.
+
+### 2. Hard architecture rule — Multi-Industry + Touch
+
+Sharawla remains one **Multi-Industry Platform** using **Sharawla Core + Activity Profiles**.
+
+Required profile direction remains:
+- Restaurant / Cafe
+- Retail / Market
+- Pharmacy
+- Logistics / Shipping
+- Membership / Gym
+- Warehouse
+- Service / Maintenance
+
+Shared Core must not silently fall back to Restaurant behavior.
+
+**Touch is now a permanent UI requirement, not an optional polish pass.**
+
+Every new operational screen must support:
+- mouse and touch from the same UI;
+- coarse-pointer friendly controls;
+- large tap targets;
+- inputs that do not require precision tapping;
+- scrollable tables/cards;
+- no hover-only critical action;
+- large primary workflow actions;
+- responsive behavior on compact displays.
+
+Current Touch UX baseline introduced in 58.19 uses a minimum coarse-pointer target of approximately 46px and keeps ordinary desktop behavior unchanged when no coarse pointer is present.
+
+### 3. Platform / Point 4 status that remains closed
+
+- Production 10.5.3 CLEAN remains frozen.
+- Point 4 ownership mapping = **61/61 CLOSED**.
+- Direct = **40/40 CLOSED**.
+- Transitive = **15/15 CLOSED**.
+- Document / in-flight barriers = **6/6 CLOSED**.
+- Historical ownership provenance remains closed unless contradictory evidence appears.
+- 46 pre-cutover contracts remain Evidence Complete.
+- Canonical Stock and Cutover remain OFF.
+- Offline Native V2 remains the sole owner during takeover.
+- Point 4 identity/idempotency invariants remain mandatory:
+  - one client transaction identity;
+  - one owner;
+  - one durable store;
+  - one sync owner;
+  - one authoritative ACK.
+
+### 4. Accepted operational closures preserved
+
+Orders:
+- V58.3 accepted owner remains locked.
+- Today default / date range / search / pagination / server filtering remain preserved.
+
+Online Orders:
+- Dedicated operational intake route remains separate from Delivery and Website Settings.
+- Accepted Website order enters Unified Order Engine only after acceptance.
+
+Delivery / Settlement / Shift:
+- Delivery settlement V2 accepted owner preserved.
+- Final payment at completion preserved.
+- Cash driver custody / Wallet + Instapay zero custody preserved.
+- Shift close fails closed while cash custody is unsettled.
+- 58.14 delivery + driver settlement + shift cash integration remains CLOSED / PASS.
+
+Cashier layout:
+- Restored and accepted; do not touch without regression evidence.
+
+### 5. Product Map / Navigation status
+
+Unified Navigation Registry 1A → 1F remains CLOSED / PASS.
+
+Product Map remains profile-aware:
+- Restaurant → تشغيل المطعم
+- Retail → تشغيل المتجر
+- Pharmacy → تشغيل الصيدلية
+- Logistics → تشغيل اللوجستيات
+- Membership → تشغيل العضويات
+- Warehouse → تشغيل المخزن
+- Service → تشغيل الخدمات
+
+Unknown routes remain fail-closed / BLOCK rather than fallback.
+
+Restaurant 11-section Product Map reference remains:
+1. الرئيسية
+2. المبيعات
+3. الطلبات الأونلاين
+4. تشغيل المطعم
+5. المخزون والمشتريات
+6. الموظفون
+7. المالية
+8. التقارير
+9. إدارة الموقع
+10. التكاملات
+11. الإدارة والإعدادات
+
+58.17 presentation was installed/observed on SH-0007. Full representative click-by-click Product Map runtime closure was not separately documented as a formal final gate, so do not rewrite history and claim a complete Product Map runtime closure beyond the evidence already recorded.
+
+### 6. Menu / Function Cleanup progress — 58.18 → 58.23
+
+#### 58.18 — Core Profile-Aware Inventory Overview V1
+
+Status:
+- Source gate: PASS.
+- CI/package gate: PASS.
+- SH-0007 runtime screenshot acceptance: **PASS**.
+
+Result:
+- Core `inventory` is now an Overview, not a Restaurant raw-material editor.
+- Restaurant / Cafe show raw-material summary.
+- Retail / Market use Retail adapters.
+- Pharmacy uses batch/expiry summary.
+- Warehouse uses current warehouse-compatible stock foundations.
+- Unsupported profiles fail closed instead of falling back to Restaurant.
+- Existing Restaurant `foodIngredients` remains detailed raw-material owner.
+- No stock mutation occurs by opening Overview.
+
+#### 58.19 — Customer + Touch UX V1
+
+Status:
+- Source / static / packaging gates: PASS.
+
+Result:
+- Manual **+ عميل جديد** added to Customers.
+- Duplicate-phone guard preserved.
+- Existing import / edit / addresses workflows preserved.
+- Touch UX layer introduced for coarse pointers.
+- Point 4 Restaurant acceptance fixture started Identity V1 alignment.
+
+No Production impact.
+
+#### 58.20 — Explicit POS Profile Routing + Pickup lifecycle
+
+Status:
+- Source / static / packaging gates: PASS.
+
+Result:
+- Restaurant → Restaurant POS.
+- Retail → Retail POS.
+- Pharmacy → Pharmacy POS.
+- Non-POS profiles fail closed instead of opening Restaurant cashier.
+- Pickup is capability-aware.
+- Dine-in is availability / Tables aware.
+- Pickup is no longer treated as an automatic completed-at-checkout shortcut where lifecycle requires active fulfillment.
+
+#### 58.21 — Touch-Friendly Settings Hub V1
+
+Status:
+- Source / static / packaging gates: PASS.
+
+Result:
+- Long Settings page reorganized into focused, touch-friendly sections/tabs.
+- Existing setting owners are preserved.
+- Business / Printing / Financial / Features / Backup / Returns remain permission-aware.
+- This is organization/presentation, not business-rule replacement.
+
+#### 58.22 — Kitchen terminology + Kitchen Stations planning
+
+Status:
+- Source / static / packaging gates: PASS.
+
+Kitchen labels are intentionally distinct:
+- Permission: **الوصول إلى شاشة المطبخ**.
+- Operational setting: **تفعيل تشغيل المطبخ**.
+
+Do not collapse these; one is access, one is operational enablement.
+
+#### 58.23 — Shared Inventory / Purchasing Core Route Ownership V1
+
+Status:
+- Source / static / packaging gates: PASS.
+- Runtime route-click acceptance still needs explicit confirmation on SH-0007 after the current candidate is installed.
+
+The four shared route keys now have one Core dispatcher:
+- `suppliers`
+- `purchasing`
+- `stockCount`
+- `transfers`
+
+Profile adapters:
+- Restaurant → existing Restaurant business renderers.
+- Retail → existing Retail business renderers.
+- Other profiles → fail closed until an approved adapter exists.
+
+This closes the previous structural route-owner conflict in source. It does **not** change purchasing / stock business rules and does not activate Canonical Stock or Cutover.
+
+### 7. Kitchen Stations — planned optional Commercial Capability
+
+Kitchen Stations is officially planned as an **optional Sharawla Admin entitlement**, not a feature available to every Restaurant automatically.
+
+Feature code:
+`food.kitchen_stations`
+
+Authority:
+- Sharawla Admin entitlement is authoritative.
+- Restaurant / Cafe only in V1.
+- Business / Branch cannot self-enable the entitlement.
+- When entitlement is OFF, existing single-Kitchen + single-preparation-receipt behavior remains compatible.
+- When entitlement is ON, authorized Business admins may configure branch-level Stations.
+
+Target flow:
+`Order → Lines → Station Routing → Kitchen Screen / Prep Printer → Station Completion → Order Ready`
+
+Examples:
+- شاورما
+- بيتزا
+- مكرونة
+- مشروبات
+- حلويات
+- Master / Expo
+
+V1 requirements remain:
+- Station scoped by Location / Branch.
+- Category default Station.
+- Product override.
+- explicit line routing;
+- notes / modifiers / removals stay with the routed line;
+- New → Preparing → Ready per Station;
+- whole order Ready only when all required Stations are Ready;
+- unmapped line goes visibly to Unassigned, never silently dropped;
+- optional Master / Expo;
+- output = Screen / Printer / Screen + Printer;
+- logical Printer Role mapped locally to the Windows printer;
+- touch-first Station cards and actions;
+- Action + Location permissions.
+
+Kitchen Stations implementation prerequisites remain:
+1. Menu / Function cleanup closure.
+2. Permissions V2 — Page + Action + Location.
+3. Locations + Device / Printer Role foundation.
+4. Sharawla Admin entitlement wiring.
+5. Kitchen Stations V1 source + static gates + SH-0007 runtime acceptance.
+
+### 8. Full Acceptance issue discovered on 58.22
+
+Observed SH-0007 Full Acceptance:
+
+- Version: **10.5.4-beta.58.22**
+- Profile: restaurant
+- Level: full
+- Mode: sandbox
+- Coverage Score: **94.74%**
+- Readiness: BLOCKED
+
+Almost all automated gates passed.
+
+The critical automated failure was:
+`beta55.restaurant-full-roundtrip — POINT4_IDENTITY_UUID_V4_REQUIRED`
+
+Other notable Full Acceptance states:
+- Restaurant navigation parity: PASS.
+- Sandbox lock: PASS.
+- 7-profile engine contracts: PASS.
+- Navigation smoke: PASS.
+- Offline native health: PASS.
+- Restaurant cleanup verify: PASS.
+- Restaurant runtime contract: PASS.
+- Delivery settlement / shift cash: PASS.
+- Restaurant print order type: PASS.
+- Offline migration compatibility: PASS.
+- Permissions profile-role contracts: PASS.
+- Current-session boundary: PASS.
+- Recovery / backup / corruption / clock-sequence tests: PASS.
+- `restaurant.sale-return` is SKIPPED because superseded by the isolated Restaurant full-roundtrip fixture.
+- Enabled feature coverage remains MANUAL for uncovered features.
+- True backend role impersonation remains MANUAL pending dedicated sandbox users.
+
+Do not treat the MANUAL entries as automated PASS.
+
+### 9. 58.24 → 58.26 Point 4 Acceptance corrective sequence
+
+#### 58.24 — Restaurant Full Acceptance Stage Diagnostics
+
+Added explicit stage labels to the full Restaurant roundtrip so the next failure reports the exact stage:
+- fixture
+- ingredients
+- UOM
+- opening-stock adjustment
+- supplier
+- purchase order
+- purchase receive
+- supplier return
+- stock count
+- transfer
+- waste
+- sale recipe
+- prep recipe
+- production
+- tables open
+- sale
+- return
+- tables close
+
+Business runtime was not changed.
+
+#### 58.25 — Secure Point 4 UUID V4 provider
+
+Added shared `point4-uuid-v4.js`:
+- primary path: `crypto.randomUUID()`;
+- secure fallback: `crypto.getRandomValues()`;
+- correct RFC4122 version-4 + variant bits;
+- no `Math.random`;
+- no timestamp pseudo-UUID fallback;
+- fail closed if secure Web Crypto is unavailable.
+
+POS sale/return identity and Restaurant Acceptance use the same provider.
+
+No Point 4 guard was weakened.
+
+#### 58.26 — Restaurant Point 4 Canonical TX Acceptance corrective
+
+Root cause was narrowed further to the acceptance sale/return transaction IDs.
+
+Once canonical Point 4 Identity V1 is present, the Offline V2 transport `assertPoint4Payload` requires the acceptance sale/return `client_tx_id` to also be canonical UUIDv4.
+
+Historical acceptance used:
+`ACC-...-B55R-SALE`
+and
+`ACC-...-B55R-RETURN`
+
+58.26 changes **acceptance-only** sale / return TX generation to UUIDv4 from the shared secure provider.
+
+The retry reuses the exact same payload / UUID so idempotency is still tested.
+
+Business sale / return runtime is not replaced.
+
+Acceptance cleanup was corrected so UUID-TX Orders / Returns are found using:
+- acceptance notes marker;
+- order lineage;
+- existing run-pattern IDs for the other fixture entities.
+
+The Point 4 cleanup stock guard remains present.
+
+### 10. Beta DB status for 58.26 acceptance cleanup
+
+Read-only inspection on 2026-09-24 confirmed the isolated SH-0007 Beta operational backend currently contains the corrected `sharawla_beta55_restaurant_acceptance_cleanup_v1` body.
+
+The deployed helper includes:
+- Order lookup by legacy run-TX **or acceptance notes marker**.
+- Return lookup by legacy run-TX **or marker / order lineage**.
+- Point 4 physical-stock guard before destructive acceptance cleanup.
+- cleanup of Food return / order consumption snapshots and related acceptance residue.
+
+This is Beta acceptance infrastructure only.
+
+No Production database change is authorized by this checkpoint.
+
+### 11. Current source / build checkpoint
+
+Branch:
+`beta56-offline-ownership-consolidation`
+
+Current source HEAD before this documentation checkpoint:
+`047a468a56855a33412deb4f20fdad0189f02dd9`
+
+Package version:
+`10.5.4-beta.58.26`
+
+Latest source-only corrective at that HEAD:
+`test: make beta58 feature gates patch-version agnostic`
+
+Purpose:
+- prevent 58.22 / 58.24 / 58.25 historical feature checkers from failing merely because the package advanced to a later Beta58 patch;
+- preserve feature semantics while accepting the active Beta58 line.
+
+Latest CI:
+- Run: `36043725363`
+- Result: **SUCCESS**
+- Candidate validation: PASS.
+- Windows x64 build: PASS.
+- Packaged verification: PASS.
+
+Latest artifact:
+- ID: `10827228132`
+- Name: `sharawla-pos-047a468a56855a33412deb4f20fdad0189f02dd9-sh0007-x64`
+- Digest: `sha256:fa7f93f6061a43b33b54a5609318d5b3e467c5a036545f3ddb712fb50ff53fc8`
+- Size: 76,729,282 bytes.
+
+This build is **SH-0007 only**.
+
+### 12. What is formally runtime-confirmed vs source/build-only
+
+Runtime-confirmed:
+- 58.18 Inventory Overview Restaurant presentation on SH-0007.
+- Existing Orders / Online Orders / Delivery / Driver Settlement / Shift Cash accepted closures from their prior gates.
+- 58.22 Full Acceptance confirms broad navigation/offline/permissions/recovery health except the Restaurant full-roundtrip failure.
+
+Source / CI / package accepted but still needing targeted runtime confirmation:
+- Manual Customer create.
+- complete Touch interaction pass across representative workflows.
+- 58.20 POS Profile Routing + Pickup/Dine-in behavior.
+- 58.21 Settings Hub interaction.
+- 58.23 Suppliers / Purchasing / Stock Count / Transfers Core-owner routing.
+- 58.26 corrected Restaurant Full Acceptance.
+
+Do not mark these runtime gates CLOSED until SH-0007 evidence exists.
+
+### 13. Current exact blocker
+
+The immediate blocker is no longer discovery of the 58.22 error.
+
+Source + build corrective work through **58.26** is ready.
+
+The exact missing evidence is:
+
+**Install the current 10.5.4-beta.58.26 artifact on SH-0007 and rerun Restaurant Full Acceptance.**
+
+Acceptance target:
+- `beta55.restaurant-full-roundtrip = PASS`
+- acceptance cleanup residue = 0
+- no new Offline unresolved delta
+- existing navigation / delivery / print / permissions / recovery gates remain PASS.
+
+If it still fails, the 58.24 stage diagnostics must be used as the authoritative failure location. Do not weaken Point 4 validation.
+
+### 14. Exact next work after Full Acceptance PASS
+
+After 58.26 Full Acceptance PASS:
+
+1. Perform targeted SH-0007 runtime clicks for:
+   - Suppliers
+   - Purchasing
+   - Stock Count
+   - Transfers
+   and confirm Restaurant adapters open with no Retail leakage.
+
+2. Confirm touch behavior on representative high-frequency workflows:
+   - POS
+   - Customers
+   - Orders
+   - Kitchen / Delivery
+   - Inventory Overview
+   - Settings
+   using large tap targets and no hover-only critical actions.
+
+3. Close the Menu / Function Cleanup gate.
+
+4. Begin **Permissions V2 — Page + Action + Location**:
+   - page permission;
+   - action permission;
+   - location scope;
+   - role templates as defaults, then editable overrides.
+
+5. Build the **Locations + Device / Printer Role** foundation.
+
+6. Wire Sharawla Admin entitlement for `food.kitchen_stations`.
+
+7. Implement Kitchen Stations V1 only after those prerequisites are closed.
+
+### 15. Broader Master Roadmap remains
+
+1. Restaurant Closure — CLOSED.
+2. Sharawla Cloud + Admin V4 — CLOSED.
+3. Commercial Capabilities — CLOSED.
+4. Central Warehouse V2 + Financial Closure — IN PROGRESS.
+5. Commercial Warehouse Acceptance — pending.
+6. Retail — pending full product closure.
+7. Pharmacy — pending full product closure.
+8. Logistics — pending.
+9. Membership / Gym — pending.
+10. Warehouse Profile — pending.
+11. Service / Maintenance — pending.
+12. Cross-Profile Closure — pending.
+13. Permissions Final Closure — pending; Permissions V2 is the next major platform authorization phase after current cleanup.
+14. Reports & Accounting / Financial Closure — pending.
+15. Offline / Sync Final Closure — pending broad acceptance; architecture/ownership foundation is already closed.
+16. RC1 — pending.
+17. Pilot Production → V1 Production Ready — pending.
+
+### 16. Final current state
+
+Current work is still **Beta / SH-0007 only**.
+
+There is no Stable promotion yet.
+
+There is no Production write authorization.
+
+There is no Canonical Stock activation.
+
+There is no Cutover activation.
+
+The immediate continuation point is:
+
+**58.26 SH-0007 Full Acceptance → shared-route runtime acceptance → touch runtime pass → close Menu Cleanup → Permissions V2 → Locations/Printer Roles → Sharawla Admin Kitchen Stations entitlement → Kitchen Stations V1.**
