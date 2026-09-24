@@ -196,12 +196,14 @@ if(baseRenderShifts){
    if(closeBtn){
     const legacyClose=closeBtn.onclick;
     closeBtn.onclick=async()=>{
-     if(!isOnline())return legacyClose?.();
      const actual=Number(document.querySelector('#closingCash')?.value);
      if(!Number.isFinite(actual)||actual<0){toastLocal('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');return}
      const fresh=await global.shiftMetrics(open);
      const pending=(fresh.orders||[]).filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));
      if(pending.length){toastLocal(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);return}
+     const unsettled=num(fresh.driverCustodyUnsettled);
+     if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
+     if(!isOnline())return legacyClose?.();
      closeBtn.disabled=true;
      try{
       const closed=await global.rpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
