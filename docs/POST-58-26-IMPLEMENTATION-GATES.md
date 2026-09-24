@@ -458,6 +458,8 @@ Execute:
 ### Curated V1 only
 Start with operations whose underlying owners are already hardened.
 
+For any owner in a profile-specific family, the Cross-Profile Backend Authorization Audit must also be CLOSED for that owner before AI allowlisting.
+
 Do not expose legacy direct REST writes merely because the human UI still uses them.
 
 ### Required checks
@@ -475,10 +477,23 @@ Sharawla AI Operator V1 = CLOSED/PASS.
 
 ---
 
-## G12 — Cross-Profile / Release Continuation
+## G12 — Cross-Profile Backend Authorization / Release Continuation
 
 Kitchen Stations remains Restaurant/Cafe V1 only.
 Support Center and AI Operator are cross-profile capabilities only where eligibility/readiness explicitly allows them.
+
+Before Cross-Profile Closure or V1 Production Ready, close:
+`docs/CROSS-PROFILE-BACKEND-AUTHORIZATION-AUDIT.md`
+
+Mandatory checks:
+- sensitive profile-specific SECURITY DEFINER mutation owners do not rely on UI isolation;
+- unintended PUBLIC/anon EXECUTE grants are removed where the endpoint is not intentionally public;
+- trusted Profile/Capability ownership is enforced in the backend owner;
+- Action V2 is enforced;
+- Location Scope is enforced where applicable;
+- direct RPC negative tests prove Restaurant credentials cannot execute Retail/Pharmacy/Logistics/Membership/Service-only mutations, and vice versa.
+
+Sharawla AI may call only owners that already passed this hardening gate.
 
 Do not globally migrate historical Runtime Config feature authority to Snapshot V2 as part of these gates.
 
