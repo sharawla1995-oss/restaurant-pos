@@ -2351,8 +2351,6 @@ async function renderOnlineOrders(){
   const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button></span></div>`).join('')}</div></div>`:'<div class="panel website-orders-panel"><h2>🌐 الطلبات الجديدة</h2><div class="empty">لا توجد طلبات أونلاين جديدة</div></div>';
   $('#page').innerHTML=websitePanel;
   $('#page').onclick=async e=>{
-    const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
-    const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
     const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
     const rej=e.target.closest('[data-online-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.onlineReject),{source:rej.dataset.onlineSource});if(!result.rejected)return;toast('تم رفض الطلب');return renderOnlineOrders()}catch(err){return toast(err.message)}}
   };
@@ -2360,17 +2358,15 @@ async function renderOnlineOrders(){
 
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
-  const [orders,drivers,webOrders]=await Promise.all([
+  const [orders,drivers]=await Promise.all([
     rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,source.eq.website)&order=created_at.desc&limit=300`),
-    rest('delivery_drivers','select=*&active=eq.true&order=name'),
-    rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`).catch(()=>[])
+    rest('delivery_drivers','select=*&active=eq.true&order=name')
   ]);
   state.drivers=drivers||[];
   const all=(orders||[]).filter(o=>o.status!=='cancelled'&&(o.order_type==='delivery'||(o.source==='website'&&o.order_type==='pickup')));
   const active=all.filter(o=>['new','preparing','ready','out_for_delivery'].includes(o.status));
   const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
-  const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 طلبات الموقع الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-web-accept="${w.id}">✅ استلام</button> <button class="danger" data-web-reject="${w.id}">رفض</button></span></div>`).join('')}</div></div>`:'';
-  $('#page').innerHTML=`${websitePanel}<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
+  $('#page').innerHTML=`<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div></div>
   <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">تم الاستلام</button><button data-filter="preparing">جاري التجهيز</button><button data-filter="ready">جاهز</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
   let filter='active';
   const draw=()=>{
@@ -2387,8 +2383,6 @@ async function renderDeliveryOrders(){
   $('#page').onclick=async e=>{
     const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
     const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
-    const acc=e.target.closest('[data-web-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.webAccept),{source:'website'});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderDeliveryOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
-    const rej=e.target.closest('[data-web-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.webReject),{source:'website'});if(!result.rejected)return;toast('تم رفض الطلب');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
     const detail=e.target.closest('[data-order-detail]');if(detail)return openDeliveryOrderDetails(detail.dataset.orderDetail);
   };
   draw();
