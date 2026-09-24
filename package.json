@@ -24,7 +24,8 @@
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis",
     "sync-version": "node scripts/sync-version.js",
-    "check:orders-runtime-corrective": "node scripts/check-orders-runtime-corrective.js"
+    "check:orders-runtime-corrective": "node scripts/check-orders-runtime-corrective.js",
+    "check:online-orders": "node scripts/check-online-orders-route-foundation.js && node scripts/check-online-orders-readonly-inbox.js && node scripts/check-online-orders-core-boundary.js && node scripts/check-online-orders-accept-boundary.js && node scripts/check-online-orders-reject-boundary.js && node scripts/check-online-orders-delivery-extraction.js && node scripts/check-online-orders-notification-routing.js && node scripts/check-online-orders-fulfillment-handoff.js && node scripts/check-online-orders-lifecycle-model.js && node scripts/check-online-orders-channel-model.js && node scripts/check-online-orders-lifecycle-views.js && node scripts/check-online-orders-identity-dedup.js && node scripts/check-online-orders-performance-pagination.js && node scripts/check-online-orders-capability-permission-boundary.js && node scripts/check-online-orders-navigation-ui.js"
   },
   "dependencies": {
     "sql.js": "1.8.0",
