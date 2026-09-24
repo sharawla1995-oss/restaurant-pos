@@ -750,7 +750,114 @@ If expanded catalog snapshot validation fails:
 - restore the last known complete Cloud catalog generation only through an explicit corrective migration.
 
 
-## 18. Current status
+
+## 18. Printer Role Local Persistence Contract
+
+### Decision
+
+Use the desktop Native SQLite `kv` store as the durable local owner for Printer Role -> physical printer bindings.
+
+Do not make browser `localStorage` the final owner for new Kitchen Station printer mappings.
+
+Reason:
+- Native `kv` already exists in `topburger-pos.sqlite`;
+- it is available through `topBurgerDesktop.db.get/set`;
+- it participates in the existing SQLite backup/recovery path;
+- it is device-local, which matches physical Windows printer ownership;
+- it avoids coupling physical printer names to Cloud or Business database state.
+
+### Legacy compatibility
+
+Current mappings:
+- `tb_printer_<branchId>_customer`
+- `tb_printer_<branchId>_prep`
+
+remain legacy-compatible during migration.
+
+Migration rule:
+1. read Printer Role V1 Native binding first;
+2. if absent, read the matching legacy localStorage key;
+3. if legacy value exists, import it into Native V1 storage only after canonical Business/Device/Location identity is available;
+4. never overwrite an existing Native V1 binding from a legacy value;
+5. keep legacy read fallback until runtime acceptance closes migration;
+6. Kitchen Station-specific roles have no legacy fallback.
+
+### Native key identity
+
+Recommended logical key:
+
+`printer-role:v1:<business_id>:<device_id>:<location_code>:<role_code>`
+
+Recommended value:
+
+```json
+{
+  "schema": 1,
+  "role_code": "customer_receipt",
+  "physical_printer_name": "<windows-printer-name>",
+  "physical_printer_display_name": "<display-name>",
+  "updated_at": "<iso-time>"
+}
+```
+
+The exact physical printer name remains local and must not be copied into Sharawla Cloud entitlement data.
+
+### Reserved baseline roles
+
+- customer_receipt
+- default_prep
+- report
+
+Kitchen Stations creates logical station roles such as:
+- kitchen_station:shawarma
+- kitchen_station:pizza
+- kitchen_station:drinks
+- expo
+
+Station codes must be stable identifiers and must not depend on the Arabic display name.
+
+### Business-side logical configuration
+
+The Business operational backend owns logical routing intent, for example:
+- location
+- station
+- output_mode = screen | printer | both
+- printer_role_code
+- active
+
+The device resolves `printer_role_code` to the local physical Windows printer.
+
+### Fail-visible routing
+
+For Kitchen Station roles:
+- an unbound required printer role must not silently fall back to an arbitrary default Windows printer;
+- UI must show a visible unbound-role state;
+- screen routing may continue if output_mode includes screen;
+- printer-only routing with no binding must remain visibly unresolved and retryable.
+
+For legacy customer/default prep printing, compatibility fallback may remain during migration until explicit acceptance closes it.
+
+### Device replacement / rebind rule
+
+Printer bindings are not part of Canonical Fingerprint identity and must not mutate device identity.
+
+A replacement/rebound device starts with no physical Printer Role bindings unless explicitly migrated by an authorized local setup flow.
+
+No automatic cross-device physical printer copy.
+
+### Acceptance
+
+For each logical Printer Role:
+- selected physical printer exists in `print:list`;
+- silent test print returns success;
+- restart preserves the Native binding;
+- offline mode preserves the binding;
+- pre-update backup/restore preserves the binding;
+- switching Business/Device identity cannot accidentally reuse another identity's mapping;
+- missing station binding is fail-visible;
+- no physical printer name is required in Sharawla Cloud.
+
+## 19. Current status
 
 Design discovery: CLOSED for this checkpoint.
 Runtime implementation: NOT STARTED.
