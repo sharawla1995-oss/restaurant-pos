@@ -1364,3 +1364,76 @@ For example, the same profile-operations section may display:
 Profile-specific sections/routes appear only when the authoritative profile/capability/permission model allows them.
 
 This rule does not authorize any Production write, Canonical Stock activation, Cutover, or Stable promotion.
+
+
+---
+
+## 2026-09-24 CURRENT OVERRIDE — Core Inventory Overview V1
+
+> This section supersedes the legacy Restaurant-only `renderInventory()` ownership where it conflicts. Older text remains historical evidence.
+
+### Reason for change
+
+The legacy Core `inventory` route was not actually a Core overview:
+- Retail was special-cased into `renderRetailInventory()`.
+- Every non-Retail profile fell through to Restaurant `ingredient_stock` and displayed **مخزون الخامات**.
+- This duplicated the Restaurant **الخامات** page and leaked Restaurant behavior into Pharmacy/Warehouse/other profiles.
+
+### Accepted architecture
+
+`inventory` is now a **Core, profile-aware, read-only Inventory Overview**.
+
+Detailed stock-management owners remain separate:
+- Restaurant/Cafe detailed raw-material management remains **الخامات**.
+- Retail detailed balance/policy/movement management remains the existing Retail inventory detail renderer.
+- Pharmacy detailed stock remains Batch/Expiry workflows.
+- Warehouse operational center remains its existing owner.
+- Unsupported profiles do **not** fall back to Restaurant. They fail closed unless Inventory is explicitly supported.
+
+### Current adapters
+
+- Restaurant / Cafe → ingredient summary, low/zero stock, approximate value, alerts; no duplicate raw-material management table.
+- Retail / Market → product/variant stock summary plus preserved access to the existing detailed Retail balance/policy screen.
+- Warehouse → stock summary using current warehouse-compatible Retail stock foundations.
+- Pharmacy → batch/expiry/reorder summary.
+- Logistics / Membership / Service and any other profile → fail closed if no approved Inventory adapter exists.
+
+### Safety
+
+- Overview module performs **no mutation RPCs**.
+- No DB migration.
+- No Canonical Stock activation.
+- No Cutover.
+- No Point 4 ownership change.
+- Existing detail owners and permission boundaries are preserved.
+- Production SH-0005 / SH-0006 remain untouched on 10.5.3 CLEAN.
+
+### Source / Packaging status
+
+- Candidate version: **10.5.4-beta.58.18**.
+- Source commit: `027942db6695c9e37fbf0115c76cac7e3bef93a0`.
+- GitHub Actions run: `36034071355` → **SUCCESS**.
+- Candidate validation: **PASS**.
+- Windows x64 build: **PASS**.
+- Packaged app.asar Inventory Overview verification: **PASS**.
+- Artifact ID: `10823853612`.
+- Artifact name: `sharawla-pos-027942db6695c9e37fbf0115c76cac7e3bef93a0-sh0007-x64`.
+- Artifact digest: `sha256:f25a93b6664f316c5a255da3dccbbef97cfeee5fff461e8482fa24770dbca144`.
+
+### CURRENT EXACT NEXT STEP — SH-0007 Inventory Runtime Acceptance
+
+Install **10.5.4-beta.58.18** on **SH-0007 only**, then open **المخزون**.
+
+For Restaurant profile verify:
+1. The page title/contents are **نظرة عامة على المخزون**, not the old duplicate **مخزون الخامات** table.
+2. KPI cards load without error.
+3. Low/zero-stock alerts load.
+4. **إدارة الخامات** opens the existing **الخامات** owner.
+5. **الجرد** and **التحويلات** still open their existing owners when visible.
+6. No stock quantity changes merely from opening the Overview.
+7. Navigation back to other accepted routes still works.
+
+PASS closes the first Menu/Function Cleanup item and moves the audit to:
+**Customers manual create + POS order-type capability gating + Settings/Delivery Settings split planning + ownership unification for Suppliers/Purchasing/StockCount/Transfers.**
+
+No Stable promotion is authorized by this checkpoint.
