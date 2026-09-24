@@ -2390,8 +2390,16 @@ async function renderOnlineOrders(){
     rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&order=created_at.desc&limit=100`).catch(()=>[]),
     rest('orders',`select=*&branch_id=eq.${currentBranchId()}&source=eq.website&order=created_at.desc&limit=100`).catch(()=>[])
   ]);
-  const source=(sourceRows||[]).map(w=>({kind:'source',row:w,lifecycle:onlineOrderLifecycleState(w,'source'),channel:resolveOnlineOrderChannel('website')}));
-  const canonical=(canonicalRows||[]).map(o=>({kind:'canonical',row:o,lifecycle:onlineOrderLifecycleState(o,'canonical'),channel:resolveOnlineOrderChannel(o.source||'website')}));
+  const canonicalById=new Map((canonicalRows||[]).map(o=>[String(o.id),o]));
+  const linkedCanonicalIds=new Set();
+  const source=(sourceRows||[]).map(w=>{
+    const linkedId=w.order_id??w.accepted_order_id??null;
+    const linked=linkedId!=null?canonicalById.get(String(linkedId)):null;
+    if(linked)linkedCanonicalIds.add(String(linked.id));
+    if(linked)return {kind:'canonical',row:linked,sourceRow:w,lifecycle:onlineOrderLifecycleState(linked,'canonical'),channel:resolveOnlineOrderChannel(linked.source||'website'),identity:{source_order_id:w.id,canonical_order_id:linked.id}};
+    return {kind:'source',row:w,lifecycle:onlineOrderLifecycleState(w,'source'),channel:resolveOnlineOrderChannel('website'),identity:{source_order_id:w.id,canonical_order_id:linkedId}};
+  });
+  const canonical=(canonicalRows||[]).filter(o=>!linkedCanonicalIds.has(String(o.id))).map(o=>({kind:'canonical',row:o,lifecycle:onlineOrderLifecycleState(o,'canonical'),channel:resolveOnlineOrderChannel(o.source||'website'),identity:{source_order_id:null,canonical_order_id:o.id}}));
   const entries=[...source,...canonical].sort((a,b)=>new Date(b.row.created_at||0)-new Date(a.row.created_at||0));
   const views=[
     ['all','الكل'],['new','جديد'],['accepted','مقبول'],['in_fulfillment','قيد التنفيذ'],['completed','مكتمل'],['rejected_cancelled','مرفوض / ملغي']
@@ -2404,7 +2412,7 @@ async function renderOnlineOrders(){
     const buttons=views.map(([key,label])=>`<button class="${view===key?'active':''}" data-online-view="${key}">${label}</button>`).join('');
     const body=rows.map(entry=>{
       const w=entry.row,isSource=entry.kind==='source',isNew=entry.lifecycle.state==='new';
-      const idLabel=isSource?`WEB-${String(w.id).padStart(5,'0')}`:esc(bonDisplay(w));
+      const idLabel=entry.identity?.source_order_id!=null?`WEB-${String(entry.identity.source_order_id).padStart(5,'0')}${entry.identity.canonical_order_id!=null?` → ${esc(bonDisplay(w))}`:''}`:esc(bonDisplay(w));
       const type=w.order_type==='pickup'?'🏪 استلام فرع':w.order_type==='delivery'?'🛵 دليفري':esc(w.order_type||'طلب');
       const customer=esc(w.customer_name||w.customer_phone||'عميل');
       const phone=w.customer_phone?`<small>${esc(w.customer_phone)}</small>`:'';
