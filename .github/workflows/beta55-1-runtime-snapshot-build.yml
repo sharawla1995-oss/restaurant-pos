@@ -45,6 +45,7 @@ jobs:
           node scripts/check-settings-hub-v1.js
           node scripts/check-kitchen-labels-plan-v1.js
           node scripts/check-shared-inventory-purchasing-routing-v1.js
+          node scripts/check-restaurant-acceptance-stage-v1.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -125,6 +126,8 @@ jobs:
           if (!$restaurantClosureText.Contains("const PAGES=new Set(['foodIngredients','foodRecipes','foodOperations','tables'])")) { throw 'packaged Restaurant capture still owns shared inventory routes' }
           if (!$restaurantClosureText.Contains('renderSharedRoute')) { throw 'packaged Restaurant shared adapter API missing' }
           if (!$navRegistryText.Contains("renderer:'renderSharedInventoryPurchasingRoute'")) { throw 'packaged Navigation Registry missing shared Core route owner' }
+          $restaurantAcceptanceText = Get-Content (Join-Path $probe 'owner-acceptance-beta55-restaurant-v55.js') -Raw
+          if (!$restaurantAcceptanceText.Contains('[restaurant-full-roundtrip:${stage}]')) { throw 'packaged Restaurant acceptance stage diagnostics missing' }
           if (!$settingsHubCssText.Contains('.settings-hub-tabs')) { throw 'packaged Settings Hub tab CSS missing' }
           $settingsHubRef = "settings-hub-v1.css?v=$($pkg.version)"
           if (!$indexText.Contains($settingsHubRef)) { throw "packaged index missing versioned Settings Hub reference: $settingsHubRef" }
