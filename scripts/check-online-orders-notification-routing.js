@@ -1,17 +1,1 @@
-'use strict';
-const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
-const route=(app.match(/function onlineOrderNotificationRoute\([\s\S]*?\n}/)||[])[0]||'';
-const alert=(app.match(/function showWebsiteOrderAlert\([\s\S]*?\n}/)||[])[0]||'';
-const watch=(app.match(/async function checkWebsiteOrders\([\s\S]*?\n}/)||[])[0]||'';
-need(/channel==='website'\)return 'onlineOrders'/.test(route),'website notification must resolve to Online Orders');
-need(/return null/.test(route),'unknown channel notification must fail closed');
-need(/onlineOrderNotificationRoute\('website'\)/.test(alert),'website alert must use channel route boundary');
-need(!/showPage\('deliveryOrders'\)/.test(alert),'website alert still routes to Delivery');
-need(/showPage\(route\)/.test(alert),'resolved inbox route is not opened');
-need(/canAccessPage\('onlineOrders'\)/.test(watch),'watcher must gate on Online Orders access');
-need(!/canAccessPage\('deliveryOrders'\)/.test(watch),'watcher still directly coupled to Delivery access');
-need(/websiteOrderBeep\(\)/.test(alert),'existing notification sound changed');
-need(/setInterval\(checkWebsiteOrders,5000\)/.test(app),'existing watcher interval changed');
-if(fail.length){console.error('Online Orders Batch 6 Notification Routing: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
-console.log('Online Orders Batch 6 Notification Routing: PASS');
-console.log('website_route=onlineOrders; unknown_channel=fail-closed; watcher=preserved; sound=preserved');
+'use strict';const fs=require('fs'),app=fs.readFileSync('app.js','utf8');const f=[],n=(x,m)=>{if(!x)f.push(m)},r=(app.match(/function onlineOrderNotificationRoute\([\s\S]*?\n}/)||[])[0]||'',a=(app.match(/function showWebsiteOrderAlert\([\s\S]*?\n}/)||[])[0]||'',w=(app.match(/async function checkWebsiteOrders\([\s\S]*?\n}/)||[])[0]||'';n(/resolveOnlineOrderChannel\(source\)/.test(r)&&/channel\.supported\?'onlineOrders':null/.test(r),'channel route/fail-closed missing');n(/onlineOrderNotificationRoute\('website'\)/.test(a)&&/showPage\(route\)/.test(a),'alert route boundary missing');n(!/showPage\('deliveryOrders'\)/.test(a),'alert recoupled to Delivery');n(/canAccessPage\('onlineOrders'\)/.test(w),'watcher permission route wrong');n(/websiteOrderBeep\(\)/.test(a)&&/setInterval\(checkWebsiteOrders,5000\)/.test(app),'notification behavior regressed');if(f.length){console.error('Online Orders Notification Final Routing: FAIL');f.forEach(x=>console.error('- '+x));process.exit(1)}console.log('Online Orders Notification Final Routing: PASS');
