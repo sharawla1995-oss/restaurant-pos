@@ -1008,7 +1008,216 @@ Expired/cancelled state:
 The current SH-0007 snapshot is intentionally not a replacement authority for the historical 107 Feature catalog.
 This is a migration fact, not an error to be “fixed” by weakening Commercial or Readiness gates.
 
-## 20. Current status
+
+## 20. Support Center and AI Execution Security Contract
+
+### A. Sharawla Support Center ownership
+
+Support tickets belong to Sharawla Cloud, not to an individual Business operational database.
+
+Recommended Cloud-owned entities:
+- support_tickets
+- support_ticket_messages
+- support_ticket_events
+- support_diagnostic_bundles
+
+Every ticket is bound to:
+- business_id derived from the verified device identity;
+- device_id when opened from a POS device;
+- Support Code as display/reference metadata;
+- timestamps/status/priority;
+- optional operational employee attribution as metadata.
+
+Do not accept a client-supplied Business ID as the authorization source.
+The Cloud must derive Business scope from the verified device identity.
+
+### Support flow
+
+1. POS checks signed Snapshot decision for `support.center`.
+2. POS checks `support.ticket.create` for the signed-in user.
+3. Device identity is verified by Sharawla Cloud.
+4. Cloud creates the ticket under the device's real Business.
+5. Messages/events remain append-only/auditable.
+6. Human escalation stays in the same ticket timeline.
+
+### Diagnostic sharing
+
+Diagnostics are opt-in and explicit.
+
+Allowed diagnostic bundle should be minimal and structured, for example:
+- Support Code;
+- app version/channel/architecture;
+- runtime environment;
+- connection health;
+- update health;
+- offline queue counts/status, not arbitrary payload contents;
+- printer role health, not print document contents;
+- selected error codes/stage names;
+- snapshot ID/sequence/expiry, not signing secrets.
+
+Never include by default:
+- passwords/PINs;
+- access/refresh tokens;
+- Supabase service role keys;
+- license activation secrets;
+- Canonical Fingerprint raw value when a derived device ID/support code is sufficient;
+- full customer/order database dumps;
+- arbitrary local files.
+
+Diagnostic bundles should have explicit retention/expiry and a support audit event.
+
+### B. Sharawla AI execution model
+
+Sharawla AI is a proposal/orchestration layer.
+It is NOT a privileged database identity.
+
+Never let AI:
+- use service_role to perform Business operations;
+- bypass `auth.uid()`;
+- dynamically execute arbitrary RPC/function/table names;
+- bypass Action Permissions V2;
+- bypass Location Scope;
+- write through legacy direct-table paths that are not V2-protected.
+
+### AI authority equation
+
+For a write action:
+
+`ai.operator snapshot ALLOW`
+AND `ai.use`
+AND requested AI level (`ai.create/modify/approve/...`)
+AND underlying domain Action Permission
+AND target Location Scope
+AND normal business invariant/owner guards
+= execution allowed.
+
+A missing condition is DENY.
+
+### V1 execution owner
+
+Use a dedicated allowlisted AI action owner, conceptually:
+
+`ai_execute_action_v1(request_id, action_code, location_id, payload, confirmation_token)`
+
+Implementation rules:
+- no dynamic SQL based on user-provided function/table names;
+- explicit CASE/registry of supported action codes only;
+- every supported action maps to a known guarded business owner;
+- current user identity comes from `auth.uid()` / `current_employee_id()`;
+- both AI permission and underlying domain permission are checked;
+- branch/location scope is checked before mutation;
+- the business mutation and AI audit record occur in the same database transaction;
+- idempotency/request identity is mandatory.
+
+Unsupported action code = fail closed.
+
+### Preview / confirmation
+
+Write actions use two stages:
+
+1. Preview
+   - normalize intent;
+   - resolve target entities/location;
+   - calculate expected effects;
+   - return an immutable request summary/hash;
+   - no durable business mutation.
+
+2. Execute
+   - explicit user confirmation for write/high-risk actions;
+   - verify the confirmed request identity/hash still matches;
+   - re-check all permissions/location/business invariants at execution time;
+   - execute once idempotently;
+   - write immutable AI audit evidence.
+
+Never rely on permissions captured only at Preview time.
+
+### Risk classes
+
+Read:
+- may run without confirmation if permitted;
+- still location-filtered.
+
+Create / Modify:
+- show concise preview;
+- explicit confirmation when business state changes.
+
+Approve / financial / stock / refund / settlement:
+- explicit confirmation mandatory;
+- show amount/stock/status impact.
+
+Historical correction:
+- separate high-risk permission;
+- impact analysis mandatory;
+- immutable audit;
+- no silent destructive rewrite;
+- normal domain correction rules remain authoritative.
+
+### AI audit evidence
+
+Do not use the current best-effort renderer `audit()` helper as the authoritative AI audit.
+
+The current renderer helper can silently fail under RLS.
+AI audit must be written by the guarded backend owner in the same transaction as the mutation.
+
+Recommended AI audit fields:
+- request_id
+- employee_id
+- branch/location
+- ai_action_code
+- underlying_domain_action
+- entity_type / entity_id
+- before/after summary or effect summary
+- confirmation state
+- client_tx_id
+- created_at
+
+Do not store secrets or unnecessary full prompts in operational audit rows.
+
+### Curated V1 actions
+
+AI V1 should start with a small allowlist only after the underlying Permissions V2 owner is closed.
+
+Examples suitable after owner hardening:
+- create customer;
+- create expense;
+- create purchase order;
+- approve purchase order;
+- receive purchase;
+- create stock transfer;
+- receive transfer;
+- create stock count;
+- controlled order lookup/reporting.
+
+Do not expose a legacy direct REST table mutation to AI just because the human UI can currently perform it.
+
+### AI read path
+
+AI reads must also respect the signed-in user's scope.
+
+Preferred:
+- curated read RPCs/views that apply employee/location filters;
+- return only fields required for the answer/task.
+
+Avoid sending an unrestricted Business database export to an AI service.
+
+### Cross-backend responsibility
+
+Sharawla Cloud owns:
+- `ai.operator` commercial entitlement;
+- AI service availability;
+- service metering/plan controls;
+- model/service orchestration where required.
+
+Business operational backend owns:
+- employee authentication;
+- Page/Action/Location authorization;
+- business data;
+- mutations;
+- domain audit evidence.
+
+The POS is the trusted orchestration boundary between those two authorities for V1.
+
+## 21. Current status
 
 Design discovery: CLOSED for this checkpoint.
 Runtime implementation: NOT STARTED.
