@@ -2384,12 +2384,17 @@ async function rejectOnlineOrderFromChannel(orderRef,opts={}){
   return {rejected:true,source,channel,source_order_id:websiteOrderId,lifecycle:onlineOrderLifecycleState('rejected','source')};
 }
 
-async function renderOnlineOrders(){
+async function renderOnlineOrders(opts={}){
   $('#page').innerHTML='<div class="panel"><h2>🌐 الطلبات الأونلاين</h2><div class="empty">جاري التحميل...</div></div>';
-  const [sourceRows,canonicalRows]=await Promise.all([
-    rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&order=created_at.desc&limit=100`).catch(()=>[]),
-    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&source=eq.website&order=created_at.desc&limit=100`).catch(()=>[])
+  const today=ordersDateValue(),from=opts.from||today,to=opts.to||from,page=Math.max(1,Number(opts.page)||1),pageSize=100,offset=(page-1)*pageSize;
+  if(!from||!to||from>to){toast('راجع فترة الطلبات الأونلاين');return}
+  const fromIso=encodeURIComponent(ordersDayBounds(from)),toIso=encodeURIComponent(ordersDayBounds(to,true));
+  const [sourceRowsRaw,canonicalRowsRaw]=await Promise.all([
+    rest('website_orders',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${fromIso}&created_at=lte.${toIso}&order=created_at.desc&limit=${pageSize+1}&offset=${offset}`).catch(()=>[]),
+    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&source=eq.website&created_at=gte.${fromIso}&created_at=lte.${toIso}&order=created_at.desc&limit=${pageSize+1}&offset=${offset}`).catch(()=>[])
   ]);
+  const sourceHasNext=(sourceRowsRaw||[]).length>pageSize,canonicalHasNext=(canonicalRowsRaw||[]).length>pageSize;
+  const sourceRows=(sourceRowsRaw||[]).slice(0,pageSize),canonicalRows=(canonicalRowsRaw||[]).slice(0,pageSize),hasNext=sourceHasNext||canonicalHasNext;
   const canonicalById=new Map((canonicalRows||[]).map(o=>[String(o.id),o]));
   const linkedCanonicalIds=new Set();
   const source=(sourceRows||[]).map(w=>{
@@ -2420,15 +2425,20 @@ async function renderOnlineOrders(){
       const sourceActions=isSource&&isNew?`<button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-online-accept="${w.id}" data-online-source="website">✅ استلام</button> <button class="danger" data-online-reject="${w.id}" data-online-source="website">رفض</button>`:'';
       return `<div class="delivery-row website-pending"><span class="delivery-row-id"><b>${idLabel} • ${esc(entry.channel.label)} • ${type}</b><small>الحالة: ${esc(lifecycleLabel(entry.lifecycle.state))}</small><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${customer}</b>${phone}<small class="web-pending-address">${address}</small></span><strong>${money(w.total)}</strong><span>${sourceActions}</span></div>`;
     }).join('');
-    $('#page').innerHTML=`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الأونلاين <span class="status-pill">${entries.length}</span></h2><div class="delivery-filter" id="onlineOrdersFilter">${buttons}</div></div><div class="delivery-rows">${body||'<div class="empty">لا توجد طلبات مطابقة</div>'}</div></div>`;
+    $('#page').innerHTML=`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 الطلبات الأونلاين <span class="status-pill">${entries.length}</span></h2></div><div class="grid2"><label>من تاريخ<input id="onlineOrdersFrom" type="date" value="${esc(from)}"></label><label>إلى تاريخ<input id="onlineOrdersTo" type="date" value="${esc(to)}"></label></div><div class="actions" style="margin-bottom:12px"><button class="primary" id="onlineOrdersSearch">بحث</button><button class="secondary" id="onlineOrdersToday">اليوم</button></div><div class="delivery-filter" id="onlineOrdersFilter">${buttons}</div><div class="delivery-rows">${body||'<div class="empty">لا توجد طلبات مطابقة</div>'}</div><div class="actions" style="margin-top:12px"><button class="secondary" id="onlineOrdersPrev" ${page<=1?'disabled':''}>السابق</button><span class="tag">صفحة ${page}</span><button class="secondary" id="onlineOrdersNext" ${hasNext?'':'disabled'}>التالي</button></div></div>`;
   };
   draw();
+  const rerun=p=>{const f=$('#onlineOrdersFrom').value,t=$('#onlineOrdersTo').value;if(!f||!t)return toast('حدد التاريخ');if(f>t)return toast('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');renderOnlineOrders({from:f,to:t,page:p})};
+  $('#onlineOrdersSearch').onclick=()=>rerun(1);
+  $('#onlineOrdersToday').onclick=()=>renderOnlineOrders({from:today,to:today,page:1});
+  $('#onlineOrdersPrev').onclick=()=>page>1&&rerun(page-1);
+  $('#onlineOrdersNext').onclick=()=>hasNext&&rerun(page+1);
   $('#page').onclick=async e=>{
     const filter=e.target.closest('[data-online-view]');if(filter){view=filter.dataset.onlineView;draw();return}
     const wd=e.target.closest('[data-web-details]');if(wd){await openWebsiteOrderReview(Number(wd.dataset.webDetails));return}
     const wr=e.target.closest('[data-web-receipt]');if(wr){return openPaymentReceipt(wr.dataset.webReceipt)}
-    const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders();showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
-    const rej=e.target.closest('[data-online-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.onlineReject),{source:rej.dataset.onlineSource});if(!result.rejected)return;toast('تم رفض الطلب');return renderOnlineOrders()}catch(err){return toast(err.message)}}
+    const acc=e.target.closest('[data-online-accept]');if(acc){try{const result=await acceptOnlineOrderFromChannel(Number(acc.dataset.onlineAccept),{source:acc.dataset.onlineSource});if(!result.accepted)return;toast(`تم استلام بون ${bonDisplay(result.order)}`);await renderOnlineOrders({from,to,page});showReceipt(result.order,result.items);return}catch(err){return toast(err.message)}}
+    const rej=e.target.closest('[data-online-reject]');if(rej){try{const result=await rejectOnlineOrderFromChannel(Number(rej.dataset.onlineReject),{source:rej.dataset.onlineSource});if(!result.rejected)return;toast('تم رفض الطلب');return renderOnlineOrders({from,to,page})}catch(err){return toast(err.message)}}
   };
 }
 
