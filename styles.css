@@ -354,6 +354,11 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar-close:hover{background:#ffffff1d}
 .cart-items{min-height:0}
 .cart-foot{flex-shrink:0;background:inherit;position:relative;z-index:2}
+/* Beta58.9: low-height delivery POS must never collapse the ordered-items list. */
+.cart.delivery-mode{overflow-y:auto;overscroll-behavior:contain}
+.cart.delivery-mode .next-bon-badge,.cart.delivery-mode .cart-head,.cart.delivery-mode .delivery-fields,.cart.delivery-mode .customer-hint,.cart.delivery-mode .cart-foot{flex-shrink:0}
+.cart.delivery-mode .cart-items{flex:0 0 auto;min-height:120px;max-height:220px;overflow:auto}
+.cart.delivery-mode .cart-foot{position:sticky;bottom:0;background:inherit;z-index:3}
 .delivery-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
 .delivery-fields>label{margin:0;min-width:0}
 .delivery-fields>label:has(#deliveryAddress),.delivery-fields>#customerHint,.delivery-fields>.customer-hint,.delivery-fields>.delivery-address-picker{grid-column:1/-1}
