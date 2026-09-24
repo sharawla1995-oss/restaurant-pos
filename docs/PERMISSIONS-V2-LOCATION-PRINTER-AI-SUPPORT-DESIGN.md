@@ -45,9 +45,36 @@ The final model is:
 Page permission
 + Action permission
 + Location scope
++ Profile/Capability ownership
 = Effective user authorization.
 
 Role templates remain defaults only. Explicit user overrides are authoritative.
+
+### Confirmed legacy compatibility asymmetry
+
+Read-only audit confirmed that the current renderer and backend do not derive legacy permissions in exactly the same way.
+
+Renderer:
+- persisted `employee_permissions` rows win when present;
+- if no rows exist, renderer may fall back to the current role template.
+
+Backend `has_permission()`:
+- Admin -> allow;
+- otherwise checks persisted `employee_permissions` rows only;
+- there is no Cashier/Call Center/Delivery role fallback.
+
+Backend `has_action_permission_v2()`:
+- explicit employee Action override wins;
+- otherwise it follows `legacy_permission`;
+- if no legacy permission exists, DENY.
+
+Because legacy permission keys are shared across domains, a Restaurant user with a key such as `orders` or `customers` can appear inherited-allowed for Actions belonging to other Profiles. That is not sufficient authorization by itself; the underlying owner must still enforce the correct Profile/Capability boundary.
+
+Migration rule:
+- preserve each existing user's persisted effective permissions;
+- do not reconstruct old users from the newest Role template;
+- do not use `legacy_permission` as proof of Profile eligibility;
+- before legacy fallback is retired, capture an effective per-user permission snapshot and prove no authority expansion.
 
 ## 3. Confirmed Action V2 coverage already present
 
