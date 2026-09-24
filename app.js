@@ -327,16 +327,21 @@ function websiteOrderBeep(){
     setTimeout(()=>{try{const o2=websiteAudioCtx.createOscillator(),g2=websiteAudioCtx.createGain();o2.frequency.value=1040;g2.gain.value=.0001;o2.connect(g2);g2.connect(websiteAudioCtx.destination);const x=websiteAudioCtx.currentTime;g2.gain.exponentialRampToValueAtTime(.16,x+.02);g2.gain.exponentialRampToValueAtTime(.0001,x+.38);o2.start(x);o2.stop(x+.4)}catch{}},180);
   }catch{}
 }
+function onlineOrderNotificationRoute(source='website'){
+  const channel=String(source||'').toLowerCase();
+  if(channel==='website')return 'onlineOrders';
+  return null;
+}
 function showWebsiteOrderAlert(w){
   document.querySelectorAll('.website-global-alert').forEach(x=>x.remove());
   const el=document.createElement('div');el.className='website-global-alert';
   el.innerHTML=`<div class="website-alert-icon">🌐</div><div class="website-alert-copy"><b>طلب جديد من الموقع</b><span>WEB-${String(w.id).padStart(5,'0')} • ${esc(w.customer_name||'عميل')} • ${money(w.total)}</span></div><button class="website-alert-open" type="button">عرض الطلب</button><button class="website-alert-close" type="button" aria-label="إغلاق">×</button>`;
   document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('show'));websiteOrderBeep();
-  el.querySelector('.website-alert-open').onclick=()=>{el.remove();showPage('deliveryOrders')};
+  el.querySelector('.website-alert-open').onclick=()=>{const route=onlineOrderNotificationRoute('website');el.remove();if(route)showPage(route)};
   el.querySelector('.website-alert-close').onclick=()=>el.remove();
 }
 async function checkWebsiteOrders(){
-  if(!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('deliveryOrders'))return;
+  if(!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('onlineOrders'))return;
   try{
     const rows=await rest('website_orders',`select=id,customer_name,total,created_at&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`);
     const list=rows||[];
