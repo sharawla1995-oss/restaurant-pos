@@ -112,6 +112,51 @@ Documentation/checker only:
 - users.action_permissions.manage
 - users.location_scope.manage
 
+## Current migration hazards confirmed by read-only audit
+
+### Persisted permission rows override Role templates
+
+Backend `has_permission()` does not infer Cashier/Call Center/Delivery role defaults.
+Except for Admin, it checks persisted `employee_permissions` rows.
+
+Renderer behavior differs:
+- if a user has persisted permission rows, those rows are used;
+- if no rows exist, renderer may fall back to the current `ROLE_PAGES` template.
+
+Therefore migration must preserve each existing user's effective persisted permission state.
+Do not regenerate old users from the latest Role template unless an explicit admin migration is approved.
+
+### Legacy Action inheritance is not Profile-safe by itself
+
+`has_action_permission_v2()` resolves:
+1. explicit employee Action override;
+2. otherwise the Action's `legacy_permission`;
+3. otherwise DENY.
+
+The legacy permission key does not encode POS Profile.
+
+Read-only Beta evidence for the current Restaurant cashier shows that keys such as `customers` and `orders` can make Actions in other domains appear inherited-allowed (for example Membership, Service or Logistics actions).
+
+This is a migration hazard, not proof that the underlying cross-profile owner is executable.
+
+Rules:
+- do not treat `legacy_permission` as final Profile authorization;
+- new V2 owners must also preserve Profile/Capability ownership boundaries;
+- cross-profile Actions must not become available merely because two domains reuse a legacy page key;
+- before retiring legacy fallback, capture the current per-user effective permission snapshot.
+
+### Required P0 evidence
+
+For every existing employee capture:
+- role;
+- persisted Page permission rows;
+- explicit Action overrides;
+- broad branch access;
+- effective inherited Action result;
+- active POS Profile.
+
+Use that evidence to prove the migration does not silently expand authority.
+
 ## P0 acceptance
 
 - no duplicate semantic Action codes;
