@@ -66,17 +66,22 @@ jobs:
           if ($offline43.Contains("`n  try{renderOrders=renderOrders43}catch{};try{global.renderOrders=renderOrders43}catch{};")) { throw 'packaged Beta43 still overrides Orders renderer unconditionally' }
           $productMap = Join-Path $probe 'product-map-navigation-v1.js'
           $navRegistry = Join-Path $probe 'sharawla-navigation-registry.js'
-          $productMapCheck = Join-Path $probe 'scripts\check-product-map-navigation-v1.js'
+          $index = Join-Path $probe 'index.html'
           if (!(Test-Path $productMap)) { throw 'packaged Product Map runtime missing' }
           if (!(Test-Path $navRegistry)) { throw 'packaged Navigation Registry metadata missing' }
-          if (!(Test-Path $productMapCheck)) { throw 'packaged Product Map checker missing' }
-          Push-Location $probe
-          try {
-            node .\scripts\check-product-map-navigation-v1.js
-            if ($LASTEXITCODE -ne 0) { throw "packaged Product Map checker failed with exit code $LASTEXITCODE" }
-          } finally {
-            Pop-Location
-          }
+          if (!(Test-Path $index)) { throw 'packaged index.html missing' }
+          $productMapText = Get-Content $productMap -Raw
+          $navRegistryText = Get-Content $navRegistry -Raw
+          $indexText = Get-Content $index -Raw
+          if (!$productMapText.Contains('1.0.0-product-map-phase1')) { throw 'packaged Product Map phase marker missing' }
+          if (!$productMapText.Contains('Presentation-only grouping layer. It MUST NOT dispatch routes or change permissions.')) { throw 'packaged Product Map presentation-only marker missing' }
+          if (!$productMapText.Contains('REGISTRY_MISSING')) { throw 'packaged Product Map fail-closed registry guard missing' }
+          if (!$navRegistryText.Contains("routeKey:'orders'")) { throw 'packaged Navigation Registry missing Orders route' }
+          $registryRef = "sharawla-navigation-registry.js?v=$($pkg.version)"
+          $productMapRef = "product-map-navigation-v1.js?v=$($pkg.version)"
+          if (!$indexText.Contains($registryRef)) { throw "packaged index missing versioned Navigation Registry reference: $registryRef" }
+          if (!$indexText.Contains($productMapRef)) { throw "packaged index missing versioned Product Map reference: $productMapRef" }
+          if ($indexText.IndexOf($registryRef) -gt $indexText.IndexOf($productMapRef)) { throw 'packaged Product Map loads before Navigation Registry metadata' }
           $main = Get-Content (Join-Path $probe 'main.js') -Raw
           if (!$main.Contains("loadFile('index.html')")) { throw 'packaged main.js does not load index.html' }
           if (!$main.Contains('clearDesktopRendererAssetCaches')) { throw 'packaged main.js missing desktop renderer cache cleanup' }
