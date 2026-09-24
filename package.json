@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.4-beta.58.27",
-  "description": "Sharawla POS V10.5.4 Beta 58.27 - SH-0007 Navigation forEach Runtime Corrective",
+  "version": "10.5.4-beta.58.28",
+  "description": "Sharawla POS V10.5.4 Beta 58.28 - SH-0007 Selector forEach Runtime Corrective",
   "main": "main-beta44.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",

@@ -829,7 +829,7 @@ if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false)
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
+function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
 
 // SHARED-INVENTORY-PURCHASING-ROUTER-V1
 // One Core route owner. Existing Restaurant and Retail renderers remain unchanged profile adapters.
@@ -2288,8 +2288,8 @@ async function renderSettings(){
  if($('#saveFinancialSettings'))$('#saveFinancialSettings').onclick=async()=>{try{const row={branch_id:currentBranchId(),discount_enabled:$('#finDiscountEnabled').checked,discount_mode:$('#finDiscountMode').value,max_discount_percent:Math.max(0,Math.min(100,Number($('#finMaxDiscount').value||0))),tax_enabled:$('#finTaxEnabled').checked,tax_rate:Math.max(0,Math.min(100,Number($('#finTaxRate').value||0))),prices_include_tax:$('#finTaxIncluded').checked,service_enabled:$('#finServiceEnabled').checked,service_rate:Math.max(0,Math.min(100,Number($('#finServiceRate').value||0))),updated_at:new Date().toISOString()};await rest('branch_financial_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([row])});for(const m of state.paymentMethods){const active=$(`[data-pay-active="${m.id}"]`)?.checked!==false,def=$(`[data-pay-default="${m.id}"]`)?.checked===true;await rest('branch_payment_methods','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([{branch_id:currentBranchId(),payment_method_id:m.id,active,is_default:def}])})}state.branchFinancialSettings=state.branchFinancialSettings.filter(x=>Number(x.branch_id)!==currentBranchId()).concat(row);state.branchPaymentMethods=await rest('branch_payment_methods','select=*');toast('تم حفظ طرق الدفع والخصم والضريبة والخدمة')}catch(e){toast(e.message)}};
  if(canSystem&&$('#settingsSections')&&!$('#returnsPolicyCard')){const card=document.createElement('div');card.id='returnsPolicyCard';card.className='panel';card.dataset.settingsSection='returns';card.innerHTML=`<h2>↩️ إعدادات المرتجعات</h2><label class="inline-check"><input id="allowClosedReturns" type="checkbox" ${returnClosed?'checked':''}> السماح بالمرتجع من ورديات سابقة مقفولة</label><p class="hint">لو مقفول: المرتجع من الوردية الحالية فقط. لو مفتوح: يمكن البحث في ورديات سابقة، لكن المرتجع يُحسب على الوردية الحالية.</p>`;$('#settingsSections').appendChild(card);$('#allowClosedReturns').onchange=async e=>{try{await rest('app_settings','key=eq.returns_allow_closed_shifts',{method:'PATCH',body:JSON.stringify({value:e.target.checked?'true':'false'})});state.settings.returns_allow_closed_shifts=e.target.checked;toast('تم حفظ إعداد المرتجعات')}catch(err){e.target.checked=!e.target.checked;toast(err.message)}};}
  const settingsActivate=key=>{
-   $('#settingsSections [data-settings-section]').forEach(x=>x.classList.toggle('hidden',x.dataset.settingsSection!==key));
-   $('#settingsHubTabs [data-settings-tab]').forEach(x=>x.classList.toggle('active',x.dataset.settingsTab===key));
+   $$('#settingsSections [data-settings-section]').forEach(x=>x.classList.toggle('hidden',x.dataset.settingsSection!==key));
+   $$('#settingsHubTabs [data-settings-tab]').forEach(x=>x.classList.toggle('active',x.dataset.settingsTab===key));
  };
  const firstSettingsTab=$('#settingsHubTabs [data-settings-tab]')?.dataset.settingsTab;
  if(firstSettingsTab)settingsActivate(firstSettingsTab);
