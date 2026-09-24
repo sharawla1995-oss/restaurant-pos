@@ -20,7 +20,6 @@
     shifts:'pos',
     returns:'returns',
     customers:'customers',
-    onlineOrders:'delivery',
     deliveryOrders:'delivery',
     deliverySettings:'delivery',
     delivery:'delivery',
@@ -94,7 +93,6 @@
   ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
 
   const OPERATIONAL_FLAGS=Object.freeze({
-    onlineOrders:'enable_delivery',
     deliveryOrders:'enable_delivery',
     delivery:'enable_delivery',
     kitchen:'enable_kitchen',
