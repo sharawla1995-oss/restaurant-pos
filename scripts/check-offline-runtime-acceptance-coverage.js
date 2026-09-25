@@ -41,7 +41,8 @@ const coverage={
  executable_online_business_semantics:['beta55.delivery-settlement-shift-cash'],
  source_contract_only:['offline_order_status routing/binding/replay guards (plus executable runtime E2E)'],
  declared_matrix_not_e2e:[],
- known_gap:['offline delivery payment-method change remains online-only']
+ known_gap:[],
+ intentional_boundary:['offline delivery payment-method change requires reconnect + fresh server eligibility']
 };
 console.log('Offline Runtime Acceptance Coverage Audit PASS');
 console.log(JSON.stringify(coverage,null,2));
