@@ -4318,3 +4318,196 @@ Current source HEAD at this checkpoint:
 - `d876c8ec92f1a2d972663b1e64a98ccdaf1c7e47`.
 
 No Production action is authorized by this checkpoint.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE MASTER UPDATE — PERMISSIONS V2 DEPLOYED / OFFLINE CONTINUITY ACCEPTANCE OPEN
+
+> This section supersedes all older Permissions V2 deployment/continuation text above where it conflicts.
+> Runtime remains `10.5.4-beta.58.29`.
+
+## Hard safety state
+
+- Production SH-0005 / SH-0006 remains immutable/read-only on `10.5.3 CLEAN`; no Production DB/runtime/device mutation was performed.
+- SH-0007 remains the isolated Beta / TEST device.
+- Canonical Stock remains OFF.
+- Cutover remains OFF.
+- Cloud mutation remains NONE during this deployment/acceptance sequence.
+- G2 Touch remains USER-ACCEPTED / WAIVED, not a tested PASS.
+
+## Point 4 / ownership foundation carried forward
+
+- Point 4 ownership mapping: 61/61 CLOSED.
+- Pre-cutover guard contracts: 46/46 SOURCE ACCEPTED.
+- Production deployment remains excluded.
+- Reservation Identity V1 / provenance / frozen recipe evidence / historical owner recovery remain accepted foundations.
+- Final Definition Simulation and Beta read-only freshness gate were previously PASS before controlled deployment work.
+
+## Restaurant acceptance carried forward
+
+- Runtime: `10.5.4-beta.58.29`.
+- G0 Full Acceptance: PASS / READY_FOR_RC / 100%.
+- Run: `ACC-20260925-051819-6GXYG`.
+- G1 Shared Routes: PASS.
+- G3 Menu Cleanup: CLOSED / PASS.
+- G2 Touch: WAIVED / USER-ACCEPTED only.
+- Shift Close + Driver Custody acceptance remains CLOSED / PASS.
+- Permissions V2 UI has 87 Actions; employee deny/restore behavior was previously proven on `delivery.mark_delivered`, with Overrides returned to 0.
+
+## Permissions V2 source closure and runtime routing
+
+PV2-F Order Lifecycle source closure is complete. Runtime routing for F1-F4 was subsequently wired with compatibility behavior before DB cutover.
+
+Important routing commits:
+- `da85de3c3bc4e20227228e9a18cebe8ee945305d` — wire Permissions V2 F1-F4 runtime owners.
+- `454361bd1f004aaa9fc4b9f534ee77bcb3121b22` — RPC-first F2-F4 with legacy fallback only for missing-owner conditions.
+- `2529dff2f9f8ec968f58ced8844182db53082d6b` — F1 customer-create compatibility.
+- `e4f30e84288b3350c7a31a70d859e6fe51d80349` — keep new PV2 applicability mappings with their action-owner artifacts; this supersedes the earlier premature central mapping attempt.
+
+The earlier central applicability attempt failed safely on the first migration because new F2-F5 Action rows did not yet exist. The transaction rolled back; no partial Artifact-1 write remained. Source was corrected before deployment restarted.
+
+CI Run #629 for `e4f30e...`: SUCCESS.
+
+## Controlled SH-0007 Permissions V2 deployment — 15/15 COMPLETE
+
+The coordinated isolated-Beta deployment completed all 15 artifacts in dependency-safe order:
+
+1. Profile/Feature applicability.
+2. Trusted Profile/Business binding foundation.
+3. Effective permission evaluator.
+4. SH-0007 Cloud projection.
+5. Profile/Feature-aware Admin permissions UI RPC.
+6. Restaurant Role defaults.
+7. Customer Create owner hardening.
+8. Customer Edit + Address owners.
+9. Shift / Expense authorization boundary.
+10. Delivery Drivers / Zones owners.
+11. Order Fulfillment owner.
+12. Order Driver Assignment owner.
+13. Website Payment Review owner.
+14. Offline Order Status owner + receipts.
+15. Orders direct-privilege closure, LAST.
+
+Deployment target was only Supabase project `xihcxydjnzemflhedzor` for isolated SH-0007 Beta.
+
+Trusted Beta projection after deployment:
+- Business: `91826502-590e-4afa-8826-2c0f4b99c490` / `تجريبي`.
+- Profile: `restaurant`.
+- Four enabled projected entitlements: `core.customers`, `core.expenses`, `commerce.delivery`, `commerce.orders`.
+
+Verified final owner state includes:
+- `customer_create_v2`
+- `customer_update_v2`
+- `customer_address_save_v2`
+- `customer_address_delete_v2`
+- `expense_update_v2`
+- Delivery Driver / Zone save owners
+- `order_fulfillment_transition_v2`
+- `order_assign_driver_v2`
+- `review_order_payment`
+- `order_status_apply_offline_v2`
+- `offline_order_status_receipts_v2`
+- accepted `delivery_mark_delivered_v2`
+
+Final F5E verification:
+- historical `orders_branch_update` policy: ABSENT.
+- authenticated direct table UPDATE privilege on `public.orders`: FALSE.
+- specialized mutation owners remain present.
+
+Therefore Permissions V2 backend deployment itself is **15/15 COMPLETE** on SH-0007 Beta. This does not yet equal PV2-G Runtime Acceptance CLOSED.
+
+## Real-device Online -> Offline -> Reconnect evidence
+
+A real Delivery order was created Online on SH-0007. The device UI receipt showed Order #6; this UI order number must not be confused with PostgreSQL `orders.id=6`.
+
+With connectivity removed:
+- the existing Online-created order was opened;
+- status was changed Offline to `قيد التجهيز`;
+- local durable queue showed Pending 1;
+- Retryable 0 / Blocked 0 / Conflict 0 / DLQ 0 / Legacy 0;
+- Integrity OK / Recovery OK;
+- operation type: Order Status;
+- device sequence: Seq 286.
+
+This proves the Online-created order -> Offline local durable mutation/projection leg.
+
+After reconnect before backend deployment:
+- Pending returned to 0;
+- DLQ became 1;
+- Seq 286 was preserved for manual intervention.
+- Initial root cause was missing deployed `order_status_apply_offline_v2`; the controlled 15/15 deployment supplied this owner.
+
+The preserved DLQ evidence was intentionally NOT reset.
+
+Current Sync Center evidence after deployment:
+- Pending 0
+- Retryable 0
+- Blocked 0
+- Conflict 0
+- DLQ 1
+- Legacy 0
+- Integrity OK
+- Recovery OK
+- Seq 286 still preserved
+- TX: `e758da8d-81ec-4072-987d-71b40ff06d7a`
+- displayed SQLSTATE: `22023`
+
+## Runtime defect #1 discovered by preserved retry — FIXED ON BETA
+
+A safe retry after 15/15 deployment reached Permissions V2 but exposed a PL/pgSQL ambiguity:
+- PostgreSQL `42702`
+- ambiguous `profile_code` inside `sharawla_internal.evaluate_action_permission_v2(text)`.
+
+Source fix:
+- commit `55de34c89e3f998fcbfa94db34902b06ebc259f5`
+- message: `fix: disambiguate PV2 evaluator output variables`.
+
+The fix introduced explicit internal variables such as `v_profile_code`, `v_required_feature_code`, and `v_role_code`.
+
+This evaluator hotfix WAS deployed to SH-0007 Beta and its deployed function body was read back and verified.
+
+## Runtime defect #2 discovered after evaluator fix — CURRENT BLOCKER
+
+The next preserved retry still left DLQ=1. Beta PostgreSQL logs now identify the next exact failure:
+
+- SQLSTATE `42883`
+- `function max(uuid) does not exist`
+- failing internal query in `sharawla_internal.current_operational_business_id_v1()`:
+  `select count(*), max(cloud_business_id) from sharawla_internal.operational_business_identity_v1`
+- call chain:
+  `current_operational_business_id_v1 -> operational_feature_entitled_v1 -> evaluate_action_permission_v2 -> has_action_permission_v2`.
+
+Source correction is now present:
+- `aeb43a0902698b9220dd8e50e54bb8af1cae8685` — `fix: avoid unsupported uuid max in trusted binding`.
+- It replaces UUID `max(...)` with deterministic singleton extraction using ordered `array_agg(...)[1]`.
+- `757838e1b81cbd83759b9ec5e595d735561d0d73` is the current branch HEAD and carries the same trusted-binding corrected tree.
+
+**Important:** this trusted-binding UUID fix is SOURCE-CORRECTED but is NOT recorded as deployed to SH-0007 Beta yet. Do not claim Seq 286 acceptance PASS before deploying/verifying this correction and retrying once.
+
+## Current exact state
+
+- Production: untouched / read-only.
+- Runtime installed on SH-0007: `10.5.4-beta.58.29`.
+- Permissions V2 controlled backend deployment: 15/15 COMPLETE.
+- Evaluator ambiguity hotfix: SOURCE + BETA DEPLOYED / VERIFIED.
+- Trusted-binding UUID `max(uuid)` hotfix: SOURCE FIXED / BETA DEPLOYMENT PENDING.
+- Online -> Offline local leg: PASS.
+- Reconnect/sync leg: OPEN because Seq 286 remains DLQ=1.
+- PV2-G Runtime Acceptance: OPEN.
+- Broad Roadmap Point 15 Offline/Sync Final Closure: OPEN.
+- Canonical Stock: OFF.
+- Cutover: OFF.
+
+## Exact continuation point
+
+1. Verify current source HEAD remains `757838e1b81cbd83759b9ec5e595d735561d0d73` and review CI/status for the trusted-binding fix.
+2. Deploy only the corrected trusted-binding function/artifact to isolated SH-0007 Beta; no Production/Cloud mutation.
+3. Read back `current_operational_business_id_v1()` and verify the deployed body no longer uses `max(uuid)`.
+4. On SH-0007 Sync Center, retry preserved Seq 286 exactly once.
+5. If DLQ clears, verify the server receipt/order reconciliation and then perform the next Online transition on the same order.
+6. Run focused Permissions V2 runtime acceptance for Customers, Shift/Expense, Delivery settings, Fulfillment, Driver Assignment, Payment Review, employee allow/deny/restore, and confirm no direct Orders UPDATE bypass.
+7. Record PV2-G closure only after runtime evidence passes.
+8. Continue with Location Scope V2 -> Location Code -> Device/Printer Roles -> Snapshot Catalog Expansion -> Admin entitlement wiring -> Kitchen Stations -> Support Center -> Sharawla AI -> Cross-Profile implementation/negative matrix -> dedicated industry closure tracks -> Reports/Accounting/Financial Closure -> broad Offline/Sync final acceptance -> RC1 -> Pilot Production -> V1 Production Ready.
+
+Do not reset or delete Seq 286 before the trusted-binding fix is deployed and the preserved retry is evaluated.
