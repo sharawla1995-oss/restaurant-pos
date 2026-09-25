@@ -217,6 +217,19 @@ async function saveOrderStatusV2(orderId,targetStatus,providedClientTx=null){
   const tx=text(providedClientTx)||uid();
   const payload={p_order_id:orderId,p_target_status:target,p_client_tx_id:tx};
   const entry=await ensureCommitted('order_status',payload,tx);
+  // Commit-before-projection: only reflect the status locally after the durable
+  // Offline V2 event exists. This lets an Online-created order continue Offline
+  // without showing the stale cached server status while sync is pending.
+  try{
+    const bundles=clone(await odbGet('cachedOrders'))||[];
+    let changed=false;
+    for(const bundle of bundles){
+      if(String(bundle?.order?.id)!==String(orderId))continue;
+      bundle.order={...bundle.order,status:target,_offline_status_pending:true,_offline_status_tx:tx,_offline_status_at:entry.commit.created_local_at};
+      changed=true;
+    }
+    if(changed)await odbSet('cachedOrders',bundles);
+  }catch(err){console.warn('Offline V2 order status projection',err)}
   return {ok:true,id:entry.commit.local_entity_id,order_id:orderId,target_status:target,client_tx_id:tx,_offline:true,created_at:entry.commit.created_local_at};
 }
 
