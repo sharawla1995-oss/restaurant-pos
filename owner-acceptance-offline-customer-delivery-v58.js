@@ -18,6 +18,33 @@ async function customer(ctx){
  await global.SharawlaOfflineV2Transport.syncNow();if((await receipt(tx)).length!==1||(await ownerReceipt(tx)).length!==1)throw new Error('customer replay duplicated');
  return {status:'PASS',detail:`customer=${cid}; seq=${done.device_sequence}; receipts=1; replay=stable`,evidence:{customer_id:cid,client_tx_id:tx,device_sequence:done.device_sequence}};
 }
+async function customerChain(ctx){
+ const marker=`CHAIN-${String(ctx.run_id).slice(-6)}-${Date.now().toString().slice(-5)}`,phone='011'+String(Date.now()).slice(-8),parent=uuid(),child=uuid();
+ await net().enable('offline',{run_id:'offline-customer-chain'});let err=null;
+ try{
+  await global.SharawlaOfflineV2Transport.commitRpc('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Parent',p_notes:'CHAIN',p_client_tx_id:parent});
+  await global.SharawlaOfflineV2Transport.commitRpc('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:null,p_customer_create_tx:parent,p_label:'Home',p_area:'Acceptance',p_address:'Dependent Address',p_notes:'CHAIN',p_is_default:true,p_client_tx_id:child});
+ }catch(e){err=e}finally{await net().disable('offline-customer-chain-commit')}
+ if(err&&!/fetch|network|offline|deferred/i.test(text(err?.message||err))&&!err?.offline_v2_status)throw err;
+ const pe=await event(parent),ce=await event(child);if(!pe||!ce||text(ce.depends_on_tx_id)!==parent)throw new Error('customer dependency was not durably bound');
+ await sync(parent);const parentReceipt=await receipt(parent),cid=Number(parentReceipt?.[0]?.server_entity_id);if(!cid)throw new Error('customer dependency parent mapping missing');
+ await sync(child);const childReceipt=await receipt(child),aid=Number(childReceipt?.[0]?.server_entity_id);if(!aid)throw new Error('dependent address server mapping missing');
+ const a=(await global.rest('customer_addresses',`select=id,customer_id,label,address,is_default&id=eq.${aid}&limit=1`))?.[0];if(Number(a?.customer_id)!==cid||text(a?.address)!=='Dependent Address')throw new Error('dependent customer address reconciliation mismatch');
+ if((await ownerReceipt(parent)).length!==1||(await ownerReceipt(child)).length!==1)throw new Error('customer dependency owner receipts mismatch');
+ await global.SharawlaOfflineV2Transport.syncNow();if((await receipt(parent)).length!==1||(await receipt(child)).length!==1)throw new Error('customer dependency replay duplicated');
+ return {status:'PASS',detail:`customer=${cid}; address=${aid}; dependency=ACK-mapped; replay=stable`,evidence:{customer_id:cid,address_id:aid,parent_tx:parent,child_tx:child,parent_sequence:pe.device_sequence,child_sequence:ce.device_sequence}};
+}
+async function customerMutations(ctx){
+ const rows=await global.rest('customers','select=id,name,phone&order=id.desc&limit=20'),base=(rows||[]).find(x=>Number(x.id)>0);if(!base)throw new Error('existing customer required');
+ const updateTx=uuid();await durable('offline_customer_update_v1',{p_customer_id:Number(base.id),p_name:text(base.name)||'Acceptance Customer',p_phone:text(base.phone),p_area:'Offline Updated',p_address:'Updated',p_notes:'OFFLINE_UPDATE'},updateTx);await sync(updateTx);
+ const addrTx=uuid();await durable('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:Number(base.id),p_label:'Acceptance',p_area:'Offline',p_address:'Offline Address',p_notes:'E2E',p_is_default:false},addrTx);await sync(addrTx);
+ const ar=await receipt(addrTx),aid=Number(ar?.[0]?.server_entity_id);if(!aid)throw new Error('offline address save id missing');
+ const delTx=uuid();await durable('offline_customer_address_delete_v1',{p_address_id:aid},delTx);await sync(delTx);
+ const cloud=(await global.rest('customers',`select=id,area,address,notes&id=eq.${Number(base.id)}&limit=1`))?.[0],deleted=await global.rest('customer_addresses',`select=id&id=eq.${aid}&limit=1`);
+ if(text(cloud?.area)!=='Offline Updated'||text(cloud?.address)!=='Updated'||deleted.length!==0)throw new Error('customer update/address mutation reconciliation mismatch');
+ for(const tx of [updateTx,addrTx,delTx]){if((await receipt(tx)).length!==1||(await ownerReceipt(tx)).length!==1)throw new Error('customer mutation receipt mismatch')}
+ return {status:'PASS',detail:`customer=${base.id}; update+address-save+delete synced; receipts=3`,evidence:{customer_id:base.id,update_tx:updateTx,address_tx:addrTx,delete_tx:delTx,address_id:aid}};
+}
 async function driver(ctx){
  const orders=await global.rest('orders','select=id,branch_id,status,order_type,driver_id&order_type=eq.delivery&status=eq.ready&order=id.desc&limit=20');let o=null,d=null;
  for(const x of orders||[]){const ds=await global.rest('delivery_drivers',`select=id,branch_id,active&branch_id=eq.${Number(x.branch_id)}&active=eq.true&limit=1`);if(ds?.[0]){o=x;d=ds[0];break}}
@@ -44,6 +71,8 @@ async function delivered(ctx){
 }
 function register(){const r=R();if(!r||global.__SharawlaOfflineCustomerDeliveryAcceptanceRegistered)return false;global.__SharawlaOfflineCustomerDeliveryAcceptanceRegistered=true;r.registerMany([
 {id:'offline.customer-create-runtime-e2e',name:'Offline Customer Create → Durable → Sync → Cloud → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','core.customers'],run:customer},
+{id:'offline.customer-dependent-address-runtime-e2e',name:'Offline Customer Create + Dependent Address → ACK Mapping → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','core.customers'],run:customerChain},
+{id:'offline.customer-mutations-runtime-e2e',name:'Offline Customer Update + Address Save/Delete → Sync',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','core.customers'],run:customerMutations},
 {id:'offline.delivery-driver-runtime-e2e',name:'Offline Driver Assignment → Durable → Sync → Cloud → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','commerce.delivery'],run:driver},
 {id:'offline.delivery-economic-runtime-e2e',name:'Offline Delivery Complete → Payment + Custody → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','commerce.delivery'],run:delivered}
 ]);return true}
