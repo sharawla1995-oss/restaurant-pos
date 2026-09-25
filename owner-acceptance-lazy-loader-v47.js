@@ -17,6 +17,7 @@ const FILES=[
  ['owner-acceptance-beta55-permissions-v55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-restaurant-v55','owner-acceptance-beta55-restaurant-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-delivery-settlement-v55','owner-acceptance-beta55-delivery-settlement-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-offline-order-status-v58','owner-acceptance-offline-order-status-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.55'],
  ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.55'],
