@@ -148,11 +148,28 @@ async function syncContext(){
   if(!c?.url||!c?.key||!token||runtimeEmployee()<=0)throw new Error('Offline V2 authenticated sync context is unavailable');
   return {url:c.url,key:c.key,access_token:token,device_id:st.device_id,business_id:st.business_id,device_fingerprint:st.device_fingerprint,employee_id:runtimeEmployee()};
 }
+async function reconcileOrderStatusProjection(){
+  if(typeof global.odbGet!=='function'||typeof global.odbSet!=='function'||typeof global.rest!=='function')return;
+  const bundles=clone(await global.odbGet('cachedOrders'))||[];let changed=false;
+  for(const bundle of bundles){
+    const o=bundle?.order;if(!o?._offline_status_pending||!numericServerId(o.id))continue;
+    try{
+      const rows=await global.rest('orders',`select=id,status&id=eq.${Number(o.id)}&limit=1`);
+      const server=rows?.[0];if(!server)continue;
+      // Clear pending only after the server confirms the projected target.
+      if(text(server.status)!==text(o.status))continue;
+      bundle.order={...o,status:server.status};
+      delete bundle.order._offline_status_pending;delete bundle.order._offline_status_tx;delete bundle.order._offline_status_at;
+      changed=true;
+    }catch(e){if(typeof global.isNetError==='function'&&global.isNetError(e))break;console.warn('Offline V2 order projection reconcile',e)}
+  }
+  if(changed)await global.odbSet('cachedOrders',bundles);
+}
 async function syncNow(){
   if(syncing)return {ok:true,skipped:'renderer_sync_running'};
   const api=global.topBurgerDesktop?.offlineV2;if(!api?.syncNow)return {ok:true,skipped:'transport_unavailable'};
   const st=await api.takeoverState();if(st?.active!==true||st?.migration_verified!==true||st?.transport_ready!==true)return {ok:true,skipped:'takeover_inactive'};
-  syncing=true;try{return await api.syncNow(await syncContext())}finally{syncing=false}
+  syncing=true;try{const result=await api.syncNow(await syncContext());await reconcileOrderStatusProjection();return result}finally{syncing=false}
 }
 async function attestTransport(){const api=global.topBurgerDesktop?.offlineV2;if(!api?.transportAttest)throw new Error('Offline V2 transport attestation unavailable');return api.transportAttest({...await syncContext(),approved:true})}
 async function manualRetry(clientTx){
