@@ -1,5 +1,5 @@
 const fs=require('fs'),assert=require('assert');
-const read=p=>fs.readFileSync(p,'utf8'),sql=read('supabase-offline-v2-customer-delivery-owners-v1.sql'),outer=read('supabase-beta45-offline-v2-transport-v1.sql'),runtime=read('beta45-offline-v2-transport-runtime.js'),customerCreate=read('permissions-v2-customers-create-routing.js'),driverRouting=read('permissions-v2-order-driver-assignment-routing.js'),design=read('docs/OFFLINE-V2-CUSTOMER-DELIVERY-DURABLE-OWNER-DESIGN.md');
+const read=p=>fs.readFileSync(p,'utf8'),sql=read('supabase-offline-v2-customer-delivery-owners-v1.sql'),outer=read('supabase-beta45-offline-v2-transport-v1.sql'),runtime=read('beta45-offline-v2-transport-runtime.js'),customerCreate=read('permissions-v2-customers-create-routing.js'),customerEdit=read('permissions-v2-customers-edit-address-routing.js'),driverRouting=read('permissions-v2-order-driver-assignment-routing.js'),design=read('docs/OFFLINE-V2-CUSTOMER-DELIVERY-DURABLE-OWNER-DESIGN.md');
 for(const x of ['offline_customer_create_v1','offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1','offline_delivery_assign_driver_v1','offline_customer_delivery_receipts_v1'])assert(sql.includes(x),x+' missing');
 for(const x of ['public.customer_create_v2(','public.customer_update_v2(','public.customer_address_save_v2(','public.customer_address_delete_v2(','public.order_assign_driver_v2('])assert(sql.includes(x),'accepted owner delegation missing: '+x);
 for(const x of ["pg_advisory_xact_lock","payload_digest","REPLAY_MISMATCH","revoke all on table public.offline_customer_delivery_receipts_v1"])assert(sql.includes(x),'idempotency/security contract missing: '+x);
@@ -9,6 +9,7 @@ for(const [op,rpc] of [['customer_create','offline_customer_create_v1'],['custom
 assert(outer.includes("v_operation='customer_address_save'")&&outer.includes("'{p_customer_id}'"),'dependent customer address mapping missing');
 assert(runtime.includes('commitRpc:authoritativeRpc'),'durable routed-owner API must be exposed');
 assert(customerCreate.includes("commitRpc('offline_customer_create_v1'"),'customer create user path must route offline to durable owner');
+for(const rpc of ['offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1'])assert(customerEdit.includes(`offlineRpc('${rpc}'`),'customer edit/address user path missing '+rpc);
 assert(driverRouting.includes("commitRpc('offline_delivery_assign_driver_v1'"),'driver assignment user path must route offline to durable owner');
 assert(!driverRouting.includes('Offline assignment remains blocked'),'stale online-only driver declaration must be removed');
 assert(design.includes('Changing payment method while offline is a separate future durable operation'),'delivery payment gap must stay explicit');
