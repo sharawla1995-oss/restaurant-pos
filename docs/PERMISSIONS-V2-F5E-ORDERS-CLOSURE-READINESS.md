@@ -1,30 +1,11 @@
 # Permissions V2 — F5E Orders Privilege Closure Readiness
 
-Status: **BLOCKED / DO NOT REVOKE ORDERS UPDATE YET**
+Status: **SOURCE READINESS PASS / CLOSURE ARTIFACT MAY BE PREPARED**
 
-This is a source-only readiness audit. It authorizes no database deployment.
+No database deployment is authorized by this document.
 
-## Proven closed mutation families
-- Fulfillment `new -> preparing -> ready -> completed`: candidate owner `order_fulfillment_transition_v2`.
-- Driver assignment: candidate owner `order_assign_driver_v2`.
-- Delivery completion Online: accepted owner `delivery_mark_delivered_v2`.
-- Website payment review: hardened candidate `review_order_payment`.
-- Website customer cancellation: accepted customer/phone-authorized owner remains separate.
+The previous Offline blocker is resolved in source: order_status has a registered transport owner, local offline order IDs are dependency-deferred until a server ID exists, and Offline delivered is captured into the durable order-status path. The renderer has zero direct Orders PATCH mutation paths.
 
-## Current direct authenticated UPDATE authority
-Historical RLS in `supabase-v7.sql` still contains `orders_branch_update`, allowing authenticated
-branch-scoped UPDATE on `public.orders`. F5E must eventually retire this policy only after every
-required Runtime path is routed through an owner.
+Specialized owners remain separate: fulfillment uses order_fulfillment_transition_v2; driver assignment uses order_assign_driver_v2; Online delivery completion uses delivery_mark_delivered_v2; Offline delivered replays through the order-status owner into the same delivery owner; website payment review uses the Action-gated review_order_payment; customer website cancellation remains its customer/phone-authorized security-definer owner.
 
-## Blocking Offline finding
-The Offline V2 takeover registry declares `order_status`, but the active transport resolver
-`beta45-offline-v2-transport-runtime.js::resolveOperation` has no `order_status` target and throws
-for unregistered transport types. Current delivery wrapper intentionally falls through to legacy
-direct Orders PATCH while Offline. Therefore removing direct authenticated Orders UPDATE now can
-break Offline delivery/status replay.
-
-## Decision
-**NO-GO for final Orders UPDATE privilege closure.**
-First build and prove an idempotent Offline order-status owner/transport path that preserves delivery
-custody semantics and does not replace the specialized Online delivery completion owner. Then re-run
-this audit and only then prepare the F5E revoke/policy retirement artifact.
+Historical orders_branch_update still exists and is not changed here. The next step is a SOURCE-ONLY F5E closure artifact that retires direct authenticated Orders UPDATE authority while preserving execution through the accepted security-definer owners. Deployment remains a separate gated phase.
