@@ -26,12 +26,13 @@ async function run(ctx){
  await global.__SharawlaAcceptanceNetworkLab.enable('offline',{run_id:ctx.run_id});
  try{
    const before=await global.topBurgerDesktop?.offlineV2?.health?.();
-   try{await api.transition(Number(o.id),target)}catch(e){if(!/fetch|network|offline|deferred/i.test(text(e?.message||e))&&!e?.offline_v2_status)throw e}
+   let transitionResult=null;
+   try{transitionResult=await api.transition(Number(o.id),target)}catch(e){if(!/fetch|network|offline|deferred/i.test(text(e?.message||e))&&!e?.offline_v2_status)throw e}
    const after=await global.topBurgerDesktop?.offlineV2?.health?.();
-   const pending=(await global.topBurgerDesktop?.offlineV2?.listOutbox?.())||[];
-   ev=pending.filter(x=>x.operation_type==='order_status'&&String(x?.envelope?.payload?.rpc_payload?.p_order_id)===String(o.id)).sort((a,b)=>Number(b.device_sequence)-Number(a.device_sequence))[0]||null;
+   tx=text(transitionResult?.client_tx_id);
+   if(!tx)throw new Error('Order status transition did not return client_tx_id');
+   ev=await event(tx);
    if(!ev)throw new Error('Durable order_status event missing');
-   tx=text(ev.client_tx_id);
    if(!tx)throw new Error('Order status client_tx_id missing');
    if(text(ev?.envelope?.payload?.rpc_name)!=='order_status_apply_offline_v2')throw new Error('Order status RPC binding mismatch');
    if(text(ev?.envelope?.payload?.rpc_payload?.p_target_status)!==target)throw new Error('Order status target mismatch');
