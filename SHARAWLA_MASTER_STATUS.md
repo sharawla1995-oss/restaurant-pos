@@ -2975,3 +2975,38 @@ Current Retail implementation batches:
 PREPARED / NOT STARTED.
 
 No Runtime/DB/Cloud/Production mutation was performed.
+
+
+## Restaurant SH-0007 — G0 Full Acceptance CLOSED
+
+Runtime candidate:
+- 10.5.4-beta.58.29
+- source commit: 52cd7b64d2c162b9673508daec86258a81d66f4f
+
+Runtime evidence:
+`docs/SH0007-58-29-G0-FULL-ACCEPTANCE-EVIDENCE-2026-09-25.md`
+
+Acceptance run:
+- ACC-20260925-051819-6GXYG
+- profile=restaurant
+- level=full
+- mode=sandbox
+- readiness=READY_FOR_RC
+- coverage=100%
+
+Critical highlights:
+- restaurant full roundtrip PASS
+- cleanup residue=0
+- delivery settlement/shift cash PASS
+- offline migration snapshot PASS
+- recovery/backup/restore/corruption/clock-sequence checks PASS
+- permissions profile/session contracts PASS
+
+G0:
+PASS / CLOSED
+
+Next:
+G1 shared Restaurant routes manual runtime verification:
+Suppliers -> Purchasing -> Stock Count -> Transfers.
+
+Production SH-0005/SH-0006 remain untouched on 10.5.3 CLEAN.
