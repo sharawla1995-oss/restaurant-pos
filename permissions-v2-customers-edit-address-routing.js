@@ -12,10 +12,22 @@ async function rpc(name,payload){
 function missingOwner(err){return /PGRST202|could not find the function|404/i.test(String(err?.message||err||''))}
 async function rest(table,query,options){if(typeof global.rest!=='function')throw new Error('REST غير جاهز');return global.rest(table,query,options)}
 function clean(v){const s=String(v??'').trim();return s||null}
+function tx(){return global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function offline(){return global.navigator?.onLine===false}
+function offlineRpc(name,payload){if(typeof global.SharawlaOfflineV2Transport?.commitRpc!=='function')throw new Error('Offline V2 غير جاهز');return global.SharawlaOfflineV2Transport.commitRpc(name,{...payload,p_client_tx_id:tx()})}
 
 async function updateCustomer(input={}){
   const id=Number(input.id);
   if(!Number.isFinite(id)||id<=0)throw new Error('معرّف العميل غير صالح');
+  const payload={
+    p_customer_id:id,
+    p_name:clean(input.name),
+    p_phone:clean(input.phone),
+    p_area:clean(input.area),
+    p_address:clean(input.address),
+    p_notes:clean(input.notes)
+  };
+  if(offline())return offlineRpc('offline_customer_update_v1',payload);
   try{return await rpc('customer_update_v2',{
     p_customer_id:id,
     p_name:clean(input.name),
@@ -31,6 +43,8 @@ async function saveAddress(input={}){
   if(!Number.isFinite(customerId)||customerId<=0)throw new Error('معرّف العميل غير صالح');
   const addressId=input.id==null?null:Number(input.id);
   if(addressId!==null&&(!Number.isFinite(addressId)||addressId<=0))throw new Error('معرّف العنوان غير صالح');
+  const payload={p_address_id:addressId,p_customer_id:customerId,p_label:clean(input.label),p_area:clean(input.area),p_address:clean(input.address),p_notes:clean(input.notes),p_is_default:input.is_default===true};
+  if(offline())return offlineRpc('offline_customer_address_save_v1',payload);
   try{return await rpc('customer_address_save_v2',{
     p_address_id:addressId,
     p_customer_id:customerId,
@@ -45,6 +59,7 @@ async function saveAddress(input={}){
 async function deleteAddress(addressId){
   const id=Number(addressId);
   if(!Number.isFinite(id)||id<=0)throw new Error('معرّف العنوان غير صالح');
+  if(offline())return offlineRpc('offline_customer_address_delete_v1',{p_address_id:id});
   try{return await rpc('customer_address_delete_v2',{p_address_id:id})}catch(err){if(!missingOwner(err))throw err;await rest('customer_addresses',`id=eq.${id}`,{method:'DELETE'});return true}
 }
 
