@@ -15,5 +15,6 @@ for(const t of[
  'grant execute on function public.order_status_apply_offline_v2(bigint,text,text) to authenticated'
 ])need(sql,t);
 if(/revoke\s+update\s+on\s+(table\s+)?public\.orders/i.test(sql))throw new Error('Offline owner must not prematurely close Orders UPDATE');
-if(transport.includes("'order_status',adapter('order_status'"))throw new Error('Transport unexpectedly wired; coordinated transport review required');
-console.log('Offline V2 order-status owner SOURCE PREP PASS — transport intentionally unwired');
+need(transport,"registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']))");
+need(transport,"if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)}");
+console.log('Offline V2 order-status owner SOURCE PASS — coordinated transport wiring present');
