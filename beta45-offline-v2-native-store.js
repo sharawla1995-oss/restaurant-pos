@@ -154,6 +154,20 @@ function validateCommit(input){
       if(text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id))errors.push('invalid:order_status_client_tx_binding');
     }
   }
+  const boundRpc={
+    customer_create:'offline_customer_create_v1',
+    customer_update:'offline_customer_update_v1',
+    customer_address_save:'offline_customer_address_save_v1',
+    customer_address_delete:'offline_customer_address_delete_v1',
+    delivery_assign_driver:'offline_delivery_assign_driver_v1'
+  }[text(input?.operation_type)];
+  if(boundRpc){
+    const rpcName=text(input?.payload?.rpc_name),rpcPayload=input?.payload?.rpc_payload;
+    if(rpcName!==boundRpc)errors.push('invalid:'+text(input?.operation_type)+'_rpc_binding');
+    if(!rpcPayload||typeof rpcPayload!=='object'||Array.isArray(rpcPayload))errors.push('invalid:'+text(input?.operation_type)+'_rpc_payload');
+    else if(text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id))errors.push('invalid:'+text(input?.operation_type)+'_client_tx_binding');
+    if(text(input?.operation_type)==='customer_address_save'&&text(input?.depends_on_tx_id)&&text(rpcPayload?.p_customer_create_tx)!==text(input?.depends_on_tx_id))errors.push('invalid:customer_address_dependency_binding');
+  }
   const records=Array.isArray(input?.records)?input.records:[];
   for(const [i,r] of records.entries())if(!text(r?.record_type)||!text(r?.local_id))errors.push(`invalid:record:${i}`);
   if(errors.length){const e=new Error(`Offline V2 atomic commit invalid: ${errors.join(',')}`);e.code='OFFLINE_V2_INVALID_COMMIT';throw e}
