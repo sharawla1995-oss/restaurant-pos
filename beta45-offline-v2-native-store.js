@@ -331,6 +331,23 @@ async function syncStats(){
   const mappings=await get(`SELECT COUNT(*) count FROM offline_v2_mappings WHERE server_id IS NOT NULL`);
   return {ok:true,shadow_mode:true,counts,inbox_count:number(inbox?.count),mapped_count:number(mappings?.count)};
 }
+async function resetTestQueue(input={}){
+  await ready();
+  return serializeWrite(async()=>{
+    const supportCode=text(input?.support_code),branchName=text(input?.branch_name).toUpperCase();
+    if(supportCode!=='SH-0007'||branchName!=='TEST')throw new Error('Offline V2 test reset is restricted to SH-0007 / TEST');
+    await exec('BEGIN IMMEDIATE TRANSACTION');
+    try{
+      const rows=await get(`SELECT COUNT(*) c FROM offline_v2_outbox WHERE status<>'synced'`);
+      const txs=await all(`SELECT client_tx_id FROM offline_v2_outbox WHERE status<>'synced'`);
+      for(const r of txs)await run(`DELETE FROM offline_v2_records WHERE client_tx_id=?`,[r.client_tx_id]);
+      await run(`DELETE FROM offline_v2_outbox WHERE status<>'synced'`);
+      await exec('COMMIT');
+      return {ok:true,cleared:number(rows?.c),scope:'SH-0007/TEST'};
+    }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
+  });
+}
+
 async function health(){
   await ready();
   const integrity=await get('PRAGMA integrity_check');
@@ -350,8 +367,9 @@ function installOfflineV2NativeStore(){
   ipcMain.handle('offline-v2:record',(_e,type,id)=>getRecord(type,id));
   ipcMain.handle('offline-v2:health',()=>health());
   ipcMain.handle('offline-v2:sync-stats',()=>syncStats());
+  ipcMain.handle('offline-v2:reset-test-queue',(_e,input={})=>resetTestQueue(input));
   ready().catch(e=>console.error('Offline V2 native store init failed',e));
-  return {ready,commitOperation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health};
+  return {ready,commitOperation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue};
 }
 
 module.exports={installOfflineV2NativeStore,PROTOCOL_VERSION,SCHEMA_VERSION,STORE_VERSION};
