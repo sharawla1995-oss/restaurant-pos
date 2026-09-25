@@ -142,6 +142,23 @@ async function assertRuntimeState(ctx,{active=false}={}){
   return state;
 }
 
+async function pendingScopeDiagnostics(ctx){
+  await ready();
+  const rows=await all(`SELECT employee_id,status,COUNT(*) count,MIN(device_sequence) first_sequence,MAX(device_sequence) last_sequence
+    FROM offline_v2_outbox
+    WHERE device_id=? AND business_id=? AND status IN ('pending','retryable')
+    GROUP BY employee_id,status ORDER BY employee_id,status`,[ctx.identity.device_id,ctx.identity.business_id]);
+  const currentEmployeeId=num(ctx.employee_id);
+  const groups=rows.map(r=>({employee_id:num(r.employee_id),status:text(r.status),count:num(r.count),first_sequence:num(r.first_sequence),last_sequence:num(r.last_sequence)}));
+  const outside=groups.filter(r=>r.employee_id!==currentEmployeeId);
+  return {
+    current_employee_id:currentEmployeeId,
+    current_scope_count:groups.filter(r=>r.employee_id===currentEmployeeId).reduce((n,r)=>n+r.count,0),
+    outside_employee_scope_count:outside.reduce((n,r)=>n+r.count,0),
+    outside_employee_scope:outside
+  };
+}
+
 async function syncNow(input={}){
   const ctx=validateContext(input,true);await assertRuntimeState(ctx,{active:true});
   const baseStore=installOfflineV2Transport._store;
@@ -157,8 +174,10 @@ async function syncNow(input={}){
     transport:{send:event=>postRpc(ctx,APPLY_RPC,{p_event:event})},
     identityProvider:async()=>({device_fingerprint:ctx.identity.device_fingerprint})
   });
+  const beforeScope=await pendingScopeDiagnostics(ctx);
   const result=await engine.syncOnce(Math.max(1,Math.min(250,num(input.max_per_run,100))));
-  return {...result,transport_version:TRANSPORT_VERSION,stats:await baseStore.syncStats()};
+  const afterScope=await pendingScopeDiagnostics(ctx);
+  return {...result,transport_version:TRANSPORT_VERSION,scope_diagnostics:{before:beforeScope,after:afterScope},stats:await baseStore.syncStats()};
 }
 
 async function attestTransport(input={}){
