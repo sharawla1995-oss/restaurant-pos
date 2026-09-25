@@ -151,11 +151,21 @@ async function pendingScopeDiagnostics(ctx){
   const currentEmployeeId=num(ctx.employee_id);
   const groups=rows.map(r=>({employee_id:num(r.employee_id),status:text(r.status),count:num(r.count),first_sequence:num(r.first_sequence),last_sequence:num(r.last_sequence)}));
   const outside=groups.filter(r=>r.employee_id!==currentEmployeeId);
+  const current=groups.filter(r=>r.employee_id===currentEmployeeId);
+  const due=await all(`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id,
+      CASE WHEN next_retry_at IS NULL OR next_retry_at<=? THEN 1 ELSE 0 END retry_due,
+      CASE WHEN depends_on_tx_id IS NULL OR EXISTS(
+        SELECT 1 FROM offline_v2_outbox p WHERE p.client_tx_id=offline_v2_outbox.depends_on_tx_id AND p.status='synced'
+      ) THEN 1 ELSE 0 END dependency_synced
+    FROM offline_v2_outbox
+    WHERE device_id=? AND business_id=? AND employee_id=? AND status IN ('pending','retryable')
+    ORDER BY device_sequence`,[nowIso(),ctx.identity.device_id,ctx.identity.business_id,currentEmployeeId]);
   return {
     current_employee_id:currentEmployeeId,
-    current_scope_count:groups.filter(r=>r.employee_id===currentEmployeeId).reduce((n,r)=>n+r.count,0),
+    current_scope_count:current.reduce((n,r)=>n+r.count,0),
     outside_employee_scope_count:outside.reduce((n,r)=>n+r.count,0),
-    outside_employee_scope:outside
+    outside_employee_scope:outside,
+    current_scope_rows:due.map(r=>({device_sequence:num(r.device_sequence),client_tx_id:text(r.client_tx_id),status:text(r.status),next_retry_at:r.next_retry_at||null,depends_on_tx_id:r.depends_on_tx_id||null,retry_due:num(r.retry_due)===1,dependency_synced:num(r.dependency_synced)===1}))
   };
 }
 
