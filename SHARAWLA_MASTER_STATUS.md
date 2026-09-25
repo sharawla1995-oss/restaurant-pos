@@ -4072,3 +4072,94 @@ Reason:
 - add Permissions V2 guards only after latest-definition provenance is pinned.
 
 No deployment is authorized by this checkpoint.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE PERMISSIONS V2 CONTINUATION — PV2-F3 SOURCE PREP PASS
+
+> This section extends the latest Permissions V2 continuation checkpoint.
+
+Runtime remains:
+- 10.5.4-beta.58.29.
+
+Safety remains:
+- Production SH-0005 / SH-0006 untouched.
+- no operational Beta DB deployment for PV2-A/B/C/D/E/F1/F2/F3.
+- no Cloud mutation.
+- F1/F2/F3 renderer routing candidates remain UNWIRED.
+
+## Shift / Expense owner provenance gate
+
+Negative Replacement Scan is CLOSED / PASS.
+
+Gate commit:
+- `14873dedfdfd73a888ca665b336b4fb203d7c902`
+
+Expected exact source-definition set is pinned for:
+- `open_pos_shift_idempotent(bigint,numeric,text)`
+- `close_pos_shift_idempotent(bigint,numeric,jsonb,text)`
+- `close_pos_shift_v2(bigint,numeric,jsonb,text)`
+- `create_pos_expense_idempotent(bigint,text,numeric,text)`
+
+The scan also proves:
+- Point4 Same-Context references the expected open/legacy-close/expense owners;
+- Point4 Same-Context does not redefine those owners;
+- any future additional SQL definition of the pinned functions fails CI.
+
+## PV2-F3 — Shift / Expense durable authorization boundary
+
+SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED / EXPENSE-EDIT ROUTING CANDIDATE UNWIRED.
+
+Commit:
+- `b0304c92f6f033926fd6aec75f3c0c16657a9ebd`
+
+CI:
+- Run `36092298027`
+- conclusion: SUCCESS
+- Candidate validation: SUCCESS
+- Windows x64 build: SUCCESS
+- packaged app.asar verification: SUCCESS
+- artifact upload: SUCCESS
+
+Prepared Actions:
+- `shifts.open`
+- `shifts.close`
+- `expenses.create`
+- `expenses.edit`
+
+Critical design:
+- no historical Shift/Expense RPC body is replaced by F3;
+- accepted idempotency, driver-custody, Offline V2 and Point4 owner bodies remain unchanged;
+- employee Action permission is enforced at the durable table mutation boundary by private triggers;
+- authenticated Shift INSERT requires `shifts.open`;
+- authenticated Shift transition to closed requires `shifts.close`;
+- authenticated Expense INSERT requires `expenses.create`;
+- authenticated Expense UPDATE requires `expenses.edit`;
+- Shift/Expense DELETE is not opened as a new behavior;
+- trusted non-end-user migration/service execution remains outside employee JWT authorization;
+- direct authenticated Shift/Expense table mutation authority is removed by the deployment artifact.
+
+Runtime path ownership preserved:
+- live online Shift close continues through `close_pos_shift_v2`;
+- legacy/offline Shift close continues through `close_pos_shift_idempotent`;
+- Native Offline continues through `sharawla_offline_v2_apply_event`;
+- Expense create continues through `create_pos_expense_idempotent`;
+- only Expense Edit gets the new `expense_update_v2` mutation owner and candidate renderer route.
+
+Role/default migration:
+- Restaurant-only in F3;
+- Admin allowed within upper Profile/Feature gates;
+- Cashier inherits Shift open/close from accepted 58.29 role-page intent;
+- Expenses remain denied by default for Cashier/Call Center/Delivery unless preserved/explicitly granted;
+- existing employee intent is preserved without overwriting pre-existing Action overrides.
+
+## Current PV2-F state
+
+- F1 Customers Create: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F2 Customers Edit + Address Management: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F3 Shift + Expense boundary: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F4 Delivery Drivers/Zones CRUD: NEXT SAFE SOURCE BATCH.
+- PV2-G Runtime Acceptance: NOT STARTED.
+
+No deployment is authorized by this checkpoint.
