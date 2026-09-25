@@ -42,12 +42,12 @@ async function run(ctx){
  const cloud=await serverOrder(o.id);
  if(text(cloud?.status)!==target)throw new Error(`Cloud order status mismatch: expected=${target} actual=${cloud?.status}`);
  const a=ack(synced);
- if(text(a.operation_type)!=='order_status'||text(a.rpc_name)!=='order_status_apply_offline_v2'||Number(a.server_entity_id)!==Number(o.id))throw new Error('Transport ACK semantic mismatch');
+ if(a.ok!==true||!text(a.server_event_id)||Number(a.server_entity_id)!==Number(o.id))throw new Error('Transport ACK semantic mismatch');
  // Re-sync the already-synced identity; cloud/receipt cardinality must stay exactly one.
  await global.SharawlaOfflineV2Transport?.syncNow?.();
  const cloud2=await serverOrder(o.id);
  if(text(cloud2?.status)!==target)throw new Error('Order status replay/idempotency mismatch');
- return {status:'PASS',detail:`order=${o.id}; ${o.status}->${target}; seq=${synced.device_sequence}; explicit_ack=1; replay=stable`,evidence:{order_id:Number(o.id),from:o.status,to:target,device_sequence:Number(synced.device_sequence),client_tx_id:tx,rpc_name:a.rpc_name,server_version:a.server_version}};
+ return {status:'PASS',detail:`order=${o.id}; ${o.status}->${target}; seq=${synced.device_sequence}; explicit_ack=1; replay=stable`,evidence:{order_id:Number(o.id),from:o.status,to:target,device_sequence:Number(synced.device_sequence),client_tx_id:tx,server_event_id:a.server_event_id,server_version:a.server_version}};
 }
 function register(){const r=R();if(!r||global.__SharawlaOfflineOrderStatusAcceptanceRegistered)return false;global.__SharawlaOfflineOrderStatusAcceptanceRegistered=true;r.register({id:'offline.order-status-runtime-e2e',name:'Offline Order Status → Durable → Sync → Receipt → Cloud → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','commerce.delivery'],run});return true}
 if(!register())global.addEventListener('sharawla-acceptance-registry-ready',register,{once:true});

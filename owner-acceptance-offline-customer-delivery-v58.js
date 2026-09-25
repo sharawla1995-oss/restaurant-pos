@@ -11,7 +11,7 @@ async function customer(ctx){
  const marker=`ACC-${String(ctx.run_id).slice(-8)}-${Date.now().toString().slice(-5)}`,phone='010'+String(Date.now()).slice(-8),tx=uuid();
  await durable('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Offline',p_notes:'SHARAWLA_ACCEPTANCE'},tx);
  const done=await sync(tx),a=ack(done);
- if(text(a.operation_type)!=='customer_create'||text(a.rpc_name)!=='offline_customer_create_v1')throw new Error('customer create ACK mismatch');
+ if(a.ok!==true||!text(a.server_event_id))throw new Error('customer create ACK mismatch');
  const cid=Number(a.server_entity_id);if(!cid)throw new Error('customer server id missing');
  const rows=await global.rest('customers',`select=id,name,phone&id=eq.${cid}&limit=1`);if(rows?.length!==1||rows[0].name!==marker)throw new Error('customer cloud reconciliation mismatch');
  await global.SharawlaOfflineV2Transport.syncNow();
@@ -47,7 +47,7 @@ async function driver(ctx){
  const o={id:Number(fx?.order_id),branch_id:bid},d={id:Number(fx?.driver_id)};if(!o.id||!d.id)throw new Error('offline driver fixture incomplete');
  const tx=uuid();await durable('offline_delivery_assign_driver_v1',{p_order_id:Number(o.id),p_driver_id:Number(d.id)},tx);
  const done=await sync(tx),a=ack(done),cloud=(await global.rest('orders',`select=id,status,driver_id,assigned_at&id=eq.${Number(o.id)}&limit=1`))?.[0];
- if(text(a.operation_type)!=='delivery_assign_driver'||text(a.rpc_name)!=='offline_delivery_assign_driver_v1')throw new Error('driver assignment ACK mismatch');
+ if(a.ok!==true||!text(a.server_event_id)||Number(a.server_entity_id)!==Number(o.id))throw new Error('driver assignment ACK mismatch');
  if(text(cloud?.status)!=='out_for_delivery'||Number(cloud?.driver_id)!==Number(d.id))throw new Error('driver assignment cloud state mismatch');
  await global.SharawlaOfflineV2Transport.syncNow();
  return {status:'PASS',detail:`order=${o.id}; driver=${d.id}; seq=${done.device_sequence}; replay=stable`,evidence:{order_id:o.id,driver_id:d.id,client_tx_id:tx,device_sequence:done.device_sequence}};
@@ -61,7 +61,7 @@ async function delivered(ctx){
  if(text(cloud.status)!=='delivered'||text(cloud.payment_status)!=='confirmed')throw new Error('offline delivery final state mismatch');
  if(pays.length!==1||text(pays[0].method)!==text(cloud.payment_method)||Math.abs(Number(pays[0].amount)-Number(cloud.total))>.005)throw new Error('offline delivery payment semantics mismatch');
  if(events.length!==1||Math.abs(Number(events[0].custody_after)-expected)>.005||Math.abs(Number(cloud.delivery_cash_custody_amount)-expected)>.005)throw new Error('offline delivery custody semantics mismatch');
- if(text(a.rpc_name)!=='order_status_apply_offline_v2')throw new Error('offline delivery ACK mismatch');
+ if(a.ok!==true||!text(a.server_event_id)||Number(a.server_entity_id)!==Number(o.id))throw new Error('offline delivery ACK mismatch');
  await global.SharawlaOfflineV2Transport.syncNow();const events2=await global.rest('delivery_payment_events',`select=client_tx_id&client_tx_id=eq.${encodeURIComponent(tx)}`);if(events2.length!==1)throw new Error('offline delivery replay duplicated economics');
  return {status:'PASS',detail:`order=${o.id}; method=${cloud.payment_method}; custody=${expected}; seq=${done.device_sequence}; economic replay=stable`,evidence:{order_id:o.id,client_tx_id:tx,payment_method:cloud.payment_method,custody:expected,device_sequence:done.device_sequence}};
 }

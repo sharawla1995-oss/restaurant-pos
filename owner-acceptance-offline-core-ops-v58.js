@@ -18,7 +18,7 @@ async function expense(ctx){
  if(text(local?.client_tx_id)!==tx)throw new Error('expense local tx mismatch');const d=await ev(tx);if(!d||!['pending','retryable'].includes(d.status))throw new Error(`expense not durable: ${d?.status||'missing'}`);
  const done=await sync(tx),a=ack(done),rows=await global.rest('expenses',`select=id,client_tx_id,shift_id,description,amount&client_tx_id=eq.${encodeURIComponent(tx)}`);
  if(rows.length!==1||Number(rows[0].shift_id)!==Number(sh.id)||Number(rows[0].amount)!==1)throw new Error('expense cloud persistence mismatch');
- if(text(a.operation_type)!=='expense'||text(a.rpc_name)!=='create_pos_expense_idempotent')throw new Error('expense ACK semantic mismatch');
+ if(a.ok!==true||!text(a.server_event_id)||!Number(a.server_entity_id))throw new Error('expense ACK semantic mismatch');
  await global.SharawlaOfflineV2Transport?.syncNow?.();const rows2=await global.rest('expenses',`select=id&client_tx_id=eq.${encodeURIComponent(tx)}`);if(rows2.length!==1)throw new Error('expense replay duplicated');
  return {status:'PASS',detail:`seq=${done.device_sequence}; expense=${rows[0].id}; receipt=1; replay=stable`,evidence:{client_tx_id:tx,device_sequence:done.device_sequence,expense_id:rows[0].id}};
 }
@@ -37,7 +37,7 @@ async function ret(ctx){
  if(saleSnaps.length){const ratio=qty/Number(item.quantity),expected=new Map();for(const s of saleSnaps){const k=Number(s.ingredient_id);expected.set(k,(expected.get(k)||0)+Number(s.base_quantity)*ratio)}const actual=new Map();for(const s of restoreSnaps){const k=Number(s.ingredient_id);actual.set(k,(actual.get(k)||0)+Number(s.restored_base_quantity))}for(const [k,v] of expected){if(Math.abs((actual.get(k)||0)-v)>.000001)throw new Error(`food return historical restoration mismatch ingredient=${k}`)}if(posting.length!==1||text(posting[0].client_tx_id)!==tx)throw new Error('food return consumption posting mismatch')}
  if(text(a.operation_type)!=='return')throw new Error('return ACK semantic mismatch');
  await global.SharawlaOfflineV2Transport?.syncNow?.();const rows2=await global.rest('returns',`select=id&client_tx_id=eq.${encodeURIComponent(tx)}`);if(rows2.length!==1)throw new Error('return replay duplicated');
- return {status:'PASS',detail:`order=${o.id}; seq=${done.device_sequence}; return=${rows[0].id}; receipt=1; historical_restore=${saleSnaps.length?'verified':'not-applicable'}; replay=stable`,evidence:{client_tx_id:tx,device_sequence:done.device_sequence,order_id:o.id,return_id:rows[0].id,rpc_name:a.rpc_name,food_sale_snapshot_rows:saleSnaps.length,food_restore_snapshot_rows:restoreSnaps.length}};
+ return {status:'PASS',detail:`order=${o.id}; seq=${done.device_sequence}; return=${rows[0].id}; receipt=1; historical_restore=${saleSnaps.length?'verified':'not-applicable'}; replay=stable`,evidence:{client_tx_id:tx,device_sequence:done.device_sequence,order_id:o.id,return_id:rows[0].id,server_event_id:a.server_event_id,food_sale_snapshot_rows:saleSnaps.length,food_restore_snapshot_rows:restoreSnaps.length}};
 }
 function register(){const r=R();if(!r||global.__SharawlaOfflineCoreOpsAcceptanceRegistered)return false;global.__SharawlaOfflineCoreOpsAcceptanceRegistered=true;r.registerMany([
  {id:'offline.expense-runtime-e2e',name:'Offline Expense → Durable → Sync → Cloud → Replay',pack:'offline',profile:'restaurant',level:'chaos',mode:'chaos',critical:true,features:['offline.local_first','core.expenses'],run:expense},
