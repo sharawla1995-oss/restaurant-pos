@@ -36,6 +36,8 @@ jobs:
           node scripts/check-beta55-restaurant-acceptance.js
           node scripts/check-beta56-runtime-snapshot-consumer.js
           node scripts/check-offline-auth-authoritative-order.js
+          node scripts/check-beta45-offline-v2-transport.js
+          node scripts/check-beta45-offline-v2-diagnostics.js
           node scripts/check-beta55-5-runtime-hardening.js
           node scripts/check-version.js
           node scripts/check-orders-performance-date-window.js
