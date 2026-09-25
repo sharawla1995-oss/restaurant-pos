@@ -4240,3 +4240,81 @@ Runtime direct-write surface frozen by checker:
 F5 must map the current seven direct `orders` PATCH call sites against the newer runtime wrappers before any lifecycle owner is replaced or newly introduced.
 
 No deployment is authorized by this checkpoint.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE CONTINUATION — PV2-F5 ORDER LIFECYCLE + SH-0007 OFFLINE RUNTIME TEST
+
+## Safety / production
+
+- Production SH-0005 / SH-0006 remains immutable on 10.5.3 CLEAN and untouched.
+- SH-0007 remains the isolated Beta / TEST device.
+- Canonical Stock remains OFF; Cutover remains OFF.
+- G2 Touch is USER-ACCEPTED / WAIVED for the current implementation gate, not a tested PASS.
+- No operational Permissions V2 database deployment or Cloud mutation is recorded by this checkpoint.
+
+## Permissions V2 — F5 Order Lifecycle
+
+F5 source closure is complete for the Order Lifecycle path.
+
+Key source owners / routing now cover:
+- fulfillment transitions through `order_fulfillment_transition_v2`;
+- driver assignment through `order_assign_driver_v2`;
+- payment review through the hardened `review_order_payment` owner;
+- Offline order-status application through `order_status_apply_offline_v2`;
+- delivered semantics continue to delegate to the accepted `delivery_mark_delivered_v2` owner.
+
+Direct authenticated application-level Orders PATCH fallback was retired from the accepted F5 path, and the source-only privilege-closure artifact remains NOT DEPLOYED.
+
+Controlled Beta deployment order and predeployment gate are prepared, but actual deployment still requires authoritative Beta Business/Profile binding + Feature entitlement evidence. F1/F2/F3/F4 routing candidates also remain UNWIRED, so Permissions V2 as a whole is not yet Runtime complete.
+
+## Online -> Offline -> Sync -> Online continuity
+
+Source continuity proof is CLOSED / PASS.
+
+Relevant commits:
+- `df3724b865ad617657e7adb562e6f59b9e0a8824` — prove Online-to-Offline order continuation;
+- `d5811933490dfa62ab6fde91d5156c3be18b46cc` — gate the proof in main acceptance;
+- `d8906c8a0e690a790c77ec0161b681081bf068b4` — project Offline order status into local cache after durable commit;
+- `85be79d8674eea00562f5a50ec5887660f3aeb5d` — reconcile projected status after successful sync;
+- `922f516f68f23c238ed9e7c640b0c133b0b363bf` — gate post-sync reconciliation in main acceptance.
+
+Acceptance CI for `922f516...`:
+- Run #620 / SUCCESS.
+
+Required real-device acceptance remains:
+Online-created order -> connectivity loss -> next transition Offline -> local pending projection -> reconnect/sync -> server-confirmed reconciliation -> next Online transition.
+
+## SH-0007 TEST queue reset
+
+The installed SH-0007 test environment showed 88 unresolved historical test entries:
+- Pending 0
+- Retryable 0
+- Blocked 0
+- Conflict 85
+- Dead Letter 1
+- Legacy 2
+
+These are test-device leftovers, not Production business data.
+
+A guarded maintenance reset was added:
+- commit `d876c8ec92f1a2d972663b1e64a98ccdaf1c7e47`;
+- CI Run #621 = SUCCESS;
+- UI action: `تصفير بيانات الاختبار` in Offline V2 Sync Center;
+- hard restriction: SH-0007 + TEST only;
+- clears unresolved Offline V2 test queue plus Legacy test queue;
+- does not reset device fingerprint, licensing, Business Connection, or Production devices.
+
+## Current exact continuation point
+
+On SH-0007, after installing the #621 artifact:
+1. Open Offline V2 Sync Center.
+2. Run `تصفير بيانات الاختبار` and confirm the unresolved counter becomes 0.
+3. Run the real Online -> Offline -> Sync -> Online order lifecycle acceptance scenario.
+4. If Runtime acceptance passes, record evidence before moving to the remaining Permissions V2 deployment prerequisites / F1-F4 wiring.
+
+Current source HEAD at this checkpoint:
+- `d876c8ec92f1a2d972663b1e64a98ccdaf1c7e47`.
+
+No Production action is authorized by this checkpoint.
