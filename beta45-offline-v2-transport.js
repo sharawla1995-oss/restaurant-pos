@@ -152,7 +152,7 @@ async function pendingScopeDiagnostics(ctx){
   const groups=rows.map(r=>({employee_id:num(r.employee_id),status:text(r.status),count:num(r.count),first_sequence:num(r.first_sequence),last_sequence:num(r.last_sequence)}));
   const outside=groups.filter(r=>r.employee_id!==currentEmployeeId);
   const current=groups.filter(r=>r.employee_id===currentEmployeeId);
-  const due=await all(`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id,
+  const due=await installOfflineV2Transport._store._allForTransportDiagnostics(`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id,
       CASE WHEN next_retry_at IS NULL OR next_retry_at<=? THEN 1 ELSE 0 END retry_due,
       CASE WHEN depends_on_tx_id IS NULL OR EXISTS(
         SELECT 1 FROM offline_v2_outbox p WHERE p.client_tx_id=offline_v2_outbox.depends_on_tx_id AND p.status='synced'
