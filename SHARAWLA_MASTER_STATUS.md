@@ -3149,3 +3149,714 @@ PV2-A Applicability
 -> PV2-E Role defaults
 -> PV2-F Owner coverage
 -> PV2-G Runtime acceptance.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE CURRENT CHECKPOINT — RESTAURANT 58.29 + PERMISSIONS V2
+
+> This section is the current continuation authority. Where older counters, versions, or "next step" text above conflict with this section, treat the older text as historical evidence only.
+
+## A. Hard safety boundary
+
+Production remains immutable / untouched:
+
+- SH-0005 — Top Burger الدقي — 10.5.3 CLEAN
+- SH-0006 — Top Burger العشرين — 10.5.3 CLEAN
+
+Current development / acceptance device:
+
+- SH-0007 only
+- Business: تجريبي
+- Branch: TEST
+- Profile: restaurant
+- Runtime accepted candidate: 10.5.4-beta.58.29
+
+Hard invariants remain:
+
+- Canonical Fingerprint: no automatic rebind
+- Canonical Stock: OFF
+- Cutover: OFF
+- no Beta deployment to Production
+- no Production DB mutation
+- no Stable promotion yet
+
+## B. Current repository / CI
+
+Current code HEAD before this checkpoint document update:
+
+- `174b977cb221f758f0734d83d0b97ee6344788ae`
+- message: `feat: add Permissions V2 trusted profile source contract`
+
+Current runtime version:
+
+- `10.5.4-beta.58.29`
+
+Latest build workflow on `174b...`:
+
+- Beta58.4 SH-0007 Online Orders Acceptance Build
+- conclusion: SUCCESS
+
+This successful Candidate validation includes the current Permissions V2 source checkers.
+
+## C. 58.26 -> 58.29 corrective history
+
+### 58.26
+
+Runtime blocker discovered on SH-0007 after login / branch selection:
+
+- `forEach is not a function`
+
+Root cause family:
+
+- selector ownership bug using single-element `$` with `.forEach()`.
+
+### 58.27
+
+First corrective attempt was not accepted as final runtime evidence.
+
+Additional packaging/version-sync issues were found:
+- the intended `app.js` selector correction had not landed in the built commit;
+- version sync did not update several runtime asset references inside the package.
+
+58.27 is therefore historical failed corrective evidence only.
+
+### 58.28
+
+Correct selector iteration fix was applied and runtime branch selection worked successfully on SH-0007.
+
+The JavaScript patching issue that caused `$$` to collapse to `$` during string replacement was identified and corrected by using replacement functions.
+
+### 58.29
+
+Full Acceptance initially exposed:
+- `offline.migration-compatibility-snapshot FAIL`
+- source/snapshot integrity remained OK
+- backup/restore and temp restore counts were already PASS
+
+Root cause:
+- acceptance probe could compare live Offline SQLite metrics while the background Offline transport changed the source database during the snapshot window.
+
+58.29 corrected the acceptance probe to:
+- detect source change during `VACUUM INTO`;
+- retry instead of reporting false data-loss;
+- remain FAIL if a stable snapshot cannot be obtained.
+
+No business / stock / Point4 / Cloud behavior was changed by that corrective.
+
+## D. Restaurant Gate state
+
+### G0 — Full Acceptance
+
+CLOSED / PASS.
+
+Runtime evidence:
+
+- Version: 10.5.4-beta.58.29
+- Run: `ACC-20260925-051819-6GXYG`
+- Profile: restaurant
+- Level: full
+- Mode: sandbox
+- Readiness: READY_FOR_RC
+- Coverage: 100%
+
+Critical PASS:
+- Restaurant Navigation Parity
+- Sandbox Lock
+- Profile Engine Contracts
+- Navigation Smoke
+- Offline Native Health
+- Restaurant Runtime Contract
+- Restaurant Full Roundtrip
+- Delivery Settlement / Shift Cash
+- Restaurant Print Order Type
+- Offline Migration Compatibility Snapshot
+- Permissions all-profile role contracts
+- Current-session permission boundary
+- Recovery guard health
+- Offline auth cache boundary
+- Backup / Last Good / Restore Copy
+- Temp Restore Cycle
+- Corruption Copy Detection
+- Clock Drift / Device Sequence
+
+Cleanup:
+- residue = 0
+- restaurant full-roundtrip cleanup = zero
+
+Evidence:
+`docs/SH0007-58-29-G0-FULL-ACCEPTANCE-EVIDENCE-2026-09-25.md`
+
+### G1 — Shared Restaurant Routes
+
+CLOSED / PASS.
+
+Manual runtime review on TEST:
+
+- Suppliers — PASS
+- Purchasing / raw-material receiving — PASS
+- Stock Count / raw-material count — PASS
+- Transfers / raw-material transfers — PASS
+
+No Retail SKU/Variant leakage observed.
+
+Evidence:
+`docs/SH0007-58-29-G1-SHARED-ROUTES-EVIDENCE-2026-09-25.md`
+
+### G2 — Native Touch
+
+OPEN / MANUAL / BLOCKED BY HARDWARE AVAILABILITY.
+
+Reason:
+- no physical native Windows touch display currently available;
+- remote-phone / AnyDesk touch is not accepted as native touch evidence.
+
+This is not a Runtime failure.
+
+Required representative touch screens:
+- POS
+- Customers
+- Orders
+- Kitchen / Delivery
+- Inventory Overview
+- Settings
+
+Permanent Touch requirements:
+- same UI for mouse and touch;
+- large tap targets;
+- no hover-only critical action;
+- scrollable tables/cards;
+- compact display usability.
+
+### G3 — Menu Cleanup
+
+CLOSED / PASS.
+
+Normal visible operational cards were reviewed and are Restaurant/shared.
+
+No Retail-only or Pharmacy-only operational leakage observed.
+
+Internal tooling classification:
+- مركز اختبار Beta = prerelease/Beta-only tooling, not Stable customer navigation.
+- تشخيص Sharawla = temporary Owner Diagnostics unlocked by verified owner code and expires; not ordinary customer navigation.
+
+Evidence:
+`docs/SH0007-58-29-G3-MENU-CLEANUP-EVIDENCE-2026-09-25.md`
+
+Current Restaurant gate summary:
+
+- G0 CLOSED
+- G1 CLOSED
+- G2 OPEN only for physical Touch evidence
+- G3 CLOSED
+
+## E. Point4 / Offline / Stock ownership
+
+Current continuation authority:
+
+- Ownership mapping = 61/61 CLOSED
+  - Direct 40/40
+  - Transitive 15/15
+  - Document/In-flight Barriers 6/6
+- 46 pre-cutover contracts = Evidence Complete
+- Latest accepted Source Implementation checkpoint = 46/46 SOURCE ACCEPTED
+- Deployment Authorization Gate remains separate / pending
+- Canonical Stock = OFF
+- Cutover = OFF
+
+Do not resume from older 22/46, 38/46, or similar historical counters elsewhere in this file.
+
+Point4 business invariants remain:
+
+- one client transaction identity
+- one owner
+- one durable store
+- one sync owner
+- one authoritative ACK
+
+Food sale/return provenance remains:
+- sale consumes frozen/live-resolved recipe evidence according to accepted contract;
+- return uses historical consumption evidence, not current recipe recalculation.
+
+## F. Permissions V2 — Runtime findings
+
+Advanced Permissions UI exists and was manually confirmed on SH-0007.
+
+Current catalog:
+- 87 active Actions
+
+The UI currently supports:
+- توريث
+- سماح
+- منع
+
+Runtime test:
+- employee `mo`
+- action `delivery.mark_delivered`
+- explicit override = deny
+- delivery confirmation was rejected at runtime with no permission
+- DB verification confirmed `allowed=false`
+
+Cleanup:
+- `mo` was returned to `inherit`
+- current `employee_action_permissions_v2` override count = 0
+
+Therefore:
+- explicit Action override pipeline is Runtime-confirmed
+- no test override remains
+
+## G. Permissions V2 — Gap discovered
+
+The current Action catalog is global.
+
+Observed problem:
+- Restaurant Advanced Permissions UI also shows Logistics / Membership / Service and other unrelated Actions.
+
+Root cause:
+- `permission_actions_v2` has no Profile / Feature applicability metadata.
+- current `has_action_permission_v2(text)` is not Profile-aware.
+
+Current `inherit` semantics:
+- admin => allow
+- explicit employee override => use override
+- otherwise legacy_permission fallback
+- null legacy_permission => deny
+
+Therefore current `inherit` means legacy POS permission inheritance.
+
+It does NOT mean inheritance from Sharawla Admin.
+
+Final intended authority chain:
+
+Sharawla Cloud entitlement
+-> Trusted POS Profile
+-> Feature applicability
+-> Role default
+-> User Action override
+-> Location scope
+-> Business invariant
+-> mutation
+
+## H. Sharawla Cloud authority confirmed
+
+For SH-0007 Beta Business:
+
+- Business id: `91826502-590e-4afa-8826-2c0f4b99c490`
+- Cloud POS Profile = `restaurant`
+- Profile is active + implemented
+
+Cloud `pos_profile_id` is the trusted Profile authority.
+
+Legacy `business_type=market` on the Beta Business must NOT be used as authorization authority.
+
+Profile Feature matrix was read from Sharawla Cloud for all seven Profiles:
+- restaurant
+- retail
+- pharmacy
+- logistics
+- membership
+- warehouse
+- service
+
+## I. Permissions V2 — PV2-A Source Contract
+
+SOURCE PREPARED / STATIC PASS.
+NOT DEPLOYED.
+
+Artifact:
+`permissions-v2-profile-feature-applicability.sql`
+
+Checker:
+`scripts/check-permissions-v2-profile-feature-applicability.js`
+
+Current mapping:
+- 307 Action/Profile rows
+- 7 Profiles
+
+Purpose:
+- map Action -> applicable Profile
+- optionally require Sharawla Cloud Feature code
+- prevent Restaurant from seeing unrelated Logistics/Membership/Service Actions
+- preserve shared actions only where explicitly mapped
+
+Examples:
+- `logistics.*` -> logistics only
+- `membership.*` -> membership only
+- `service.*` -> service only
+- `food.*` / `restaurant.*` -> restaurant only
+- `delivery.*` -> restaurant / retail / pharmacy with `commerce.delivery`
+
+Security:
+- authenticated gets read-only applicability metadata
+- no authenticated write grant
+
+PV2-A first commit:
+`1c3b59240d14da06dcec2a1d86a1e10a6dfea0a9`
+
+Artifact was renamed away from a `supabase-*.sql` prefix to avoid accidental Point4-only workflow triggering:
+`a0bea3997458651aae31e4a1bae56945d99c75e6`
+
+## J. Permissions V2 — PV2-B Trusted Profile Source Contract
+
+SOURCE PREPARED / STATIC PASS.
+NOT DEPLOYED.
+NO Business/Profile row inserted.
+
+Artifact:
+`permissions-v2-trusted-profile-binding.sql`
+
+Checker:
+`scripts/check-permissions-v2-trusted-profile-binding.js`
+
+Commit:
+`174b977cb221f758f0734d83d0b97ee6344788ae`
+
+Design:
+- private schema `sharawla_internal`
+- singleton server-owned operational Business/Profile identity
+- no public/anon/authenticated access
+- private helpers:
+  - `current_operational_profile_v1()`
+  - `current_operational_business_id_v1()`
+  - `assert_operational_profile_v1(text)`
+  - `assert_operational_profile_allowed_v1(text[])`
+
+Fail-closed errors include:
+- OPERATIONAL_PROFILE_BINDING_MISSING
+- OPERATIONAL_BUSINESS_BINDING_MISSING
+- PROFILE_MISMATCH
+
+The generic source contract intentionally does NOT hardcode SH-0007 Business id and does NOT provision the binding row.
+
+## K. Permissions V2 — what remains
+
+PV2-C — Effective evaluator:
+- applicability first
+- Feature gate
+- Role default
+- User override
+- transitional legacy fallback only where explicitly required
+- fail closed for unknown/inapplicable Action
+
+PV2-D — UI filtering:
+- show only Actions applicable to trusted Profile
+- hide Feature-disabled Actions
+- keep clear grouping
+- explain inherited Role default
+
+PV2-E — Role defaults:
+- Profile x Role x Action defaults
+- final `inherit` = Role default
+- missing Role default = deny
+
+PV2-F — Owner coverage:
+- Action catalog presence is not enough
+- close direct write gaps owner-by-owner
+
+Known example:
+- `customers.create` exists in Action catalog
+- current Customers UI still performs direct table POST
+- therefore Customers owner hardening remains OPEN
+
+Other owner families to close:
+- shifts
+- expenses
+- order lifecycle
+- customer/address CRUD
+- delivery driver/zone CRUD
+- settings
+- website payment review/configuration
+- user/permission administration
+- other Core/shared mutation owners
+
+PV2-G — Runtime acceptance:
+- inherited allow
+- inherited deny
+- explicit allow
+- explicit deny
+- wrong Profile
+- wrong Location
+- direct RPC bypass
+- direct REST bypass
+- admin behavior
+- cleanup / rollback
+
+No PV2-A or PV2-B DB deployment has been performed yet.
+
+## L. Location / Device / Printer Roles
+
+Still pending after Permissions core:
+
+1. Location Scope V2
+2. cross-system Location Code identity
+3. Device / Printer Roles V1
+
+Existing facts:
+- Cloud branch id is UUID
+- operational branch id is bigint
+- use immutable location code mapping rather than name/id equality
+- physical Windows printer name remains device-local
+- backend/Cloud owns logical printer roles only
+
+Current physical printer roles are effectively:
+- customer receipt
+- prep
+
+Future:
+- report
+- station-specific logical printer roles for Kitchen Stations
+
+## M. Restaurant stock transfer behavior confirmed
+
+Current Food/Restaurant branch transfer backend already uses explicit send/receive ownership:
+
+Create:
+- requires `food.transfer.create`
+- requires source branch access
+- status becomes `sent`
+- source ingredient stock is deducted
+
+Receive:
+- requires `food.transfer.receive`
+- requires destination branch access
+- destination stock is increased only when Receive is executed
+- status becomes `received`
+
+Cancel before receive:
+- requires `food.transfer.cancel`
+- requires source branch access
+- allowed only while status is `sent`
+- source stock is restored
+
+Therefore transfer is NOT an automatic destination-stock write.
+
+Current gaps for final production-grade transfer workflow:
+- no true Partial Receive
+- no shortage/overage discrepancy workflow
+- no explicit pre-send approval by destination
+- current receive completes the whole transfer
+
+Recommended future closure:
+Create/Request
+-> Send
+-> In Transit
+-> Receive quantities
+-> discrepancy handling
+-> Partial Receive where needed
+-> Complete
+
+Central Warehouse governance may additionally use:
+Request
+-> Approval
+-> Send
+-> Receive
+
+## N. Retail / Market track
+
+Official roadmap:
+`docs/RETAIL-V1-OFFICIAL-CLOSURE-ROADMAP.md`
+
+Official Gates:
+- R0 -> R24
+
+Implementation plan:
+`docs/RETAIL-V1-IMPLEMENTATION-BATCH-PLAN.md`
+
+Implementation batches:
+- RET-P0 -> RET-P22
+
+Current state:
+- design/preparation substantial
+- runtime implementation foundations substantial
+- no dedicated Retail Business/device/backend yet
+- no current dedicated Retail runtime closure evidence
+- no Production readiness declaration
+
+Important remaining Retail closure:
+- dedicated isolated Retail environment
+- trusted Profile / Action / Location / ACL
+- genuine Retail runtime acceptance
+- reports/finance
+- final Offline commercial policy
+- menu/UX cleanup
+- Variants Add-on acceptance if sold
+- Advanced Purchasing Add-on acceptance if sold
+- Multi-Branch
+- Windows
+- UAT
+- Release
+
+## O. Pharmacy track
+
+Official roadmap:
+`docs/PHARMACY-V1-OFFICIAL-31-GATE-ROADMAP.md`
+
+Official Gates:
+- PH0 -> PH31
+
+Implementation plan:
+`docs/PHARMACY-V1-IMPLEMENTATION-BATCH-PLAN.md`
+
+Implementation batches:
+- PH-P0 -> PH-P23
+
+Current state:
+- design/preparation substantial
+- runtime/schema foundations partial
+- no dedicated Pharmacy Business/device/backend yet
+- no current Pharmacy production readiness
+
+Critical remaining Pharmacy gaps:
+- Units / Packs canonical conversion
+- exact order_item -> batch lineage
+- dedicated Pharmacy return owner
+- backend prescription enforcement
+- backend FEFO
+- controlled-drug operational/audit owner
+- insurance split / claim lines / settlement authority
+- Supplier AP / payments / balance
+- batch-preserving returns/transfers
+- explicit Offline policy
+- Pharmacy reports/printing
+- multi-branch acceptance
+- Windows/UAT/Release
+
+## P. Runtime Snapshot / future feature expansion
+
+SH-0007 already has Runtime Snapshot V2 architecture for Cloud-controlled feature access.
+
+Important blocker:
+- current snapshot contract has a hard-coded catalog count of 107
+- latest sealed readiness baseline is also tied to the complete catalog
+
+Therefore adding new Cloud Features such as:
+- food.kitchen_stations
+- support.center
+- ai.operator
+
+must go through a coordinated Catalog Expansion Gate:
+- update/remove magic 107 invariant safely
+- prepare complete new readiness baseline
+- validate every feature decision
+- avoid transient catalog/baseline mismatch
+- then enable commercial entitlement
+
+Do NOT directly insert new Features before that gate.
+
+## Q. Kitchen Stations / Support / Sharawla AI
+
+### Kitchen Stations
+
+Planned as optional Restaurant/Cafe entitlement.
+
+Required order:
+Permissions
+-> Location / Printer Roles
+-> Snapshot Catalog Expansion
+-> Sharawla Admin entitlement wiring
+-> Kitchen Stations V1
+
+### Support Center
+
+Sharawla customer support for Business owners, not the merchant's own customer CRM.
+
+Concept:
+Support Chat
+-> Ticket
+-> Diagnostics
+-> Resolution / Escalation
+-> Support History
+
+Cloud-controlled presence/plan.
+
+### Sharawla AI Operator
+
+Separate in-product operator.
+
+Final control chain:
+Cloud entitlement
+-> Business policy
+-> User Action
+-> Location
+-> explicit confirmation for privileged actions
+-> immutable audit
+
+AI must not receive unrestricted direct DB authority.
+
+Recommended Cloud feature granularity:
+- coarse commercial capability `ai.operator`
+- fine-grained AI read/create/modify/approve/historical-correction as permission Actions/scopes rather than separate commercial Features
+
+Support/AI implementation remains NOT STARTED.
+
+## R. Cross-Profile security
+
+Design artifacts remain:
+- X0 / X0A owner inventory
+- X1 ACL classification
+- X2 Trusted Profile design
+- X3 Action + Location design
+- X4 Negative Matrix design
+
+Implementation/execution remains open.
+
+Current broader named profile-token function surface exceeded the original 88-function prefix baseline; X0A recorded the expanded discovery.
+
+Final closure requires:
+- exhaustive semantic owner mapping
+- ACL hardening
+- Trusted Profile guards
+- Action + Location
+- direct negative RPC/REST tests
+- no cross-profile mutation leakage
+
+## S. Exact remaining order
+
+Immediate physical gate:
+1. G2 native Touch acceptance when a physical touch screen becomes available.
+
+Source-only preparation may continue without pretending G2 is closed.
+
+Permissions V2 execution sequence:
+2. PV2-C Effective evaluator
+3. PV2-D Profile/Feature-aware UI filtering
+4. PV2-E Role defaults
+5. PV2-F owner coverage
+6. PV2-G runtime acceptance
+
+Then:
+7. Location Scope V2
+8. Location Code identity
+9. Device / Printer Roles V1
+10. Snapshot Catalog Expansion
+11. Sharawla Admin entitlement wiring
+12. Kitchen Stations V1
+13. Support Center
+14. Sharawla AI Operator
+15. Cross-Profile implementation / negative matrix
+16. Retail dedicated closure track
+17. Pharmacy dedicated closure track
+18. Logistics / Membership / Warehouse / Service closure tracks
+19. Reports / Accounting / Financial Closure
+20. Offline / Sync final broad acceptance
+21. RC1
+22. Pilot Production
+23. V1 Production Ready
+
+## T. Exact continuation point
+
+Current code/source preparation point:
+
+- PV2-A Source = PREPARED / STATIC PASS / NOT DEPLOYED
+- PV2-B Source = PREPARED / STATIC PASS / NOT DEPLOYED
+- latest code HEAD before this checkpoint doc update = `174b977cb221f758f0734d83d0b97ee6344788ae`
+- latest CI = SUCCESS
+
+Next safe source step:
+- design/build PV2-C Effective Permission Evaluator as source-only
+- do NOT deploy PV2-A/B/C to Beta until explicit deployment authorization/window and preconditions are satisfied
+
+Next required device evidence:
+- G2 native Touch on physical touch hardware
+
+Production remains untouched.
