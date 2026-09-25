@@ -33,8 +33,8 @@ async function customerChain(ctx){
 async function customerMutations(ctx){
  const rows=await global.rest('customers','select=id,name,phone&order=id.desc&limit=20'),base=(rows||[]).find(x=>Number(x.id)>0);if(!base)throw new Error('existing customer required');
  const updateTx=uuid();await durable('offline_customer_update_v1',{p_customer_id:Number(base.id),p_name:text(base.name)||'Acceptance Customer',p_phone:text(base.phone),p_area:'Offline Updated',p_address:'Updated',p_notes:'OFFLINE_UPDATE'},updateTx);await sync(updateTx);
- const addrTx=uuid();await durable('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:Number(base.id),p_label:'Acceptance',p_area:'Offline',p_address:'Offline Address',p_notes:'E2E',p_is_default:false},addrTx);await sync(addrTx);
- const ar=await receipt(addrTx),aid=Number(ar?.[0]?.server_entity_id);if(!aid)throw new Error('offline address save id missing');
+ const addrTx=uuid();await durable('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:Number(base.id),p_label:'Acceptance',p_area:'Offline',p_address:'Offline Address',p_notes:'E2E',p_is_default:false},addrTx);const addrDone=await sync(addrTx);
+ const aid=Number(ack(addrDone).server_entity_id);if(!aid)throw new Error('offline address save id missing');
  const delTx=uuid();await durable('offline_customer_address_delete_v1',{p_address_id:aid},delTx);await sync(delTx);
  const cloud=(await global.rest('customers',`select=id,area,address,notes&id=eq.${Number(base.id)}&limit=1`))?.[0],deleted=await global.rest('customer_addresses',`select=id&id=eq.${aid}&limit=1`);
  if(text(cloud?.area)!=='Offline Updated'||text(cloud?.address)!=='Updated'||deleted.length!==0)throw new Error('customer update/address mutation reconciliation mismatch');
