@@ -99,7 +99,12 @@ begin
      or (v_operation='shift_open' and v_rpc<>'open_pos_shift_idempotent')
      or (v_operation='shift_close' and v_rpc<>'close_pos_shift_idempotent')
      or (v_operation='order_status' and v_rpc<>'order_status_apply_offline_v2')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status') then
+     or (v_operation='customer_create' and v_rpc<>'offline_customer_create_v1')
+     or (v_operation='customer_update' and v_rpc<>'offline_customer_update_v1')
+     or (v_operation='customer_address_save' and v_rpc<>'offline_customer_address_save_v1')
+     or (v_operation='customer_address_delete' and v_rpc<>'offline_customer_address_delete_v1')
+     or (v_operation='delivery_assign_driver' and v_rpc<>'offline_delivery_assign_driver_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -131,8 +136,10 @@ begin
       v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
     elsif v_operation in ('expense','shift_close') then
       v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation in ('return','order_status') then
+    elsif v_operation in ('return','order_status','delivery_assign_driver') then
       v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_save' then
+      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
     end if;
   end if;
 
@@ -211,6 +218,21 @@ begin
       v_entity_id := nullif(v_result->>'id','');
     when 'order_status_apply_offline_v2' then
       v_result := public.order_status_apply_offline_v2((v_payload->>'p_order_id')::bigint,v_payload->>'p_target_status',v_payload->>'p_client_tx_id');
+      v_entity_id := (v_payload->>'p_order_id');
+    when 'offline_customer_create_v1' then
+      v_result := public.offline_customer_create_v1(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_area',v_payload->>'p_address',v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'customer_id','');
+    when 'offline_customer_update_v1' then
+      v_result := public.offline_customer_update_v1((v_payload->>'p_customer_id')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_area',v_payload->>'p_address',v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'customer_id','');
+    when 'offline_customer_address_save_v1' then
+      v_result := public.offline_customer_address_save_v1(nullif(v_payload->>'p_address_id','')::bigint,(v_payload->>'p_customer_id')::bigint,v_payload->>'p_label',v_payload->>'p_area',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_is_default')::boolean,false),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'address_id','');
+    when 'offline_customer_address_delete_v1' then
+      v_result := public.offline_customer_address_delete_v1((v_payload->>'p_address_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'address_id','');
+    when 'offline_delivery_assign_driver_v1' then
+      v_result := public.offline_delivery_assign_driver_v1((v_payload->>'p_order_id')::bigint,(v_payload->>'p_driver_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := (v_payload->>'p_order_id');
     else
       raise exception using errcode='22023', message='Offline V2 RPC غير مدعومة: '||coalesce(v_rpc,'');
