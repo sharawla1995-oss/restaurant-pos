@@ -25,7 +25,7 @@ begin
 
   select array_agg(id) into v_driver_ids from public.delivery_drivers where name=v_marker;
   select array_agg(id) into v_order_ids from public.orders where customer_name like v_marker||':%';
-  select array_agg(id) into v_shift_ids from public.shifts where close_notes in (v_marker||':S1',v_marker||':S2');
+  -- Source shifts are stable sandbox fixture infrastructure because operational shift history is immutable.\n  select array_agg(id) into v_shift_ids from public.shifts where close_notes in ('SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S1','SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S2');
   select array_agg(id) into v_settlement_ids from public.driver_settlements
    where client_tx_id like v_run||'-B55DS-%'
       or (v_driver_ids is not null and driver_id=any(v_driver_ids));
@@ -45,12 +45,12 @@ begin
    where coalesce(details->>'client_tx_id','') like v_run||'-B55DS-%'
       or (entity_type='delivery_driver' and v_driver_ids is not null and entity_id=any(v_driver_ids));
   if v_driver_ids is not null then delete from public.delivery_drivers where id=any(v_driver_ids); end if;
-  if v_shift_ids is not null then delete from public.shifts where id=any(v_shift_ids); end if;
+  -- Never DELETE shifts: Permissions V2 intentionally makes shift history immutable.
 
   select
     (select count(*) from public.delivery_drivers where name=v_marker)
    +(select count(*) from public.orders where customer_name like v_marker||':%')
-   +(select count(*) from public.shifts where close_notes in (v_marker||':S1',v_marker||':S2'))
+   +0 -- stable source shifts are fixture infrastructure, not per-run residue
    +(select count(*) from public.driver_settlements where client_tx_id like v_run||'-B55DS-%')
    +(select count(*) from public.delivery_payment_events where client_tx_id like v_run||'-B55DS-%')
   into v_residue;
@@ -96,10 +96,16 @@ begin
   insert into public.delivery_drivers(name,phone,branch_id,active)
   values(v_marker,null,p_branch_id,true) returning id into v_driver;
 
-  insert into public.shifts(branch_id,employee_id,opening_cash,status,opened_at,closed_at,closed_by_employee_id,close_notes)
-  values(p_branch_id,v_emp,0,'closed',now()-interval '4 hours',now()-interval '3 hours',v_emp,v_marker||':S1') returning id into v_s1;
-  insert into public.shifts(branch_id,employee_id,opening_cash,status,opened_at,closed_at,closed_by_employee_id,close_notes)
-  values(p_branch_id,v_emp,0,'closed',now()-interval '3 hours',now()-interval '2 hours',v_emp,v_marker||':S2') returning id into v_s2;
+  select id into v_s1 from public.shifts where branch_id=p_branch_id and close_notes='SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S1' order by id limit 1;
+  if v_s1 is null then
+    insert into public.shifts(branch_id,employee_id,opening_cash,status,opened_at,closed_at,closed_by_employee_id,close_notes)
+    values(p_branch_id,v_emp,0,'closed',now()-interval '4 hours',now()-interval '3 hours',v_emp,'SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S1') returning id into v_s1;
+  end if;
+  select id into v_s2 from public.shifts where branch_id=p_branch_id and close_notes='SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S2' order by id limit 1;
+  if v_s2 is null then
+    insert into public.shifts(branch_id,employee_id,opening_cash,status,opened_at,closed_at,closed_by_employee_id,close_notes)
+    values(p_branch_id,v_emp,0,'closed',now()-interval '3 hours',now()-interval '2 hours',v_emp,'SHARAWLA_ACCEPTANCE:B55DS:SOURCE:S2') returning id into v_s2;
+  end if;
 
   insert into public.orders(branch_id,employee_id,shift_id,order_type,payment_method,subtotal,total,status,source,payment_status,driver_id,assigned_at,customer_name,notes)
   values(p_branch_id,v_emp,v_s1,'delivery','cash',100,100,'out_for_delivery','pos','confirmed',v_driver,now(),v_marker||':A',v_marker)
