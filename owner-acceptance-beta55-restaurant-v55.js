@@ -197,7 +197,7 @@ async function restaurantRoundtrip(ctx){
    const sessionRows=await global.rest('restaurant_table_sessions',`select=status&id=eq.${tableSession}&limit=1`);
    if(tableRows?.[0]?.status!=='available'||sessionRows?.[0]?.status!=='closed')throw new Error('Table close/state reset failed');
 
-   evidence={branch:b1,other_branch:b2,product,ingredients:[main,prepInput,prepOutput],supplier,po,receipt,supplier_return:sret,stock_count:sc,transfer:tr,waste,recipe_version:recipe,food_cost:Number(costs[0].recipe_cost),prep_item:prep,prep_recipe_version:prepRecipe,production_batch:batch,production_variance:variance[0],floor,table,table_session:tableSession,order:orderId,return_id:ret,uom_kg_to_g:Number(convRows[0].factor),main_stock_final:Number((await stock(b1,main)).quantity),other_branch_stock_final:Number((await stock(b2,main)).quantity),recipe_consumption_snapshots:consumptionSnapshots,recipe_return_snapshots:returnSnapshots};
+   evidence={branch:b1,other_branch:b2,product,ingredients:[main,prepInput,prepOutput],supplier,po,receipt,supplier_return:sret,stock_count:sc,transfer:tr,waste,recipe_version:recipe,food_cost:Number(costs[0].recipe_cost),prep_item:prep,prep_recipe_version:prepRecipe,production_batch:batch,production_variance:variance[0],floor,table,table_session:tableSession,order:orderId,return_id:ret,sale_tx:saleTx,return_tx:returnTx,uom_kg_to_g:Number(convRows[0].factor),main_stock_final:Number((await stock(b1,main)).quantity),other_branch_stock_final:Number((await stock(b2,main)).quantity),recipe_consumption_snapshots:consumptionSnapshots,recipe_return_snapshots:returnSnapshots};
  }catch(e){original=new Error(`[restaurant-full-roundtrip:${stage}] ${e?.message||String(e)}`)}
  if(!original){
    try{
