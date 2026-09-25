@@ -16,6 +16,7 @@ function declaredOnly(name){return phase9.includes(`'${name}'`) && !e2e.includes
 
 const declared=['offline_customer'];
 for(const x of declared)assert(declaredOnly(x),`Coverage classification changed for ${x}; update this audit with executable evidence`);
+assert(!/registerOne\('customer'/.test(read('beta45-offline-v2-transport-runtime.js')),'Customer unexpectedly gained an Offline V2 transport owner; update executable coverage');
 
 for(const t of ["id:'retail.offline-sale-sync'","id:'retail.lost-ack-idempotency'",'saveOfflineSale','syncClientTx'])has(e2e,t);
 for(const t of ["id:'offline.order-status-runtime-e2e'",'__SharawlaPV2OrderFulfillment','order_status_apply_offline_v2','offline_v2_server_receipts','offline_order_status_receipts_v2','waitSynced','replay/idempotency'])has(orderStatusE2E,t);
