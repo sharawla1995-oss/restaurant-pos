@@ -31,17 +31,17 @@ has(lazy,'owner-acceptance-offline-core-ops-v58.js','offline core ops runtime ac
 for(const t of ["id:'beta55.delivery-settlement-shift-cash'",'delivery_mark_delivered_v2','delivery_driver_settle_v2','driver_custody_unsettled'])has(delivery,t);
 has(fulfillment,'SharawlaOfflineV2Takeover.saveOrderStatus','fulfillment offline durable status route');
 has(driver,"commitRpc('offline_delivery_assign_driver_v1'",'driver assignment durable offline route');
-for(const t of ["id:'offline.customer-create-runtime-e2e'","id:'offline.delivery-driver-runtime-e2e'","id:'offline.delivery-economic-runtime-e2e'",'delivery_payment_events','delivery_cash_custody_amount','economic replay=stable'])has(customerDeliveryE2E,t);
+for(const t of ["id:'offline.customer-create-runtime-e2e'","id:'offline.customer-dependent-address-runtime-e2e'","id:'offline.customer-mutations-runtime-e2e'","id:'offline.delivery-driver-runtime-e2e'","id:'offline.delivery-economic-runtime-e2e'",'delivery_payment_events','delivery_cash_custody_amount','economic replay=stable'])has(customerDeliveryE2E,t);
 has(lazy,'owner-acceptance-offline-customer-delivery-v58.js','customer/delivery runtime acceptance must be lazy-loaded');
 has(settlement,'if(!isOnline())return false','interactive payment-choice delivery UI remains online-only; offline completion preserves stored method');
 has(settlement,"ov2.saveOrderStatus(raw,'delivered')",'legacy offline delivered interception remains visible for equivalence audit');
 
 const coverage={
- executable_runtime:['retail.offline-sale-sync','retail.lost-ack-idempotency','offline.order-status-runtime-e2e','offline.expense-runtime-e2e','offline.return-runtime-e2e','offline.customer-create-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e'],
+ executable_runtime:['retail.offline-sale-sync','retail.lost-ack-idempotency','offline.order-status-runtime-e2e','offline.expense-runtime-e2e','offline.return-runtime-e2e','offline.customer-create-runtime-e2e','offline.customer-dependent-address-runtime-e2e','offline.customer-mutations-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e'],
  executable_online_business_semantics:['beta55.delivery-settlement-shift-cash'],
  source_contract_only:['offline_order_status routing/binding/replay guards (plus executable runtime E2E)'],
  declared_matrix_not_e2e:[],
- known_gap:['offline customer create+dependent-address chain not yet executable','offline customer update/address edit-delete not yet executable','offline delivery payment-method change remains online-only']
+ known_gap:['offline delivery payment-method change remains online-only']
 };
 console.log('Offline Runtime Acceptance Coverage Audit PASS');
 console.log(JSON.stringify(coverage,null,2));
