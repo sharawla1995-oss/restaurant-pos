@@ -1,8 +1,8 @@
 # Sharawla Permissions V2 — Implementation Batch Plan
 
 Status: DOCUMENTATION / IMPLEMENTATION PREP ONLY
-Execution gate: only after G0-G3 PASS
-Runtime baseline before implementation: 10.5.4-beta.58.26 accepted on SH-0007
+Execution gate: OPEN FOR CONTROLLED BETA IMPLEMENTATION — G0 PASS, G1 PASS, G2 TOUCH USER-ACCEPTED/WAIVED (not hardware-tested), G3 CLOSED/PASS.
+Runtime baseline: 10.5.4-beta.58.29 on isolated SH-0007.
 
 No code/SQL in this document is deployed.
 
@@ -303,6 +303,8 @@ Reuse existing delivery_mark_delivered_v2 for final delivery where contract matc
 - do not broaden payment state transitions.
 
 ## P3 acceptance
+
+Current source checkpoint: F5 lifecycle ownership is SOURCE COMPLETE; renderer direct Orders PATCH = 0 and CI Run #611 PASS. Database deployment remains separately gated.
 
 - no sensitive renderer direct PATCH remains for protected lifecycle transitions;
 - manipulating UI cannot bypass Action/Location guard;
@@ -701,7 +703,7 @@ Do not execute P0/P1 runtime/DB work until:
 
 G0 Full Acceptance PASS
 AND G1 Shared Routes PASS
-AND G2 Touch PASS
+AND (G2 Touch PASS OR explicit user-accepted waiver recorded)
 AND G3 Menu Cleanup CLOSED.
 
-Until then this file remains implementation preparation only.
+Current gate result: OPEN. G2 is explicitly user-accepted/waived pending real Windows Touch hardware verification. Any later touch regression reopens G2 without invalidating unrelated accepted evidence.
