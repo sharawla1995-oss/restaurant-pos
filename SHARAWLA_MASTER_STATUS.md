@@ -3010,3 +3010,29 @@ G1 shared Restaurant routes manual runtime verification:
 Suppliers -> Purchasing -> Stock Count -> Transfers.
 
 Production SH-0005/SH-0006 remain untouched on 10.5.3 CLEAN.
+
+
+## Restaurant SH-0007 — G1 Shared Routes CLOSED
+
+Runtime:
+- 10.5.4-beta.58.29
+- Device SH-0007
+- Branch TEST
+- Profile restaurant
+
+Evidence:
+`docs/SH0007-58-29-G1-SHARED-ROUTES-EVIDENCE-2026-09-25.md`
+
+Manual route results:
+- Suppliers PASS
+- Purchasing / raw-material receiving PASS
+- Stock Count / raw-material count PASS
+- Transfers / raw-material transfers PASS
+
+No Retail SKU/Variant leakage was observed in these shared Restaurant routes.
+
+G1:
+PASS / CLOSED
+
+Next:
+G2 representative Touch Pass.
