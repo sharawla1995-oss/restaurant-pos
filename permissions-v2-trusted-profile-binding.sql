@@ -64,7 +64,7 @@ declare
   v_count integer;
   v_business uuid;
 begin
-  select count(*),max(cloud_business_id)
+  select count(*),(array_agg(cloud_business_id order by id))[1]
     into v_count,v_business
   from sharawla_internal.operational_business_identity_v1;
 
