@@ -15,6 +15,18 @@ async function cleanup(run){const out=await global.rpc('sharawla_beta55_restaura
 async function offlineUnresolved(){try{const h=await global.topBurgerDesktop?.offlineV2?.health?.();return Number(h?.conflicts?.unresolved??h?.unresolved_conflicts??h?.unresolved??NaN)}catch{return NaN}}
 async function stock(b,i){const r=await global.rest('ingredient_stock',`select=quantity,average_unit_cost&branch_id=eq.${Number(b)}&ingredient_id=eq.${Number(i)}&limit=1`);return r?.[0]||{quantity:0,average_unit_cost:0}}
 async function countRows(t,q){const r=await global.rest(t,`select=id&${q}`);return Array.isArray(r)?r.length:0}
+async function requireSyncedBeforeFixtureCleanup(clientTx,label){
+ if(!clientTx)return;
+ try{await global.SharawlaOfflineV2Transport?.syncNow?.()}catch{}
+ for(let i=0;i<40;i++){
+   const row=await global.topBurgerDesktop?.offlineV2?.event?.(clientTx).catch(()=>null);
+   if(row?.status==='synced')return row;
+   if(row?.status==='dead_letter'||row?.status==='conflict')throw new Error(`Acceptance ${label} durable event is ${row.status}: ${row.last_error_code||'unknown'} ${row.last_error_message||''}`);
+   await sleep(100);
+ }
+ const row=await global.topBurgerDesktop?.offlineV2?.event?.(clientTx).catch(()=>null);
+ throw new Error(`Acceptance ${label} must be Synced before destructive fixture cleanup; status=${row?.status||'missing'}`);
+}
 
 async function runtimeContract(){
  const c=cfg(),profile=String(c.pos_profile||'').toLowerCase();
@@ -40,7 +52,7 @@ async function restaurantRoundtrip(ctx){
  let stage='bootstrap';
  if(!b1)throw new Error('Active branch missing');
  const beforeUnresolved=await offlineUnresolved();
- let original=null,clean=null,evidence={};
+ let original=null,clean=null,evidence={},saleTx=null,returnTx=null;
  await cleanup(run);
  try{
    stage='fixture';
@@ -153,7 +165,7 @@ async function restaurantRoundtrip(ctx){
    stage='sale';
    // Point4 Identity V1 must match the real POS boundary: generate once, then reuse
    // the exact payload for the idempotent retry.
-   const saleTx=point4Uuid(),saleDocumentUid=point4Uuid(),saleSourceDocumentId=`uuid:${saleDocumentUid}`,saleLineUid=point4Uuid();
+   saleTx=point4Uuid(); const saleDocumentUid=point4Uuid(),saleSourceDocumentId=`uuid:${saleDocumentUid}`,saleLineUid=point4Uuid();
    const salePayload={
      p_order:{branch_id:b1,employee_id:employee,shift_id:shift,order_type:'dinein',payment_method:'cash',subtotal:100,discount:0,discount_value:0,tax_amount:0,service_amount:0,delivery_fee:0,total:100,status:'completed',source:'pos',client_tx_id:saleTx,document_uid:saleDocumentUid,source_document_id:saleSourceDocumentId,point4_identity_contract:POINT4_IDENTITY_V1,notes:marker(run)},
      p_items:[{product_id:product,product_name:`B55 Restaurant ${run}`,quantity:1,unit_price:100,cost:0,total:100,notes:null,modifiers:[],removed:[],line_uid:saleLineUid,effect_line_key:point4Effect('sale',saleLineUid)}],
@@ -168,7 +180,7 @@ async function restaurantRoundtrip(ctx){
    if(!theo?.[0]||Number(theo[0].theoretical_base_quantity)<199.999)throw new Error(`Theoretical consumption missing: ${JSON.stringify(theo)}`);
 
    stage='return';
-   const returnTx=point4Uuid(),returnDocumentUid=point4Uuid(),returnSourceDocumentId=`uuid:${returnDocumentUid}`,returnLineUid=point4Uuid();
+   returnTx=point4Uuid(); const returnDocumentUid=point4Uuid(),returnSourceDocumentId=`uuid:${returnDocumentUid}`,returnLineUid=point4Uuid();
    const retPayload={p_order_id:orderId,p_reason:'acceptance',p_notes:marker(run),p_items:[{order_item_id:orderItem,quantity:1,line_uid:returnLineUid,effect_line_key:point4Effect('sale_return',returnLineUid),source_document_id:returnSourceDocumentId,original_source_document_id:saleSourceDocumentId}],p_payments:[{method:'cash',amount:100}],p_client_tx_id:returnTx};
    const ret=Number(await global.rpc('create_order_return_idempotent',retPayload));
    const ret2=Number(await global.rpc('create_order_return_idempotent',retPayload));
@@ -187,6 +199,13 @@ async function restaurantRoundtrip(ctx){
 
    evidence={branch:b1,other_branch:b2,product,ingredients:[main,prepInput,prepOutput],supplier,po,receipt,supplier_return:sret,stock_count:sc,transfer:tr,waste,recipe_version:recipe,food_cost:Number(costs[0].recipe_cost),prep_item:prep,prep_recipe_version:prepRecipe,production_batch:batch,production_variance:variance[0],floor,table,table_session:tableSession,order:orderId,return_id:ret,uom_kg_to_g:Number(convRows[0].factor),main_stock_final:Number((await stock(b1,main)).quantity),other_branch_stock_final:Number((await stock(b2,main)).quantity),recipe_consumption_snapshots:consumptionSnapshots,recipe_return_snapshots:returnSnapshots};
  }catch(e){original=new Error(`[restaurant-full-roundtrip:${stage}] ${e?.message||String(e)}`)}
+ if(!original){
+   try{
+     stage='offline-drain-before-cleanup';
+     await requireSyncedBeforeFixtureCleanup(saleTx,'sale');
+     await requireSyncedBeforeFixtureCleanup(returnTx,'return');
+   }catch(e){original=new Error(`[restaurant-full-roundtrip:${stage}] ${e?.message||String(e)}`)}
+ }
  try{clean=await cleanup(run)}catch(e){if(!original)original=e}
  const afterUnresolved=await offlineUnresolved();
  if(Number.isFinite(beforeUnresolved)&&Number.isFinite(afterUnresolved)&&beforeUnresolved!==afterUnresolved&&!original)original=new Error(`Offline unresolved changed ${beforeUnresolved}->${afterUnresolved}`);
