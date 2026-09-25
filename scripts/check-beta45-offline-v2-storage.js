@@ -40,6 +40,24 @@ for(const token of [
 
 // Atomic ordering: begin -> sequence/records/mapping/outbox -> commit. No local
 // operation is acknowledged before COMMIT returns.
+// Order-status binding validation must fail before any sequence allocation or durable write.
+for(const token of [
+  "if(text(input?.operation_type)==='order_status')",
+  "rpcName!=='order_status_apply_offline_v2'",
+  "errors.push('invalid:order_status_rpc_payload')",
+  "errors.push('missing:order_status:p_order_id')",
+  "errors.push('missing:order_status:p_target_status')",
+  "text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id)",
+  "errors.push('invalid:order_status_client_tx_binding')"
+])need(store,token);
+const validateFn=store.indexOf('function validateCommit(input)');
+const validateEnd=store.indexOf('async function allocateSequence',validateFn);
+const bindingGuard=store.indexOf("if(text(input?.operation_type)==='order_status')",validateFn);
+const commitFn=store.indexOf('async function commitOperationUnsafe');
+const validateCall=store.indexOf('validateCommit(input);',commitFn);
+const beginTx=store.indexOf("exec('BEGIN IMMEDIATE TRANSACTION')",commitFn);
+if(!(validateFn>=0&&bindingGuard>validateFn&&bindingGuard<validateEnd&&commitFn>validateEnd&&validateCall>commitFn&&validateCall<beginTx))throw new Error('Order-status fail-closed guard must run before transaction/sequence allocation');
+
 const fn=store.indexOf('async function commitOperationUnsafe');
 const begin=store.indexOf("exec('BEGIN IMMEDIATE TRANSACTION')",fn);
 const seq=store.indexOf('allocateSequence(',begin);
