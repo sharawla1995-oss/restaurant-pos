@@ -14,7 +14,7 @@ for(const r of c.records){const o=owners.get(r.id);if(!o)continue;const s=fs.rea
 
 const crypto=require('crypto');
 function defs(src){const re=/create\s+or\s+replace\s+function\s+(?:public\.)?([a-zA-Z0-9_]+)\s*\(([^)]*)\)/ig,out=[];let z;while((z=re.exec(src)))out.push({name:z[1].toLowerCase(),args:z[2].replace(/--.*$/gm,'').replace(/\s+/g,' ').trim(),at:z.index});return out;}
-const trackedSql=fs.readdirSync('.').filter(x=>x.endsWith('.sql'));
+const trackedSql=[...new Set(m.known_effective_owners.flatMap(x=>[x.artifact,...((x.supersedes)||[]).map(z=>z.split('@')[0])]))].filter(x=>fs.existsSync(x));
 const contractNames=new Set(c.records.map(r=>r.signature.slice(0,r.signature.indexOf('(')).toLowerCase()));
 const occurrences=new Map();
 for(const file of trackedSql){const src=fs.readFileSync(file,'utf8');for(const d of defs(src)){if(contractNames.has(d.name)){if(!occurrences.has(d.name))occurrences.set(d.name,[]);occurrences.get(d.name).push(file);}}}
