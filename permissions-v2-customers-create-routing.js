@@ -2,8 +2,7 @@
 'use strict';
 
 // PV2-F1 SOURCE CANDIDATE ONLY.
-// Do not wire until customer_create_v2 presence and direct-INSERT hardening are
-// deployed together in the isolated Beta authorization window.
+// Runtime bridge: prefer the V2 owner; fall back only when that RPC is absent during the coordinated Beta transition.
 const VERSION='pv2-f1-customers-create-source';
 
 async function rpc(name,payload){
@@ -11,6 +10,8 @@ async function rpc(name,payload){
   return global.rpc(name,payload);
 }
 
+function missingOwner(err){return /PGRST202|could not find the function|404/i.test(String(err?.message||err||''))}
+async function rest(table,query,options){if(typeof global.rest!=='function')throw new Error('REST غير جاهز');return global.rest(table,query,options)}
 function clean(v){const s=String(v??'').trim();return s||null}
 
 async function createCustomer(input={}){
@@ -19,13 +20,20 @@ async function createCustomer(input={}){
   if(!name)throw new Error('اسم العميل مطلوب');
   if(!phone)throw new Error('رقم الموبايل مطلوب');
 
-  const id=await rpc('customer_create_v2',{
-    p_name:name,
-    p_phone:phone,
-    p_area:clean(input.area),
-    p_address:clean(input.address),
-    p_notes:clean(input.notes)
-  });
+  let id;
+  try{
+    id=await rpc('customer_create_v2',{
+      p_name:name,
+      p_phone:phone,
+      p_area:clean(input.area),
+      p_address:clean(input.address),
+      p_notes:clean(input.notes)
+    });
+  }catch(err){
+    if(!missingOwner(err))throw err;
+    const rows=await rest('customers','select=id',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{name,phone,area:clean(input.area),address:clean(input.address),notes:clean(input.notes)}])});
+    id=rows?.[0]?.id;
+  }
 
   const n=Number(id);
   if(!Number.isFinite(n)||n<=0)throw new Error('تعذر قراءة رقم العميل بعد الحفظ');
