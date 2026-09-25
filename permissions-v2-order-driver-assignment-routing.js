@@ -1,7 +1,7 @@
 (function(global){
 'use strict';
-// PV2-F5B SOURCE CANDIDATE ONLY — deliberately UNWIRED until coordinated Beta deploy.
-const VERSION='pv2-f5b-order-driver-assignment-source';
+// PV2-F5B coordinated renderer routing — online only; Offline assignment remains blocked until a durable assignment operation exists.
+const VERSION='pv2-f5b-order-driver-assignment-routing-v2';
 async function assignDriver(orderId,driverId){
  const oid=Number(orderId),did=Number(driverId);
  if(!Number.isFinite(oid)||oid<=0)throw new Error('معرّف الطلب غير صالح');

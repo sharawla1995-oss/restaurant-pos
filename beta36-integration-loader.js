@@ -17,6 +17,7 @@ const FILES=[
  ['beta55-navigation-parity','beta55-navigation-parity.js?v=10.5.4-beta.55'],
  ['beta55-delivery-settlement-shift-cash','beta55-delivery-settlement-shift-cash.js?v=10.5.4-beta.55'],
  ['permissions-v2-order-fulfillment-routing','permissions-v2-order-fulfillment-routing.js?v=10.5.4-beta.58.29'],
+ ['permissions-v2-order-driver-assignment-routing','permissions-v2-order-driver-assignment-routing.js?v=10.5.4-beta.58.29'],
  ['beta55-print-order-type','beta55-print-order-type.js?v=10.5.4-beta.55'],
  ['owner-acceptance-beta55-navigation','owner-acceptance-beta55-navigation-v55.js?v=10.5.4-beta.55'],
  ['printing-v2','printing-v2.js?v=10.5.4-beta.55'],

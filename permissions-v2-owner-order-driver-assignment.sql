@@ -12,7 +12,7 @@ on conflict(code) do update set
  active=true,sort_order=excluded.sort_order;
 
 insert into public.permission_action_profiles_v2(action_code,profile_code,required_feature_code,active)
-values ('orders.delivery.assign_driver','restaurant',null,true)
+values ('orders.delivery.assign_driver','restaurant','commerce.delivery',true)
 on conflict(action_code,profile_code) do update set
  required_feature_code=excluded.required_feature_code,active=true,updated_at=now();
 
