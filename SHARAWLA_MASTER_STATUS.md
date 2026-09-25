@@ -4163,3 +4163,80 @@ Role/default migration:
 - PV2-G Runtime Acceptance: NOT STARTED.
 
 No deployment is authorized by this checkpoint.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE PERMISSIONS V2 CONTINUATION — PV2-F4 SOURCE PREP PASS
+
+Runtime remains:
+- 10.5.4-beta.58.29.
+
+Safety remains:
+- Production SH-0005 / SH-0006 untouched.
+- no operational Beta DB deployment for PV2-A/B/C/D/E/F1/F2/F3/F4.
+- no Cloud mutation.
+- all new renderer routing candidates remain UNWIRED.
+
+## PV2-F4 — Restaurant Delivery Drivers / Zones administration
+
+SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED / ROUTING CANDIDATE UNWIRED.
+
+Commit:
+- `389581d388ba32f26beaac4f0a7bf9427e626f6d`
+
+CI:
+- Run `36092573358`
+- conclusion: SUCCESS
+- Candidate validation: SUCCESS
+- Windows x64 build: SUCCESS
+- packaged app.asar verification: SUCCESS
+- artifact upload: SUCCESS
+
+Prepared Actions:
+- `delivery.drivers.manage`
+- `delivery.zones.manage`
+
+Current F4 applicability:
+- Restaurant only;
+- required Feature = `commerce.delivery`;
+- Retail/Pharmacy delivery-settings ownership remains for their dedicated Profile closure.
+
+Prepared mutation owners:
+- `delivery_driver_save_v2(bigint,bigint,text,text,boolean)`
+- `delivery_zone_save_v2(bigint,bigint,text,numeric,boolean)`
+
+Security / ownership:
+- Action gate is backend-owned;
+- broad branch access remains a ceiling;
+- update cannot silently reassign an existing Driver/Zone to another branch;
+- direct authenticated INSERT/UPDATE/DELETE authority is removed by the deployment artifact;
+- read paths remain unchanged;
+- current soft-delete/disable behavior is preserved through `active=false`;
+- no new physical DELETE behavior is introduced.
+
+Role/default preservation:
+- Admin remains allowed only inside upper Profile/Feature gates;
+- accepted 58.29 Cashier / Call Center / Delivery templates do not grant `deliverySettings` by default;
+- existing persisted `deliverySettings` intent is preserved without overwriting explicit Action overrides.
+
+Runtime direct-write surface frozen by checker:
+- Driver POST = 2
+- Driver PATCH = 2
+- Driver DELETE = 0
+- Zone POST = 2
+- Zone PATCH = 2
+- Zone DELETE = 0
+
+## Current PV2-F state
+
+- F1 Customers Create: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F2 Customers Edit + Address Management: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F3 Shift + Expense boundary: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F4 Delivery Drivers/Zones administration: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F5 Order Lifecycle owner audit / closure: NEXT.
+- PV2-G Runtime Acceptance: NOT STARTED.
+
+F5 must map the current seven direct `orders` PATCH call sites against the newer runtime wrappers before any lifecycle owner is replaced or newly introduced.
+
+No deployment is authorized by this checkpoint.
