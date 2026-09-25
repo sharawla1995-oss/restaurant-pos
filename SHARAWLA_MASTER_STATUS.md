@@ -3860,3 +3860,140 @@ Next required device evidence:
 - G2 native Touch on physical touch hardware
 
 Production remains untouched.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE PERMISSIONS V2 SOURCE CHECKPOINT — PV2-C/D/E + PV2-F1
+
+> This section supersedes older Permissions V2 continuation text above where it conflicts. Runtime remains 10.5.4-beta.58.29. No Permissions V2 SQL in this checkpoint has been deployed to the operational Beta database.
+
+## Hard safety state
+
+- Production SH-0005 / SH-0006: untouched on 10.5.3 CLEAN.
+- SH-0007: isolated Beta device.
+- Runtime version: 10.5.4-beta.58.29.
+- Canonical Stock: OFF.
+- Cutover: OFF.
+- DB deployment for PV2-A/B/C/D/E/F1: NONE.
+- Cloud mutation: NONE.
+- Candidate SQL/scripts remain excluded from packaged Runtime by the existing build packaging rules.
+
+## PV2-C — Effective Permission Evaluator
+
+SOURCE PASS / CI SUCCESS / NOT DEPLOYED.
+
+Commit:
+- `5de167ce1357f8455c8450990e0a14897f6df76f`
+
+CI:
+- Run `36090312129`
+- conclusion: SUCCESS
+
+Key contract:
+- trusted Profile first;
+- Action applicability before employee authority;
+- required Cloud Feature gate is restrictive;
+- User override is evaluated only inside passed Profile/Feature gates;
+- Role defaults are consumed when PV2-E exists;
+- transitional legacy fallback is used only while the Role-default subsystem is absent;
+- missing Role default after PV2-E exists = DENY;
+- Admin does not bypass Profile/Feature gates.
+
+Private Feature projection:
+- `sharawla_internal.operational_feature_entitlements_v1`
+- server-owned only;
+- no entitlement rows provisioned by the source artifact;
+- missing/disabled/expired required Feature = DENY.
+
+## PV2-D — Profile / Feature-aware Permissions UI
+
+SOURCE PASS / CI SUCCESS / NOT DEPLOYED / CANDIDATE UI UNWIRED.
+
+Commit:
+- `81d76a23a888f8754f07652fc9f9cf4c27efd5da`
+
+CI:
+- Run `36090713451`
+- conclusion: SUCCESS
+
+Key contract:
+- `admin_list_permission_actions_v2(bigint)` is Admin-only;
+- trusted Profile is resolved server-side;
+- required Feature is resolved server-side;
+- client cannot submit Profile/Feature authority;
+- candidate UI reads the filtered RPC instead of the global Action catalog;
+- candidate UI remains intentionally UNWIRED until coordinated Beta deployment.
+
+## PV2-E — Restaurant Role Defaults + Safe Legacy Preservation
+
+SOURCE PASS / CI SUCCESS / NOT DEPLOYED.
+
+Commit:
+- `fc044ce0f18aa0305971d369457f8e78ac3df7d4`
+
+CI:
+- Run `36090964922`
+- conclusion: SUCCESS
+
+Current seed scope:
+- Restaurant only;
+- Admin;
+- Cashier;
+- Call Center;
+- Delivery.
+
+Migration rule:
+- preserve the actual old backend decision derived from persisted `employee_permissions`;
+- do not regenerate existing employees blindly from renderer Role templates;
+- pre-existing explicit Action overrides are never overwritten;
+- if old effective legacy result differs from the new Role default, prepare a preservation employee Action override;
+- defaults + migration evidence + preservation rows are one transaction;
+- migration summary exposes effective mismatch count for acceptance.
+
+## PV2-F1 — Customers Create owner hardening
+
+SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED / ROUTING HELPER UNWIRED.
+
+Commit:
+- `b5547a9f0fb0dce4e26ccb230367a37afac5bb85`
+
+CI:
+- Run `36091191473`
+- conclusion: SUCCESS
+
+Existing authoritative create owner:
+- `customer_create_v2(text,text,text,text,text)`
+- authenticated;
+- Action guard = `customers.create`;
+- validation + duplicate-phone guard + audit already present.
+
+F1 prepared closure:
+- remove broad direct authenticated INSERT path to `public.customers`;
+- retain `customer_create_v2` as the create owner;
+- candidate Runtime helper routes create through the RPC;
+- candidate helper remains UNWIRED until the coordinated deployment/runtime switch;
+- current three direct create call sites are frozen by checker so none is silently forgotten.
+
+## Current Permissions V2 source state
+
+- PV2-A: SOURCE PASS / NOT DEPLOYED.
+- PV2-B: SOURCE PASS / NOT DEPLOYED.
+- PV2-C: SOURCE PASS / NOT DEPLOYED.
+- PV2-D: SOURCE PASS / NOT DEPLOYED.
+- PV2-E: SOURCE PASS / NOT DEPLOYED.
+- PV2-F: IN PROGRESS.
+  - F1 Customers Create: SOURCE PREP PASS / NOT DEPLOYED.
+  - F2 Customers Edit + Address Management: NEXT.
+- PV2-G Runtime Acceptance: NOT STARTED.
+
+## Exact continuation point
+
+Next safe source-only batch:
+- PV2-F2 Customers Edit + Address Management;
+- introduce/confirm explicit Action owners;
+- preserve Business-wide customer semantics;
+- remove direct customer/address mutation bypasses only in the coordinated deployment artifact;
+- keep Runtime routing candidate UNWIRED until backend deployment prerequisites are ready.
+
+Do NOT deploy PV2-A/B/C/D/E/F1 individually. Deployment must be a coordinated isolated-Beta window with trusted Business/Profile binding and Feature entitlement projection provisioned before Runtime routing is switched.
