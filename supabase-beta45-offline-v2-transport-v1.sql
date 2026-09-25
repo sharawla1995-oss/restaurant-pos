@@ -129,7 +129,7 @@ begin
       v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
     elsif v_operation in ('expense','shift_close') then
       v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='return' then
+    elsif v_operation in ('return','order_status') then
       v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
     end if;
   end if;
