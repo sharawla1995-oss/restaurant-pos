@@ -13,6 +13,8 @@ async function rpc(name,payload){
 function missingOwner(err){return /PGRST202|could not find the function|404/i.test(String(err?.message||err||''))}
 async function rest(table,query,options){if(typeof global.rest!=='function')throw new Error('REST غير جاهز');return global.rest(table,query,options)}
 function clean(v){const s=String(v??'').trim();return s||null}
+function tx(){return global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function offline(){return global.navigator?.onLine===false}
 
 async function createCustomer(input={}){
   const name=clean(input.name);
@@ -21,6 +23,10 @@ async function createCustomer(input={}){
   if(!phone)throw new Error('رقم الموبايل مطلوب');
 
   let id;
+  if(offline()){
+    const clientTx=tx();
+    return global.SharawlaOfflineV2Transport.commitRpc('offline_customer_create_v1',{p_name:name,p_phone:phone,p_area:clean(input.area),p_address:clean(input.address),p_notes:clean(input.notes),p_client_tx_id:clientTx});
+  }
   try{
     id=await rpc('customer_create_v2',{
       p_name:name,
