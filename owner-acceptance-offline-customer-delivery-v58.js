@@ -55,7 +55,10 @@ async function driver(ctx){
  return {status:'PASS',detail:`order=${o.id}; driver=${d.id}; seq=${done.device_sequence}; replay=stable`,evidence:{order_id:o.id,driver_id:d.id,client_tx_id:tx,device_sequence:done.device_sequence}};
 }
 async function delivered(ctx){
- const rows=await global.rest('orders','select=id,total,payment_method,status,driver_id,delivery_cash_custody_amount&order_type=eq.delivery&status=eq.out_for_delivery&driver_id=not.is.null&order=id.desc&limit=20');const o=(rows||[]).find(x=>Number(x.id)>0&&text(x.payment_method)&&text(x.payment_method)!=='mixed');if(!o)throw new Error('out_for_delivery order required');
+ const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
+ const fx=await global.rpc('sharawla_beta58_offline_status_fixture_v1',{p_run_id:ctx.run_id,p_branch_id:bid,p_kind:'delivery'});
+ const o={id:Number(fx?.order_id),total:1,payment_method:'cash',status:'out_for_delivery',driver_id:Number(fx?.driver_id),delivery_cash_custody_amount:0};
+ if(!o.id||!o.driver_id)throw new Error('isolated offline delivery fixture incomplete');
  const tx=uuid();await durable('order_status_apply_offline_v2',{p_order_id:Number(o.id),p_target_status:'delivered'},tx);const done=await sync(tx);
  const cloud=(await global.rest('orders',`select=id,total,payment_method,payment_status,status,driver_id,delivery_cash_custody_amount,delivered_at&id=eq.${Number(o.id)}&limit=1`))?.[0];
  const pays=await global.rest('order_payments',`select=order_id,method,amount&order_id=eq.${Number(o.id)}`),events=await global.rest('delivery_payment_events',`select=client_tx_id,order_id,new_method,custody_after&client_tx_id=eq.${encodeURIComponent(tx)}`);const a=ack(done);
