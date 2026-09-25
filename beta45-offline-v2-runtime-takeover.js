@@ -139,7 +139,7 @@ function localDependencyError(){const e=new TypeError('Failed to fetch');e.code=
 function numericServerId(v){const n=Number(v);return Number.isFinite(n)&&n>0}
 function mustFallbackBeforeCommit(type,payload={}){
   if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
-  if(type==='return')return !numericServerId(payload?.p_order_id);
+  if(type==='return'||type==='order_status')return !numericServerId(payload?.p_order_id);
   return false;
 }
 function mustDeferAfterCommit(type,payload={}){
@@ -210,6 +210,16 @@ async function saveReturnV2(o,selected,reason,notes,method,total,available,provi
   }
   return localReturnResult(entry,o,selected,reason,notes,method,total,available);
 }
+async function saveOrderStatusV2(orderId,targetStatus,providedClientTx=null){
+  if(!(await isTakeoverActive()))throw Object.assign(new Error('Offline V2 order status requires active takeover'),{code:'OFFLINE_V2_ORDER_STATUS_TAKEOVER_REQUIRED'});
+  const target=text(targetStatus).toLowerCase();
+  if(!['preparing','ready','completed','delivered'].includes(target))throw Object.assign(new Error('Offline V2 order status target invalid'),{code:'OFFLINE_V2_ORDER_STATUS_TARGET_INVALID'});
+  const tx=text(providedClientTx)||uid();
+  const payload={p_order_id:orderId,p_target_status:target,p_client_tx_id:tx};
+  const entry=await ensureCommitted('order_status',payload,tx);
+  return {ok:true,id:entry.commit.local_entity_id,order_id:orderId,target_status:target,client_tx_id:tx,_offline:true,created_at:entry.commit.created_local_at};
+}
+
 async function saveShiftCloseV2(shift,metrics,actual,providedClientTx=null){
   if(!(await isTakeoverActive()))return base.saveOfflineShiftClose(shift,metrics,actual,providedClientTx);
   let entry=consumeFailed('shift_close');const tx=text(providedClientTx||entry?.tx)||uid();
@@ -274,7 +284,7 @@ function install(){
   global.SharawlaOfflineV2Takeover=Object.freeze({
     version:VERSION,registerOperation,registerRpc,operationTypes:()=>[...registry.keys()],rpcMappings:()=>Object.fromEntries(rpcToOperation),
     state:takeoverState,arm:armTakeover,prepareMigration:prepareLegacyMigration,activate:activateTakeover,deactivate:deactivateTakeover,
-    isMigrationLocked:()=>migrationLock
+    isMigrationLocked:()=>migrationLock,saveOrderStatus:saveOrderStatusV2
   });
 }
 
