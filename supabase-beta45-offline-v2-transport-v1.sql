@@ -1,3 +1,5 @@
+-- SH-0007 Beta alignment note (2026-09-25): deployed Point4 Outer Phase-7 must bind
+-- order_status to order_status_apply_offline_v2, preserving the accepted fulfillment/delivery owner.
 -- Sharawla Offline Engine V2 — Phase 5 backend transport v1
 -- Additive only. Existing operational RPCs remain the source of truth and are
 -- dispatched through an explicit whitelist. No existing operational object is changed.
