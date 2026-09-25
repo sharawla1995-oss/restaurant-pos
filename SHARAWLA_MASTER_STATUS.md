@@ -3086,3 +3086,32 @@ PARTIAL PASS / OPEN
 Remaining:
 - review lower/remaining menu cards not visible in the current screenshot;
 - then close Menu Cleanup only if no unrelated-profile leakage remains.
+
+
+## Restaurant SH-0007 — G3 Menu Cleanup CLOSED
+
+Runtime:
+- 10.5.4-beta.58.29
+- Device SH-0007
+- Branch TEST
+- Profile restaurant
+
+Evidence:
+`docs/SH0007-58-29-G3-MENU-CLEANUP-EVIDENCE-2026-09-25.md`
+
+Manual result:
+- normal visible dashboard/menu cards are Restaurant/shared;
+- no Retail-only or Pharmacy-only operational leakage observed.
+
+Internal tooling classification:
+- مركز اختبار Beta = prerelease/Beta-only self-test; not Stable customer navigation.
+- تشخيص Sharawla = temporary Owner Diagnostics unlocked by verified owner code for 30 minutes; not ordinary customer navigation.
+
+G3:
+PASS / CLOSED
+
+Restaurant gate status:
+- G0 CLOSED
+- G1 CLOSED
+- G2 OPEN / MANUAL / blocked by physical touch hardware availability
+- G3 CLOSED
