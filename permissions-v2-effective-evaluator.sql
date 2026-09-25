@@ -126,6 +126,9 @@ as $$
 declare
   v_action text:=lower(trim(coalesce(p_action_code,'')));
   v_employee_id bigint;
+  v_profile_code text;
+  v_required_feature_code text;
+  v_role_code text;
   v_legacy_permission text;
   v_role_table_available boolean:=false;
   v_role_default_found boolean:=false;
@@ -153,15 +156,16 @@ begin
   end if;
 
   -- Trusted Profile is server-owned (PV2-B). Missing binding raises and fails closed.
-  profile_code:=sharawla_internal.current_operational_profile_v1();
+  v_profile_code:=sharawla_internal.current_operational_profile_v1();
+  profile_code:=v_profile_code;
 
   -- Unknown, inactive, or inapplicable Actions are denied before any employee grant.
   select a.legacy_permission,pap.required_feature_code
-    into v_legacy_permission,required_feature_code
+    into v_legacy_permission,v_required_feature_code
   from public.permission_actions_v2 a
   join public.permission_action_profiles_v2 pap
     on pap.action_code=a.code
-   and pap.profile_code=profile_code
+   and pap.profile_code=v_profile_code
    and pap.active=true
   where a.code=v_action
     and a.active=true
@@ -175,15 +179,17 @@ begin
   end if;
 
   -- Required Feature is a restrictive Cloud entitlement gate.
-  if required_feature_code is not null
-     and not sharawla_internal.operational_feature_entitled_v1(required_feature_code) then
+  required_feature_code:=v_required_feature_code;
+  if v_required_feature_code is not null
+     and not sharawla_internal.operational_feature_entitled_v1(v_required_feature_code) then
     reason_code:='FEATURE_NOT_ENTITLED';
     decision_source:='cloud_feature';
     return next;
     return;
   end if;
 
-  role_code:=lower(trim(coalesce(public.current_employee_role(),'')));
+  v_role_code:=lower(trim(coalesce(public.current_employee_role(),'')));
+  role_code:=v_role_code;
   v_employee_id:=public.current_employee_id();
 
   if v_employee_id is null then
@@ -205,7 +211,7 @@ begin
   -- Compute the Role baseline first. PV2-E supplies this table later.
   select s.table_available,s.default_found,s.default_allowed
     into v_role_table_available,v_role_default_found,v_role_default_allowed
-  from sharawla_internal.role_action_default_state_v2(profile_code,role_code,v_action) s;
+  from sharawla_internal.role_action_default_state_v2(v_profile_code,v_role_code,v_action) s;
 
   -- Explicit employee override has final precedence inside the already-entitled
   -- Profile/Feature boundary.
