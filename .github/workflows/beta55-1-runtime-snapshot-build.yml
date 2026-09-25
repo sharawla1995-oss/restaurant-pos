@@ -51,6 +51,8 @@ jobs:
           node scripts/check-restaurant-acceptance-stage-v1.js
           node scripts/check-point4-secure-uuid-v4.js
           node scripts/check-beta58-26-restaurant-point4-canonical-tx.js
+          node scripts/check-offline-runtime-acceptance-coverage.js
+          node scripts/check-offline-customer-delivery-owner-design.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
