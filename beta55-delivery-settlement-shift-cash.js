@@ -103,11 +103,20 @@ document.addEventListener('click',e=>{
 
 document.addEventListener('click',e=>{
  const btn=e.target.closest?.('[data-delivered]');if(!btn)return;
- // Offline delivery keeps the proven legacy/offline queue path. The DB trigger
- // materializes custody when that queued delivered status reaches the server.
- if(!isOnline())return;
- const raw=btn.dataset.delivered;
- const id=Number(raw||lastDeliveryDetailId||0);if(!id)return;
+ const raw=btn.dataset.delivered||lastDeliveryDetailId||'';
+ if(!isOnline()){
+  if(!raw)return;
+  const ov2=global.SharawlaOfflineV2Takeover;
+  if(typeof ov2?.saveOrderStatus!=='function')return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  ov2.saveOrderStatus(raw,'delivered').then(()=>{
+   btn.closest('.modal')?.remove?.();
+   toastLocal('تم حفظ التسليم للمزامنة — طريقة الدفع الحالية ستُستخدم عند المزامنة');
+   if(typeof global.renderDeliveryOrders==='function')return global.renderDeliveryOrders();
+  }).catch(err=>toastLocal(err?.message||String(err)));
+  return;
+ }
+ const id=Number(raw);if(!id)return;
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
  markDeliveredInteractive(id,btn.closest('.modal')).catch(err=>toastLocal(err?.message||String(err)));
 },true);

@@ -21,4 +21,4 @@ const delivered=direct.filter(x=>/status\s*:\s*['"]delivered['"]/.test(x)||/stat
 if(delivered.length!==2)throw new Error('PV2-F5C expected 2 legacy delivered PATCH bridges, found '+delivered.length);
 const rpcCalls=(wrapper.match(/rpc\(\s*['"]delivery_mark_delivered_v2['"]/g)||[]).length;
 if(rpcCalls!==2)throw new Error('PV2-F5C expected exactly 2 authoritative owner calls, found '+rpcCalls);
-console.log('PV2-F5C Delivery Completion routing proof PASS — remaining direct PATCH='+direct.length+' (both delivered bridges); online owner calls='+rpcCalls+'; custody/payment/settlement owner frozen');
+console.log('PV2-F5C Delivery Completion routing proof PASS — remaining direct PATCH='+direct.length+' (shadowed delivered bridges); online owner calls='+rpcCalls+'; offline durable delivered routing active; custody/payment/settlement owner frozen');
