@@ -6,7 +6,7 @@ on:
       - "contracts/point4-deployment-manifest.v1.json"
       - "contracts/point4-pre-cutover-46-guard-contracts.v1.json"
       - "scripts/check-point4-deployment-manifest.js"
-      - "supabase-*.sql"
+      - "supabase-point4-*.sql"
       - ".github/workflows/point4-deployment-manifest.yml"
   workflow_dispatch:
 permissions:
