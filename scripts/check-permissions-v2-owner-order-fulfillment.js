@@ -28,7 +28,7 @@ need(helper,"saveOrderStatus(raw,target)",'PV2-F5A offline routing');
 need(loader,"permissions-v2-order-fulfillment-routing.js",'PV2-F5A loader wiring');
 
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
-if(direct.length!==3)throw new Error('PV2-F5A expected 3 remaining direct Orders PATCH paths (2 delivered bridges + driver assignment), found '+direct.length);
+if(direct.length!==0)throw new Error('PV2-F5A direct Orders PATCH paths must be fully retired, found '+direct.length);
 const routerCalls=(app.match(/__SharawlaPV2OrderFulfillment/g)||[]).length;
 if(routerCalls<4)throw new Error('PV2-F5A renderer routing expected at least 4 fulfillment router call sites, found '+routerCalls);
 const statuses={preparing:0,ready:0,completed:0,out_for_delivery:0,delivered:0};

@@ -1446,10 +1446,7 @@ async function renderDelivery(){
      openDriverPicker(Number(a.dataset.assign),drivers,()=>renderDelivery());return;
    }
    const done=e.target.closest('[data-delivered]');
-   if(done){
-     await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});
-     toast('تم تسجيل التسليم');renderDelivery()
-   }
+   if(done){return; /* handled authoritatively by beta55 delivery capture */}
  };
 }
 
@@ -2565,7 +2562,7 @@ async function openDeliveryOrderDetails(id){
    if(e.target.closest('[data-payment-reject]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'rejected'});o.payment_status='rejected';m.remove();toast('تم رفض إثبات الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
    if(e.target.closest('[data-completed]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o.id,'completed');await audit('mark_pickup_completed','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ تسليم طلب الاستلام للمزامنة':'تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
-   if(e.target.closest('[data-delivered]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+   if(e.target.closest('[data-delivered]')){return; /* handled authoritatively by beta55 delivery capture */}
  };
 }
 

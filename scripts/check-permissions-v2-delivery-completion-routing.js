@@ -16,9 +16,9 @@ need(sql,"insert into public.order_payments(order_id,method,amount)",'payment le
 need(sql,"insert into public.delivery_payment_events",'delivery payment event');
 need(sql,"driver_settled_at=case when v_after>0 then null else driver_settled_at end",'settlement state preservation');
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
-if(direct.length!==2)throw new Error('PV2-F5C expected only 2 remaining direct Orders PATCH bridges, found '+direct.length);
+if(direct.length!==0)throw new Error('PV2-F5C direct Orders PATCH paths must be fully retired, found '+direct.length);
 const delivered=direct.filter(x=>/status\s*:\s*['"]delivered['"]/.test(x)||/status\s*:\s*['"]delivered['"]/.test(x.replace(/"/g,"'")));
 if(delivered.length!==2)throw new Error('PV2-F5C expected 2 legacy delivered PATCH bridges, found '+delivered.length);
 const rpcCalls=(wrapper.match(/rpc\(\s*['"]delivery_mark_delivered_v2['"]/g)||[]).length;
 if(rpcCalls!==2)throw new Error('PV2-F5C expected exactly 2 authoritative owner calls, found '+rpcCalls);
-console.log('PV2-F5C Delivery Completion routing proof PASS — remaining direct PATCH='+direct.length+' (shadowed delivered bridges); online owner calls='+rpcCalls+'; offline durable delivered routing active; custody/payment/settlement owner frozen');
+console.log('PV2-F5C Delivery Completion routing proof PASS — direct Orders PATCH=0; online owner calls='+rpcCalls+'; offline durable delivered routing active; custody/payment/settlement owner frozen');
