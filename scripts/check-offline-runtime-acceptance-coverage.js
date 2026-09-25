@@ -16,7 +16,13 @@ function declaredOnly(name){return phase9.includes(`'${name}'`) && !e2e.includes
 
 const declared=['offline_customer'];
 for(const x of declared)assert(declaredOnly(x),`Coverage classification changed for ${x}; update this audit with executable evidence`);
-assert(!/registerOne\('customer'/.test(read('beta45-offline-v2-transport-runtime.js')),'Customer unexpectedly gained an Offline V2 transport owner; update executable coverage');
+const transportRuntime=read('beta45-offline-v2-transport-runtime.js');
+const customerCreateRouting=read('permissions-v2-customers-create-routing.js');
+const customerEditRouting=read('permissions-v2-customers-edit-address-routing.js');
+assert(!/registerOne\('customer'/.test(transportRuntime),'Customer unexpectedly gained an Offline V2 transport owner; update executable coverage');
+has(customerCreateRouting,"rpc('customer_create_v2'",'Customer create currently routes to an online RPC owner');
+has(customerEditRouting,"rpc('customer_update_v2'",'Customer edit currently routes to an online RPC owner');
+has(customerEditRouting,"rpc('customer_address_save_v2'",'Customer address save currently routes to an online RPC owner');
 
 for(const t of ["id:'retail.offline-sale-sync'","id:'retail.lost-ack-idempotency'",'saveOfflineSale','syncClientTx'])has(e2e,t);
 for(const t of ["id:'offline.order-status-runtime-e2e'",'__SharawlaPV2OrderFulfillment','order_status_apply_offline_v2','offline_v2_server_receipts','offline_order_status_receipts_v2','waitSynced','replay/idempotency'])has(orderStatusE2E,t);
