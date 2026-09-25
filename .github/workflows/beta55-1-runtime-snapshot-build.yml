@@ -129,6 +129,20 @@ jobs:
           if (!$point4UuidText.Contains('1.0.0-secure-fallback')) { throw 'packaged Point4 UUID secure fallback marker missing' }
           if (!$point4UuidText.Contains("mode:'WEB_CRYPTO_SECURE_ONLY'")) { throw 'packaged Point4 UUID secure-only marker missing' }
           if ($point4UuidText.Contains('Math.random') -or $point4UuidText.Contains('Date.now')) { throw 'packaged Point4 UUID contains insecure fallback' }
+          $nativeStoreText = Get-Content (Join-Path $probe 'beta45-offline-v2-native-store.js') -Raw
+          $transportRuntimeText = Get-Content (Join-Path $probe 'beta45-offline-v2-transport-runtime.js') -Raw
+          $customerDeliveryAcceptanceText = Get-Content (Join-Path $probe 'owner-acceptance-offline-customer-delivery-v58.js') -Raw
+          $coreOpsAcceptanceText = Get-Content (Join-Path $probe 'owner-acceptance-offline-core-ops-v58.js') -Raw
+          foreach ($marker in @('offline_customer_create_v1','offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1','offline_delivery_assign_driver_v1')) {
+            if (!$nativeStoreText.Contains($marker)) { throw "packaged native-store missing fail-closed binding: $marker" }
+            if (!$transportRuntimeText.Contains($marker)) { throw "packaged transport runtime missing binding: $marker" }
+          }
+          foreach ($testId in @('offline.customer-create-runtime-e2e','offline.customer-dependent-address-runtime-e2e','offline.customer-mutations-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e')) {
+            if (!$customerDeliveryAcceptanceText.Contains($testId)) { throw "packaged customer/delivery acceptance missing: $testId" }
+          }
+          foreach ($testId in @('offline.expense-runtime-e2e','offline.return-runtime-e2e')) {
+            if (!$coreOpsAcceptanceText.Contains($testId)) { throw "packaged core offline acceptance missing: $testId" }
+          }
           if (!$app.Contains('window.__SharawlaPoint4UuidV4')) { throw 'packaged app.js missing Point4 UUID provider delegation' }
           if (!$app.Contains('data-settings-hub-v1="1"')) { throw 'packaged Settings Hub marker missing' }
           if (!$app.Contains('تفعيل تشغيل المطبخ')) { throw 'packaged app.js missing explicit Kitchen operational label' }
