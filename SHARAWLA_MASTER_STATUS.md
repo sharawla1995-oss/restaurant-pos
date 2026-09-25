@@ -3036,3 +3036,53 @@ PASS / CLOSED
 
 Next:
 G2 representative Touch Pass.
+
+
+## Restaurant SH-0007 — G2 Touch hardware status
+
+Runtime:
+- 10.5.4-beta.58.29
+- Device SH-0007
+- Branch TEST
+
+G2 Touch:
+MANUAL / BLOCKED BY HARDWARE AVAILABILITY
+
+Reason:
+- no physical touch screen is currently available on SH-0007;
+- remote-phone/AnyDesk interaction is not accepted as native Windows touch evidence.
+
+This is not a Runtime failure.
+G2 remains OPEN until representative native touch hardware is available.
+
+## Restaurant SH-0007 — G3 Menu Cleanup partial runtime review
+
+Visible dashboard/menu cards manually reviewed on TEST:
+
+- الكاشير
+- الطلبات
+- طلبات الدليفري
+- المرتجعات
+- العملاء
+- الورديات
+- التقارير
+- المصروفات
+- الأصناف
+- المخزون
+- جرد الخامات
+- الموردين
+- مشتريات الخامات
+- تحويلات الخامات
+- إدارة الموقع
+- إعدادات الدليفري
+
+Observed:
+- visible cards are Restaurant/shared operational entries;
+- no obvious Retail SKU/Variant/market-only leakage in the visible portion.
+
+G3:
+PARTIAL PASS / OPEN
+
+Remaining:
+- review lower/remaining menu cards not visible in the current screenshot;
+- then close Menu Cleanup only if no unrelated-profile leakage remains.
