@@ -140,6 +140,20 @@ function validateCommit(input){
   if(input?.protocol_version!=null&&number(input.protocol_version)!==PROTOCOL_VERSION)errors.push('invalid:protocol_version');
   if(input?.schema_version!=null&&number(input.schema_version)!==SCHEMA_VERSION)errors.push('invalid:schema_version');
   if(input?.status&&input.status!=='pending')errors.push('new_operation_status_must_be_pending');
+  // Fail closed for durable order-status events. The generic runtime catalog may
+  // exist before the transport-specific adapter registers, but such a window
+  // must never be allowed to persist an unbound event into the outbox.
+  if(text(input?.operation_type)==='order_status'){
+    const rpcName=text(input?.payload?.rpc_name);
+    const rpcPayload=input?.payload?.rpc_payload;
+    if(rpcName!=='order_status_apply_offline_v2')errors.push('invalid:order_status_rpc_binding');
+    if(!rpcPayload||typeof rpcPayload!=='object'||Array.isArray(rpcPayload))errors.push('invalid:order_status_rpc_payload');
+    else{
+      if(!text(rpcPayload.p_order_id))errors.push('missing:order_status:p_order_id');
+      if(!text(rpcPayload.p_target_status))errors.push('missing:order_status:p_target_status');
+      if(text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id))errors.push('invalid:order_status_client_tx_binding');
+    }
+  }
   const records=Array.isArray(input?.records)?input.records:[];
   for(const [i,r] of records.entries())if(!text(r?.record_type)||!text(r?.local_id))errors.push(`invalid:record:${i}`);
   if(errors.length){const e=new Error(`Offline V2 atomic commit invalid: ${errors.join(',')}`);e.code='OFFLINE_V2_INVALID_COMMIT';throw e}

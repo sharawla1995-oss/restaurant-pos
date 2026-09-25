@@ -3,6 +3,7 @@ const fs=require('fs');
 const rt=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
 const sql=fs.readFileSync('supabase-beta45-offline-v2-transport-v1.sql','utf8');
 const owner=fs.readFileSync('permissions-v2-offline-order-status-owner.sql','utf8');
+const store=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
 function need(s,t){if(!s.includes(t))throw new Error('Order-status transport missing: '+t)}
 for(const t of[
  "if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)}",
@@ -23,5 +24,14 @@ for(const t of[
  "public.order_status_apply_offline_v2((v_payload->>'p_order_id')::bigint,v_payload->>'p_target_status',v_payload->>'p_client_tx_id')"
 ])need(sql,t);
 need(owner,'OFFLINE_ORDER_STATUS_REPLAY_MISMATCH');
+for(const t of[
+ "if(text(input?.operation_type)==='order_status')",
+ "rpcName!=='order_status_apply_offline_v2'",
+ "errors.push('invalid:order_status_rpc_payload')",
+ "errors.push('missing:order_status:p_order_id')",
+ "errors.push('missing:order_status:p_target_status')",
+ "text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id)",
+ "errors.push('invalid:order_status_client_tx_binding')"
+])need(store,t);
 if(/revoke\s+update\s+on\s+(table\s+)?public\.orders/i.test(rt+sql+owner))throw new Error('Premature Orders UPDATE closure');
 console.log('Offline V2 order-status transport SOURCE WIRING PASS — DB/runtime deployment still unauthorized');
