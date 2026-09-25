@@ -124,10 +124,11 @@ begin
   if r.operation_type<>'delivery_assign_driver' or r.payload_digest<>v_d then raise exception 'OFFLINE_DRIVER_ASSIGN_REPLAY_MISMATCH'; end if;
   return r.result_json||jsonb_build_object('idempotent_replay',true);
  end if;
- v_result:=public.order_assign_driver_v2(p_order_id,p_driver_id);
+ v_result:=coalesce(public.order_assign_driver_v2(p_order_id,p_driver_id),'{}'::jsonb)
+   ||jsonb_build_object('client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
- values(v_tx,'delivery_assign_driver',v_d,p_order_id,coalesce(v_result,'{}'::jsonb));
- return coalesce(v_result,'{}'::jsonb)||jsonb_build_object('client_tx_id',v_tx,'idempotent_replay',false);
+ values(v_tx,'delivery_assign_driver',v_d,p_order_id,v_result);
+ return v_result;
 end;$$;
 
 revoke all on function public.offline_customer_create_v1(text,text,text,text,text,text,text) from public,anon;
