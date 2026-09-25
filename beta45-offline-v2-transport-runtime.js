@@ -73,12 +73,18 @@ function resolveOperation(type,payload){
   if(type==='shift_open')return {rpc_name:'open_pos_shift_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_close')return {rpc_name:'close_pos_shift_idempotent',rpc_payload:clone(payload)};
   if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)};
+  if(type==='customer_create')return {rpc_name:'offline_customer_create_v1',rpc_payload:clone(payload)};
+  if(type==='customer_update')return {rpc_name:'offline_customer_update_v1',rpc_payload:clone(payload)};
+  if(type==='customer_address_save')return {rpc_name:'offline_customer_address_save_v1',rpc_payload:clone(payload)};
+  if(type==='customer_address_delete')return {rpc_name:'offline_customer_address_delete_v1',rpc_payload:clone(payload)};
+  if(type==='delivery_assign_driver')return {rpc_name:'offline_delivery_assign_driver_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
   if(type==='sale')return localShiftTx(payload?.p_order?.shift_id);
   if(type==='expense'||type==='shift_close')return localShiftTx(payload?.p_shift_id);
-  if(type==='return'||type==='order_status')return localOrderTx(payload?.p_order_id);
+  if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return localOrderTx(payload?.p_order_id);
+  if(type==='customer_address_save'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
   return null;
 }
 function shiftId(type,payload={}){
@@ -131,6 +137,11 @@ function registerTransportAdapters(){
   registerOne('shift_open',adapter('shift_open','shift',['open_pos_shift_idempotent']));
   registerOne('shift_close',adapter('shift_close','shift_event',['close_pos_shift_idempotent']));
   registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']));
+  registerOne('customer_create',adapter('customer_create','customer',['offline_customer_create_v1']));
+  registerOne('customer_update',adapter('customer_update','customer',['offline_customer_update_v1']));
+  registerOne('customer_address_save',adapter('customer_address_save','customer_address',['offline_customer_address_save_v1']));
+  registerOne('customer_address_delete',adapter('customer_address_delete','customer_address',['offline_customer_address_delete_v1']));
+  registerOne('delivery_assign_driver',adapter('delivery_assign_driver','order_event',['offline_delivery_assign_driver_v1']));
   return true;
 }
 
@@ -185,7 +196,10 @@ function durableError(row,tx){const e=new Error(text(row?.last_error_message)||`
 function numericServerId(v){const n=Number(v);return Number.isFinite(n)&&n>0}
 function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
-  if(type==='return'||type==='order_status')return !numericServerId(payload?.p_order_id);
+  if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id);
+  if(type==='customer_update')return !numericServerId(payload?.p_customer_id);
+  if(type==='customer_address_save')return !numericServerId(payload?.p_customer_id)&&!text(payload?.p_customer_create_tx);
+  if(type==='customer_address_delete')return !numericServerId(payload?.p_address_id);
   return false;
 }
 function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
