@@ -72,12 +72,13 @@ function resolveOperation(type,payload){
   if(type==='expense')return {rpc_name:'create_pos_expense_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_open')return {rpc_name:'open_pos_shift_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_close')return {rpc_name:'close_pos_shift_idempotent',rpc_payload:clone(payload)};
+  if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
   if(type==='sale')return localShiftTx(payload?.p_order?.shift_id);
   if(type==='expense'||type==='shift_close')return localShiftTx(payload?.p_shift_id);
-  if(type==='return')return localOrderTx(payload?.p_order_id);
+  if(type==='return'||type==='order_status')return localOrderTx(payload?.p_order_id);
   return null;
 }
 function shiftId(type,payload={}){
@@ -129,6 +130,7 @@ function registerTransportAdapters(){
   registerOne('expense',adapter('expense','expense',['create_pos_expense_idempotent']));
   registerOne('shift_open',adapter('shift_open','shift',['open_pos_shift_idempotent']));
   registerOne('shift_close',adapter('shift_close','shift_event',['close_pos_shift_idempotent']));
+  registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']));
   return true;
 }
 

@@ -96,7 +96,8 @@ begin
      or (v_operation='expense' and v_rpc<>'create_pos_expense_idempotent')
      or (v_operation='shift_open' and v_rpc<>'open_pos_shift_idempotent')
      or (v_operation='shift_close' and v_rpc<>'close_pos_shift_idempotent')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close') then
+     or (v_operation='order_status' and v_rpc<>'order_status_apply_offline_v2')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -111,6 +112,9 @@ begin
   else
     if nullif(trim(coalesce(v_payload->>'p_client_tx_id','')),'') is distinct from v_tx then
       raise exception using errcode='22023', message='Offline V2 RPC client_tx_id mismatch';
+    end if;
+    if v_operation='order_status' and (coalesce(nullif(v_payload->>'p_order_id','')::bigint,0)<=0 or nullif(trim(coalesce(v_payload->>'p_target_status','')),'') is null) then
+      raise exception using errcode='22023', message='Offline V2 order status payload invalid';
     end if;
     if v_operation='shift_open' and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
       raise exception using errcode='22023', message='Offline V2 shift branch mismatch';
@@ -203,6 +207,9 @@ begin
     when 'close_pos_shift_idempotent' then
       v_result := public.close_pos_shift_idempotent((v_payload->>'p_shift_id')::bigint,(v_payload->>'p_closing_cash')::numeric,v_payload->'p_metrics',v_payload->>'p_client_tx_id');
       v_entity_id := nullif(v_result->>'id','');
+    when 'order_status_apply_offline_v2' then
+      v_result := public.order_status_apply_offline_v2((v_payload->>'p_order_id')::bigint,v_payload->>'p_target_status',v_payload->>'p_client_tx_id');
+      v_entity_id := (v_payload->>'p_order_id');
     else
       raise exception using errcode='22023', message='Offline V2 RPC غير مدعومة: '||coalesce(v_rpc,'');
   end case;
