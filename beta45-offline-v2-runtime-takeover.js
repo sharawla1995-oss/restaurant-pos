@@ -297,7 +297,7 @@ function install(){
   global.SharawlaOfflineV2Takeover=Object.freeze({
     version:VERSION,registerOperation,registerRpc,operationTypes:()=>[...registry.keys()],rpcMappings:()=>Object.fromEntries(rpcToOperation),
     state:takeoverState,arm:armTakeover,prepareMigration:prepareLegacyMigration,activate:activateTakeover,deactivate:deactivateTakeover,
-    isMigrationLocked:()=>migrationLock,saveOrderStatus:saveOrderStatusV2
+    isMigrationLocked:()=>migrationLock,saveOrderStatus:saveOrderStatusV2,saveExpense:saveExpenseV2,saveReturn:saveReturnV2
   });
 }
 
