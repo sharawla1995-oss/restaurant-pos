@@ -151,7 +151,6 @@ commit;
  v_emp:=public.current_employee_id(); v_marker:='SHARAWLA_ACCEPTANCE:'||v_run||':B58OD';
  select id into v_shift from public.shifts where branch_id=p_branch_id and employee_id=v_emp and status='open' and closed_at is null order by opened_at desc limit 1;
  if v_shift is null then raise exception 'Acceptance requires open shift'; end if;
- delete from public.delivery_drivers where name=v_marker and not exists(select 1 from public.orders where driver_id=delivery_drivers.id);
  insert into public.delivery_drivers(name,branch_id,active) values(v_marker,p_branch_id,true) returning id into v_driver;
  insert into public.orders(branch_id,employee_id,shift_id,order_type,payment_method,subtotal,total,status,source,payment_status,customer_name,notes)
  values(p_branch_id,v_emp,v_shift,'delivery','cash',1,1,'ready','pos','confirmed',v_marker,v_marker) returning id into v_order;
