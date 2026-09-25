@@ -173,12 +173,61 @@ begin
 end;
 $$;
 
+create or replace function public.sharawla_beta58_offline_status_fixture_v1(
+  p_run_id text,
+  p_branch_id bigint,
+  p_kind text default 'status'
+) returns jsonb
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  v_run text:=nullif(trim(coalesce(p_run_id,'')),'');
+  v_kind text:=lower(trim(coalesce(p_kind,'status')));
+  v_emp bigint;
+  v_shift bigint;
+  v_driver bigint;
+  v_order bigint;
+  v_marker text;
+begin
+  if auth.uid() is null or not public.is_admin() then raise exception 'Acceptance admin session required'; end if;
+  if v_run is null or v_run !~ '^ACC-[A-Za-z0-9-]+$' then raise exception 'Invalid acceptance run id'; end if;
+  if v_kind not in ('status','delivery') then raise exception 'Invalid acceptance fixture kind'; end if;
+  if not public.has_branch_access(p_branch_id) then raise exception 'Acceptance branch access required'; end if;
+  v_emp:=public.current_employee_id();
+  if v_emp is null then raise exception 'Acceptance employee missing'; end if;
+  v_marker:='SHARAWLA_ACCEPTANCE:'||v_run||':B58OS:'||upper(v_kind);
+  select id into v_shift from public.shifts
+   where branch_id=p_branch_id and employee_id=v_emp and status='open' and closed_at is null
+   order by opened_at desc limit 1;
+  if v_shift is null then raise exception 'Acceptance requires open shift'; end if;
+
+  if v_kind='delivery' then
+    insert into public.delivery_drivers(name,branch_id,active)
+    values(v_marker,p_branch_id,true) returning id into v_driver;
+    insert into public.orders(branch_id,employee_id,shift_id,order_type,payment_method,subtotal,total,status,source,payment_status,driver_id,assigned_at,customer_name,notes)
+    values(p_branch_id,v_emp,v_shift,'delivery','cash',1,1,'out_for_delivery','pos','confirmed',v_driver,now(),v_marker,v_marker)
+    returning id into v_order;
+    insert into public.order_payments(order_id,method,amount) values(v_order,'cash',1);
+  else
+    insert into public.orders(branch_id,employee_id,shift_id,order_type,payment_method,subtotal,total,status,source,payment_status,customer_name,notes)
+    values(p_branch_id,v_emp,v_shift,'takeaway','cash',1,1,'new','pos','pending',v_marker,v_marker)
+    returning id into v_order;
+  end if;
+
+  return jsonb_build_object('ok',true,'order_id',v_order,'driver_id',v_driver,'kind',v_kind);
+end;
+$$;
+
 revoke all on function public.sharawla_beta55_delivery_acceptance_cleanup_v1(text) from public;
 revoke all on function public.sharawla_beta55_delivery_acceptance_fixture_v1(text,bigint) from public;
 revoke all on function public.sharawla_beta58_offline_driver_fixture_v1(text,bigint) from public;
+revoke all on function public.sharawla_beta58_offline_status_fixture_v1(text,bigint,text) from public;
 grant execute on function public.sharawla_beta55_delivery_acceptance_cleanup_v1(text) to authenticated;
 grant execute on function public.sharawla_beta55_delivery_acceptance_fixture_v1(text,bigint) to authenticated;
 grant execute on function public.sharawla_beta58_offline_driver_fixture_v1(text,bigint) to authenticated;
+grant execute on function public.sharawla_beta58_offline_status_fixture_v1(text,bigint,text) to authenticated;
 
 notify pgrst,'reload schema';
 commit;
