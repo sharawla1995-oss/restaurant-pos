@@ -3997,3 +3997,78 @@ Next safe source-only batch:
 - keep Runtime routing candidate UNWIRED until backend deployment prerequisites are ready.
 
 Do NOT deploy PV2-A/B/C/D/E/F1 individually. Deployment must be a coordinated isolated-Beta window with trusted Business/Profile binding and Feature entitlement projection provisioned before Runtime routing is switched.
+
+
+---
+
+# 2026-09-25 AUTHORITATIVE PERMISSIONS V2 CONTINUATION — PV2-F2 CLOSED IN SOURCE PREP
+
+> This section extends the immediately preceding Permissions V2 source checkpoint.
+
+Runtime remains:
+- 10.5.4-beta.58.29.
+
+Safety remains:
+- Production SH-0005 / SH-0006 untouched.
+- no operational Beta DB deployment for PV2-A/B/C/D/E/F1/F2.
+- no Cloud mutation.
+- Candidate routing helpers remain UNWIRED.
+
+## PV2-F2 — Customers Edit + Address Management
+
+SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED / ROUTING HELPER UNWIRED.
+
+Commit:
+- `c030c5d53109ace732ad22d3d1ebc9168efee55e`
+
+CI:
+- Run `36091509991`
+- conclusion: SUCCESS
+- Candidate validation: SUCCESS
+- Windows x64 build: SUCCESS
+- packaged app.asar verification: SUCCESS
+- artifact upload: SUCCESS
+
+Prepared Actions:
+- `customers.edit`
+- `customers.address.manage`
+
+Prepared backend owners:
+- `customer_update_v2`
+- `customer_address_save_v2`
+- `customer_address_delete_v2`
+
+Prepared hardening:
+- direct authenticated `customers` UPDATE bypass removed by the deployment artifact;
+- direct authenticated `customer_addresses` INSERT/UPDATE/DELETE bypass removed by the deployment artifact;
+- reads remain available;
+- Action/Profile/Feature gates remain backend-owned.
+
+Current direct Runtime call sites frozen by checker:
+- customer PATCH paths = 2
+- customer-address POST paths = 2
+- customer-address PATCH paths = 1
+- customer-address DELETE paths = 1
+
+The Runtime routing candidate remains deliberately unwired until the coordinated Beta DB deployment + Runtime switch.
+
+## Current PV2-F state
+
+- F1 Customers Create: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- F2 Customers Edit + Address Management: SOURCE PREP PASS / CI SUCCESS / NOT DEPLOYED.
+- Remaining Core owner coverage: OPEN.
+
+## Exact next safe step
+
+Before changing Shift/Expense owners, recover and compare the latest authoritative deployed/source definitions for:
+- `open_pos_shift_idempotent(bigint,numeric,text)`
+- `close_pos_shift_idempotent(bigint,numeric,jsonb,text)`
+- `close_pos_shift_v2(bigint,numeric,jsonb,text)`
+- `create_pos_expense_idempotent(bigint,text,numeric,text)`
+
+Reason:
+- these paths participate in Offline/idempotency/shift-cash/Point4 behavior;
+- do not replace them from an old historical SQL definition;
+- add Permissions V2 guards only after latest-definition provenance is pinned.
+
+No deployment is authorized by this checkpoint.
