@@ -5,6 +5,8 @@ for(const x of ['public.customer_create_v2(','public.customer_update_v2(','publi
 for(const x of ["pg_advisory_xact_lock","payload_digest","REPLAY_MISMATCH","revoke all on table public.offline_customer_delivery_receipts_v1"])assert(sql.includes(x),'idempotency/security contract missing: '+x);
 assert(!/update\s+public\.orders/i.test(sql),'offline driver wrapper must not update orders directly');
 assert(!/insert\s+into\s+public\.customers/i.test(sql),'offline customer wrapper must not insert customers directly');
+assert(sql.includes("v_result:=coalesce(public.order_assign_driver_v2(p_order_id,p_driver_id),'{}'::jsonb)"),'driver first-call result must be normalized before receipt');
+assert(sql.includes("values(v_tx,'delivery_assign_driver',v_d,p_order_id,v_result);"),'driver receipt must persist complete first-call result');
 for(const [op,rpc] of [['customer_create','offline_customer_create_v1'],['customer_update','offline_customer_update_v1'],['customer_address_save','offline_customer_address_save_v1'],['customer_address_delete','offline_customer_address_delete_v1'],['delivery_assign_driver','offline_delivery_assign_driver_v1']]){assert(runtime.includes(`registerOne('${op}'`),'runtime adapter missing '+op);assert(runtime.includes(`rpc_name:'${rpc}'`),'runtime binding missing '+rpc);assert(outer.includes(`v_operation='${op}'`),'outer operation whitelist missing '+op);assert(outer.includes(`when '${rpc}'`),'outer dispatch missing '+rpc)}
 assert(outer.includes("v_operation='customer_address_save'")&&outer.includes("'{p_customer_id}'"),'dependent customer address mapping missing');
 assert(runtime.includes('commitRpc:authoritativeRpc'),'durable routed-owner API must be exposed');
@@ -12,7 +14,7 @@ assert(customerCreate.includes("commitRpc('offline_customer_create_v1'"),'custom
 for(const rpc of ['offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1'])assert(customerEdit.includes(`offlineRpc('${rpc}'`),'customer edit/address user path missing '+rpc);
 assert(driverRouting.includes("commitRpc('offline_delivery_assign_driver_v1'"),'driver assignment user path must route offline to durable owner');
 assert(!driverRouting.includes('Offline assignment remains blocked'),'stale online-only driver declaration must be removed');
-for(const id of ['offline.customer-create-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e'])assert(acceptance.includes(id),'acceptance missing '+id);
+for(const id of ['offline.customer-create-runtime-e2e','offline.customer-dependent-address-runtime-e2e','offline.customer-mutations-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e'])assert(acceptance.includes(id),'acceptance missing '+id);
 for(const proof of ['delivery_payment_events','order_payments','delivery_cash_custody_amount','economic replay=stable'])assert(acceptance.includes(proof),'delivery economic proof missing '+proof);
 assert(loader.includes('owner-acceptance-offline-customer-delivery-v58.js'),'acceptance lazy load missing');
 for(const rule of ['payment_method already stored on the durable order snapshot','must not offer or queue an Offline payment-method change','requires reconnecting','No local mutation of payment_method'])assert(design.includes(rule),'offline payment boundary missing '+rule);
