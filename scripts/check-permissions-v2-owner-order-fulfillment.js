@@ -28,8 +28,10 @@ need(helper,"saveOrderStatus(raw,target)",'PV2-F5A offline routing');
 need(loader,"permissions-v2-order-fulfillment-routing.js",'PV2-F5A loader wiring');
 
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
-if(direct.length!==7)throw new Error('PV2-F5A expected frozen 7 direct Orders PATCH paths, found '+direct.length);
+if(direct.length!==3)throw new Error('PV2-F5A expected 3 remaining direct Orders PATCH paths (2 delivered bridges + driver assignment), found '+direct.length);
+const routerCalls=(app.match(/__SharawlaPV2OrderFulfillment/g)||[]).length;
+if(routerCalls<4)throw new Error('PV2-F5A renderer routing expected at least 4 fulfillment router call sites, found '+routerCalls);
 const statuses={preparing:0,ready:0,completed:0,out_for_delivery:0,delivered:0};
-for(const s of direct){for(const k of Object.keys(statuses))if(s.includes(k))statuses[k]++}
-if(statuses.preparing<2||statuses.ready<2||statuses.completed<2)throw new Error('PV2-F5A fulfillment surface drift '+JSON.stringify(statuses));
-console.log('PV2-F5A Order Fulfillment owner SOURCE PREP PASS — '+JSON.stringify(statuses));
+for(const x of direct){for(const k of Object.keys(statuses))if(x.includes(k))statuses[k]++}
+if(statuses.preparing||statuses.ready||statuses.completed)throw new Error('PV2-F5A direct fulfillment PATCH still present '+JSON.stringify(statuses));
+console.log('PV2-F5A Order Fulfillment RENDERER ROUTING PASS — remaining direct PATCH='+direct.length+'; routerRefs='+routerCalls+'; '+JSON.stringify(statuses));
