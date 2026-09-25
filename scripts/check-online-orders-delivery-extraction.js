@@ -1,0 +1,20 @@
+'use strict';
+const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const registry=fs.readFileSync('sharawla-navigation-registry.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
+const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\n}\n\nasync function renderDeliveryOrders/)||[])[0]||'';
+const delivery=(app.match(/async function renderDeliveryOrders\([\s\S]*?\n}\nfunction deliveryOrderCard/)||[])[0]||'';
+need(!!inbox&&!!delivery,'renderer boundaries missing');
+need(/rest\('website_orders'/.test(inbox),'Online Inbox must own raw pending website fetch');
+need(/data-online-accept/.test(inbox)&&/data-online-reject/.test(inbox),'Online Inbox actions missing');
+need(!/rest\('website_orders'/.test(delivery),'Delivery must not fetch raw pending website orders');
+need(!/data-web-details/.test(delivery),'Delivery raw website details action remained');
+need(!/data-web-receipt/.test(delivery),'Delivery raw website receipt action remained');
+need(!/data-web-accept/.test(delivery),'Delivery raw website Accept action remained');
+need(!/data-web-reject/.test(delivery),'Delivery raw website Reject action remained');
+need(/rest\('orders'/.test(delivery),'Delivery canonical orders fetch missing');
+need(/o\.order_type==='delivery'\|\|\(o\.source==='website'&&o\.order_type==='pickup'\)/.test(delivery),'post-accept delivery/pickup operational scope changed');
+need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'Accept RPC ownership regressed');
+need((app.match(/rpc\('reject_website_order'/g)||[]).length===1,'Reject RPC ownership regressed');
+need(/routeKey:'deliveryOrders'[^\n]+ONLINE_INBOX_EXTRACTED/.test(registry),'registry extraction marker missing');
+if(fail.length){console.error('Online Orders Batch 5 Delivery Extraction: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
+console.log('Online Orders Batch 5 Delivery Extraction: PASS');
+console.log('raw_pending_owner=onlineOrders; delivery_owner=canonical-operations; accept_rpc=single; reject_rpc=single');

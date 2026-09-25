@@ -1,0 +1,22 @@
+const fs=require('fs'),path=require('path');
+const file=path.join(__dirname,'..','supabase-point4-pre-cutover-46-guard-installation-batch4-website-create-identity.sql');
+const s=fs.readFileSync(file,'utf8');
+function fail(m){console.error('BATCH4_WEBSITE_CREATE_IDENTITY_FAIL '+m);process.exit(1)}
+const defs=[...s.matchAll(/create or replace function\s+public\.([a-z0-9_]+)\s*\(/ig)];
+if(defs.length!==1||defs[0][1]!=='retail_create_website_order_identity_v1') fail('function-scope');
+if(!/retail_create_website_order_identity_v1\s*\(\s*p_identity_envelope\s+jsonb\s*\)/i.test(s)) fail('signature');
+if((s.match(/inventory_stock_assert_legacy_write_allowed_v2\s*\(/ig)||[]).length!==1) fail('guard-count');
+const frozen=s.indexOf("if jsonb_array_length(v_legacy_items)=0 then");
+const totals=s.indexOf("v_expiry:=now()+interval '15 minutes';");
+const guard=s.indexOf('inventory_stock_assert_legacy_write_allowed_v2',totals);
+const commit=s.indexOf('insert into public.retail_website_orders(',guard);
+if(!(frozen>=0&&totals>frozen&&guard>totals&&commit>guard)) fail('freeze-guard-commit-order');
+const guardBlock=s.slice(totals,commit);
+if(!/jsonb_to_recordset\s*\(v_legacy_items\)/i.test(guardBlock)||!/select distinct x\.product_id/i.test(guardBlock)) fail('guard-not-from-frozen-aggregate');
+const post=s.slice(commit);
+if(/jsonb_array_elements\s*\(v_lines\)[\s\S]{0,500}(retail_stock_reservations|retail_website_order_items)/i.test(post)) fail('post-commit-affected-set-from-v-lines');
+if(!/insert into public\.retail_website_order_items[\s\S]*jsonb_to_recordset\s*\(v_legacy_items\)/i.test(post)) fail('website-items-not-frozen');
+if(!/update public\.retail_stock_reservations[\s\S]*jsonb_to_recordset\s*\(v_legacy_items\)/i.test(post)) fail('expiry-not-frozen');
+if(!/insert into public\.retail_stock_reservations[\s\S]*jsonb_to_recordset\s*\(v_legacy_items\)/i.test(post)) fail('reservation-insert-not-frozen');
+if(/cutover-hooks|inventory_stock_activate|canonical_stock/i.test(s)) fail('activation-token');
+console.log('BATCH4_WEBSITE_CREATE_IDENTITY_PASS functions=1 guards=1 frozen=v_legacy_items first_commit=retail_website_orders activation=0');

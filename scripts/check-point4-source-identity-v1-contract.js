@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('assert'),crypto=require('crypto'),fs=require('fs'),path=require('path');
+const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const identity=read('supabase-point4-source-identity-v1-contract.sql'),transfer=read('supabase-point4-transfer-v2-contract.sql'),ap=read('supabase-point4-purchasing-ap-v1-contract.sql'),journal=read('supabase-point4-financial-journal-v1-contract.sql');
+const foundation=read('supabase-point4-stock-v2-foundation.sql'),writer=read('supabase-point4-stock-v2-writer.sql');
+const offlineTransport=read('beta45-offline-v2-transport-runtime.js'),offlineOwners=[read('beta45-offline-v2-native-store.js'),read('beta45-offline-v2-sync.js')].join('\n');
+const pkg=JSON.parse(read('package.json')),has=(t,s)=>assert(t.includes(s),`missing ${s}`);
+for(const s of ['point4_identity_uuid_v4_v1','point4_identity_bigint_v1','point4_identity_decimal_v1','POINT4_IDENTITY_DECIMAL_NON_FINITE',"p_value='NaN'::numeric","p_value='Infinity'::numeric","p_value='-Infinity'::numeric",'point4_identity_assert_allowed_keys_v1','POINT4_IDENTITY_UNKNOWN_FIELD','point4_identity_effect_line_key_v1','POINT4_IDENTITY_NESTED_LINE_KEY_FORBIDDEN','point4_identity_canonical_lines_v1','POINT4_IDENTITY_DUPLICATE_LINE_KEY','collate "C"','point4_identity_operation_digest_v1','point4_identity_replay_outcome_v1',"return 'IDEMPOTENT_REPLAY'",'POINT4_IDENTITY_IDEMPOTENCY_CONFLICT','distinct from Offline V2 transport payload_digest and creates no Offline owner'])has(identity,s);
+assert(!/\b(insert|update|delete|merge|truncate|alter\s+table|create\s+table|call)\b/i.test(identity.replace(/^\s*--.*$/gm,'')));
+const allowed=(o,keys)=>{assert(o&&typeof o==='object'&&!Array.isArray(o));for(const k of Object.keys(o))assert(keys.includes(k),`unknown field ${k}`);};
+const bigint=v=>{const s=typeof v==='number'?(Number.isSafeInteger(v)?String(v):assert.fail('unsafe IEEE-754 integer')):String(v);assert(/^-?(0|[1-9][0-9]*)$/.test(s));return BigInt(s).toString(10)};
+const decimal=(v,scale)=>{const s=String(v);assert(/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(s));let [i,f='']=s.split('.');assert(f.slice(scale).split('').every(x=>x==='0'),'precision loss');assert(i.replace('-','').replace(/^0+/, '').length<=18-scale,'overflow');f=(f.slice(0,scale)+'0'.repeat(scale)).slice(0,scale);if(i==='-0'&&/^0*$/.test(f))i='0';return scale?`${i}.${f}`:i};
+const stable=v=>Array.isArray(v)?`[${v.map(stable).join(',')}]`:v&&typeof v==='object'?`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`:JSON.stringify(v);
+const lines=x=>{const c=x.slice().sort((a,b)=>Buffer.from(a.line_key).compare(Buffer.from(b.line_key)));assert.strictEqual(new Set(c.map(v=>v.line_key)).size,c.length);return c};
+const digest=e=>crypto.createHash('sha256').update(stable({...e,lines:lines(e.lines)})).digest('hex');
+assert.strictEqual(bigint('9223372036854775807'),'9223372036854775807');assert.strictEqual(bigint(1),bigint('1'));assert.throws(()=>bigint('01'));assert.throws(()=>bigint(9007199254740992));
+// These JS vectors validate the checker model only. The SQL token assertions above
+// independently require PostgreSQL numeric NaN/Infinity/-Infinity rejection.
+for(const value of ['NaN','Infinity','-Infinity'])assert.throws(()=>decimal(value,3));assert.strictEqual(decimal('0',3),'0.000');
+assert.strictEqual(decimal('1',3),decimal('1.0000',3));assert.throws(()=>decimal('1.0001',3),/precision loss/);assert.throws(()=>decimal('1000000000000000',3),/overflow/);assert.throws(()=>allowed({line_uid:'x',metadata:{}},['line_uid']),/unknown field metadata/);
+const a={line_key:'v1:stock:sale:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',quantity:decimal('1',3)},b={line_key:'v1:stock:sale:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',quantity:decimal('2',3)};
+const e={client_tx_id:'tx-1',intent:{amount:'3.00'},lines:[a,b]};assert.strictEqual(digest(e),digest({intent:{amount:'3.00'},client_tx_id:'tx-1',lines:[b,a]}));assert.throws(()=>lines([a,{...a}]));assert.notStrictEqual(digest(e),digest({...e,intent:{amount:'4.00'}}));
+const replay=(stored,incoming)=>stored===null?'NEW':stored===incoming?'IDEMPOTENT_REPLAY':(()=>{throw new Error('IDEMPOTENCY_CONFLICT')})();const accepted=digest(e);assert.strictEqual(replay(accepted,digest({...e,lines:[b,a]})),'IDEMPOTENT_REPLAY');assert.throws(()=>replay(accepted,digest({...e,intent:{amount:'4.00'}})),/IDEMPOTENCY_CONFLICT/);
+for(const t of [transfer,ap,journal]){has(t,'point4_identity_assert_allowed_keys_v1');has(t,'point4_identity_operation_digest_v1(');assert(!/payload_digest/i.test(t));assert(!/\(l-'line_key'/i.test(t),'subtract-known-fields canonicalizer forbidden');}
+for(const s of ['inventory_transfer_identity_immutable_v2','inventory_transfer_event_lines_v2_immutable','unique(transfer_operation_id,operation_type,line_uid)','unique(transfer_operation_id,stock_effect_line_key)'])has(transfer,s);
+for(const s of ['supplier_ap_identity_guard_v1','SUPPLIER_AP_V1_CANONICAL_TARGET_MISMATCH','target_source_document_id text not null'])has(ap,s);
+for(const s of ['reversal_of_line_key','FINANCE_JOURNAL_V1_REVERSAL_LINEAGE_REQUIRED','jsonb_build_array(reversal_of_line_key','line_key is distinct from reversal_of_line_key'])has(journal,s);
+assert(/source_document_id text not null/.test(foundation)&&/p_source_document_id text default null/.test(writer));assert(!/point4_identity_/i.test(foundation+writer));assert(/payloadDigest|payload_digest/.test(offlineOwners));assert(!/point4_identity_|sharawla\.point4\.identity/i.test(offlineOwners));assert(/point4Identity|point4_identity_classification/.test(offlineTransport));assert(!/operation_digest/i.test(offlineTransport));assert(!/\bbusiness_id\s+bigint\b/i.test(journal.replace(/^\s*--.*$/gm,'')));
+assert.strictEqual(pkg.scripts['check:point4-source-identity-v1-contract'],'node scripts/check-point4-source-identity-v1-contract.js');has(pkg.scripts['check:point4'],'check-point4-source-identity-v1-contract.js');
+console.log('Point 4 Source Identity V1 behavioral/static check passed.');

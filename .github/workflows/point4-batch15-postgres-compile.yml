@@ -1,0 +1,68 @@
+name: Point4 Batch15 Variant Return PostgreSQL Gate
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'supabase-engine-variants-v1-checkout-returns.sql'
+      - 'scripts/check-point4-batch15-variant-return.js'
+      - '.github/workflows/point4-batch15-postgres-compile.yml'
+permissions: { contents: read }
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGPASSWORD: postgres }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semantic
+        run: node scripts/check-point4-batch15-variant-return.js
+      - name: Assert isolation
+        run: echo "No Supabase/Beta/Production credentials are used."
+      - name: Build compile stubs
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create schema auth;
+          create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;
+          create function public.has_branch_access(bigint) returns boolean language sql as $$select true$$;
+          create function public.current_employee_id() returns bigint language sql as $$select 1::bigint$$;
+          create function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as $$begin return; end$$;
+          create table public.orders(id bigint,branch_id bigint,client_tx_id text);
+          create table public.returns(id bigint,client_tx_id text);
+          create table public.order_items(id bigint,order_id bigint,product_id bigint,variant_id bigint,cost numeric);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric(14,3),track_inventory boolean default true,updated_at timestamptz,primary key(branch_id,product_id));
+          create table public.retail_variant_inventory_balances(branch_id bigint,variant_id bigint,quantity numeric(14,3),track_inventory boolean default true,updated_at timestamptz,primary key(branch_id,variant_id));
+          create table public.retail_inventory_movements(id bigserial,branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create table public.retail_variant_inventory_movements(id bigserial,branch_id bigint,variant_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create function public.create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text) returns bigint language sql as $$select 1::bigint$$;
+          SQL
+      - name: Compile variant return
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('supabase-engine-variants-v1-checkout-returns.sql').read_text()
+          m=re.search(r'(?is)(create or replace function\s+public\.create_retail_variant_order_return_idempotent_v1\s*\(.*?end;\s*\$\$;)',s)
+          assert m,'function missing'
+          pathlib.Path('/tmp/b15.sql').write_text(m.group(1))
+          PY
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/b15.sql
+      - name: Verify effective definition
+        run: |
+          psql -h localhost -U postgres -d postgres -Atc "select pg_get_functiondef('public.create_retail_variant_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text)'::regprocedure)" > /tmp/effective.sql
+          python3 - <<'PY'
+          s=open('/tmp/effective.sql').read().lower()
+          g=s.index('inventory_stock_assert_legacy_write_allowed_v2')
+          c=s.index('create_order_return_idempotent',g)
+          assert s.count("jsonb_array_elements(coalesce(p_items") == 1
+          assert "jsonb_array_elements(coalesce(p_items" not in s[c:]
+          assert 'join public.order_items' not in s[c:]
+          assert "case when oi.variant_id is not null then 'variant'::text else 'product'::text end" in s or "case when oi.variant_id is not null then 'variant' else 'product' end" in s
+          assert 'jsonb_to_recordset(v_frozen_items)' in s[c:]
+          print('EFFECTIVE_SOURCE_READBACK_PASS')
+          PY

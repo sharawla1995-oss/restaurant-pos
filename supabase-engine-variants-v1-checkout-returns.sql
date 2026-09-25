@@ -1,0 +1,326 @@
+-- Sharawla POS — Variants Engine V1 checkout + returns
+-- IMPORTANT: Existing create_retail_pos_order_atomic and create_retail_order_return_idempotent are NOT replaced.
+-- This adds isolated capability-only RPCs. The POS calls them only when commerce.variants is enabled.
+
+begin;
+
+alter table public.order_items
+  add column if not exists variant_id bigint references public.product_variants(id) on delete restrict,
+  add column if not exists variant_name text,
+  add column if not exists variant_sku text,
+  add column if not exists variant_barcode text;
+
+create index if not exists order_items_variant_id_idx
+  on public.order_items(variant_id)
+  where variant_id is not null;
+
+-- -----------------------------------------------------------------------------
+-- Variant-aware Retail checkout.
+-- Non-variant lines use the existing product inventory ledger.
+-- True stock-unit variant lines use the variant inventory ledger ONLY.
+-- Invoice/payment creation still delegates to proven create_pos_order_atomic.
+-- -----------------------------------------------------------------------------
+create or replace function public.create_retail_variant_pos_order_atomic_v1(
+  p_order jsonb,
+  p_items jsonb,
+  p_payments jsonb
+) returns jsonb
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  v_branch bigint:=nullif(p_order->>'branch_id','')::bigint;
+  v_client_tx_id text:=nullif(trim(coalesce(p_order->>'client_tx_id','')),'');
+  v_emp bigint;
+  v_allow_negative boolean:=false;
+  v_existing_order_id bigint;
+  v_result jsonb;
+  v_saved_items jsonb;
+  v_row record;
+  v_balance public.retail_inventory_balances%rowtype;
+  v_variant_balance public.retail_variant_inventory_balances%rowtype;
+  v_new_balance numeric(14,3);
+  v_variant public.product_variants%rowtype;
+  v_frozen_items jsonb:='[]'::jsonb;
+begin
+  if auth.uid() is null then raise exception 'غير مصرح'; end if;
+  if v_client_tx_id is null then raise exception 'معرف الحركة مطلوب'; end if;
+  if v_branch is null or not public.has_branch_access(v_branch) then
+    raise exception 'ليس لديك صلاحية على هذا الفرع';
+  end if;
+  if jsonb_typeof(coalesce(p_items,'[]'::jsonb))<>'array'
+     or jsonb_array_length(coalesce(p_items,'[]'::jsonb))=0 then
+    raise exception 'الأوردر فارغ';
+  end if;
+
+  v_emp:=public.current_employee_id();
+  perform pg_advisory_xact_lock(hashtextextended('retail-variant-sale:'||v_client_tx_id,0));
+
+  select id into v_existing_order_id
+  from public.orders where client_tx_id=v_client_tx_id limit 1;
+  if v_existing_order_id is not null then
+    select coalesce(jsonb_agg(to_jsonb(oi) order by oi.id),'[]'::jsonb)
+      into v_saved_items
+    from public.order_items oi where oi.order_id=v_existing_order_id;
+    return jsonb_build_object(
+      'order',(select to_jsonb(o) from public.orders o where o.id=v_existing_order_id),
+      'items',v_saved_items,
+      'duplicate_prevented',true
+    );
+  end if;
+
+  select coalesce(allow_negative_stock,false) into v_allow_negative
+  from public.retail_inventory_settings where branch_id=v_branch;
+  if not found then v_allow_negative:=false; end if;
+
+  -- Point4 FT-3: resolve and freeze the complete mixed stock ownership set before balance initialization.
+  select coalesce(jsonb_agg(to_jsonb(z) order by z.item_kind,z.item_id),'[]'::jsonb)
+  into v_frozen_items
+  from (
+    select 'variant'::text item_kind,v.id item_id,v.product_id,
+           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+           round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost,
+           coalesce(b.track_inventory,true) track_inventory,
+           coalesce(b.quantity,0) balance_quantity
+    from jsonb_array_elements(p_items) x
+    join public.product_variants v on v.id=nullif(x->>'variant_id','')::bigint
+      and v.product_id=nullif(x->>'product_id','')::bigint and v.is_stock_unit=true and v.active=true
+    left join public.retail_variant_inventory_balances b on b.branch_id=v_branch and b.variant_id=v.id
+    where nullif(x->>'variant_id','') is not null
+    group by v.id,v.product_id,b.track_inventory,b.quantity
+    union all
+    select 'product'::text item_kind,nullif(x->>'product_id','')::bigint item_id,nullif(x->>'product_id','')::bigint product_id,
+           round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+           round(sum(coalesce((x->>'cost')::numeric,0)*coalesce((x->>'quantity')::numeric,0))/nullif(sum(coalesce((x->>'quantity')::numeric,0)),0),4) unit_cost,
+           coalesce(b.track_inventory,true) track_inventory,
+           coalesce(b.quantity,0) balance_quantity
+    from jsonb_array_elements(p_items) x
+    left join public.retail_inventory_balances b on b.branch_id=v_branch and b.product_id=nullif(x->>'product_id','')::bigint
+    where nullif(x->>'product_id','') is not null and nullif(x->>'variant_id','') is null
+    group by nullif(x->>'product_id','')::bigint,b.track_inventory,b.quantity
+  ) z;
+  if jsonb_array_length(v_frozen_items)=0 then raise exception 'لا توجد بنود مخزون صالحة'; end if;
+  if exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) where qty<=0)
+    then raise exception 'بيانات الصنف أو Variant غير صحيحة'; end if;
+  if not v_allow_negative and exists(select 1 from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) where track_inventory and balance_quantity<qty)
+    then raise exception 'المخزون غير كافٍ لأحد بنود الأوردر'; end if;
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,v_row.item_kind,v_row.item_id);
+  end loop;
+  -- Balance rows are initialized only after every mixed ownership guard passed.
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id loop
+    if v_row.item_kind='variant' then
+      insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity) values(v_branch,v_row.item_id,0) on conflict(branch_id,variant_id) do nothing;
+    else
+      insert into public.retail_inventory_balances(branch_id,product_id,quantity) values(v_branch,v_row.item_id,0) on conflict(branch_id,product_id) do nothing;
+    end if;
+  end loop;
+
+  -- Proven invoice/payment creation remains the source of truth.
+  v_result:=public.create_pos_order_atomic(p_order,p_items,p_payments);
+
+  -- Persist immutable variant identity snapshots by JSON input order.
+  with src as (
+    select ord::bigint as rn,
+           nullif(item->>'variant_id','')::bigint as variant_id
+    from jsonb_array_elements(p_items) with ordinality t(item,ord)
+  ), dst as (
+    select oi.id,row_number() over(order by oi.id)::bigint as rn
+    from public.order_items oi
+    where oi.order_id=(v_result->'order'->>'id')::bigint
+  )
+  update public.order_items oi
+  set variant_id=pv.id,
+      variant_name=pv.name,
+      variant_sku=pv.sku,
+      variant_barcode=pv.barcode
+  from src
+  join dst on dst.rn=src.rn
+  join public.product_variants pv on pv.id=src.variant_id
+  where oi.id=dst.id and src.variant_id is not null;
+
+  -- Execute stock deduction from the exact frozen set; do not rediscover ownership from p_items.
+  for v_row in select * from jsonb_to_recordset(v_frozen_items) as x(item_kind text,item_id bigint,product_id bigint,qty numeric,unit_cost numeric,track_inventory boolean,balance_quantity numeric) order by item_kind,item_id
+  loop
+    if not v_row.track_inventory then continue; end if;
+    if v_row.item_kind='product' then
+      select * into v_balance from public.retail_inventory_balances where branch_id=v_branch and product_id=v_row.item_id for update;
+      v_new_balance:=round(v_balance.quantity-v_row.qty,3);
+      update public.retail_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and product_id=v_row.item_id;
+      insert into public.retail_inventory_movements(branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
+      values(v_branch,v_row.item_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,'order',v_result->'order'->>'id',v_client_tx_id,v_emp);
+    else
+      select * into v_variant_balance from public.retail_variant_inventory_balances where branch_id=v_branch and variant_id=v_row.item_id for update;
+      v_new_balance:=round(v_variant_balance.quantity-v_row.qty,3);
+      update public.retail_variant_inventory_balances set quantity=v_new_balance,updated_at=now() where branch_id=v_branch and variant_id=v_row.item_id;
+      insert into public.retail_variant_inventory_movements(branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,reference_type,reference_id,client_tx_id,employee_id)
+      values(v_branch,v_row.item_id,'sale',-v_row.qty,v_new_balance,v_row.unit_cost,'order',v_result->'order'->>'id',v_client_tx_id,v_emp);
+    end if;
+  end loop;
+
+  select coalesce(jsonb_agg(to_jsonb(oi) order by oi.id),'[]'::jsonb)
+    into v_saved_items
+  from public.order_items oi
+  where oi.order_id=(v_result->'order'->>'id')::bigint;
+
+  return jsonb_build_object('order',v_result->'order','items',v_saved_items);
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Variant-aware return. Uses original order_item.variant_id snapshot identity.
+-- Existing non-variant Retail return RPC is not replaced.
+-- -----------------------------------------------------------------------------
+create or replace function public.create_retail_variant_order_return_idempotent_v1(
+  p_order_id bigint,
+  p_reason text,
+  p_notes text,
+  p_items jsonb,
+  p_payments jsonb,
+  p_client_tx_id text
+) returns bigint
+language plpgsql
+security definer
+set search_path=public
+as $$
+declare
+  v_key text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
+  v_existing bigint;
+  v_return_id bigint;
+  v_branch bigint;
+  v_emp bigint;
+  v_row record;
+  v_frozen_items jsonb:='[]'::jsonb;
+  v_balance public.retail_inventory_balances%rowtype;
+  v_variant_balance public.retail_variant_inventory_balances%rowtype;
+  v_new_balance numeric(14,3);
+begin
+  if auth.uid() is null then raise exception 'غير مصرح'; end if;
+  if v_key is null then raise exception 'معرف الحركة مطلوب'; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('retail-variant-return:'||v_key,0));
+  select id into v_existing from public.returns where client_tx_id=v_key limit 1;
+  if v_existing is not null then return v_existing; end if;
+
+  select branch_id into v_branch from public.orders where id=p_order_id;
+  if v_branch is null then raise exception 'الفاتورة غير موجودة'; end if;
+  if not public.has_branch_access(v_branch) then raise exception 'ليس لديك صلاحية لهذا الفرع'; end if;
+  v_emp:=public.current_employee_id();
+
+  -- Point 4 #7: freeze the exact original stock identity for every returned line.
+  -- A line is owned by its original variant when present, otherwise by its product.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'item_kind',q.item_kind,
+           'item_id',q.item_id,
+           'qty',q.qty,
+           'unit_cost',q.unit_cost,
+           'track_inventory',case when q.item_kind='variant'
+                                  then coalesce(vb.track_inventory,true)
+                                  else coalesce(pb.track_inventory,true) end
+         ) order by q.item_kind,q.item_id),'[]'::jsonb)
+    into v_frozen_items
+    from (
+      select case when oi.variant_id is not null then 'variant' else 'product' end item_kind,
+             coalesce(oi.variant_id,oi.product_id) item_id,
+             round(sum(coalesce((x->>'quantity')::numeric,0)),3) qty,
+             round(avg(coalesce(oi.cost,0)),4) unit_cost
+        from jsonb_array_elements(coalesce(p_items,'[]'::jsonb)) x
+        join public.order_items oi
+          on oi.id=nullif(x->>'order_item_id','')::bigint
+         and oi.order_id=p_order_id
+       where coalesce(oi.variant_id,oi.product_id) is not null
+       group by case when oi.variant_id is not null then 'variant' else 'product' end,
+                coalesce(oi.variant_id,oi.product_id)
+    ) q
+    left join public.retail_inventory_balances pb
+      on q.item_kind='product' and pb.branch_id=v_branch and pb.product_id=q.item_id
+    left join public.retail_variant_inventory_balances vb
+      on q.item_kind='variant' and vb.branch_id=v_branch and vb.variant_id=q.item_id;
+
+  -- Guard the complete mixed ownership set before the financial return commits.
+  for v_row in
+    select *
+      from jsonb_to_recordset(v_frozen_items)
+        as x(item_kind text,item_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.item_kind,x.item_id
+  loop
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(v_branch,v_row.item_kind,v_row.item_id);
+  end loop;
+
+  -- Proven financial return creation remains source of truth.
+  v_return_id:=public.create_order_return_idempotent(
+    p_order_id,p_reason,p_notes,p_items,p_payments,v_key
+  );
+
+  -- Restore stock from the exact frozen mixed identity set.
+  for v_row in
+    select *
+      from jsonb_to_recordset(v_frozen_items)
+        as x(item_kind text,item_id bigint,qty numeric,unit_cost numeric,track_inventory boolean)
+     order by x.item_kind,x.item_id
+  loop
+    if v_row.item_kind='product' then
+      insert into public.retail_inventory_balances(branch_id,product_id,quantity)
+      values(v_branch,v_row.item_id,0)
+      on conflict(branch_id,product_id) do nothing;
+
+      select * into v_balance
+      from public.retail_inventory_balances
+      where branch_id=v_branch and product_id=v_row.item_id
+      for update;
+      if not v_row.track_inventory then continue; end if;
+
+      v_new_balance:=round(v_balance.quantity+v_row.qty,3);
+      update public.retail_inventory_balances
+      set quantity=v_new_balance,updated_at=now()
+      where branch_id=v_branch and product_id=v_row.item_id;
+
+      insert into public.retail_inventory_movements(
+        branch_id,product_id,movement_type,quantity_delta,balance_after,unit_cost,
+        reference_type,reference_id,client_tx_id,employee_id
+      ) values(
+        v_branch,v_row.item_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
+        'return',v_return_id::text,v_key,v_emp
+      );
+    else
+      insert into public.retail_variant_inventory_balances(branch_id,variant_id,quantity)
+      values(v_branch,v_row.item_id,0)
+      on conflict(branch_id,variant_id) do nothing;
+
+      select * into v_variant_balance
+      from public.retail_variant_inventory_balances
+      where branch_id=v_branch and variant_id=v_row.item_id
+      for update;
+      if not v_row.track_inventory then continue; end if;
+
+      v_new_balance:=round(v_variant_balance.quantity+v_row.qty,3);
+      update public.retail_variant_inventory_balances
+      set quantity=v_new_balance,updated_at=now()
+      where branch_id=v_branch and variant_id=v_row.item_id;
+
+      insert into public.retail_variant_inventory_movements(
+        branch_id,variant_id,movement_type,quantity_delta,balance_after,unit_cost,
+        reference_type,reference_id,client_tx_id,employee_id
+      ) values(
+        v_branch,v_row.item_id,'return',v_row.qty,v_new_balance,v_row.unit_cost,
+        'return',v_return_id::text,v_key,v_emp
+      );
+    end if;
+  end loop;
+
+  return v_return_id;
+end;
+$$;
+
+revoke all on function public.create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb) from public;
+revoke all on function public.create_retail_variant_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text) from public;
+grant execute on function public.create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb) to authenticated;
+grant execute on function public.create_retail_variant_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text) to authenticated;
+
+comment on function public.create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb) is
+  'Capability-only Retail checkout. Variant lines deduct variant stock; ordinary lines retain product stock. Existing Retail checkout remains unchanged.';
+comment on function public.create_retail_variant_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text) is
+  'Capability-only Retail return restoring exact original variant stock by order_item.variant_id.';
+
+commit;

@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
+const model=(app.match(/function onlineOrderLifecycleState\([\s\S]*?\n}\n\nfunction resolveOnlineOrderFulfillment/)||[])[0]||'';
+const accept=(app.match(/async function acceptOnlineOrderFromChannel\([\s\S]*?\n}\n\nfunction onlineOrderLifecycleState/)||[])[0]||'';
+const reject=(app.match(/async function rejectOnlineOrderFromChannel\([\s\S]*?\n}\n\nasync function renderOnlineOrders/)||[])[0]||'';
+need(/status==='pending'.*state:'new'/.test(model),'raw pending -> Core new missing');
+need(/status==='accepted'.*state:'accepted'/.test(model),'raw accepted mapping missing');
+need(/status==='rejected'.*state:'rejected'.*terminal:true/.test(model),'raw rejected terminal mapping missing');
+need(/status==='cancelled'.*state:'cancelled'.*terminal:true/.test(model),'raw cancelled terminal mapping missing');
+need(/status==='new'.*state:'accepted'/.test(model),'canonical new -> Core accepted missing');
+need(/\['preparing','ready','out_for_delivery'\].*state:'in_fulfillment'/.test(model),'profile fulfillment statuses not normalized');
+need(/\['delivered','completed'\].*state:'completed'.*terminal:true/.test(model),'completion statuses not normalized');
+need(/return Object\.freeze\(\{state:'unknown',terminal:false\}\)/.test(model),'unknown lifecycle must remain non-invented');
+need(/onlineOrderLifecycleState\(order,'canonical'\)/.test(accept)&&/fulfillment,lifecycle/.test(accept),'Accept result lifecycle metadata missing');
+need(/onlineOrderLifecycleState\('rejected','source'\)/.test(reject),'Reject lifecycle metadata missing');
+need(/onlineOrderLifecycleState\(w,'source'\)/.test(app),'Online Inbox does not consume Core lifecycle');
+need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'Accept RPC ownership regressed');
+need((app.match(/rpc\('reject_website_order'/g)||[]).length===1,'Reject RPC ownership regressed');
+if(fail.length){console.error('Online Orders Batch 8 Lifecycle Model: FAIL');fail.forEach(x=>console.error('- '+x));process.exit(1)}
+console.log('Online Orders Batch 8 Lifecycle Model: PASS');
+console.log('core=new/accepted/in_fulfillment/completed/rejected/cancelled; restaurant statuses=normalized; db=unchanged');

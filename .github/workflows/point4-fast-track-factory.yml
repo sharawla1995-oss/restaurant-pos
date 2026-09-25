@@ -1,0 +1,208 @@
+name: Point4 Fast Track Factory
+# point4-ft3-rerun-66cce787
+on:
+  workflow_dispatch:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'contracts/point4-fast-track-remaining.v1.json'
+      - 'contracts/point4-pre-cutover-46-guard-contracts.v1.json'
+      - 'scripts/check-point4-fast-track-factory.js'
+      - 'scripts/check-point4-ft*.js'
+      - '.github/workflows/point4-fast-track-factory.yml'
+permissions: { contents: read }
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Data-driven per-function preflight
+        run: node scripts/check-point4-fast-track-factory.js
+      - name: FT-1 independent semantic gates
+        run: node scripts/check-point4-ft1-supply-fulfillment.js
+      - name: FT-1 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft1-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55432 -U postgres && break; sleep 1; done
+          cat > /tmp/ft1.sql <<'SQL'
+          create schema if not exists auth;
+          create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.inventory_supply_requests(id bigserial primary key,source_location_id bigint,destination_branch_id bigint,status text,dispatched_by_employee_id bigint,dispatched_at timestamptz,received_by_employee_id bigint,received_at timestamptz,updated_at timestamptz);
+          create table public.inventory_supply_request_items(id bigserial primary key,request_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_approved numeric,quantity_dispatched numeric default 0,quantity_backordered numeric default 0,quantity_received numeric default 0,quantity_damaged numeric default 0,quantity_shortage numeric default 0,unit_cost numeric default 0);
+          create table public.inventory_supply_receipts(id bigserial primary key,request_id bigint,client_tx_id text,is_final boolean,notes text,received_by_employee_id bigint);
+          create table public.inventory_supply_receipt_items(receipt_id bigint,request_item_id bigint,quantity_received numeric,quantity_damaged numeric,quantity_shortage numeric,notes text);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,last_purchase_cost numeric,track_inventory boolean,updated_at timestamptz,unique(branch_id,product_id));
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,notes text,employee_id bigint);
+          create table public.ingredients(id bigint primary key,track_inventory boolean,active boolean);
+          create table public.ingredient_stock(branch_id bigint,ingredient_id bigint,quantity numeric,average_unit_cost numeric,last_purchase_cost numeric,last_costed_at timestamptz,updated_at timestamptz,unique(branch_id,ingredient_id));
+          create table public.food_ingredient_adjustment_events(branch_id bigint,ingredient_id bigint,quantity_delta numeric,balance_after numeric,unit_cost numeric,reason text,client_tx_id text,employee_id bigint);
+          create table public.inventory_supply_request_events(request_id bigint,from_status text,to_status text,note text,employee_id bigint,details jsonb);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          create or replace function public.has_action_permission_v2(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55432/postgres -v ON_ERROR_STOP=1 -f /tmp/ft1.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-beta55-central-warehouse-fulfillment.sql').read_text()
+          names=['inventory_supply_request_dispatch_v1','inventory_supply_request_receive_v1']
+          out=[]
+          for name in names:
+              m=re.search(r'create or replace function public\.'+name+r'\(.*?\nend\$\$;',s,re.S|re.I)
+              assert m,name
+              out.append(m.group(0))
+          pathlib.Path('/tmp/funcs.sql').write_text('\n\n'.join(out))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55432/postgres -v ON_ERROR_STOP=1 -f /tmp/funcs.sql
+          for sig in "inventory_supply_request_dispatch_v1(bigint,jsonb,text,text)" "inventory_supply_request_receive_v1(bigint,jsonb,boolean,text,text)"; do
+            psql postgresql://postgres:postgres@127.0.0.1:55432/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" | grep -q inventory_stock_assert_legacy_write_allowed_v2
+            echo "PASS effective readback: $sig"
+          done
+      - name: FT-2 independent semantic gates
+        run: node scripts/check-point4-ft2-retail-market.js
+      - name: FT-2 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft2-pg -e POSTGRES_PASSWORD=postgres -p 55433:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55433 -U postgres && break; sleep 1; done
+          cat > /tmp/ft2.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,product_id));
+          create table public.retail_stock_counts(id bigserial primary key,branch_id bigint,status text,notes text,created_by_employee_id bigint,posted_by_employee_id bigint,posted_at timestamptz);
+          create table public.retail_stock_count_items(stock_count_id bigint,product_id bigint,system_qty numeric,counted_qty numeric,variance numeric);
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint,notes text);
+          create table public.retail_stock_reservations(branch_id bigint,product_id bigint,quantity numeric,reservation_key text,status text,expires_at timestamptz,unique(reservation_key,product_id));
+          create or replace function public.is_admin() returns boolean language sql as 'select true';
+          create or replace function public.has_permission(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -v ON_ERROR_STOP=1 -f /tmp/ft2.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-v10-5-4-beta17-retail-market-core.sql').read_text()
+          names=['retail_post_stock_count','retail_reserve_stock']; out=[]
+          for name in names:
+              m=re.search(r'create or replace function public\.'+name+r'\(.*?\nend \$\$;',s,re.S|re.I)
+              assert m,name
+              out.append(m.group(0))
+          pathlib.Path('/tmp/ft2funcs.sql').write_text('\n\n'.join(out))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -v ON_ERROR_STOP=1 -f /tmp/ft2funcs.sql
+          for sig in "retail_post_stock_count(bigint,text,jsonb)" "retail_reserve_stock(bigint,text,jsonb,integer)"; do
+            psql postgresql://postgres:postgres@127.0.0.1:55433/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" | grep -q inventory_stock_assert_legacy_write_allowed_v2
+            echo "PASS effective readback: $sig"
+          done
+      - name: FT-3 variant checkout semantic gate
+        run: node scripts/check-point4-ft3-variant-checkout.js
+      - name: FT-3 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft3-pg -e POSTGRES_PASSWORD=postgres -p 55434:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55434 -U postgres && break; sleep 1; done
+          cat > /tmp/ft3.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.orders(id bigserial primary key,client_tx_id text);
+          create table public.order_items(id bigserial primary key,order_id bigint,variant_id bigint,variant_name text,variant_sku text,variant_barcode text);
+          create table public.retail_inventory_settings(branch_id bigint,allow_negative_stock boolean);
+          create table public.product_variants(id bigint primary key,product_id bigint,is_stock_unit boolean,active boolean,name text,sku text,barcode text);
+          create table public.retail_inventory_balances(branch_id bigint,product_id bigint,quantity numeric,average_unit_cost numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,product_id));
+          create table public.retail_variant_inventory_balances(branch_id bigint,variant_id bigint,quantity numeric,track_inventory boolean default true,updated_at timestamptz,unique(branch_id,variant_id));
+          create table public.retail_inventory_movements(branch_id bigint,product_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create table public.retail_variant_inventory_movements(branch_id bigint,variant_id bigint,movement_type text,quantity_delta numeric,balance_after numeric,unit_cost numeric,reference_type text,reference_id text,client_tx_id text,employee_id bigint);
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          create or replace function public.create_pos_order_atomic(jsonb,jsonb,jsonb) returns jsonb language sql as 'select jsonb_build_object(''order'',jsonb_build_object(''id'',1))';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -v ON_ERROR_STOP=1 -f /tmp/ft3.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-engine-variants-v1-checkout-returns.sql').read_text()
+          m=re.search(r'create or replace function public\.create_retail_variant_pos_order_atomic_v1\(.*?\n\$\$;',s,re.S|re.I)
+          assert m
+          pathlib.Path('/tmp/ft3func.sql').write_text(m.group(0))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -v ON_ERROR_STOP=1 -f /tmp/ft3func.sql
+          psql postgresql://postgres:postgres@127.0.0.1:55434/postgres -Atc "select pg_get_functiondef('create_retail_variant_pos_order_atomic_v1(jsonb,jsonb,jsonb)'::regprocedure)" > /tmp/ft3-readback.sql
+          grep -q inventory_stock_assert_legacy_write_allowed_v2 /tmp/ft3-readback.sql
+          grep -q v_frozen_items /tmp/ft3-readback.sql
+          echo "PASS effective readback: #8"
+      - name: FT-4 document shortage semantic gate
+        run: node scripts/check-point4-ft4-document-shortage.js
+      - name: FT-4 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft4-pg -e POSTGRES_PASSWORD=postgres -p 55435:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55435 -U postgres && break; sleep 1; done
+          cat > /tmp/ft4.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.inventory_supply_routes(id bigint primary key,active boolean,source_location_id bigint,destination_branch_id bigint);
+          create table public.inventory_supply_catalog(id bigint primary key,route_id bigint,active boolean,item_type text,product_id bigint,ingredient_id bigint,min_request_qty numeric,max_request_qty numeric,request_multiple numeric);
+          create table public.inventory_supply_requests(id bigserial primary key,route_id bigint,source_location_id bigint,destination_branch_id bigint,request_type text,status text,notes text,client_tx_id text,created_by_employee_id bigint,submitted_by_employee_id bigint,submitted_at timestamptz);
+          create table public.inventory_supply_request_items(request_id bigint,catalog_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_requested numeric,line_note text);
+          create table public.inventory_supply_request_events(request_id bigint,from_status text,to_status text,note text,employee_id bigint,details jsonb);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          create or replace function public.has_action_permission_v2(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_document_workflow_allowed_v2(text) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -v ON_ERROR_STOP=1 -f /tmp/ft4.sql
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('supabase-beta55-central-warehouse-visibility-shortages.sql').read_text()
+          m=re.search(r'create or replace function public\.inventory_supply_shortage_request_create_v1\(.*?end\$\$;',s,re.S|re.I);assert m
+          pathlib.Path('/tmp/ft4func.sql').write_text(m.group(0))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -v ON_ERROR_STOP=1 -f /tmp/ft4func.sql
+          psql postgresql://postgres:postgres@127.0.0.1:55435/postgres -Atc "select pg_get_functiondef('inventory_supply_shortage_request_create_v1(bigint,jsonb,text,text)'::regprocedure)" > /tmp/ft4-readback.sql
+          grep -q inventory_stock_assert_document_workflow_allowed_v2 /tmp/ft4-readback.sql
+          grep -q v_frozen_items /tmp/ft4-readback.sql
+          echo "PASS effective readback: #46"
+      - name: FT-5 food stock semantic gate
+        run: node scripts/check-point4-ft5-food-stock.js
+      - name: FT-5 PostgreSQL 16 compile + effective readback
+        run: |
+          docker run --rm -d --name point4-ft5-pg -e POSTGRES_PASSWORD=postgres -p 55436:5432 postgres:16
+          for i in {1..30}; do pg_isready -h 127.0.0.1 -p 55436 -U postgres && break; sleep 1; done
+          cat > /tmp/ft5.sql <<'SQL'
+          create schema auth; create or replace function auth.uid() returns uuid language sql as 'select null::uuid';
+          create table public.food_production_batches(id bigint primary key,branch_id bigint,prep_item_id bigint,status text,completion_client_tx_id text,actual_output_quantity numeric,completed_by_employee_id bigint,completed_at timestamptz,notes text,updated_at timestamptz);
+          create table public.food_prep_items(id bigint primary key,output_ingredient_id bigint);
+          create table public.food_production_consumptions(id bigint primary key,production_batch_id bigint,ingredient_id bigint,planned_base_quantity numeric,actual_base_quantity numeric,unit_cost_snapshot numeric);
+          create table public.ingredients(id bigint primary key,active boolean,track_inventory boolean,cost_per_unit numeric);
+          create table public.ingredient_stock(id bigserial primary key,branch_id bigint,ingredient_id bigint,quantity numeric,average_unit_cost numeric,last_purchase_cost numeric,last_costed_at timestamptz,updated_at timestamptz,unique(branch_id,ingredient_id));
+          create table public.stock_movements(branch_id bigint,ingredient_id bigint,movement_type text,quantity numeric,reference_type text,reference_id bigint,notes text);
+          create table public.food_stock_counts(id bigserial primary key,branch_id bigint,notes text,client_tx_id text,created_by_employee_id bigint);
+          create table public.food_stock_count_items(stock_count_id bigint,ingredient_id bigint,system_quantity numeric,counted_quantity numeric,variance numeric,unit_cost_snapshot numeric);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          create or replace function public.is_admin() returns boolean language sql as 'select true';
+          create or replace function public.has_permission(text) returns boolean language sql as 'select true';
+          create or replace function public.has_action_permission_v2(text) returns boolean language sql as 'select true';
+          create or replace function public.has_branch_access(bigint) returns boolean language sql as 'select true';
+          create or replace function public.current_employee_id() returns bigint language sql as 'select 1::bigint';
+          create or replace function public.inventory_stock_assert_legacy_write_allowed_v2(bigint,text,bigint) returns void language plpgsql as 'begin null; end';
+          create or replace function public.food_apply_ingredient_delta_internal_v1(bigint,bigint,numeric,numeric,text,text,bigint,text) returns void language plpgsql as 'begin null; end';
+          SQL
+          psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -v ON_ERROR_STOP=1 -f /tmp/ft5.sql
+          python3 - <<'PY'
+          import re,pathlib
+          specs=[('supabase-engine-recipe-advanced-v1-runtime.sql','food_production_batch_complete_v1'),('supabase-beta55-restaurant-operations.sql','food_stock_count_post_v1')]
+          out=[]
+          for fn,name in specs:
+              s=pathlib.Path(fn).read_text()
+              m=re.search(r'create or replace function public\.'+name+r'\(.*?end;\$\$;',s,re.S|re.I); assert m,name
+              out.append(m.group(0))
+          pathlib.Path('/tmp/ft5funcs.sql').write_text('\n\n'.join(out))
+          PY
+          psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -v ON_ERROR_STOP=1 -f /tmp/ft5funcs.sql
+          for sig in "food_production_batch_complete_v1(bigint,numeric,jsonb,text,text)" "food_stock_count_post_v1(bigint,text,jsonb,text)"; do
+            psql postgresql://postgres:postgres@127.0.0.1:55436/postgres -Atc "select pg_get_functiondef('$sig'::regprocedure)" > /tmp/ft5-readback.sql
+            grep -q inventory_stock_assert_legacy_write_allowed_v2 /tmp/ft5-readback.sql
+            echo "PASS effective readback: $sig"
+          done
+      - name: Safety boundary
+        run: |
+          echo "SOURCE-ONLY factory"
+          echo "No Supabase credentials; no deployment; no canonical activation; no cutover mutation."

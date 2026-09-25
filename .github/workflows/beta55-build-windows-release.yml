@@ -1,0 +1,180 @@
+name: Beta55 Build Windows Release
+
+on:
+  push:
+    branches:
+      - beta55-restaurant-closure
+    paths:
+      - .github/workflows/beta55-build-windows-release.yml
+      - package.json
+      - version.json
+      - beta36-integration-loader.js
+      - beta-self-test.js
+      - restaurant-engine.js
+      - beta55-restaurant-closure-ui.js
+      - beta55-navigation-parity.js
+      - beta55-delivery-settlement-shift-cash.js
+      - beta55-ui-workflow-fixes.js
+      - beta55-ui-hardening.js
+      - beta55-central-warehouse-ui.js
+      - beta55-central-warehouse-v2.js
+      - owner-acceptance-registry-v55.js
+      - owner-acceptance-beta55-v55.js
+      - owner-acceptance-beta55-restaurant-v55.js
+      - owner-acceptance-beta55-restaurant-compat-v55.js
+      - owner-acceptance-beta55-delivery-settlement-v55.js
+      - owner-acceptance-beta55-navigation-v55.js
+      - owner-acceptance-lazy-loader-v47.js
+      - owner-acceptance-ui-v47.js
+      - supabase-beta55-central-warehouse-visibility-shortages.sql
+      - supabase-beta55-branch-request-read-model.sql
+      - supabase-beta55-shortages-allocation-hardening.sql
+      - supabase-beta55-acceptance-supply.sql
+      - supabase-beta55-restaurant-operations.sql
+      - supabase-beta55-restaurant-permissions-runtime.sql
+      - supabase-beta55-restaurant-direct-dml-hardening.sql
+      - supabase-beta55-restaurant-acceptance.sql
+      - supabase-beta55-restaurant-acceptance-anon-hardening.sql
+      - supabase-beta55-delivery-settlement-shift-cash.sql
+      - supabase-beta55-delivery-settlement-offline-bridge.sql
+      - supabase-beta55-delivery-settlement-acceptance.sql
+      - supabase-beta55-delivery-settlement-anon-hardening.sql
+      - advanced-purchasing-v1.js
+      - scripts/check-beta-self-test.js
+      - scripts/check-beta54-shared-core.js
+      - scripts/check-beta55-shared-workflows.js
+      - scripts/check-beta55-restaurant-closure.js
+      - scripts/check-beta55-restaurant-acceptance.js
+      - scripts/check-beta55-navigation-parity.js
+      - scripts/check-runtime-syntax.js
+      - scripts/sync-version.js
+      - scripts/check-version.js
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Setup Python 3.11 for node-gyp
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+          python --version
+
+      - name: Read version
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '10.5.4-beta.55') { throw "Unexpected Beta55 version: $($pkg.version)" }
+          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
+          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
+
+      - name: Synchronize runtime version in build workspace
+        run: node scripts/sync-version.js
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Verify Beta55 source and regression gates
+        run: npm run check
+
+      - name: Stamp update repository
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-x64.exe" -Force
+          Remove-Item dist -Recurse -Force
+
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "ia32 installer source not found" }
+          Copy-Item $source.FullName "Sharawla-POS-Setup-$version-ia32.exe" -Force
+
+      - name: Compute installer hashes
+        id: hash
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64 = (Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32 = (Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($x64 -eq $ia32) { throw "x64 and ia32 installers unexpectedly have the same SHA256" }
+          "x64=$x64" >> $env:GITHUB_OUTPUT
+          "ia32=$ia32" >> $env:GITHUB_OUTPUT
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content beta55-sha256.txt -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content beta55-sha256.txt -Encoding ascii
+
+      - name: Create or update Beta55 prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $version = "${{ steps.ver.outputs.version }}"
+          $notes = @"
+          Beta55 Restaurant Closure workbench for isolated SH-0007 testing.
+
+          Warehouse V2 adds a central shortages dashboard across linked branches, Min/Target policy, open-request + in-transit aware suggestions, permission-driven source stock visibility (exact / availability only / hidden), approval-time stock reservation, cancellation with reservation release, central creation of internal replenishment, and shortage-to-purchase-request integration for product stock. Existing dispatch/receive flow keeps in-transit stock separate and preserves partial fulfillment, backorder and damaged/shortage variance capture.
+
+          Branch replenishment now uses a smart read model: only the branch-assigned catalog is visible, exact central stock is not exposed without permission, and suggested quantity accounts for current branch stock, open commitments and stock already in transit.
+
+          Restaurant navigation parity now treats the live permission-filtered Sidebar as the top-level navigation model and synchronizes the Home/Dashboard cards to the same visible entries and order, including Restaurant closure pages, grouped HR, Treasury and internal supply when enabled. Home-card clicks route through the same Sidebar targets, and a critical Owner Acceptance gate fails on missing metadata or Sidebar/Dashboard drift.
+
+          Delivery cash now remains a driver custody balance after delivery until an atomic per-order or bulk settlement is received into an open shift. The shift separates gross cash sales, unsettled driver custody, settlements received and actual expected drawer cash; final payment method can be corrected at delivery, settlement retries are idempotent, source-shift sales remain separate from receiving-shift cash, and financial driver settlement is Online-only in this Beta while the existing offline delivery path remains compatible.
+
+          The same Full Acceptance Center is promoted to Beta55 and now includes dedicated Beta55 packs covering runtime wiring, purchase-order workspace / purchasing-panel dedupe / grouped HR navigation, warehouse shortage → reservation guard → partial dispatch → receive → cleanup, Restaurant closure across raw materials, UOM, purchasing/receiving, supplier return, stock count, transfer, waste, Recipe/Food Cost, Prep/Production, theoretical consumption, Tables and Sidebar ↔ Dashboard parity, plus Delivery Settlement + Shift Cash cross-shift/idempotency coverage.
+
+          Production SH-0005 / SH-0006 and Top Burger remain unchanged and read-only. Beta55 is for SH-0007 only. Accepted Beta54/Beta53/Beta52/Beta51 Offline V2 behavior, canonical identity and the two preserved historical conflicts remain unchanged. No Offline V2 migration/takeover replay is introduced.
+
+          SHA256 x64: ${{ steps.hash.outputs.x64 }}
+          SHA256 ia32: ${{ steps.hash.outputs.ia32 }}
+          "@
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --target "${{ github.sha }}" --prerelease --title "Sharawla POS $version" --notes $notes
+          }
+          $releaseId = gh api "repos/${{ github.repository }}/releases/tags/$tag" --jq ".id"
+          if (-not $releaseId) { throw "Could not resolve Beta55 release ID" }
+          gh api --method PATCH "repos/${{ github.repository }}/releases/$releaseId" -f target_commitish="${{ github.sha }}" -F prerelease=true -f make_latest=false -f body="$notes" | Out-Null
+          gh release upload $tag "Sharawla-POS-Setup-$version-x64.exe" "Sharawla-POS-Setup-$version-ia32.exe" beta55-sha256.txt --clobber
+          $latestStableTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestStableTag -match '-beta') { throw "Stable latest endpoint is pointing to beta: $latestStableTag" }

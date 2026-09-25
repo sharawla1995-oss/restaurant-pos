@@ -1,0 +1,12 @@
+{
+  "product": "Sharawla POS",
+  "version": "10.5.4-beta.58.29",
+  "channel": "beta",
+  "source": "github",
+  "windows": {
+    "supported": "Windows 7 x64",
+    "electron": "22.3.27",
+    "electronBuilder": "22.10.5"
+  },
+  "notes": "SH-0007-only acceptance corrective. Stabilizes the live Offline V2 migration-compatibility snapshot probe by retrying when the source DB changes during VACUUM INTO. No business, stock, Point4, Cloud, or Production behavior change."
+}

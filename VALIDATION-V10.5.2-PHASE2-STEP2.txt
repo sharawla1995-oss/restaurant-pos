@@ -1,0 +1,24 @@
+Sharawla POS V10.5.2 — Phase 2 Step 2 Validation
+==================================================
+
+Static requirements
+- package.json version = 10.5.2
+- version.json version = 10.5.2
+- index.html cache-busting = 10.5.2
+- service worker cache = sharawla-pos-v10.5.2
+- Runtime Core loads before Restaurant Engine before app.js
+- Restaurant page titles / role pages / permission definitions are absent from app.js
+- Restaurant Engine owns PAGE_TITLES / ALL_PAGES / ROLE_PAGES / PERMISSION_DEFS / PERMISSION_GROUPS
+- Runtime Core owns only generic metadata dispatch APIs
+- V10.5.0 Runtime Config RPC contract unchanged
+- No SQL migration required
+
+Manual regression
+1. No reactivation on existing Top Burger device.
+2. Same Support Code.
+3. Same business data and branch.
+4. POS/Kitchen/Delivery/Pickup/Website/Returns/Promo/Expenses/Reports/Customers work.
+5. Inventory remains hidden/disabled because module=false.
+6. Tables remains disabled because module=false.
+7. User permissions screen opens and saves normally.
+8. Offline startup still uses cached runtime config within license grace.

@@ -1,0 +1,11 @@
+Sharawla POS V10.5.4-beta.14 — Static Validation
+
+Required static gates:
+- package.json/version.json/index.html/sw.js version aligned to 10.5.4-beta.14.
+- Retail Engine registers code=retail and exposes page=pos gated by module=pos.
+- Barcode scanner exists only in Retail renderer and is gated by module=barcode.
+- Restaurant Engine and Sharawla Runtime Core remain byte-identical to beta.13.
+- main.js/preload.js remain byte-identical to beta.13.
+- No new SQL/DDL required for this phase; existing products.barcode field is used.
+- npm run check PASS.
+- JavaScript syntax checks PASS.

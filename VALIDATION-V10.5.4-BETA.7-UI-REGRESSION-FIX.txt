@@ -1,0 +1,14 @@
+Sharawla POS 10.5.4-beta.7 validation targets
+
+Required invariants:
+- Manual Check uses checkOnly=true and returns before asset selection/download/install UI.
+- Gate A exists before download.
+- Gate B exists after download.
+- Pre-update backup remains independent from persistDb()/createBackup() and keeps beta.6 EPERM hardening.
+- Gate C order remains Install Now -> final queue read -> blocking guard -> spawn().
+- Cashier/cart/payment/delivery base layout is not overridden by the rejected beta.6 UI hotfix.
+- Only updater/offline/sync indicator positioning is overridden.
+- Build excludes nested ZIP files.
+- Version/channel synchronized to 10.5.4-beta.7 / beta.
+
+Runtime Part 3 remains open until SH-0007 validates the full update path.

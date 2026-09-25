@@ -1,0 +1,20 @@
+name: Point4 Deployment Manifest Structural Gate
+on:
+  push:
+    branches: [beta56-offline-ownership-consolidation]
+    paths:
+      - "contracts/point4-deployment-manifest.v1.json"
+      - "contracts/point4-pre-cutover-46-guard-contracts.v1.json"
+      - "scripts/check-point4-deployment-manifest.js"
+      - "supabase-point4-*.sql"
+      - ".github/workflows/point4-deployment-manifest.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  structural:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Structural manifest gate
+        run: node scripts/check-point4-deployment-manifest.js

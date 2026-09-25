@@ -1,0 +1,39 @@
+name: Beta46 Universal Owner Diagnostics Check
+
+on:
+  push:
+    branches:
+      - beta46-universal-owner-diagnostics
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Syntax check acceptance runtime
+        run: |
+          node --check owner-diagnostics-universal-v2.js
+          node --check owner-acceptance-registry-v3.js
+          node --check owner-acceptance-network-lab.js
+          node --check owner-acceptance-e2e-v3.js
+          node --check owner-acceptance-profile-packs-v3.js
+          node --check owner-acceptance-advanced-v4.js
+          node --check owner-acceptance-recovery-permissions-v5.js
+          node --check beta46-acceptance-network-main.js
+          node --check beta46-acceptance-advanced-main.js
+          node --check beta46-acceptance-recovery-main.js
+          node --check preload.js
+          node --check main-beta44.js
+      - name: Beta46 acceptance static gates
+        run: node scripts/check-beta46-acceptance-center.js
+      - name: Run existing source gates
+        run: npm run check

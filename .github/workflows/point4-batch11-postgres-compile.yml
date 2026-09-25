@@ -1,0 +1,57 @@
+name: Point4 Batch11 Supply Request Create Semantic and PostgreSQL Compile Gate
+on:
+  push:
+    branches: [ beta56-offline-ownership-consolidation ]
+    paths:
+      - 'supabase-beta55-central-warehouse-foundation.sql'
+      - 'scripts/check-point4-batch11-supply-request-create.js'
+      - '.github/workflows/point4-batch11-postgres-compile.yml'
+permissions: { contents: read }
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGPASSWORD: postgres }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert isolation
+        run: echo "No Supabase/Beta/Production credentials are used by this workflow."
+      - name: Semantic
+        run: node scripts/check-point4-batch11-supply-request-create.js
+      - name: Build compile stubs
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          create schema auth;
+          create function auth.uid() returns uuid language sql as $$select '00000000-0000-0000-0000-000000000001'::uuid$$;
+          create function public.has_action_permission_v2(text) returns boolean language sql as $$select true$$;
+          create function public.has_branch_access(bigint) returns boolean language sql as $$select true$$;
+          create function public.current_employee_id() returns bigint language sql as $$select 1::bigint$$;
+          create function public.inventory_stock_assert_document_workflow_allowed_v2(text) returns void language plpgsql as $$begin return; end$$;
+          create table public.inventory_supply_routes(id bigint,source_location_id bigint,destination_branch_id bigint,active boolean,allow_emergency boolean);
+          create table public.inventory_supply_catalog(id bigint,route_id bigint,active boolean,item_type text,product_id bigint,ingredient_id bigint,min_request_qty numeric,max_request_qty numeric,request_multiple numeric);
+          create table public.inventory_supply_requests(id bigserial,route_id bigint,source_location_id bigint,destination_branch_id bigint,request_type text,notes text,client_tx_id text,created_by_employee_id bigint);
+          create table public.inventory_supply_request_items(request_id bigint,catalog_item_id bigint,item_type text,product_id bigint,ingredient_id bigint,quantity_requested numeric,line_note text);
+          create table public.inventory_supply_request_events(request_id bigint,from_status text,to_status text,note text,employee_id bigint,details jsonb);
+          create table public.audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
+          SQL
+      - name: Compile request create
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          s=pathlib.Path('supabase-beta55-central-warehouse-foundation.sql').read_text()
+          m=re.search(r'(?is)(create or replace function\s+public\.inventory_supply_request_create_v1\s*\(.*?end\s*\$\$;)',s)
+          assert m, 'function missing'
+          pathlib.Path('/tmp/b11.sql').write_text(m.group(1))
+          PY
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/b11.sql
+      - name: Verify effective definition
+        run: |
+          test "$(psql -h localhost -U postgres -d postgres -Atc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='inventory_supply_request_create_v1'")" = "1"
+          echo "PG_FUNCTIONS_EXIST=1"

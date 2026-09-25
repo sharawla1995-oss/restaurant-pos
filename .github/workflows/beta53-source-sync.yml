@@ -1,0 +1,64 @@
+name: Beta53 Source Sync
+
+on:
+  push:
+    branches:
+      - beta53-acceptance-coverage-stage2
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: "${{ github.event.head_commit.message == 'Beta53 - fix source sync workflow trigger' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Synchronize Beta53 Stage 2 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          pkg.version='10.5.4-beta.53';
+          pkg.description='Sharawla POS V10.5.4 Beta 53 - Offline Engine V2 / Acceptance Coverage Stage 2 / Retail Variants + Advanced Purchasing';
+          if(!String(pkg.scripts.check||'').includes('check-beta53-retail-coverage-stage2.js')){
+            pkg.scripts.check=String(pkg.scripts.check).replace(' && node scripts/check-version.js',' && node scripts/check-beta53-retail-coverage-stage2.js && node scripts/check-version.js');
+          }
+          fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+
+          const ver=JSON.parse(fs.readFileSync('version.json','utf8'));
+          ver.version='10.5.4-beta.53';
+          ver.channel='beta';
+          ver.notes='Beta53 SH-0007 Acceptance Coverage Stage 2: live Retail products/variants contract plus sandbox-safe PO → approval → GRN → supplier-return roundtrip, replenishment read-model validation, transfer atomic guard and stock-count rollback guard. Preserves accepted Beta52/Beta51 Offline V2 runtime semantics, canonical identity and two historical conflicts.';
+          fs.writeFileSync('version.json',JSON.stringify(ver,null,2)+'\n');
+
+          let sync=fs.readFileSync('scripts/sync-version.js','utf8');
+          const old="const ownerLazyDynamic=['owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-acceptance-e2e-v3.js','owner-acceptance-profile-packs-v3.js','owner-acceptance-advanced-v4.js','owner-acceptance-recovery-permissions-v5.js','owner-acceptance-ui-v47.js'];";
+          const neu="const ownerLazyDynamic=['owner-acceptance-registry-v3.js','owner-acceptance-network-lab.js','owner-acceptance-e2e-v3.js','owner-acceptance-profile-packs-v3.js','owner-acceptance-retail-coverage-v53.js','owner-acceptance-advanced-v4.js','owner-acceptance-recovery-permissions-v5.js','owner-acceptance-ui-v47.js'];";
+          if(sync.includes(old))sync=sync.replace(old,neu);
+          else if(!sync.includes("'owner-acceptance-retail-coverage-v53.js'"))throw new Error('ownerLazyDynamic signature not found');
+          sync=sync.replace('Beta52 acceptance coverage closure / durable crash evidence synchronized','Beta53 acceptance coverage Stage 2 / Retail variants + purchasing synchronized');
+          fs.writeFileSync('scripts/sync-version.js',sync);
+          NODE
+          node scripts/sync-version.js
+          npm run check
+      - name: Commit synchronized Beta53 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sharawla1995-oss"
+          git config user.email "sharawla1995@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Beta53: synchronize runtime versions"
+            git push origin HEAD:beta53-acceptance-coverage-stage2
+          fi

@@ -1,0 +1,37 @@
+name: Beta53 Source Sync V2
+
+on:
+  push:
+    branches:
+      - beta53-acceptance-coverage-stage2
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Synchronize runtime versions
+        run: node scripts/sync-version.js
+      - name: Verify source gates
+        run: npm run check
+      - name: Commit synchronized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "sharawla1995-oss"
+          git config user.email "sharawla1995@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Beta53: synchronize runtime versions"
+            git push origin HEAD:beta53-acceptance-coverage-stage2
+          fi

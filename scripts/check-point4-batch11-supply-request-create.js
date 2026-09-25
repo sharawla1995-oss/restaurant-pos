@@ -1,0 +1,20 @@
+const fs=require('fs'),s=fs.readFileSync('supabase-beta55-central-warehouse-foundation.sql','utf8');
+function fail(m){console.error('BATCH11_SUPPLY_REQUEST_CREATE_FAIL '+m);process.exit(1)}
+const sig='inventory_supply_request_create_v1(bigint,text,jsonb,text,text)';
+const a=s.indexOf('create or replace function public.inventory_supply_request_create_v1('),e=s.indexOf('\ncreate or replace function public.',a+20),c=s.slice(a,e<0?s.length:e);
+const replay=c.indexOf('if v_id is not null then return v_id;end if;');
+const validate=c.indexOf("for v in select * from jsonb_to_recordset(coalesce(p_items,'[]'::jsonb))",replay);
+const freeze=c.indexOf("v_frozen_items:=v_frozen_items||jsonb_build_array",validate);
+const count=c.indexOf("if v_count=0 then raise exception",freeze);
+const guard=c.indexOf("inventory_stock_assert_document_workflow_allowed_v2(\n   '"+sig+"'",count);
+const header=c.indexOf('insert into public.inventory_supply_requests(',guard);
+const frozenInsert=c.indexOf('from jsonb_to_recordset(v_frozen_items)',header);
+if(!(a>=0&&replay>=0&&validate>replay&&freeze>validate&&count>freeze&&guard>count&&header>guard&&frozenInsert>header))fail('boundary-order');
+if((c.match(/inventory_stock_assert_document_workflow_allowed_v2\s*\(/ig)||[]).length!==1)fail('guard-count');
+if(/insert\s+into|update\s+public\.|delete\s+from/i.test(c.slice(replay,guard)))fail('durable-write-before-guard');
+if((c.match(/jsonb_to_recordset\(coalesce\(p_items/ig)||[]).length!==1)fail('input-reparsed');
+if((c.match(/jsonb_to_recordset\(v_frozen_items\)/ig)||[]).length!==1)fail('frozen-set-not-single-execution-source');
+if(/inventory_supply_catalog/i.test(c.slice(header)))fail('catalog-rediscovery-after-commitment');
+if(!/catalog_item_id',v_c\.id[\s\S]*item_type',v_c\.item_type[\s\S]*product_id',v_c\.product_id[\s\S]*ingredient_id',v_c\.ingredient_id[\s\S]*quantity_requested',v_qty/.test(c.slice(freeze,guard)))fail('frozen-fields');
+if(/cutover-hooks|inventory_stock_activate|canonical_stock/i.test(c))fail('activation');
+console.log('BATCH11_SUPPLY_REQUEST_CREATE_PASS replay_before_validation=1 full_validation_before_guard=1 frozen_set=1 document_guard=1 first_write_header=1 same_frozen_items=1 rediscovery=0 activation=0');

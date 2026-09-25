@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "owner": "",
+  "repo": "",
+  "channel": "stable",
+  "checkEveryHours": 6
+}

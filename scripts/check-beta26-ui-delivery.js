@@ -1,0 +1,14 @@
+const fs=require('fs');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const read=f=>fs.readFileSync(path.join(root,f),'utf8');
+const pkg=JSON.parse(read('package.json'));
+if(pkg.version!=='10.5.4-beta.26')throw new Error(`Expected beta.26 package, got ${pkg.version}`);
+const suite=read('beta26-ui-delivery-acceptance.js');
+const engine=read('retail-engine.js');
+const sw=read('sw.js');
+for(const token of ['Home ↔ Sidebar Parity','Home Mirrored Card Routes','Retail POS Delivery Selector','Delivery Orders Route','Delivery Settings Route','Delivery Drivers Read','Delivery Zones Read','Website Delivery Zones Contract','Negative Stock Guard State','Inventory Movements Schema','Goods Receipt Schema','نسخ UI/Delivery','نسخ Acceptance القديم','نسخ التقريرين معًا'])if(!suite.includes(token))throw new Error(`Beta26 diagnostic invariant missing: ${token}`);
+for(const forbidden of ['SH-0005','SH-0006','kzokretuuigjhxjzdlmk.supabase.co','service_role','delete from','truncate table','drop table'])if(suite.toLowerCase().includes(forbidden.toLowerCase()))throw new Error(`Forbidden Beta26 diagnostic token: ${forbidden}`);
+if(!engine.includes("beta26-ui-delivery-acceptance.js?v=10.5.4-beta.26"))throw new Error('Retail engine does not load Beta26 diagnostic suite');
+if(!sw.includes("./beta26-ui-delivery-acceptance.js?v=10.5.4-beta.26"))throw new Error('Service worker does not cache Beta26 diagnostic suite');
+console.log('Beta26 UI/Delivery diagnostic gate OK');

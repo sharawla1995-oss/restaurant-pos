@@ -1,0 +1,21 @@
+Sharawla POS 10.5.4-beta.3 FINAL PART 3 — Static Validation
+
+Expected version: 10.5.4-beta.3
+Expected channel: beta
+
+Static safety invariants enforced by scripts/check-version.js:
+- Manual Check invokes checkOnly=true.
+- checkOnly return occurs before asset selection and before download/install dialog.
+- Offline Queue Guard exists.
+- Pre-Update Backup exists.
+- Gate C order is explicit:
+  ready.response===0
+  -> finalBeforeSpawn=updateOfflineQueueState()
+  -> blocking guard
+  -> spawn(target,['/S'],...)
+- Update safety bridge/UI exists.
+
+Packaging hygiene:
+- Historical README/SQL files excluded from this LEAN source.
+- Nested ZIPs excluded.
+- package.json excludes !**/*.zip from electron-builder inputs.
