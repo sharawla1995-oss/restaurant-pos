@@ -17,11 +17,11 @@ async function run(ctx){
  if(typeof api?.transition!=='function')throw new Error('PV2 fulfillment routing unavailable');
  if(typeof global.SharawlaOfflineV2Takeover?.saveOrderStatus!=='function')throw new Error('Offline V2 order status owner unavailable');
  if(typeof global.__SharawlaAcceptanceNetworkLab?.enable!=='function')throw new Error('Acceptance network lab unavailable');
- // Reuse a sandbox acceptance delivery/takeaway order instead of inventing business data.
- const rows=await global.rest('orders','select=id,status,order_type&status=in.(new,preparing,ready)&order=id.desc&limit=20');
- const o=(rows||[]).find(x=>Number(x.id)>0);
- if(!o)throw new Error('No sandbox order available for offline status acceptance');
- const target=text(o.status)==='new'?'preparing':text(o.status)==='preparing'?'ready':'completed';
+ const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
+ const fx=await global.rpc('sharawla_beta58_offline_status_fixture_v1',{p_run_id:ctx.run_id,p_branch_id:bid,p_kind:'status'});
+ const o={id:Number(fx?.order_id),status:'new',order_type:'takeaway'};
+ if(!o.id)throw new Error('isolated order status fixture incomplete');
+ const target='preparing';
  let tx=null,ev=null;
  await global.__SharawlaAcceptanceNetworkLab.enable('offline',{run_id:ctx.run_id});
  try{
