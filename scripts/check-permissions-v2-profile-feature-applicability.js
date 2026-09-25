@@ -1,7 +1,7 @@
 const fs=require('fs');
 const path=require('path');
 const root=path.resolve(__dirname,'..');
-const mappingPath=path.join(root,'supabase-permissions-v2-profile-feature-applicability.sql');
+const mappingPath=path.join(root,'permissions-v2-profile-feature-applicability.sql');
 const sql=fs.readFileSync(mappingPath,'utf8');
 
 const validProfiles=new Set(['restaurant','retail','pharmacy','logistics','membership','service','warehouse']);
