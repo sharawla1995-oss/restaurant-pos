@@ -23,7 +23,9 @@ if(/revoke\s+update\s+on\s+table\s+public\.orders/i.test(sql))throw new Error('P
 if(/delivery_mark_delivered_v2\s*\(/i.test(sql))throw new Error('PV2-F5A must not replace Delivery completion owner');
 if(/review_order_payment\s*\(/i.test(sql))throw new Error('PV2-F5A must not replace Website payment review owner');
 if(/accept_website_order\s*\(/i.test(sql)||/cancel_website_order_customer\s*\(/i.test(sql))throw new Error('PV2-F5A must not replace Website accept/cancel owners');
-if(loader.includes('permissions-v2-order-fulfillment-routing.js'))throw new Error('PV2-F5A helper must remain unwired');
+need(helper,"SharawlaOfflineV2Takeover",'PV2-F5A offline routing');
+need(helper,"saveOrderStatus(raw,target)",'PV2-F5A offline routing');
+need(loader,"permissions-v2-order-fulfillment-routing.js",'PV2-F5A loader wiring');
 
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
 if(direct.length!==7)throw new Error('PV2-F5A expected frozen 7 direct Orders PATCH paths, found '+direct.length);
