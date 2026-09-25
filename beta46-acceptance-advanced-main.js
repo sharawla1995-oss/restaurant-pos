@@ -1,7 +1,7 @@
 'use strict';
 const {app,ipcMain}=require('electron');
 const fs=require('fs'),path=require('path'),sqlite3=require('sqlite3');
-const VERSION='10.5.4-beta.46-advanced-main-v1';
+const VERSION='10.5.4-beta.58.29-migration-probe-v2';
 const BETA_BUSINESS_ID='91826502-590e-4afa-8826-2c0f4b99c490',BETA_SUPPORT='SH-0007';
 let installed=false;
 const text=v=>String(v??'').trim();
@@ -30,14 +30,25 @@ async function metrics(db){
 }
 async function sqliteCompatibilityProbe(){
  assertLock();const src=dbPath();if(!fs.existsSync(src))throw Object.assign(new Error('Offline V2 database not found'),{code:'ACCEPTANCE_V2_DB_MISSING'});
- const dir=userPath('acceptance-lab');fs.mkdirSync(dir,{recursive:true});const snap=path.join(dir,`compat-${process.pid}-${Date.now()}.sqlite`);let source=null,copy=null;
- try{
-  source=await open(src);await run(source,'PRAGMA busy_timeout=5000');const before=await metrics(source);await run(source,`VACUUM INTO '${qpath(snap)}'`);await close(source);source=null;
-  copy=await open(snap,sqlite3.OPEN_READONLY);const after=await metrics(copy);await close(copy);copy=null;
-  const same=JSON.stringify(before.counts)===JSON.stringify(after.counts)&&before.outbox.rows===after.outbox.rows&&before.outbox.max_sequence===after.outbox.max_sequence;
-  const ok=before.integrity==='ok'&&after.integrity==='ok'&&!before.missing.length&&!after.missing.length&&before.outbox.duplicate_tx===0&&before.outbox.duplicate_sequence===0&&same;
-  return {ok,version:VERSION,source_integrity:before.integrity,snapshot_integrity:after.integrity,schema_missing:after.missing,counts_preserved:same,before:{counts:before.counts,outbox:before.outbox},after:{counts:after.counts,outbox:after.outbox}};
- }finally{try{if(source)await close(source)}catch{}try{if(copy)await close(copy)}catch{}try{if(fs.existsSync(snap))fs.unlinkSync(snap)}catch{}}
+ const dir=userPath('acceptance-lab');fs.mkdirSync(dir,{recursive:true});let last=null;
+ for(let attempt=1;attempt<=5;attempt++){
+  const snap=path.join(dir,`compat-${process.pid}-${Date.now()}-${attempt}.sqlite`);let source=null,copy=null;
+  try{
+   source=await open(src);await run(source,'PRAGMA busy_timeout=5000');
+   const before=await metrics(source);
+   await run(source,`VACUUM INTO '${qpath(snap)}'`);
+   const afterSource=await metrics(source);
+   await close(source);source=null;
+   copy=await open(snap,sqlite3.OPEN_READONLY);const after=await metrics(copy);await close(copy);copy=null;
+   const sameSource=JSON.stringify(before.counts)===JSON.stringify(afterSource.counts)&&before.outbox.rows===afterSource.outbox.rows&&before.outbox.max_sequence===afterSource.outbox.max_sequence;
+   const sameSnapshot=JSON.stringify(before.counts)===JSON.stringify(after.counts)&&before.outbox.rows===after.outbox.rows&&before.outbox.max_sequence===after.outbox.max_sequence;
+   const structuralOk=before.integrity==='ok'&&after.integrity==='ok'&&!before.missing.length&&!after.missing.length&&before.outbox.duplicate_tx===0&&before.outbox.duplicate_sequence===0;
+   last={ok:sameSource&&sameSnapshot&&structuralOk,version:VERSION,attempts:attempt,source_changed_during_probe:!sameSource,source_integrity:before.integrity,snapshot_integrity:after.integrity,schema_missing:after.missing,counts_preserved:sameSource?sameSnapshot:null,before:{counts:before.counts,outbox:before.outbox},source_after:{counts:afterSource.counts,outbox:afterSource.outbox},after:{counts:after.counts,outbox:after.outbox}};
+   if(sameSource)return last;
+  }finally{try{if(source)await close(source)}catch{}try{if(copy)await close(copy)}catch{}try{if(fs.existsSync(snap))fs.unlinkSync(snap)}catch{}}
+  await new Promise(resolve=>setTimeout(resolve,250));
+ }
+ return {...(last||{}),ok:false,version:VERSION,reason:'source_changed_during_probe',counts_preserved:null};
 }
 function writeMarker(input={}){assertLock();const runId=text(input.run_id),point=text(input.point);if(!/^ACC-[0-9]{8}-[0-9]{6}-[A-Z0-9]{5}$/.test(runId))throw new Error('Acceptance run id invalid');const allowed=new Set(['after_local_commit','during_sync','after_server_commit_before_ack','during_backup']);if(!allowed.has(point))throw new Error(`Unsupported crash point: ${point}`);const m={version:VERSION,run_id:runId,point,phase:'marker_written_before_relaunch',created_at:new Date().toISOString(),pid:process.pid};fs.writeFileSync(markerPath(),JSON.stringify(m),'utf8');return m}
 function crashMarker(){assertLock();const p=markerPath();try{const stat=fs.statSync(p),marker=JSON.parse(fs.readFileSync(p,'utf8'));return {ok:true,marker,path:p,exists:true,mtime:new Date(stat.mtimeMs).toISOString(),size:Number(stat.size||0),read_at:new Date().toISOString()}}catch(e){return {ok:true,marker:null,path:p,exists:fs.existsSync(p),read_at:new Date().toISOString(),read_error:text(e?.message||e)}}}
