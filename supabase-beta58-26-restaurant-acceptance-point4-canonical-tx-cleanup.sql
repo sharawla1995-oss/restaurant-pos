@@ -120,7 +120,7 @@ begin
   delete from public.ingredients where id=any(v_ingredients);
   delete from public.branch_products where product_id=any(v_products);
   delete from public.products where id=any(v_products);
-  delete from public.shifts where id=any(v_shifts);
+  -- Permissions V2 intentionally makes shift history immutable. Acceptance cleanup must not DELETE shifts.\n  update public.shifts\n     set status='closed',closed_at=coalesce(closed_at,now()),closed_by_employee_id=coalesce(closed_by_employee_id,employee_id),close_notes=coalesce(close_notes,v_marker||':IMMUTABLE')\n   where id=any(v_shifts) and status is distinct from 'closed';
 
   select
     (select count(*) from public.products where name='B55 Restaurant '||v_run)+
@@ -135,7 +135,7 @@ begin
     (select count(*) from public.restaurant_table_sessions where client_tx_id like v_run||'-B55R-%')+
     (select count(*) from public.orders where client_tx_id like v_run||'-B55R-%' or notes=v_marker)+
     (select count(*) from public.returns where client_tx_id like v_run||'-B55R-%' or notes=v_marker or order_id=any(v_orders))+
-    (select count(*) from public.shifts where client_open_tx_id=v_run||'-B55R-SHIFT')
+    0 -- immutable acceptance shift history is not cleanup residue
   into v_residue;
 
   return jsonb_build_object('ok',v_residue=0,'run_id',v_run,'residue',v_residue);
