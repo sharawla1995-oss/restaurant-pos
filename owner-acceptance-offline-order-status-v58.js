@@ -16,6 +16,7 @@ async function ownerReceipt(tx){const r=await global.rest('offline_order_status_
 async function run(ctx){
  const api=global.__SharawlaPV2OrderFulfillment;
  if(typeof api?.transition!=='function')throw new Error('PV2 fulfillment routing unavailable');
+ if(typeof global.SharawlaOfflineV2Takeover?.saveOrderStatus!=='function')throw new Error('Offline V2 order status owner unavailable');
  if(typeof global.__SharawlaAcceptanceNetworkLab?.enable!=='function')throw new Error('Acceptance network lab unavailable');
  // Reuse a sandbox acceptance delivery/takeaway order instead of inventing business data.
  const rows=await global.rest('orders','select=id,status,order_type&status=in.(new,preparing,ready)&order=id.desc&limit=20');
@@ -27,7 +28,7 @@ async function run(ctx){
  try{
    const before=await global.topBurgerDesktop?.offlineV2?.health?.();
    let transitionResult=null;
-   try{transitionResult=await api.transition(Number(o.id),target)}catch(e){if(!/fetch|network|offline|deferred/i.test(text(e?.message||e))&&!e?.offline_v2_status)throw e}
+   try{transitionResult=await global.SharawlaOfflineV2Takeover.saveOrderStatus(Number(o.id),target)}catch(e){if(!/fetch|network|offline|deferred/i.test(text(e?.message||e))&&!e?.offline_v2_status)throw e}
    const after=await global.topBurgerDesktop?.offlineV2?.health?.();
    tx=text(transitionResult?.client_tx_id);
    if(!tx)throw new Error('Order status transition did not return client_tx_id');
