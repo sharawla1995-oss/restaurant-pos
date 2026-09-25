@@ -168,7 +168,7 @@ function durableError(row,tx){const e=new Error(text(row?.last_error_message)||`
 function numericServerId(v){const n=Number(v);return Number.isFinite(n)&&n>0}
 function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
-  if(type==='return')return !numericServerId(payload?.p_order_id);
+  if(type==='return'||type==='order_status')return !numericServerId(payload?.p_order_id);
   return false;
 }
 function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
