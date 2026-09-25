@@ -31,15 +31,17 @@ async function customerChain(ctx){
  return {status:'PASS',detail:`customer=${cid}; address=${aid}; dependency=ACK-mapped; replay=stable`,evidence:{customer_id:cid,address_id:aid,parent_tx:parent,child_tx:child,parent_sequence:pe.device_sequence,child_sequence:ce.device_sequence}};
 }
 async function customerMutations(ctx){
- const rows=await global.rest('customers','select=id,name,phone&order=id.desc&limit=20'),base=(rows||[]).find(x=>Number(x.id)>0);if(!base)throw new Error('existing customer required');
- const updateTx=uuid();await durable('offline_customer_update_v1',{p_customer_id:Number(base.id),p_name:text(base.name)||'Acceptance Customer',p_phone:text(base.phone),p_area:'Offline Updated',p_address:'Updated',p_notes:'OFFLINE_UPDATE'},updateTx);await sync(updateTx);
- const addrTx=uuid();await durable('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:Number(base.id),p_label:'Acceptance',p_area:'Offline',p_address:'Offline Address',p_notes:'E2E',p_is_default:false},addrTx);const addrDone=await sync(addrTx);
+ const marker=`MUT-${String(ctx.run_id).slice(-6)}-${Date.now().toString().slice(-5)}`,phone='012'+String(Date.now()).slice(-8),createTx=uuid();
+ await durable('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Fixture',p_notes:'MUTATION_FIXTURE'},createTx);
+ const created=await sync(createTx),baseId=Number(ack(created).server_entity_id);if(!baseId)throw new Error('mutation fixture customer id missing');
+ const updateTx=uuid();await durable('offline_customer_update_v1',{p_customer_id:baseId,p_name:marker,p_phone:phone,p_area:'Offline Updated',p_address:'Updated',p_notes:'OFFLINE_UPDATE'},updateTx);await sync(updateTx);
+ const addrTx=uuid();await durable('offline_customer_address_save_v1',{p_address_id:null,p_customer_id:baseId,p_label:'Acceptance',p_area:'Offline',p_address:'Offline Address',p_notes:'E2E',p_is_default:false},addrTx);const addrDone=await sync(addrTx);
  const aid=Number(ack(addrDone).server_entity_id);if(!aid)throw new Error('offline address save id missing');
  const delTx=uuid();await durable('offline_customer_address_delete_v1',{p_address_id:aid},delTx);await sync(delTx);
- const cloud=(await global.rest('customers',`select=id,area,address,notes&id=eq.${Number(base.id)}&limit=1`))?.[0],deleted=await global.rest('customer_addresses',`select=id&id=eq.${aid}&limit=1`);
+ const cloud=(await global.rest('customers',`select=id,area,address,notes&id=eq.${baseId}&limit=1`))?.[0],deleted=await global.rest('customer_addresses',`select=id&id=eq.${aid}&limit=1`);
  if(text(cloud?.area)!=='Offline Updated'||text(cloud?.address)!=='Updated'||deleted.length!==0)throw new Error('customer update/address mutation reconciliation mismatch');
- for(const tx of [updateTx,addrTx,delTx]){ack(await event(tx))}
- return {status:'PASS',detail:`customer=${base.id}; update+address-save+delete synced; receipts=3`,evidence:{customer_id:base.id,update_tx:updateTx,address_tx:addrTx,delete_tx:delTx,address_id:aid}};
+ for(const tx of [createTx,updateTx,addrTx,delTx]){ack(await event(tx))}
+ return {status:'PASS',detail:`customer=${baseId}; isolated create+update+address-save+delete synced; receipts=4`,evidence:{customer_id:baseId,create_tx:createTx,update_tx:updateTx,address_tx:addrTx,delete_tx:delTx,address_id:aid}};
 }
 async function driver(ctx){
  const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
