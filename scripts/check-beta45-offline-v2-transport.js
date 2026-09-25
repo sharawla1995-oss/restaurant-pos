@@ -122,5 +122,14 @@ function appRuntimeConfigInterface(posProfile){
   // Legacy-preserved migration shadows can never be stolen by V2 transport.
   {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-legacy';h.rows.set(tx,{client_tx_id:tx,status:'blocked',last_error_code:'OFFLINE_V2_LEGACY_PRESERVED',last_error_message:'legacy authority'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),0)}
 
+  // Diagnostics must use the transport-owned read-only sqlite query helper; this
+  // prevents Sync Now diagnostics from failing before the sync engine can claim work.
+  {const src=fs.readFileSync(path.join(root,'beta45-offline-v2-transport.js'),'utf8');
+   assert(src.includes("function all(sql,params=[]){return new Promise((resolve,reject)=>db.all(sql,params,(err,rows)=>err?reject(err):resolve(rows||[])))}"));
+   assert(!src.includes('_allForTransportDiagnostics'));
+   assert(src.includes("const rows=await all(\`SELECT employee_id,status,COUNT(*) count"));
+   assert(src.includes("const due=await all(\`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id"));
+  }
+
   console.log('Beta45 Offline V2 Phase 5 authoritative transport / conflict / retry / DLQ gate PASS');
 })().catch(e=>{console.error(e);process.exit(1)});
