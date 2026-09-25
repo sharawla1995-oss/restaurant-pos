@@ -27,6 +27,7 @@ function hydrate(row){if(!row)return null;const envelope=parseJson(row.envelope_
 
 function run(sql,params=[]){return new Promise((resolve,reject)=>db.run(sql,params,function(err){if(err)reject(err);else resolve({changes:this.changes,lastID:this.lastID})}))}
 function get(sql,params=[]){return new Promise((resolve,reject)=>db.get(sql,params,(err,row)=>err?reject(err):resolve(row)))}
+function all(sql,params=[]){return new Promise((resolve,reject)=>db.all(sql,params,(err,rows)=>err?reject(err):resolve(rows||[])))}
 function exec(sql){return new Promise((resolve,reject)=>db.exec(sql,err=>err?reject(err):resolve(true)))}
 function serial(fn){const next=writeChain.then(fn,fn);writeChain=next.catch(()=>{});return next}
 async function openDb(){
@@ -152,7 +153,7 @@ async function pendingScopeDiagnostics(ctx){
   const groups=rows.map(r=>({employee_id:num(r.employee_id),status:text(r.status),count:num(r.count),first_sequence:num(r.first_sequence),last_sequence:num(r.last_sequence)}));
   const outside=groups.filter(r=>r.employee_id!==currentEmployeeId);
   const current=groups.filter(r=>r.employee_id===currentEmployeeId);
-  const due=await installOfflineV2Transport._store._allForTransportDiagnostics(`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id,
+  const due=await all(`SELECT device_sequence,client_tx_id,status,next_retry_at,depends_on_tx_id,
       CASE WHEN next_retry_at IS NULL OR next_retry_at<=? THEN 1 ELSE 0 END retry_due,
       CASE WHEN depends_on_tx_id IS NULL OR EXISTS(
         SELECT 1 FROM offline_v2_outbox p WHERE p.client_tx_id=offline_v2_outbox.depends_on_tx_id AND p.status='synced'
