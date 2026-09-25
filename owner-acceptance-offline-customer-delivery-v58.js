@@ -42,9 +42,9 @@ async function customerMutations(ctx){
  return {status:'PASS',detail:`customer=${base.id}; update+address-save+delete synced; receipts=3`,evidence:{customer_id:base.id,update_tx:updateTx,address_tx:addrTx,delete_tx:delTx,address_id:aid}};
 }
 async function driver(ctx){
- const orders=await global.rest('orders','select=id,branch_id,status,order_type,driver_id&order_type=eq.delivery&status=eq.ready&order=id.desc&limit=20');let o=null,d=null;
- for(const x of orders||[]){const ds=await global.rest('delivery_drivers',`select=id,branch_id,active&branch_id=eq.${Number(x.branch_id)}&active=eq.true&limit=1`);if(ds?.[0]){o=x;d=ds[0];break}}
- if(!o||!d)throw new Error('ready delivery order + active driver required');
+ const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
+ const fx=await global.rpc('sharawla_beta58_offline_driver_fixture_v1',{p_run_id:ctx.run_id,p_branch_id:bid});
+ const o={id:Number(fx?.order_id),branch_id:bid},d={id:Number(fx?.driver_id)};if(!o.id||!d.id)throw new Error('offline driver fixture incomplete');
  const tx=uuid();await durable('offline_delivery_assign_driver_v1',{p_order_id:Number(o.id),p_driver_id:Number(d.id)},tx);
  const done=await sync(tx),a=ack(done),cloud=(await global.rest('orders',`select=id,status,driver_id,assigned_at&id=eq.${Number(o.id)}&limit=1`))?.[0];
  if(text(a.operation_type)!=='delivery_assign_driver'||text(a.rpc_name)!=='offline_delivery_assign_driver_v1')throw new Error('driver assignment ACK mismatch');
