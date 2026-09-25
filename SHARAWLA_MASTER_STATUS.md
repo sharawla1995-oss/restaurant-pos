@@ -3115,3 +3115,37 @@ Restaurant gate status:
 - G1 CLOSED
 - G2 OPEN / MANUAL / blocked by physical touch hardware availability
 - G3 CLOSED
+
+
+## Permissions V2 — Profile / Feature Applicability
+
+Official closure contract:
+`docs/PERMISSIONS-V2-PROFILE-FEATURE-APPLICABILITY-CLOSURE.md`
+
+Runtime findings:
+- Advanced Permissions UI is present and operational.
+- Explicit Action override deny was Runtime-confirmed using employee `mo` on `delivery.mark_delivered`.
+- Current Action catalog is global and not Profile-aware.
+- Current `has_action_permission_v2` is not Profile-aware.
+- Current "inherit" means legacy POS permission inheritance, not Sharawla Admin inheritance.
+- Action catalog presence does not prove owner enforcement; e.g. some Core UI paths still use direct table writes.
+
+Trusted authority:
+- Sharawla Cloud `pos_profile_id` is the authoritative Business Profile source.
+- SH-0007 Beta Business resolves to Profile `restaurant`.
+- legacy `business_type` is not authorization authority.
+
+Required final chain:
+Cloud entitlement -> Trusted Profile -> Feature applicability -> Role default -> User override -> Location -> Business invariant.
+
+Permissions V2 status:
+IN PROGRESS / NOT CLOSED.
+
+Next implementation sequence:
+PV2-A Applicability
+-> PV2-B Trusted Profile
+-> PV2-C Effective evaluator
+-> PV2-D UI filtering
+-> PV2-E Role defaults
+-> PV2-F Owner coverage
+-> PV2-G Runtime acceptance.
