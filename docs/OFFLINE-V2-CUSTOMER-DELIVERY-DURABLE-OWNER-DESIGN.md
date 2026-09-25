@@ -44,7 +44,19 @@ Offline delivered continues through order_status_apply_offline_v2, which delegat
 - delivery_cash_custody_amount equals order total for cash and zero for non-cash;
 - repeated sync does not change custody or duplicate payment events/receipts.
 
-Changing payment method while offline is a separate future durable operation. Until implemented, Offline delivery completion uses the payment method already stored on the order.
+### Payment-method change while Offline — explicit boundary
+Changing the final delivery payment method while the device is Offline is intentionally NOT part of the current durable scope.
+
+Reason: the accepted interactive Online flow refreshes branch payment eligibility from the server immediately before the choice, then calls delivery_mark_delivered_v2 with the selected final method. An Offline device cannot prove that a different method is still active/allowed for that branch at the action boundary without a separately frozen eligibility contract.
+
+Therefore the fail-closed rule for this release is:
+- Offline delivery completion may use only the payment_method already stored on the durable order snapshot.
+- The renderer must not offer or queue an Offline payment-method change.
+- A different final method requires reconnecting and using the accepted Online delivery_mark_delivered_v2 flow.
+- No local mutation of payment_method, order_payments, custody, or delivery_payment_events is permitted to simulate a payment change.
+- A future Offline payment-change feature requires its own frozen eligibility snapshot/version, idempotent durable owner, and economic-equivalence acceptance before enablement.
+
+This is a deliberate product boundary, not an unresolved implementation defect.
 
 ## Acceptance gates
 Customer: create, create+dependent-address, update existing, address edit/delete, restart before sync, lost ACK/replay, receipt cardinality, cache/cloud reconciliation.
