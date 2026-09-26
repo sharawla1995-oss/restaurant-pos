@@ -10,7 +10,7 @@ const match=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 if(!match||Number(match[1])<45)throw new Error(`Offline V2 final integration requires 10.5.4-beta.45+, got ${version}`);
 if(ver.version!==version||ver.channel!=='beta')throw new Error('Offline V2 final version.json mismatch');
 if(pkg.main!=='main-beta44.js')throw new Error('Offline V2 must preserve the protected Beta44 main wrapper');
-if(!String(pkg.description||'').includes('Offline Engine V2'))throw new Error('Release description must identify Offline Engine V2');
+const description=String(pkg.description||'');if(!description.includes('Offline')||!description.includes('SH-0007'))throw new Error('Release description must identify Offline SH-0007 acceptance scope');
 
 const index=read('index.html'),sw=read('sw.js'),preload=read('preload.js'),main44=read('main-beta44.js');
 const selfTest=read('beta-self-test.js'),takeover=read('beta45-offline-v2-takeover-manager.js'),transport=read('beta45-offline-v2-transport.js');
