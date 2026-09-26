@@ -1466,17 +1466,58 @@ async function renderCustomers(){
 }
 async function openCustomerAddresses(customerId){const rows=await rest('customer_addresses',`select=*&customer_id=eq.${customerId}&order=is_default.desc,id.desc`);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>عناوين العميل</h2><div class="option-list">${rows.map(a=>`<div class="manage-row"><span>${esc(a.label||a.area||'عنوان')} — ${esc(a.address||'')}</span><span><button class="secondary" data-edit-address="${a.id}">✏️</button><button class="danger" data-delete-address="${a.id}">🗑️</button></span></div>`).join('')||'<div class="empty">لا توجد عناوين</div>'}</div><button class="secondary" data-add-address>+ إضافة عنوان</button><div class="modal-actions"><button class="primary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}const add=e.target.closest('[data-add-address]');if(add){const label=await uiPrompt('اسم العنوان','المنزل');if(label===null)return;const area=await uiPrompt('المنطقة','');if(area===null)return;const address=await uiPrompt('العنوان بالتفصيل','');if(address===null||!address.trim())return;const router=globalThis.__SharawlaPV2CustomerEditAddress;if(typeof router?.saveAddress!=='function')throw new Error('مسار عناوين العميل غير جاهز');await router.saveAddress({customer_id:customerId,label,area,address,is_default:rows.length===0});m.remove();openCustomerAddresses(customerId);return}const ed=e.target.closest('[data-edit-address]');if(ed){const a=rows.find(x=>String(x.id)===ed.dataset.editAddress);const label=await uiPrompt('اسم العنوان',a.label||'');if(label===null)return;const area=await uiPrompt('المنطقة',a.area||'');if(area===null)return;const address=await uiPrompt('العنوان',a.address||'');if(address===null)return;const router=globalThis.__SharawlaPV2CustomerEditAddress;if(typeof router?.saveAddress!=='function')throw new Error('مسار عناوين العميل غير جاهز');await router.saveAddress({id:a.id,customer_id:customerId,label,area,address,notes:a.notes||null,is_default:a.is_default===true});m.remove();openCustomerAddresses(customerId);return}const del=e.target.closest('[data-delete-address]');if(del&&await uiConfirm('حذف هذا العنوان؟')){const router=globalThis.__SharawlaPV2CustomerEditAddress;if(typeof router?.deleteAddress!=='function')throw new Error('مسار عناوين العميل غير جاهز');await router.deleteAddress(Number(del.dataset.deleteAddress));m.remove();openCustomerAddresses(customerId)}}}
 
+async function pendingOfflineDeliveryOrders(){
+ const byTx=new Map();
+ try{
+  const q=await offlineQueue();
+  for(const j of (q||[])){
+   if(j?.type!=='sale'||j?.local_order?.order_type!=='delivery')continue;
+   const o={...j.local_order,_offline:true,_offline_status:'pending',client_tx_id:j.client_tx_id};
+   byTx.set(String(j.client_tx_id||o.client_tx_id||o.id),o);
+  }
+ }catch(e){console.warn('delivery legacy local projection',e)}
+ try{
+  const api=window.topBurgerDesktop?.offlineV2;
+  if(api?.outbox){
+   const rows=await api.outbox();
+   for(const r of (rows||[])){
+    if(r.operation_type!=='sale'||r.status==='synced')continue;
+    const p=r.envelope?.payload?.rpc_payload?.p_order||{};
+    if(p.order_type!=='delivery')continue;
+    const key=String(r.client_tx_id||'');
+    const old=byTx.get(key)||{};
+    byTx.set(key,{...p,...old,id:old.id||r.local_entity_id||`offline-${key}`,client_tx_id:key,_offline:true,_offline_status:String(r.status||old._offline_status||'pending'),created_at:old.created_at||r.created_local_at||r.created_at||null});
+   }
+  }
+ }catch(e){console.warn('delivery Offline V2 local projection',e)}
+ return [...byTx.values()];
+}
+function mergeDeliveryCurrentOrders(cached=[],local=[]){
+ const out=[],seen=new Set();
+ for(const o of [...local,...cached]){
+  const key=String(o?.client_tx_id||o?.id||'');if(!key||seen.has(key))continue;
+  seen.add(key);out.push(o);
+ }
+ return out.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+}
 async function renderDelivery(){
  $('#page').innerHTML=`<div class="panel"><h2>تحميل شاشة الدليفري...</h2></div>`;
- let drivers=[],zones=[],outOrders=[];
- try{drivers=await rest('delivery_drivers','select=*&order=active.desc,name')}catch(e){console.error('drivers',e)}
- try{zones=await rest('delivery_zones','select=*&order=active.desc,name')}catch(e){console.error('zones',e)}
- try{outOrders=await rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=100')}catch(e){console.error('delivery orders',e)}
+ let drivers=[],zones=[],outOrders=[],deliveryOnline=true,deliveryCacheAt=null;
+ try{drivers=await rest('delivery_drivers','select=*&order=active.desc,name');state.drivers=drivers||[];await odbSet('deliveryDriversCache',drivers||[])}catch(e){if(!isNetError(e))throw e;deliveryOnline=false;drivers=(await odbGet('deliveryDriversCache'))||state.drivers||[]}
+ try{zones=await rest('delivery_zones','select=*&order=active.desc,name');state.deliveryZones=zones||[];await odbSet('deliveryZonesCache',zones||[])}catch(e){if(!isNetError(e))throw e;deliveryOnline=false;zones=(await odbGet('deliveryZonesCache'))||state.deliveryZones||[]}
+ try{
+  outOrders=await rest('orders','select=*&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=100');
+  deliveryCacheAt=new Date().toISOString();await odbSet('deliveryCurrentOrdersCache',outOrders||[]);await odbSet('deliveryCurrentOrdersCacheAt',deliveryCacheAt);
+ }catch(e){
+  if(!isNetError(e))throw e;deliveryOnline=false;outOrders=(await odbGet('deliveryCurrentOrdersCache'))||[];deliveryCacheAt=await odbGet('deliveryCurrentOrdersCacheAt');
+ }
+ const localDelivery=await pendingOfflineDeliveryOrders();
+ outOrders=mergeDeliveryCurrentOrders(outOrders,localDelivery);
  state.drivers=drivers||[]; state.deliveryZones=zones||[];
  $('#page').innerHTML=`<div class="grid delivery-admin-grid">
  <div class="panel"><h2>🛵 مناديب التوصيل</h2><div class="form-grid"><label>الاسم<input id="driverName" placeholder="اسم المندوب"></label><label>الموبايل<input id="driverPhone" inputmode="tel" placeholder="رقم الموبايل"></label><label>الفرع<select id="driverBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="chips">${drivers.map(d=>`<span class="chip">${d.name} • ${branchName(d.branch_id)}</span>`).join('')||'لا يوجد مناديب حتى الآن'}</div></div>
  <div class="panel"><h2>📍 مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName" placeholder="اسم المنطقة"></label><label>الفرع المسؤول<select id="zoneBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label><label>رسوم التوصيل<input id="zoneFee" type="number" min="0" step="0.01" value="0"></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="chips">${zones.map(z=>`<span class="chip">${z.name} • ${money(z.delivery_fee)} • ${branchName(z.branch_id)}</span>`).join('')||'لا توجد مناطق حتى الآن'}</div></div></div>
- <div class="panel"><h2>طلبات الدليفري الحالية</h2><div class="table-wrap"><table><thead><tr><th>الأوردر</th><th>الفرع</th><th>العميل</th><th>العنوان</th><th>الحالة</th><th>المندوب</th><th>إجراء</th></tr></thead><tbody>${outOrders.length?outOrders.map(o=>`<tr><td>${esc(bonDisplay(o))}</td><td>${branchName(o.branch_id)}</td><td>${o.customer_phone||'-'}</td><td>${o.delivery_address||'-'}</td><td>${statusLabel(o.status)}</td><td>${drivers.find(d=>String(d.id)===String(o.driver_id))?.name||'-'}</td><td>${o.status!=='out_for_delivery'?`<button class="secondary" data-assign="${o.id}">تسليم لمندوب</button>`:`<button class="primary" data-delivered="${o.id}">تم التسليم</button>`}</td></tr>`).join(''):'<tr><td colspan="7">لا توجد طلبات دليفري حالية</td></tr>'}</tbody></table></div></div>`;
+ <div class="panel"><h2>طلبات الدليفري الحالية</h2>${deliveryOnline?'':`<p class="hint">وضع Offline: الطلبات من آخر Cache محفوظة على الجهاز + الحركات المحلية المعلقة${deliveryCacheAt?` • آخر تحديث ${fmtDate(deliveryCacheAt)}`:''}.</p>`}<div class="table-wrap"><table><thead><tr><th>الأوردر</th><th>الفرع</th><th>العميل</th><th>العنوان</th><th>الحالة</th><th>المندوب</th><th>إجراء</th></tr></thead><tbody>${outOrders.length?outOrders.map(o=>{const local=o._offline===true,st=String(o._offline_status||'');const localState=local?(st==='conflict'||st==='dead_letter'?'مشكلة مزامنة':'محلي — بانتظار المزامنة'):'';const orderRef=local?(o.bon_number||o.invoice_number||'محلي'):bonDisplay(o);const action=local?'<span class="tag">بانتظار المزامنة</span>':(o.status!=='out_for_delivery'?`<button class="secondary" data-assign="${o.id}">تسليم لمندوب</button>`:`<button class="primary" data-delivered="${o.id}">تم التسليم</button>`);return `<tr><td>${esc(orderRef)}${localState?`<small style="display:block">${esc(localState)}</small>`:''}</td><td>${branchName(o.branch_id)}</td><td>${esc(o.customer_phone||'-')}</td><td>${esc(o.delivery_address||'-')}</td><td>${statusLabel(o.status)}</td><td>${esc(drivers.find(d=>String(d.id)===String(o.driver_id))?.name||'-')}</td><td>${action}</td></tr>`}).join(''):'<tr><td colspan="7">لا توجد طلبات دليفري حالية</td></tr>'}</tbody></table></div></div>`;
  $('#addDriver').onclick=async()=>{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');const router=globalThis.__SharawlaPV2DeliverySettings;if(typeof router?.saveDriver!=='function')throw new Error('مسار إدارة المناديب غير جاهز');await router.saveDriver({name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:currentBranchId(),active:true});toast('تمت إضافة المندوب');renderDelivery()};
  $('#addZone').onclick=async()=>{const zoneNameValue=$('#zoneName').value.trim(),zoneFeeValue=Number($('#zoneFee')?.value||0);if(!zoneNameValue)return toast('اكتب اسم المنطقة');if(!Number.isFinite(zoneFeeValue)||zoneFeeValue<0)return toast('رسوم التوصيل غير صحيحة');const router=globalThis.__SharawlaPV2DeliverySettings;if(typeof router?.saveZone!=='function')throw new Error('مسار إدارة المناطق غير جاهز');await router.saveZone({name:zoneNameValue,delivery_fee:zoneFeeValue,branch_id:currentBranchId(),active:true});toast('تمت إضافة المنطقة');renderDelivery()};
  $('#page').onclick=async e=>{
