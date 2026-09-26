@@ -1,15 +1,27 @@
 -- Sharawla RC1 Practical Offline — Customer -> Sale ACK Linkage V1
--- SOURCE ONLY until explicitly deployed to isolated Beta SH-0007.
--- Production SH-0005 / SH-0006 are out of scope.
--- This additive final-definition patch keeps the accepted primary Shift dependency
--- and adds an authenticated customer mapping dependency for Offline-created customers.
+-- SOURCE ONLY. Intended for isolated Beta SH-0007 only after explicit review/deployment authorization.
+-- Production SH-0005 / SH-0006 remain out of scope.
+-- Built from the deployed Beta Outer definition returned by pg_get_functiondef.
+-- Required pre-patch Outer MD5: a269349dbc9a71f453e12699bc0617ce
 
-create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
+begin;
+
+do $pre$
+declare v_md5 text;
+begin
+  select md5(pg_get_functiondef('public.sharawla_offline_v2_apply_event(jsonb)'::regprocedure)) into v_md5;
+  if v_md5 is distinct from 'a269349dbc9a71f453e12699bc0617ce' then
+    raise exception 'RC1 customer-sale linkage refused: Offline V2 Outer drifted (md5=%)', v_md5;
+  end if;
+end;
+$pre$;
+
+CREATE OR REPLACE FUNCTION public.sharawla_offline_v2_apply_event(p_event jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 declare
   v_tx text := nullif(trim(coalesce(p_event->>'client_tx_id','')), '');
   v_digest text := nullif(trim(coalesce(p_event->>'payload_digest','')), '');
@@ -91,37 +103,6 @@ begin
     end if;
   end if;
 
-  if v_operation='sale' then
-    v_customer_dep_tx := nullif(trim(coalesce(v_payload#>>'{p_order,customer_create_tx}','')), '');
-    if v_customer_dep_tx is not null then
-      v_customer_dep_map_tx := nullif(trim(coalesce(p_event#>>'{customer_dependency_mapping,client_tx_id}','')), '');
-      v_customer_dep_server_id := nullif(trim(coalesce(p_event#>>'{customer_dependency_mapping,server_id}','')), '');
-      if nullif(trim(coalesce(v_payload#>>'{p_order,customer_id}','')), '') is not null then
-        raise exception using errcode='22023', message='Offline V2 sale customer dependency requires null customer_id before mapping';
-      end if;
-      if v_customer_dep_map_tx is distinct from v_customer_dep_tx or v_customer_dep_server_id is null then
-        raise exception using errcode='22023', message='Offline V2 customer dependency mapping غير مكتملة';
-      end if;
-      if not exists(
-        select 1 from public.offline_v2_server_receipts r
-        where r.client_tx_id=v_customer_dep_tx
-          and r.operation_type='customer_create'
-          and r.server_entity_id=v_customer_dep_server_id
-          and r.device_id=v_device_id
-          and r.branch_id=v_branch
-          and r.employee_id=v_employee
-          and r.auth_user_id=auth.uid()
-      ) then
-        raise exception using errcode='22023', message='Offline V2 customer dependency mapping غير موثقة';
-      end if;
-      v_payload := jsonb_set(
-        v_payload,
-        '{p_order}',
-        jsonb_set(coalesce(v_payload->'p_order','{}'::jsonb),'{customer_id}',to_jsonb(v_customer_dep_server_id::bigint),true) - 'customer_create_tx',
-        true
-      );
-    end if;
-  end if;
   if v_dep_tx is not null then
     if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
       raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
@@ -168,6 +149,41 @@ begin
     );
   end if;
 
+  -- RC1 customer -> sale linkage. This is intentionally after the locked replay
+  -- return above, so a full replay never re-evaluates current dependency state.
+  if v_operation='sale' then
+    v_customer_dep_tx := nullif(trim(coalesce(v_payload#>>'{p_order,customer_create_tx}','')), '');
+    if v_customer_dep_tx is not null then
+      v_customer_dep_map_tx := nullif(trim(coalesce(p_event#>>'{customer_dependency_mapping,client_tx_id}','')), '');
+      v_customer_dep_server_id := nullif(trim(coalesce(p_event#>>'{customer_dependency_mapping,server_id}','')), '');
+      if nullif(trim(coalesce(v_payload#>>'{p_order,customer_id}','')), '') is not null then
+        raise exception using errcode='22023', message='Offline V2 sale customer dependency requires null customer_id before mapping';
+      end if;
+      if v_customer_dep_map_tx is distinct from v_customer_dep_tx
+         or v_customer_dep_server_id is null
+         or v_customer_dep_server_id !~ '^[1-9][0-9]*$' then
+        raise exception using errcode='22023', message='Offline V2 customer dependency mapping غير مكتملة';
+      end if;
+      if not exists(
+        select 1 from public.offline_v2_server_receipts r
+        where r.client_tx_id=v_customer_dep_tx
+          and r.operation_type='customer_create'
+          and r.server_entity_id=v_customer_dep_server_id
+          and r.device_id=v_device_id
+          and r.branch_id=v_branch
+          and r.employee_id=v_employee
+          and r.auth_user_id=auth.uid()
+      ) then
+        raise exception using errcode='22023', message='Offline V2 customer dependency mapping غير موثقة';
+      end if;
+      v_payload := jsonb_set(
+        v_payload,
+        '{p_order}',
+        jsonb_set(coalesce(v_payload->'p_order','{}'::jsonb),'{customer_id}',to_jsonb(v_customer_dep_server_id::bigint),true) - 'customer_create_tx',
+        true
+      );
+    end if;
+  end if;
   case v_rpc
     when 'create_pos_order_atomic' then
       v_result := public.create_pos_order_atomic(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments');
@@ -259,9 +275,24 @@ begin
     'result',v_result
   );
 end;
-$$;
+$function$;
 
-revoke all on function public.sharawla_offline_v2_transport_info() from public, anon;
+
 revoke all on function public.sharawla_offline_v2_apply_event(jsonb) from public, anon;
-grant execute on function public.sharawla_offline_v2_transport_info() to authenticated;
 grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated;
+
+do $post$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.sharawla_offline_v2_apply_event(jsonb)'::regprocedure);
+  if position('customer_dependency_mapping' in v_def)=0
+     or position('offline_customer_create_v1' in v_def)=0
+     or position('order_status_apply_offline_v2' in v_def)=0
+     or position('offline_delivery_assign_driver_v1' in v_def)=0
+     or position('idempotent_replay' in v_def)=0 then
+    raise exception 'RC1 customer-sale linkage postcondition failed';
+  end if;
+end;
+$post$;
+
+commit;

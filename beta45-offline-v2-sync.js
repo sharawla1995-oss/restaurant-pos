@@ -157,7 +157,13 @@ function createSyncEngine(options={}){
           const customerTx=text(row?.envelope?.payload?.rpc_payload?.p_order?.customer_create_tx);
           if(text(row?.operation_type)==='sale'&&customerTx){
             customerDependencyMapping=await store.getMappingByTx(customerTx);
-            if(!customerDependencyMapping)throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_MAPPING_MISSING','Customer create has no acknowledged server mapping yet','transient');
+            if(!customerDependencyMapping){
+              const customerParent=typeof store.getOutbox==='function'?await store.getOutbox(customerTx):null;
+              const parentStatus=text(customerParent?.status);
+              if(parentStatus==='conflict'||parentStatus==='dead_letter')throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_TERMINAL',`Customer create dependency is ${parentStatus}; sale cannot sync without the mapped customer`,'business_conflict');
+              if(!customerParent)throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_PARENT_MISSING','Customer create dependency row is missing','permanent');
+              throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_MAPPING_MISSING','Customer create has no acknowledged server mapping yet','transient');
+            }
           }
           const outbound=outboundEnvelope(row,fingerprint,dependencyMapping,customerDependencyMapping);
           const ack=validateAck({...row,...outbound},await transport.send(outbound));
