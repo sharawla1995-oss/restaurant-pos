@@ -4847,3 +4847,50 @@ Production remains untouched. Seq293 / Seq304 / Seq316 remain preserved; no Retr
 - K54AX remains historically recorded as BLOCKED/77.78%; its raw runtime evidence remains valid and is not rewritten after the fact.
 - No additional device run is required solely to prove the registry bookkeeping fix.
 - Next engineering work should continue with remaining broad Offline/Sync Final Closure requirements, preserving Seq293/304/316, rather than repeatedly rebuilding/re-running the same Restaurant Deep Chaos scenario.
+
+
+---
+
+# 2026-09-26 FULL SANDBOX CONFIRMATION — X5BSV
+
+Real-device SH-0007 acceptance:
+- Run: `ACC-20260926-033522-X5BSV`
+- Runtime: `10.5.4-beta.58.29`
+- Profile: restaurant
+- Level: full
+- Mode: sandbox
+- Readiness: **READY_FOR_RC**
+- Coverage Score: **100%**
+
+Key runtime evidence:
+- Restaurant navigation parity: PASS.
+- Sandbox lock: PASS.
+- Native Offline health: PASS (`native-sqlite3`, WAL, FK enabled).
+- Restaurant cleanup verification: PASS, residue=0.
+- Restaurant runtime contract: PASS.
+- Restaurant full roundtrip: PASS, including UOM, purchasing/receiving/return, count, transfer, waste, recipe/food-cost, prep/production variance, theoretical Sale/Return consumption and tables; cleanup=zero.
+- Delivery settlement / shift cash: PASS; cleanup=zero.
+- Restaurant print order-type acceptance: PASS.
+- Offline migration compatibility: PASS; integrity=ok/ok; counts preserved; max_seq=340.
+- Permissions all-profile role contracts: PASS (7 profiles × 4 roles).
+- Current-session permission boundary: PASS.
+- Recovery guard: PASS with `unresolved=3`.
+- Offline auth cache boundary: PASS.
+- Last-good backup/restore-copy: PASS.
+- Temporary restore cycle: PASS.
+- Corruption-copy detection: PASS with live DB untouched.
+- Clock-drift/device-sequence recovery: PASS.
+
+The unresolved count remains exactly 3, matching preserved historical Seq293 / Seq304 / Seq316; this Full run did not increase unresolved evidence.
+
+Manual/non-automated items reported by the harness:
+- enabled-feature coverage lists 11 uncovered capabilities and is MANUAL.
+- backend role impersonation is MANUAL because dedicated sandbox users per role are required.
+
+Interpretation:
+- This run independently reconfirms the Restaurant **Full** acceptance state as READY_FOR_RC / 100%.
+- It does not retroactively change K54AX Deep Chaos's recorded BLOCKED/77.78% report.
+- K54AX raw operation evidence and the subsequent classification fix remain recorded separately.
+- It does not by itself close broad Roadmap Point 15 Offline/Sync Final Closure or authorize Production rollout.
+
+Production remains untouched; Seq293 / Seq304 / Seq316 remain preserved.
