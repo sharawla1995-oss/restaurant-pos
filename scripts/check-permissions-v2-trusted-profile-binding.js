@@ -34,14 +34,15 @@ for(const role of ['public','anon','authenticated']){
 if(!/revoke\s+all\s+on\s+schema\s+sharawla_internal\s+from\s+public,anon,authenticated/i.test(src))
   throw new Error('PV2-B private schema revoke contract missing');
 
+const normalized=src.replace(/\s+/g,' ').trim().toLowerCase();
 for(const fn of [
-  'current_operational_profile_v1\(\)',
-  'current_operational_business_id_v1\(\)',
-  'assert_operational_profile_v1\(text\)',
-  'assert_operational_profile_allowed_v1\(text\[\]\)'
+  'current_operational_profile_v1()',
+  'current_operational_business_id_v1()',
+  'assert_operational_profile_v1(text)',
+  'assert_operational_profile_allowed_v1(text[])'
 ]){
-  const re=new RegExp('revoke\\s+all\\s+on\\s+function\\s+sharawla_internal\\.'+fn+'\\s+from\\s+public,anon,authenticated','i');
-  if(!re.test(src))throw new Error('PV2-B execute revoke missing for '+fn);
+  const contract=('revoke all on function sharawla_internal.'+fn+' from public,anon,authenticated').toLowerCase();
+  if(!normalized.includes(contract))throw new Error('PV2-B execute revoke missing for '+fn);
 }
 
 console.log('PV2-B trusted operational profile binding SOURCE PASS');
