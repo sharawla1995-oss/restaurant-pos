@@ -5,7 +5,7 @@ const pkg=JSON.parse(read('package.json')),loader=read('beta36-integration-loade
 const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(m&&Number(m[1])>=51,'Beta51+ package version required');
 {const d=String(pkg.description||'');assert(d.includes('Offline')&&d.includes('SH-0007'),'Beta51+ release must preserve Offline SH-0007 acceptance identity');}
-for(const t of ["const VERSION='10.5.4-beta.51'",'topBurgerDesktop?.offlineV2?.event','operation_type===\'sale\'','READY_STATES','localSaleResult','originalSaveOfflineSale'])assert(fix.includes(t),`Beta51 final fix missing: ${t}`);
+for(const t of [`const VERSION='${pkg.version}'`,'topBurgerDesktop?.offlineV2?.event','operation_type===\'sale\'','READY_STATES','localSaleResult','originalSaveOfflineSale'])assert(fix.includes(t),`Beta51 final fix missing: ${t}`);
 assert(!fix.includes('takeoverActivate'),'Beta51 fix must not auto-activate takeover');
 assert(!fix.includes('takeoverPrepare'),'Beta51 fix must not rerun migration');
 assert(loader.includes('beta51-final-offline-acceptance-fix.js'),'Beta51 loader entry missing');
