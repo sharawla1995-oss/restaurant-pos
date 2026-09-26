@@ -4835,3 +4835,15 @@ Important interpretation:
 - A future acceptance run may classify results using the corrected raw-status comparison, but no repeat run is required merely to erase historical evidence.
 
 Production remains untouched. Seq293 / Seq304 / Seq316 remain preserved; no Retry/Delete/Reset is authorized by this checkpoint.
+
+
+## 2026-09-26 K54AX follow-up — CI CLOSED
+
+- Acceptance classification fix commit `966c16ebcd9404ea3297c6352896ae22d67d28b6`: CI Run `36205356147` = **SUCCESS**.
+- Master runtime-evidence commit `e82f9cfe8788afa1e0da99b5a453cd648a623791`: CI Run `36205367797` = **SUCCESS**.
+- Current branch HEAD at this checkpoint: `e82f9cfe8788afa1e0da99b5a453cd648a623791`.
+- CI produced artifact `10893478344` / `sharawla-pos-e82f9cfe8788afa1e0da99b5a453cd648a623791-sh0007-x64`, SHA-256 `062eb8a895fa18eb28a7cab71456577b0f5e60e51025ca590ba5cf495f5423f4`.
+- This artifact exists as CI evidence only. **Do not require an SH-0007 reinstall merely for the FLAKY classification correction.**
+- K54AX remains historically recorded as BLOCKED/77.78%; its raw runtime evidence remains valid and is not rewritten after the fact.
+- No additional device run is required solely to prove the registry bookkeeping fix.
+- Next engineering work should continue with remaining broad Offline/Sync Final Closure requirements, preserving Seq293/304/316, rather than repeatedly rebuilding/re-running the same Restaurant Deep Chaos scenario.
