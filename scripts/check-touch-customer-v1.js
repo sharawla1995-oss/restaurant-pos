@@ -12,7 +12,7 @@ const need=(ok,msg)=>{if(!ok)fail.push(msg)};
 need(app.includes('CUSTOMERS-MANUAL-CREATE-V1'),'manual customer create marker missing');
 need(app.includes('id="newCustomerBtn"'),'new customer button missing');
 need(app.includes('id="customerCreateForm"'),'customer create form missing');
-need(app.includes("await rest('customers','',{method:'POST'"),'customer create POST missing');
+need((app.match(/__SharawlaPV2CustomerCreate/g)||[]).length===3,'customer create V2 owner routing missing');
 need(app.includes("normalizePhone(x.phone)===normalized"),'customer duplicate-phone guard missing');
 need(app.includes('inputmode="tel"'),'touch/mobile phone input mode missing');
 
