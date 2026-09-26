@@ -4,7 +4,7 @@ const transport=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8')
 const inbox=fs.readFileSync('beta45-offline-v2-inbox-runtime.js','utf8');
 const pkg=require('../package.json');
 const must=(x,m)=>{if(!x)throw new Error(m)};
-must(pkg.version==='10.5.4-beta.58.32','hotfix version mismatch');
+const vm=String(pkg.version||'').match(/^10\.5\.4-beta\.58\.(\d+)$/);must(vm&&Number(vm[1])>=32,'hotfix requires beta.58.32 or newer');
 must(transport.includes("timer=setInterval(()=>{if(navigator.onLine)syncNow().catch(()=>{})},60_000);"),'transport fallback poll must be 60s');
 must(inbox.includes("timer=setInterval(()=>{if(navigator.onLine)pullNow().catch(()=>{})},60_000);"),'inbox fallback poll must be 60s');
 must(transport.includes("setTimeout(()=>{syncNow().catch(()=>{})},0);"),'local-first commit must schedule sync asynchronously');
