@@ -63,7 +63,7 @@ Important current source facts visible on this branch:
 13. ⬜ Permissions Final Closure
 14. ⬜ Reports & Accounting / Financial Closure
 15. ✅ Offline / Sync Final Closure: CLOSED
-16. ⬜ RC1
+16. 🟠 RC1 — Practical Offline Audit OPEN / BLOCKED
 17. ⬜ Pilot Production → Sharawla V1 Production Ready
 
 Do not reorder the official roadmap silently. In particular, Point 4 remains **Central Warehouse V2 + Financial Closure**. The focused Offline ownership/architecture audit immediately after Point 3 is a critical pre-Point-4 safety audit, not a renumbering of Roadmap Point 15.
@@ -4771,6 +4771,70 @@ OPEN:
 - Roadmap Point 15 Offline/Sync Final Closure remains OPEN.
 - RC1 remains NOT STARTED.
 - Production rollout remains NOT AUTHORIZED.
+
+
+---
+
+# 2026-09-26 POINT 16 — RC1 PRACTICAL OFFLINE AUDIT — OPEN / BLOCKED
+
+This section is the authoritative continuation checkpoint for Roadmap Point 16 and supersedes any interpretation that Point-15 closure alone means the Restaurant POS is practically RC1-ready.
+
+## Scope distinction
+
+Roadmap Point 15 — Offline / Sync Core Contract remains **CLOSED** for the accepted exactly-once / ACK / replay / idempotency / recovery contract.
+
+Restaurant practical RC1 readiness remains **NOT READY** until the UI/runtime integration gaps below are closed and proven on SH-0007.
+
+## Confirmed RC1 practical blockers
+
+- Shift metrics and shift reports must read from a complete local read model while Offline.
+- Expenses screen must display durable local expenses while Offline.
+- Returns must prevent duplicate consumption of the same refundable quantity before Sync/ACK reconciliation.
+- Delivery screen must display cached and pending Offline delivery orders instead of becoming empty when Cloud reads fail.
+- Delivery checkout must fail closed before any durable write unless it has a valid phone number, delivery address, and delivery zone for the active branch.
+- Customer Create Offline must not surface a misleading `Failed to fetch` after durable local success, and local validation must match the authoritative server contract.
+- Customer → Sale linkage/reconciliation after Customer ACK must be explicit; durable customer creation must not leave the final server order permanently detached from the customer unless that behavior is an explicit business contract.
+- Offline `OFF-*` invoice/bon numbering requires a final documented contract for temporary local references versus official server numbering, including reconciliation and duplicate-display prevention.
+- Legacy Offline queue / RPC paths must be removed or proven unreachable from current supported UI/runtime entrypoints.
+- Every cache-read Offline page must have an explicit freshness/staleness policy and visible cached-data semantics.
+
+## Required composite runtime proofs before RC1 closure
+
+A consolidated SH-0007 practical acceptance must cover at minimum:
+
+1. Full Offline shift lifecycle:
+   `Open Offline → Sale → Expense → Sale → Close Offline → app/process restart → reconnect → ordered Sync/ACK/reconciliation`.
+2. Full Offline-created order lifecycle:
+   `Sale Offline → Preparing → Ready → Driver Assignment → Delivered → restart → reconnect`, with all child operations resolving the authoritative server order exactly once.
+3. Customer-create → dependent Sale/Address reconciliation without duplicate customer/order UI rows.
+4. Return duplicate-quantity protection before Sync and correct post-ACK reconciliation.
+5. Printer unavailable during a durable local sale, followed by reconnect/reprint, without duplicate economic sale.
+6. No unexpected Conflict/DLQ, no lost operation, no duplicate economics, no orphan dependency, and no duplicate Local+Server UI representation for the same `client_tx_id`.
+
+Do not create many unrelated acceptance reruns merely to obtain newer timestamps. Prefer one consolidated candidate and one justified practical run after the blocking fixes are complete.
+
+## Release lineage / source-of-truth note
+
+Current published and development lines are intentionally distinguished:
+
+- Stable published release: **10.5.3**.
+- Latest published prerelease: **10.5.4-beta.57** — commit `0af3047f5910f709040aa97b431049fc5775591f`.
+- Current integration development line: **10.5.4-beta.58.29** on `beta56-offline-ownership-consolidation`.
+- Repository default branch `main` still reports **10.5.4-beta.17** and is **not** the current integration source of truth.
+- Before V1 Production release, create one authoritative Release Manifest that binds version, source SHA, required SQL/runtime contract, backend target, installer artifact and checksums.
+
+## Safety boundary
+
+- Production SH-0005 / SH-0006 remain **10.5.3 CLEAN**, immutable/read-only.
+- SH-0007 remains the only authorized Beta runtime target.
+- Seq293 / Seq304 / Seq316 remain preserved historical Offline evidence and must not be retried, deleted or reset merely to clear counters.
+- Canonical Stock remains OFF.
+- Cutover remains OFF.
+- Production rollout remains **NOT AUTHORIZED**.
+
+## Exact next step — authoritative
+
+Complete the RC1 Practical Offline Action Matrix and close the confirmed UI/runtime integration blockers above on isolated Beta source/runtime only. Review and consolidate any parallel Work patches before moving the integration branch. After source review and checks pass, build one candidate, install only on SH-0007, and execute one consolidated practical Offline acceptance run.
 
 ## Exact next safe step
 
