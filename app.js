@@ -2314,7 +2314,17 @@ async function exportBackup(groups){
 }
 async function createDesktopFullBackup(reason='auto-full'){if(!window.topBurgerDesktop?.backup?.saveJson||!navigator.onLine||!session?.access_token)return null;await refreshSessionIfNeeded();const data=await buildBackupData(Object.keys(BACKUP_GROUPS));const p=await window.topBurgerDesktop.backup.saveJson(JSON.stringify(data,null,2),reason);await odbSet('lastFullBackupAt',new Date().toISOString());return p}
 async function maybeDesktopDailyBackup(){if(!window.topBurgerDesktop?.isDesktop||!navigator.onLine)return;const last=await odbGet('lastFullBackupAt');if(last&&Date.now()-new Date(last).getTime()<24*60*60*1000)return;try{await createDesktopFullBackup('daily-full')}catch(e){console.warn('daily full backup',e)}}
-async function resetGroups(groups){return req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})})}
+async function resetGroups(groups){
+ const cloud=await req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})});
+ if(window.topBurgerDesktop?.sandbox?.cleanRuntime){
+  const st=await loadLicenseState(),supportCode=String(st?.support_code||'').trim(),testBranch=String(branchName(currentBranchId())||'').trim().toUpperCase();
+  if(supportCode==='SH-0007'&&testBranch==='TEST'){
+   try{await window.topBurgerDesktop.sandbox.cleanRuntime({support_code:supportCode,branch_name:testBranch,groups})}
+   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر تنظيف حالة الاختبار المحلية: ${e?.message||e}`)}
+  }
+ }
+ return cloud
+}
 async function restoreBackup(file,groups){
  const text=await file.text();let b;
  try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}
