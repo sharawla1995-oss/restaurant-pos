@@ -7,11 +7,11 @@ const store=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
 function need(s,t){if(!s.includes(t))throw new Error('Order-status transport missing: '+t)}
 for(const t of[
  "if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)}",
- "if(type==='return'||type==='order_status')return localOrderTx(payload?.p_order_id)",
+ "if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return localOrderTx(payload?.p_order_id)",
  "registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']))"
 ])need(rt,t);
 for(const t of[
- "if(type==='return'||type==='order_status')return !numericServerId(payload?.p_order_id)",
+ "if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)",
  "async function saveOrderStatusV2(orderId,targetStatus,providedClientTx=null)",
  "saveOrderStatus:saveOrderStatusV2"
 ])need(rt,t);
