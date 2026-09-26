@@ -9,7 +9,7 @@ do $pre$
 declare v_md5 text;
 begin
   select md5(pg_get_functiondef('public.reset_pos_data(text[])'::regprocedure)) into v_md5;
-  if v_md5 is distinct from '1a81036c4f0aaf7767943281c3bdf13a' then
+  if v_md5 is distinct from '3c96c8494d0b5109b8f36c1a30b1b4e3' then
     raise exception 'RC1 FK-safe reset refused: reset_pos_data drifted (md5=%)',v_md5;
   end if;
 end;
