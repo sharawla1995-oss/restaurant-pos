@@ -4,12 +4,12 @@ const root=path.resolve(__dirname,'..');
 const src=fs.readFileSync(path.join(root,'app.js'),'utf8');
 
 const badPatterns=[
-  "function navActive(p){$('#nav button').forEach",
-  "$('#settingsSections [data-settings-section]').forEach",
-  "$('#settingsHubTabs [data-settings-tab]').forEach"
+  {label:"function navActive(p){$('#nav button').forEach",re:/function navActive\(p\)\{\$\('#nav button'\)\.forEach/},
+  {label:"$('#settingsSections [data-settings-section]').forEach",re:/(^|[^$])\$\('#settingsSections \[data-settings-section\]'\)\.forEach/m},
+  {label:"$('#settingsHubTabs [data-settings-tab]').forEach",re:/(^|[^$])\$\('#settingsHubTabs \[data-settings-tab\]'\)\.forEach/m}
 ];
 for(const bad of badPatterns){
-  if(src.includes(bad)) throw new Error('beta58.28 regression: single-element $ selector used with forEach: '+bad);
+  if(bad.re.test(src)) throw new Error('beta58.28 regression: single-element $ selector used with forEach: '+bad.label);
 }
 
 const goodPatterns=[
