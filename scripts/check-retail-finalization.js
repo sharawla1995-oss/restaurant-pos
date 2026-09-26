@@ -3,7 +3,7 @@ const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
-const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 if(!m||Number(m[1])<25)throw new Error(`Expected beta25 or later package, got ${pkg.version}`);
 const ui=read('retail-finalization-ui.js');
 const engine=read('retail-engine.js');
