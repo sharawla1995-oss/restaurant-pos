@@ -24,12 +24,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '16'
-      - name: Verify pinned bootstrap base
+      - name: Verify pinned bootstrap ancestry
         shell: bash
         run: |
           set -euo pipefail
-          parent="$(git rev-parse HEAD^)"
-          test "$parent" = "c0bb9df2a830485a863450d29df5b74a077d53e7"
+          git merge-base --is-ancestor c0bb9df2a830485a863450d29df5b74a077d53e7 HEAD
+          test -f .rc1-transfer/c0bb-to-work.patch
+          test -f .rc1-transfer/work-to-beta58.31.patch
       - name: Materialize Work source and consolidated RC1 candidate
         shell: bash
         run: |
