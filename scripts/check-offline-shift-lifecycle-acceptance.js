@@ -12,5 +12,12 @@ must(test.includes("client_close_tx_id"),'shift close cloud idempotency evidence
 must(test.includes("client_open_tx_id"),'shift open cloud idempotency evidence missing');
 must(test.includes("explicit_ack=2"),'explicit ACK evidence missing');
 must(test.includes("replay=stable"),'replay evidence missing');
+must(test.includes('pickIsolatedBranch'),'focused shift acceptance must isolate from historical sandbox open shifts');
+must(test.includes('P15-SEED'),'focused shift acceptance isolated seed missing');
+must(test.includes("directRpc('open_pos_shift_idempotent'"),'focused shift acceptance isolated setup must use direct server seed');
+must(test.includes('cleanupRunShift'),'focused shift acceptance cleanup missing');
+must(test.includes('cleanup=closed'),'focused shift acceptance cleanup evidence missing');
+must(test.includes('switchBranch(originalBranch)'),'focused shift acceptance must restore the original branch');
+must(!test.includes('requires exactly one current open shift'),'focused shift acceptance must not depend on globally clean shift history');
 must(loader.includes('owner-acceptance-offline-shift-v58.js'),'focused shift acceptance is not loaded');
 console.log('Offline shift lifecycle acceptance static gate PASS');
