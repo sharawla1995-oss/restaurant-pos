@@ -57,6 +57,7 @@ jobs:
           node scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js
           node scripts/check-cross-profile-offline-commerce-scope.js
           node scripts/check-point15-focused-acceptance-runner.js
+          node scripts/check-point15-offline-final-closure-matrix.js
           node scripts/check-offline-customer-delivery-owner-design.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never

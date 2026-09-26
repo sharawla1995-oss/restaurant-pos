@@ -4940,3 +4940,46 @@ Interpretation:
 - This confirms the Restaurant Chaos scope on SH-0007; it does not by itself authorize Production rollout or automatically close broader multi-profile/manual Roadmap requirements.
 
 Production remains untouched. Canonical Stock and Cutover remain OFF. Seq293 / Seq304 / Seq316 remain preserved.
+
+
+---
+
+# 2026-09-26 POINT 15 SOURCE/GATE READINESS — READY FOR FOCUSED RUNTIME
+
+Roadmap Point 15 — Offline / Sync Final Closure remains **OPEN**, but the remaining source/gate work for the current closure scope is now consolidated.
+
+Safety boundary remains unchanged:
+- Production SH-0005 / SH-0006 = 10.5.3 CLEAN, immutable/read-only.
+- SH-0007 Beta only for runtime acceptance.
+- Canonical Stock OFF.
+- Cutover OFF.
+- Historical unresolved Seq293 / Seq304 / Seq316 are evidence and must not be retried, deleted or reset.
+
+Accepted source/CI chain:
+- Shift lifecycle CI wiring: `c06068479582b308673eb665b605a040a580556a`; Run `36206574941` SUCCESS; static gate PASS.
+- Synthetic HTTP-503 durability/recovery/exactly-once: `764c4dae9bfe11351a0d0e98e0bafadf59ef0414`; Run `36206821349` SUCCESS; static gate PASS.
+- Runtime Snapshot isolated anti-rollback probe: `ac34ce83d506aee9b780f4cad3a35ff106a8c94d`; Run `36207063111` SUCCESS; static gate PASS.
+- Cross-profile Offline commerce support boundary: `2c0fa8db85de1640266cc23696a080b8902aa2c3`; Run `36207282637` SUCCESS; static gate PASS.
+- Focused Point-15 runner: `20a57358dd7e5b4f667f1169ca911e7ef11e1f02`.
+
+Current cross-profile contract:
+- Restaurant: generic Offline commerce supported; current Full/Chaos runtime = READY_FOR_RC / 100%.
+- Retail: POS-critical Offline commerce supported; prior SH-0007 Retail crash/recovery proves durable restart + exactly-once routing; broader Retail commercial closure remains its own dedicated environment track.
+- Pharmacy: generic Offline sale/return is NOT supported; checkout remains Online-only and generic return now fails closed before mutation.
+- Service / Warehouse / Membership / Logistics: `implemented=true` catalog state does not grant generic POS Offline commerce; generic sale/return fail closed.
+
+Do not interpret this as runtime closure for the three new focused scenarios. Their implementation/gates are accepted, but real SH-0007 execution is still required.
+
+Exact next runtime step:
+1. Use one consolidated candidate only; do not install the intermediate source commits individually.
+2. Open Full Acceptance Center on SH-0007 and run **🎯 Point 15 Focused** only.
+3. The run must contain exactly:
+   - `offline.shift-lifecycle-runtime-e2e`
+   - `offline.http503-recovery-runtime-e2e`
+   - `runtime-snapshot.anti-rollback-runtime-e2e`
+4. Do NOT rerun Restaurant Full or Deep Chaos unless the focused run reveals a regression that actually affects those accepted paths.
+5. If all three are PASS, record the focused Run ID in the Evidence Matrix and move the three remaining PARTIAL rows to PROVEN before closing Point 15.
+
+Authoritative existing Restaurant runtime remains:
+- Full `ACC-20260926-033522-X5BSV` — READY_FOR_RC / 100%.
+- Chaos `ACC-20260926-033735-PZPJX` — READY_FOR_RC / 100%.
