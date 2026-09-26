@@ -13,6 +13,8 @@ ok(hard.includes("expenses:Object.freeze({mode:'full-create'"),'expenses offline
 ok(hard.includes("deliverySettings:Object.freeze({mode:'cache-read'"),'delivery settings cache-read contract');
 ok(hard.includes("products:Object.freeze({mode:'cache-read'"),'products cache-read contract');
 ok(hard.includes("#page .home-grid > .home-card[data-nav-parity-key]"),'non-home navigation leak shield');
+ok(hard.includes("document.querySelector('#page [data-beta555-offline-note]')"),'offline note lookup matches dataset-generated attribute');
+ok(!hard.includes("document.querySelector('#page [data-beta55-5-offline-note]')"),'mismatched recursive offline note selector absent');
 ok(hard.includes("activePage()==='home'&&!!document.querySelector('#page > .home-hero')"),'strict true-home scope');
 ok(loader.indexOf("['beta55-4-runtime-recovery'")<loader.indexOf("['beta55-5-runtime-hardening'"),'55.5 loads after 55.4 recovery');
 ok(loader.includes('beta555RuntimeHardening:true'),'loader advertises 55.5 hardening');
