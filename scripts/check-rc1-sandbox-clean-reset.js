@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('fs');
+const read=p=>fs.readFileSync(p,'utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+const main=read('main.js'),preload=read('preload.js'),app=read('app.js');
+must(main.includes("ipcMain.handle('sandbox:clean-runtime'"),'sandbox clean IPC missing');
+must(main.includes("supportCode!=='SH-0007'||branchName!=='TEST'"),'SH-0007 TEST hard guard missing');
+must(main.includes("createBackup('pre-sandbox-clean-reset')"),'pre-clean local backup missing');
+must(main.includes("status='reset_archived'"),'pending legacy operations must be archived');
+must(main.includes("where status='pending'"),'only pending legacy operations may be archived');
+must(main.includes("offline_v2_evidence_preserved:true"),'Offline V2 evidence preservation contract missing');
+must(!main.includes("sandbox:clean-runtime',(_e,input={})=>{\n   const supportCode")||!main.includes("DELETE FROM offline_v2"),'sandbox reset must not delete Offline V2 evidence');
+must(preload.includes("sandbox:{cleanRuntime:x=>ipcRenderer.invoke('sandbox:clean-runtime'"),'sandbox preload bridge missing');
+must(app.includes("supportCode==='SH-0007'&&testBranch==='TEST'"),'renderer SH-0007 TEST guard missing');
+must(app.includes("await window.topBurgerDesktop.sandbox.cleanRuntime"),'Cloud reset must invoke local clean on Beta sandbox');
+must(app.indexOf("await req('/rest/v1/rpc/reset_pos_data'")<app.indexOf("await window.topBurgerDesktop.sandbox.cleanRuntime"),'Cloud reset must succeed before local clean');
+must(app.includes('تمت إعادة ضبط Cloud لكن تعذر تنظيف حالة الاختبار المحلية'),'partial reset must fail visibly');
+console.log('RC1 SH-0007 clean sandbox reset gate PASS');
