@@ -343,7 +343,7 @@ async function commitRpcLocal(name,payload={}){
   if(!tx)throw Object.assign(new Error(`Offline V2 operational RPC requires client_tx_id: ${type}`),{code:'OFFLINE_V2_CLIENT_TX_REQUIRED'});
   if(mustUseOriginalEntityFallback(type,payload))throw Object.assign(new Error('Offline V2 local dependency is not identified'),{code:'OFFLINE_V2_LOCAL_DEPENDENCY_REQUIRED'});
   let row=await ensureEvent(type,payload,tx);await projectDirectOperation(type,payload,tx,row);
-  if(row?.status!=='synced'&&global.navigator?.onLine!==false)setTimeout(()=>{syncNow().catch(()=>{})},0)
+  if(row?.status!=='synced'&&global.navigator?.onLine!==false)setTimeout(()=>{syncNow().catch(()=>{})},0);
   row=await global.topBurgerDesktop.offlineV2.event(tx);
   if(row?.status==='conflict'||row?.status==='dead_letter'||row?.last_error_code==='OFFLINE_V2_LEGACY_PRESERVED')throw durableError(row,tx);
   await projectDirectOperation(type,payload,tx,row);
