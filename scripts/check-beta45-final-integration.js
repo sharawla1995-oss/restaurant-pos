@@ -6,7 +6,7 @@ const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const json=f=>JSON.parse(read(f));
 const pkg=json('package.json'),ver=json('version.json');
 const version=String(pkg.version||'').trim();
-const match=version.match(/^10\.5\.4-beta\.(\d+)$/);
+const match=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 if(!match||Number(match[1])<45)throw new Error(`Offline V2 final integration requires 10.5.4-beta.45+, got ${version}`);
 if(ver.version!==version||ver.channel!=='beta')throw new Error('Offline V2 final version.json mismatch');
 if(pkg.main!=='main-beta44.js')throw new Error('Offline V2 must preserve the protected Beta44 main wrapper');
