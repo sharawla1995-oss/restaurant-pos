@@ -22,9 +22,9 @@ for(const token of [
   'create trigger trg_assign_order_numbers before insert on public.orders'
 ])must(numbering.includes(token),`server official numbering source missing: ${token}`);
 
-must(transport.includes("const result=row?.server_ack?.result||{},serverOrder=result.order||null"),'sale ACK must expose authoritative server order');
+must(transport.includes("const result=serverResult||{},serverOrder=result.order||null"),'sale ACK must expose authoritative server order');
 must(transport.includes("String(b?.order?.client_tx_id||'')!==tx"),'reconcile must remove local row by client_tx_id');
 must(transport.includes("String(b?.order?.id)!==serverId"),'reconcile must remove stale server duplicate by server id');
-must(transport.includes("if(serverOrder)kept.unshift({order:{...serverOrder,_offline:false,_official_number_pending:false}"),'reconcile must install authoritative server-numbered row after ACK');
+must(transport.includes("if(serverOrder)bundles.unshift({order:{...serverOrder,_offline:false,_official_number_pending:false}"),'reconcile must install authoritative server-numbered row after ACK');
 
 console.log('RC1 official bon/invoice reconciliation gate PASS');
