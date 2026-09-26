@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs');
+const s=fs.readFileSync('app.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(s.includes("function isServerShiftId(value)"),'server/local shift ID boundary missing');
+must(s.includes("if(!isServerShiftId(shift?.id))return localShiftMetrics(shift);"),'shiftMetrics local guard missing');
+must(s.includes("if(!isServerShiftId(shift?.id)){"),'shift report local guard missing');
+must(s.includes("LOCAL_SHIFT_REQUIRES_OFFLINE_CLOSE"),'local shift close routing missing');
+must(s.includes("LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE"),'local shift expense routing missing');
+const metric=s.slice(s.indexOf('async function shiftMetrics(shift){'),s.indexOf('async function shiftReportData(shift){'));
+must(metric.indexOf("if(!isServerShiftId(shift?.id))")<metric.indexOf("shift_id=eq.${shift.id}"),'bigint REST query occurs before local-ID guard');
+const close=s.slice(s.indexOf("if(open)$('#closeShift')"),s.indexOf("else $('#openShift')"));
+must(close.indexOf("!isServerShiftId(open.id)")<close.indexOf("p_shift_id:Number(open.id)"),'close RPC can receive local shift ID');
+const expense=s.slice(s.indexOf("$('#addExpense').onclick"),s.indexOf("function catalogOrderValue"));
+must(expense.indexOf("!isServerShiftId(shift.id)")<expense.indexOf("p_shift_id:Number(shift.id)"),'expense RPC can receive local shift ID');
+console.log('RC1 local shift bigint boundary gate PASS');
