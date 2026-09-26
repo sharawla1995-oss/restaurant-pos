@@ -1,0 +1,105 @@
+name: RC1 Beta58.33 Local Shift Hotfix Build
+
+on:
+  push:
+    branches:
+      - rc1-beta58-33-local-shift-hotfix
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rc1-beta58-33-local-shift-hotfix
+  cancel-in-progress: false
+
+jobs:
+  materialize-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Verify hotfix ancestry and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 8262cf216a0bb52cc0bd86fac99fc68fa1df07d2 HEAD
+          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.33"
+          test -f scripts/check-rc1-local-shift-server-boundary.js
+      - name: Synchronize generated version references
+        run: npm run sync-version
+      - name: Run full source and regression gates
+        run: npm run check
+      - name: Commit synchronized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No generated version changes"
+          else
+            git commit -m "chore: materialize beta.58.33 version sync"
+            git push origin HEAD:rc1-beta58-33-local-shift-hotfix
+          fi
+
+  build-x64:
+    if: github.actor != 'github-actions[bot]'
+    needs: materialize-version
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rc1-beta58-33-local-shift-hotfix
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify materialized hotfix source
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne '10.5.4-beta.58.33') { throw "Wrong package version" }
+          if ([string]$ver.version -ne [string]$pkg.version) { throw "Version mismatch" }
+          if (-not (Test-Path 'scripts/check-rc1-local-shift-server-boundary.js')) { throw "Local shift boundary gate missing" }
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source and regression gates
+        run: npm run check
+      - name: Build Windows x64 hotfix
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save installer and SHA256
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.33'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content rc1-beta58.33-sha256.txt -Encoding ascii
+      - name: Upload SH-0007 x64 hotfix
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.4-beta.58.33-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.33-x64.exe
+            rc1-beta58.33-sha256.txt
+          if-no-files-found: error
+          retention-days: 7
