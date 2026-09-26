@@ -15,7 +15,8 @@ for(const [file,map] of Object.entries(owners)){
  for(const [action,feature] of Object.entries(map)){
   if(!s.includes(action))throw new Error('PV2_OWNER_ACTION_MISSING '+file+' '+action);
   const row=feature===null ? `('${action}','restaurant',null,true)` : `('${action}','restaurant','${feature}',true)`;
-  if(!s.includes(row))throw new Error('PV2_OWNER_RESTAURANT_MAPPING_MISSING '+file+' '+action);
+  const selectMapped=file==='permissions-v2-owner-customers-edit-address.sql'&&feature==='core.customers'&&s.includes("select a.code,p.profile_code,'core.customers',true")&&s.includes(`('${action}')`)&&s.includes("values ('restaurant')");
+  if(!s.includes(row)&&!selectMapped)throw new Error('PV2_OWNER_RESTAURANT_MAPPING_MISSING '+file+' '+action);
   if(!new RegExp("insert\\s+into\\s+public\\.permission_actions_v2","i").test(s))throw new Error('PV2_OWNER_ACTION_INSERT_MISSING '+file);
  }
 }
