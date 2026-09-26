@@ -4792,3 +4792,46 @@ OPEN:
 10. Only after broader Offline/Sync closure requirements are satisfied may Roadmap Point 15 be marked CLOSED and RC1 begin.
 
 No Production action is authorized by this checkpoint.
+
+
+---
+
+# 2026-09-26 DEEP CHAOS RUNTIME EVIDENCE — K54AX
+
+Final consolidated SH-0007 candidate was exercised with:
+- Run: `ACC-20260926-033124-K54AX`
+- Profile: restaurant
+- Level: chaos
+- Mode: sandbox
+- Reported readiness: BLOCKED
+- Reported coverage: 77.78%
+
+Runtime semantics observed:
+- Restaurant navigation/runtime/full-roundtrip: PASS.
+- Restaurant cleanup: PASS, residue=0.
+- Delivery settlement / shift cash: PASS, cleanup=zero.
+- Customer dependent address: PASS, dependency=ACK-mapped, replay=stable.
+- Customer mutations: PASS; isolated create/update/address-save/delete synced.
+- Order Status Seq327 completed with explicit ACK and stable replay.
+- Expense Seq328 completed with receipt and stable replay.
+- Return Seq329 completed with receipt and stable replay.
+- Customer Create Seq330 completed with receipt and stable replay.
+- Driver Assignment Seq337 completed with stable replay.
+- Delivery Economic Seq338 completed with cash custody=1 and stable economic replay.
+- Migration compatibility / Native SQLite integrity: PASS.
+- Recovery guard: PASS with unresolved=3.
+- The unresolved count did not increase above the preserved historical baseline of Seq293 / Seq304 / Seq316 during this run.
+
+The five Offline rows above were reported FLAKY because the registry compared the current PASS raw result against the immediately prior comparable result's displayed `status`. A previous run that had itself been promoted to `FLAKY` loses the original PASS/FAIL comparison state, so repeated successful raw executions can remain penalized by history.
+
+Registry correction:
+- Commit `966c16ebcd9404ea3297c6352896ae22d67d28b6`
+- `executeTest()` now compares the prior `raw_status` when present, falling back to prior `status` only for older history.
+- This is an acceptance-classification correction only; it does not alter Offline transport, business mutation owners, stock, accounting, licensing, fingerprint, or Production.
+
+Important interpretation:
+- K54AX is not relabeled READY_FOR_RC after the fact; its recorded report remains BLOCKED / 77.78%.
+- Its operation details are retained as runtime evidence that the corrected Offline paths executed successfully without increasing unresolved operations.
+- A future acceptance run may classify results using the corrected raw-status comparison, but no repeat run is required merely to erase historical evidence.
+
+Production remains untouched. Seq293 / Seq304 / Seq316 remain preserved; no Retry/Delete/Reset is authorized by this checkpoint.
