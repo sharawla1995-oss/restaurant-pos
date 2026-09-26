@@ -1,7 +1,7 @@
 # Sharawla Platform — Master Status
 
 > Official continuation checkpoint for the Sharawla project.  
-> Last updated: 2026-09-23  
+> Last updated: 2026-09-26  
 > Rule: in every new chat/session, read this file first, then verify the relevant GitHub/Sharawla Cloud facts before any write. Do not continue from chat memory alone.  
 > Rule: execute only the **Exact Next Step** recorded here unless new verified evidence requires updating this checkpoint first.
 
@@ -4511,3 +4511,284 @@ Source correction is now present:
 8. Continue with Location Scope V2 -> Location Code -> Device/Printer Roles -> Snapshot Catalog Expansion -> Admin entitlement wiring -> Kitchen Stations -> Support Center -> Sharawla AI -> Cross-Profile implementation/negative matrix -> dedicated industry closure tracks -> Reports/Accounting/Financial Closure -> broad Offline/Sync final acceptance -> RC1 -> Pilot Production -> V1 Production Ready.
 
 Do not reset or delete Seq 286 before the trusted-binding fix is deployed and the preserved retry is evaluated.
+
+
+---
+
+# 2026-09-26 AUTHORITATIVE MASTER UPDATE — OFFLINE V2 DEEP-CHAOS HARDENING / FINAL CANDIDATE
+
+> This section supersedes older Offline V2 / Permissions V2 continuation text above wherever it conflicts.  
+> It does **not** close Roadmap Point 15. It records the current verified continuation point after the 2026-09-25/26 SH-0007 acceptance and hardening work.
+
+## Hard safety state
+
+- Production SH-0005 / SH-0006 remains immutable/read-only on **10.5.3 CLEAN** and was not touched.
+- SH-0007 remains the only isolated Beta / TEST device.
+- Operational Beta database used for the work in this section: `xihcxydjnzemflhedzor` only.
+- Sharawla Cloud/runtime-composition project remains separate; no Production mutation is authorized by this checkpoint.
+- Canonical Stock: **OFF**.
+- Cutover: **OFF**.
+- G2 Touch remains **USER-ACCEPTED / WAIVED**, not a tested PASS.
+- Historical unresolved Offline evidence must remain preserved unless a later explicit evidence-based cleanup is authorized.
+
+## Point 4 / Permissions / acceptance foundation carried forward
+
+- Ownership mapping: **61/61 CLOSED**.
+- Pre-cutover guard contracts: **46/46 SOURCE ACCEPTED**.
+- Permissions V2 isolated Beta backend deployment: **15/15 COMPLETE**.
+- `orders_branch_update`: absent.
+- authenticated direct UPDATE on `public.orders`: false.
+- specialized mutation owners remain.
+- G0 Full Acceptance: **PASS / READY_FOR_RC / 100%**.
+- G1 Shared Routes: PASS.
+- G3 Menu Cleanup: CLOSED / PASS.
+- Shift Close + Driver Custody: CLOSED / PASS.
+- Production remains excluded from all current Beta acceptance work.
+
+## Online → Offline transport history now proven
+
+The earlier Order Status transport investigation is closed far enough to establish the real transport path:
+
+- `order_status_apply_offline_v2` is the accepted Offline order-status owner.
+- evaluator ambiguity was corrected.
+- trusted-binding `max(uuid)` defect was corrected.
+- stale envelope/load-order binding defects were isolated and corrected.
+- deployed Outer transport on Beta is:
+  - `sharawla_offline_v2_apply_event(jsonb)`
+  - MD5 `a269349dbc9a71f453e12699bc0617ce`
+  - SECURITY DEFINER
+  - authenticated EXECUTE = true
+  - anon/public EXECUTE = false
+- Outer transport binds Order Status to `order_status_apply_offline_v2`, Customer operations to their dedicated owners, and Driver Assignment to `offline_delivery_assign_driver_v1`.
+- explicit server ACK + durable receipt + idempotent replay are present.
+
+Runtime proof:
+- Seq 290, TX `8a077158-6e3b-4aa0-bf9f-71eb00276ad9`, completed Pending → Send → ACK → Synced for Order Status `preparing`.
+- This proves that focused Order Status continuity path; it does **not** by itself close the complete Offline system.
+
+## Restaurant Full Sandbox evidence
+
+Accepted Full Sandbox run:
+- `ACC-20260925-233041-IVTLE`
+- Result: **READY_FOR_RC**
+- Coverage: **100%**
+- restaurant full roundtrip: PASS
+- delivery settlement: PASS
+- Native health: PASS
+- unresolved count at that time remained attributable to preserved historical evidence.
+
+A later installed consolidated build also produced:
+- `ACC-20260926-005433-PTVSZ`
+- Result: **READY_FOR_RC**
+- Coverage: **100%**
+- restaurant full roundtrip: PASS
+- delivery settlement: PASS
+- Native health: PASS.
+
+These Full Sandbox runs do not replace Deep Chaos acceptance.
+
+## Deep Chaos investigation — root causes and repairs
+
+Deep Chaos exposed test-harness/runtime-contract issues rather than one single transport defect. The following were corrected in source:
+
+1. **Explicit ACK assertions**
+   - Acceptance previously queried protected receipt tables or expected fields not present at the top level of the real ACK.
+   - Tests now consume persisted `server_ack` and validate the actual transport ACK contract.
+
+2. **Return identity / quantity**
+   - Return acceptance now emits `effect_line_key`.
+   - It scans candidate completed/delivered orders, subtracts already-returned quantities, and only selects a line with `available_quantity > 0`.
+   - This addresses the failure later preserved as Seq 316.
+
+3. **Customer dependency chain**
+   - Parent Customer Create and dependent Address Save are durably separated and use ACK mapping.
+   - Dependent Address acceptance has already demonstrated stable ACK mapping/replay behavior.
+
+4. **Customer mutations**
+   - Update / Address Save / Address Delete no longer mutate an arbitrary ambient customer.
+   - The acceptance creates and owns a dedicated mutation fixture first.
+
+5. **Order Status**
+   - Acceptance no longer selects an arbitrary ambient order.
+   - It uses isolated `sharawla_beta58_offline_status_fixture_v1(...,'status')`.
+
+6. **Driver Assignment**
+   - Acceptance uses isolated `sharawla_beta58_offline_driver_fixture_v1`.
+
+7. **Delivery economic completion**
+   - Acceptance uses isolated `sharawla_beta58_offline_status_fixture_v1(...,'delivery')`.
+   - It verifies final delivered/payment state, payment cardinality, driver cash custody, explicit ACK, and replay economics.
+
+8. **Restaurant Full Roundtrip cleanup race — root cause CLOSED in source**
+   - The test already contained `offline-drain-before-cleanup`, but `saleTx` and `returnTx` were not retained in `evidence`.
+   - Therefore the drain received empty IDs and destructive fixture cleanup could run before durable Sale/Return sync.
+   - The product could then be deleted before the queued Sale reached the server, causing `order_items_product_id_fkey` / SQLSTATE 23503.
+   - Commit `0f17cb4ed4ae540c53a4d5a9c7a4f6626416020b` stores `sale_tx` and `return_tx` in evidence.
+   - Commit `3b1f7bdbd3e94b254b1b65a8320f3e012f27376b` adds a static regression gate requiring the durable IDs + drain-before-cleanup path.
+   - Both CI runs completed SUCCESS.
+
+## Preserved SH-0007 unresolved evidence
+
+Latest Support Bundle reviewed:
+- `sharawla-offline-support-SH-0007-2026-09-25T23-38-35-604Z.zip`.
+
+It proves three preserved unresolved rows:
+
+1. **Seq 293 — Dead Letter / Sale**
+   - SQLSTATE `23503`
+   - `order_items_product_id_fkey`
+   - no Server ACK
+   - historical acceptance cleanup race.
+
+2. **Seq 304 — Dead Letter / Sale**
+   - same SQLSTATE `23503`
+   - same `order_items_product_id_fkey`
+   - no Server ACK
+   - second reproduction of the same acceptance cleanup race.
+
+3. **Seq 316 — Conflict / Return**
+   - SQLSTATE `P0001`
+   - return quantity exceeded remaining available quantity
+   - no Server ACK
+   - matches the old ambient/already-returned line selection defect; current source now selects remaining returnable quantity.
+
+Rules:
+- Do **not** Safe Retry these rows.
+- Do **not** delete/reset them.
+- Do **not** use Reset Test Queue to hide them.
+- They remain historical evidence until final acceptance proves the corrected paths and an explicit cleanup decision is made.
+
+Support bundle also showed SQLite integrity/recovery healthy; the unresolved rows are preserved operation evidence, not evidence of SQLite corruption.
+
+## Beta backend owner/security verification
+
+Verified on `xihcxydjnzemflhedzor`:
+
+Core owners:
+- `offline_customer_create_v1` MD5 `da4d29ab4487c814dc340bd61358e943`
+- `offline_customer_update_v1` MD5 `18384d96d0c4d22062dd54f9a39a3575`
+- `offline_customer_address_save_v1` MD5 `768ed60e8630622fd23dc4c8ce6e2d09`
+- `offline_customer_address_delete_v1` MD5 `36476a8c8d703d15129b08739e8e2028`
+- `offline_delivery_assign_driver_v1` MD5 `7349e222394d85a04be30bf7fb9cfd9c`
+- `order_status_apply_offline_v2` MD5 `b9c8e68b830dc5c811762d7210c858b1`
+
+For these owner functions:
+- SECURITY DEFINER = true
+- authenticated EXECUTE = true
+- anon EXECUTE = false
+- public EXECUTE = false
+- owner search path = `pg_catalog, public`.
+
+Acceptance fixtures:
+- `sharawla_beta58_offline_status_fixture_v1(text,bigint,text)`
+  - MD5 `b33468fc2575434807309632d26123ab`
+- `sharawla_beta58_offline_driver_fixture_v1(text,bigint)`
+  - MD5 `b6030ba3f90a69a2353cef41a5d403ec`
+- both are acceptance-only SECURITY DEFINER helpers with `search_path=public`.
+- both now have authenticated EXECUTE = true and anon/public EXECUTE = false.
+- Driver fixture anon execution was found enabled during final verification and was hardened on Beta; final read-back confirms anon=false.
+
+Outer transport:
+- `sharawla_offline_v2_apply_event(jsonb)`
+  - MD5 `a269349dbc9a71f453e12699bc0617ce`
+  - SECURITY DEFINER
+  - authenticated=true / anon=false / public=false.
+- `sharawla_offline_v2_transport_info()` is also present and authenticated-only.
+
+No transport redeployment was needed after this read-back because the deployed Outer definition already matched the accepted aligned runtime.
+
+## Source / acceptance hardening commits carried into final candidate
+
+Important current fixes include:
+- `e3db2d16...` core ops explicit ACK + return effect identity.
+- `11931c5c...` Order Status explicit ACK.
+- `b5b76ddb...` Customer/Dependency/Driver/Delivery explicit ACK paths.
+- `69eff823...` isolated Driver fixture.
+- `554917be...` additive/non-destructive Driver fixture cleanup.
+- `980d5d37...` acceptance alignment with explicit ACK contract.
+- `18d76e5d...` return line selection using remaining returnable quantity.
+- `f16d0e17...` repaired corrupted B55/B58 acceptance SQL source.
+- `4e5a48ef...` isolated Customer mutation acceptance.
+- `534ae0ea...` isolated Status/Delivery fixture source.
+- `bf0688cb...` isolated Order Status acceptance.
+- `36e840d9...` isolated Delivery economic acceptance.
+- `d60dd210...` coverage gate aligned to explicit ACK + isolated fixtures.
+- `0f17cb4e...` retain Restaurant Sale/Return durable TX IDs before cleanup.
+- `3b1f7bdb...` gate Restaurant durable drain before cleanup.
+
+## Final consolidated source candidate
+
+Branch:
+- `beta56-offline-ownership-consolidation`
+
+Verified pre-Master-update candidate HEAD:
+- `3b1f7bdbd3e94b254b1b65a8320f3e012f27376b`
+
+CI:
+- Run `36202084220`
+- conclusion: **SUCCESS**
+- `build-x64`: SUCCESS.
+
+Static final-candidate checks confirmed together on the same HEAD:
+- Restaurant roundtrip retains `sale_tx` / `return_tx`.
+- drain-before-cleanup is gated.
+- Return acceptance requires remaining `available_quantity` + `effect_line_key`.
+- Order Status uses isolated fixture + explicit ACK.
+- Customer mutations use dedicated fixture.
+- Driver and Delivery paths use isolated fixtures.
+- Delivery economics verifies payment/custody/replay.
+- Offline coverage gate and Restaurant gate match the current contracts.
+
+CI artifact for that exact pre-Master-update candidate:
+- Artifact ID: `10892810101`
+- Name: `sharawla-pos-3b1f7bdbd3e94b254b1b65a8320f3e012f27376b-sh0007-x64`
+- Size: `76,869,290` bytes
+- SHA-256: `09abd7f6f21204e88403119c32a6a1c4b412c430d9d0d946c0f2b40a40602955`.
+
+This artifact is a **Final Acceptance Candidate**, not a Production release and not yet a Deep Chaos PASS.
+
+## Current closure state
+
+CLOSED / VERIFIED:
+- Production isolation.
+- Point 4 ownership 61/61.
+- 46/46 source contracts.
+- Permissions V2 Beta deployment 15/15.
+- focused Order Status Pending→ACK→Synced proof.
+- Full Sandbox 100% / READY_FOR_RC.
+- explicit ACK acceptance contract alignment.
+- isolated Customer/Order/Driver/Delivery fixtures.
+- Return remaining-quantity source fix.
+- Restaurant cleanup-race root cause + source fix + regression gate.
+- Beta core Offline owner security read-back.
+- Outer transport alignment read-back.
+- fixture anon hardening.
+- final-candidate CI/static consolidation.
+
+OPEN:
+- Corrected paths have **not yet received one clean final Deep Chaos runtime pass on SH-0007**.
+- The three historical unresolved rows remain preserved.
+- Roadmap Point 15 Offline/Sync Final Closure remains OPEN.
+- RC1 remains NOT STARTED.
+- Production rollout remains NOT AUTHORIZED.
+
+## Exact next safe step
+
+1. Do **not** build/install another intermediate version.
+2. Treat the current consolidated tree as the Final Acceptance Candidate.
+3. Before touching SH-0007, complete only any remaining read-only pre-install prerequisite checks; do not mutate Production.
+4. If no blocker is found, install **one** consolidated SH-0007 candidate containing all fixes above.
+5. Do not Retry/Delete/Reset Seq 293 / 304 / 316 before the final test.
+6. Run one final Restaurant Deep Chaos acceptance on SH-0007.
+7. Required result:
+   - corrected tests PASS;
+   - no new unresolved rows;
+   - no new DLQ/Conflict;
+   - explicit ACK/replay checks PASS;
+   - Restaurant Full Roundtrip does not delete fixtures before durable sync;
+   - Order Status / Expense / Return / Customer / dependency / mutations / Driver / Delivery economic paths PASS.
+8. Export a fresh Support Bundle after the run and compare unresolved state against the preserved historical baseline.
+9. Only after that evidence may the project decide whether the three historical acceptance artifacts can be explicitly cleaned from SH-0007.
+10. Only after broader Offline/Sync closure requirements are satisfied may Roadmap Point 15 be marked CLOSED and RC1 begin.
+
+No Production action is authorized by this checkpoint.
