@@ -16,7 +16,7 @@ must(matrix.includes('| Shift open | PARTIAL |')&&matrix.includes('| Shift close
 must(matrix.includes('| Synthetic HTTP 5xx / partial server failure | PARTIAL |'),'HTTP503 row must remain PARTIAL before focused device proof');
 must(matrix.includes('| Runtime Snapshot anti-rollback | PARTIAL |'),'anti-rollback row must remain PARTIAL before focused device proof');
 must(matrix.includes('| Cross-profile Offline acceptance | PROVEN |'),'current-support cross-profile scope must be closed');
-must(scope.includes('Restaurant + Retail')&&scope.includes('Pharmacy | NOT SUPPORTED')&&scope.includes('Logistics | NOT ELIGIBLE'),'cross-profile support scope incomplete');
+must(scope.includes('| Restaurant | SUPPORTED |')&&scope.includes('| Retail | SUPPORTED for POS-critical core |')&&scope.includes('| Pharmacy | NOT SUPPORTED for commerce today |')&&scope.includes('| Logistics | NOT ELIGIBLE for generic POS commerce |'),'cross-profile support scope incomplete');
 const ids=['offline.shift-lifecycle-runtime-e2e','offline.http503-recovery-runtime-e2e','runtime-snapshot.anti-rollback-runtime-e2e'];
 must(shift.includes(ids[0]),'focused shift runtime test missing');must(http503.includes(ids[1]),'focused HTTP503 runtime test missing');must(snapshot.includes(ids[2]),'focused anti-rollback runtime test missing');
 for(const id of ids)must(ui.includes(id),`focused runner missing ${id}`);

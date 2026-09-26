@@ -29,36 +29,7 @@ jobs:
       - name: Verify installed sqlite3 N-API binary
         run: node -e "const s=require('sqlite3'); console.log('sqlite3 runtime OK', s.VERSION || 'loaded')"
       - name: Candidate validation
-        run: |
-          npm run sync-version
-          node scripts/check-runtime-syntax.js
-          node scripts/check-beta58-27-nav-foreach.js
-          node scripts/check-beta55-restaurant-acceptance.js
-          node scripts/check-beta56-runtime-snapshot-consumer.js
-          node scripts/check-offline-auth-authoritative-order.js
-          node scripts/check-beta45-offline-v2-transport.js
-          node scripts/check-beta45-offline-v2-diagnostics.js
-          node scripts/check-beta55-5-runtime-hardening.js
-          node scripts/check-version.js
-          node scripts/check-orders-performance-date-window.js
-          node scripts/check-orders-runtime-corrective.js
-          node scripts/check-inventory-overview-v1.js
-          node scripts/check-touch-customer-v1.js
-          node scripts/check-pos-profile-routing-v1.js
-          node scripts/check-settings-hub-v1.js
-          node scripts/check-kitchen-labels-plan-v1.js
-          node scripts/check-shared-inventory-purchasing-routing-v1.js
-          node scripts/check-restaurant-acceptance-stage-v1.js
-          node scripts/check-point4-secure-uuid-v4.js
-          node scripts/check-beta58-26-restaurant-point4-canonical-tx.js
-          node scripts/check-offline-runtime-acceptance-coverage.js
-          node scripts/check-offline-shift-lifecycle-acceptance.js
-          node scripts/check-offline-http503-recovery-acceptance.js
-          node scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js
-          node scripts/check-cross-profile-offline-commerce-scope.js
-          node scripts/check-point15-focused-acceptance-runner.js
-          node scripts/check-point15-offline-final-closure-matrix.js
-          node scripts/check-offline-customer-delivery-owner-design.js
+        run: npm run check
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
