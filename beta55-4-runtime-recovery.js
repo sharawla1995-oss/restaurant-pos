@@ -4,7 +4,7 @@
 // Beta55.4 — SH-0007 regression recovery layer.
 // Scope: offline read fallbacks, open-shift continuity, reconnect reconciliation,
 // and offline bon sequencing. Authentication/fingerprint/licensing are untouched.
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const CACHE_PREFIX='sharawla55.4:read:';
 const BON_PREFIX='sharawla55.4:bon:';
 let installed=false;

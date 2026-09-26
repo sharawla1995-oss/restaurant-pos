@@ -4,7 +4,7 @@
 // PV2-F3 SOURCE CANDIDATE ONLY.
 // Shift Open/Close and Expense Create keep their accepted Runtime RPC routes.
 // Only Expense Edit needs a renderer route switch away from direct REST PATCH.
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 
 async function rpc(name,payload){
   if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');

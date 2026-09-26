@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 let syncBusy47=false;
 const text=v=>String(v??'').trim();
 const OWN=Object.freeze({V2_OPERATIONAL:'V2_OPERATIONAL',LEGACY_HISTORICAL:'LEGACY_HISTORICAL',LEGACY_FALLBACK:'LEGACY_FALLBACK',UNKNOWN:'UNKNOWN'});

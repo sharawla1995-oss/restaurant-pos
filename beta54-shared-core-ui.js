@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const PERMISSION_CODES=[
  'hr.employees.view','hr.employees.create','hr.employees.edit','hr.salary.view','hr.salary.manage',
  'hr.advances.view','hr.advances.create','hr.advances.approve','hr.advances.disburse',

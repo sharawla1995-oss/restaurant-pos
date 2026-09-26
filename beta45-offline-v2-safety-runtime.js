@@ -5,7 +5,7 @@
 // Offline authorization is independent from a live Supabase access token but is
 // bound to the canonical device identity, cached employee permissions and
 // license grace. Destructive actions are blocked while durable work is unresolved.
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 let installed=false;
 const DAILY_BACKUP_KEY='sharawlaOfflineV2LastDailyBackupAt';
 

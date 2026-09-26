@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const ACTION='inventory.supply.request.emergency';
 let observer=null,queued=false;
 const rpc=(n,p={})=>global.rpc(n,p);

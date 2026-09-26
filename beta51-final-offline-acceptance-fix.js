@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const READY_STATES=new Set(['pending','retryable','syncing','blocked','synced']);
 const text=v=>String(v??'').trim();
 const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));

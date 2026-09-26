@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const FEATURE='inventory.multi_warehouse';
 const ACTIONS=['inventory.supply.view','inventory.supply.configure','inventory.supply.request.create','inventory.supply.request.submit','inventory.supply.request.approve','inventory.supply.request.fulfill','inventory.supply.request.receive','inventory.supply.request.emergency'];
 let perms=Object.create(null),started=false,current=false,refreshTimer=null;
