@@ -997,7 +997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/RC1-CON
 +    },
 +    {
 +      "path": "README-V9.3.0-BUSINESS-CONTROL.txt",
-+      "size": 404,+      "sha256": "9f299c73e62830d31970d1c52e0fcbe79bbc599e036272e614aae8ec9967cbcf"
++      "size": 404,
++      "sha256": "9f299c73e62830d31970d1c52e0fcbe79bbc599e036272e614aae8ec9967cbcf"
 +    },
 +    {
 +      "path": "README-V9.3.2-BRAND-LOGO.txt",
@@ -1996,7 +1997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/RC1-CON
 +    },
 +    {
 +      "path": "owner-acceptance-beta55-navigation-v55.js",
-+      "size": 2239,+      "sha256": "43e881a9dfea74a496af6ff0642832ec027cca41682579fbbc30576e5644e992"
++      "size": 2239,
++      "sha256": "43e881a9dfea74a496af6ff0642832ec027cca41682579fbbc30576e5644e992"
 +    },
 +    {
 +      "path": "owner-acceptance-beta55-permissions-v55.js",
@@ -2995,7 +2997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/RC1-CON
 +    },
 +    {
 +      "path": "scripts/check-point4-batch2-same-frozen-set.js",
-+      "size": 2102,+      "sha256": "974d65d7608c6a970b28b44b3c502461a218a6a20e6c87f8ebcba7fd0f42f3ec"
++      "size": 2102,
++      "sha256": "974d65d7608c6a970b28b44b3c502461a218a6a20e6c87f8ebcba7fd0f42f3ec"
 +    },
 +    {
 +      "path": "scripts/check-point4-batch3-legacy-website-lifecycle.js",
@@ -3994,7 +3997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/RC1-CON
 +    },
 +    {
 +      "path": "supabase-point4-reservation-identity-v1-contract.sql",
-+      "size": 65928,+      "sha256": "7c50d134b8cfd377094072052e0c141561226cd6533d1021bb68c619e474f57b"
++      "size": 65928,
++      "sha256": "7c50d134b8cfd377094072052e0c141561226cd6533d1021bb68c619e474f57b"
 +    },
 +    {
 +      "path": "supabase-point4-source-identity-v1-contract.sql",
@@ -4993,7 +4997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/beta45-
  const LEDGER_RECORD='inventory_ledger';
  let installed=false;
 diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/beta45-offline-v2-runtime-takeover.js rc1_candidate_5831/beta45-offline-v2-runtime-takeover.js
---- work_source_5830_src/beta45-offline-v2-runtime-takeover.js	2026-09-26 14:25:35.000000000 +0000+++ rc1_candidate_5831/beta45-offline-v2-runtime-takeover.js	2026-09-26 19:22:41.769453101 +0000
+--- work_source_5830_src/beta45-offline-v2-runtime-takeover.js	2026-09-26 14:25:35.000000000 +0000
++++ rc1_candidate_5831/beta45-offline-v2-runtime-takeover.js	2026-09-26 19:22:41.769453101 +0000
 @@ -5,7 +5,7 @@
  // Generic by operation type, not by business profile. Restaurant/Retail/
  // Pharmacy/Logistics/Warehouse/Service/Membership can register handlers without
@@ -5992,7 +5997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/permiss
 +const VERSION='10.5.4-beta.58.31';
  
  async function rpc(name,payload){
-   if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/permissions-v2-delivery-settings-routing.js rc1_candidate_5831/permissions-v2-delivery-settings-routing.js
+   if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');
+diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/permissions-v2-delivery-settings-routing.js rc1_candidate_5831/permissions-v2-delivery-settings-routing.js
 --- work_source_5830_src/permissions-v2-delivery-settings-routing.js	2026-09-26 14:25:35.000000000 +0000
 +++ rc1_candidate_5831/permissions-v2-delivery-settings-routing.js	2026-09-26 19:22:41.761453170 +0000
 @@ -3,7 +3,7 @@
@@ -6991,7 +6997,8 @@ diff -ruN '--exclude=.git' '--exclude=node_modules' work_source_5830_src/supabas
 +       or v_receipt.device_sequence is distinct from v_sequence
 +       or v_receipt.branch_id is distinct from v_branch
 +       or v_receipt.employee_id is distinct from v_employee
-+       or v_receipt.auth_user_id is distinct from auth.uid() then+      raise exception using errcode='22000', message='Offline V2 duplicate TX payload/identity mismatch';
++       or v_receipt.auth_user_id is distinct from auth.uid() then
++      raise exception using errcode='22000', message='Offline V2 duplicate TX payload/identity mismatch';
 +    end if;
 +    return jsonb_build_object(
 +      'ok',true,

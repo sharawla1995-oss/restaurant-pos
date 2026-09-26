@@ -997,7 +997,8 @@ index 0000000..153bc46
 +| P001 | Open POS from cached catalog | OFFLINE_READ_CACHE | bootstrap products/categories/modifiers/variants | PASS | Catalog is part of cached bootstrap. |
 +| P002 | Switch category / search product | OFFLINE_REQUIRED | local state/filter | PASS | Pure local action. |
 +| P003 | Add simple product to cart | OFFLINE_REQUIRED | `pushCartItem()` | PASS | Local cart mutation. |
-+| P004 | Select variant | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Uses cached product variants. |+| P005 | Add modifiers/extras | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Uses cached modifiers/product mappings. |
++| P004 | Select variant | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Uses cached product variants. |
++| P005 | Add modifiers/extras | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Uses cached modifiers/product mappings. |
 +| P006 | Select removed ingredients | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Local cart metadata. |
 +| P007 | Add item note | OFFLINE_REQUIRED | `openItemOptions()` | PASS | Local cart metadata. |
 +| P008 | Offer bundle choices/quantity/note | OFFLINE_REQUIRED | `openOfferOptions()` | PASS | Local configured offer composition. |
@@ -1996,7 +1997,8 @@ index f469ec7..634c3bb 100644
  // Legacy static/sync compatibility marker only; runtime registry is v55:
 -// 'owner-acceptance-registry-v3.js?v=10.5.4-beta.55'
 +// 'owner-acceptance-registry-v3.js?v=10.5.4-beta.58.30'
- const FILES=[- ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.55'],
+ const FILES=[
+- ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.55'],
 + ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.58.30'],
   ['owner-acceptance-beta55-restaurant-compat-v55','owner-acceptance-beta55-restaurant-compat-v55.js?v=10.5.4-beta.55'],
 - ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.55'],
