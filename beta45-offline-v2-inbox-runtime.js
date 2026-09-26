@@ -4,7 +4,7 @@
 // Sharawla Offline Engine V2 — Phase 7 renderer Inbox + Customer/Order events.
 // Cloud/domain events are received durably before compatibility caches are
 // touched. Cursor advances only after the event is locally applied.
-const VERSION='10.5.4-beta.58.31';
+const VERSION='10.5.4-beta.58.32';
 const CURSOR_PREFIX='sharawlaOfflineV2InboxCursor';
 const PULL_RPC='offline_v2_pull_events_v1';
 const ORDER_STATUSES=new Set(['new','preparing','ready','out_for_delivery','completed','delivered','cancelled']);
@@ -165,7 +165,7 @@ function start(){
   installed=true;
   global.addEventListener('online',()=>{pullNow().catch(e=>console.warn('Offline V2 Inbox online pull',e))});
   global.addEventListener('sharawla:runtime-config-updated',()=>{pullNow().catch(()=>{})});
-  timer=setInterval(()=>{if(navigator.onLine)pullNow().catch(()=>{})},15_000);
+  timer=setInterval(()=>{if(navigator.onLine)pullNow().catch(()=>{})},60_000);
   setTimeout(()=>{if(navigator.onLine)pullNow().catch(()=>{})},1200);
   global.SharawlaOfflineV2Inbox=Object.freeze({version:VERSION,pullNow,cursorKey,normalizePhone});
 }
