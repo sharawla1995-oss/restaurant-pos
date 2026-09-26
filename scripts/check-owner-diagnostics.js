@@ -9,7 +9,7 @@ const retail=read('retail-engine.js');
 const checkout=read('beta23-full-retail.js');
 const sw=read('sw.js');
 
-if(!/^10\.5\.4-beta\.\d+$/.test(pkg.version))throw new Error(`Unexpected Beta version: ${pkg.version}`);
+if(!/^10\.5\.4-beta\.\d+(?:\.\d+)*$/.test(pkg.version))throw new Error(`Unexpected Beta version: ${pkg.version}`);
 for(const token of [
   'verify_sharawla_owner_diagnostics_access',
   'device_fingerprint',
