@@ -4,7 +4,8 @@ const root=path.resolve(__dirname,'..');
 const sql=fs.readFileSync(path.join(root,'permissions-v2-owner-customers-edit-address.sql'),'utf8');
 const helper=fs.readFileSync(path.join(root,'permissions-v2-customers-edit-address-routing.js'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
-const loader=fs.readFileSync(path.join(root,'beta36-integration-loader.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
 function need(src,token,label){
   if(!src.toLowerCase().includes(token.toLowerCase()))throw new Error(label+' missing: '+token);
@@ -43,8 +44,8 @@ for(const token of [
 if(/rest\(\s*['"](?:customers|customer_addresses)['"][\s\S]{0,240}?method\s*:\s*['"](?:POST|PATCH|DELETE)['"]/i.test(helper))
   throw new Error('PV2-F2 routing candidate must not contain direct customer/address DML fallback');
 
-if(loader.includes('permissions-v2-customers-edit-address-routing.js'))
-  throw new Error('PV2-F2 helper must remain unwired before coordinated Beta deploy');
+if(!index.includes(`permissions-v2-customers-edit-address-routing.js?v=${pkg.version}`))
+  throw new Error('PV2-F2 runtime routing asset must be wired at package version');
 
 function count(re){return (app.match(re)||[]).length}
 const counts={
@@ -53,11 +54,13 @@ const counts={
   addressPatches:count(/rest\(\s*['"]customer_addresses['"][\s\S]{0,320}?method\s*:\s*['"]PATCH['"]/g),
   addressDeletes:count(/rest\(\s*['"]customer_addresses['"][\s\S]{0,320}?method\s*:\s*['"]DELETE['"]/g)
 };
-const expected={customerPatches:2,addressPosts:2,addressPatches:1,addressDeletes:1};
+const expected={customerPatches:0,addressPosts:0,addressPatches:0,addressDeletes:0};
 for(const k of Object.keys(expected))if(counts[k]!==expected[k])
   throw new Error('PV2-F2 direct path count drift '+k+'='+counts[k]+' expected='+expected[k]);
+const routed=(app.match(/__SharawlaPV2CustomerEditAddress/g)||[]).length;
+if(routed!==6)throw new Error('PV2-F2 expected exactly 6 routed edit/address surfaces, found '+routed);
 
 if(/on\s+conflict\s*\(employee_id,action_code\)\s*do\s+update/i.test(sql))
   throw new Error('PV2-F2 must not overwrite existing explicit Action overrides');
 
-console.log('PV2-F2 Customers Edit/Address owner hardening SOURCE PREP PASS — '+JSON.stringify(counts));
+console.log('PV2-F2 Customers Edit/Address RUNTIME CUTOVER PASS — '+JSON.stringify(counts)+' routed='+routed);

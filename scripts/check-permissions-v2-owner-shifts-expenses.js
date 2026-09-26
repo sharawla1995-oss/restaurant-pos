@@ -6,7 +6,8 @@ const helper=fs.readFileSync(path.join(root,'permissions-v2-expense-edit-routing
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const shiftRuntime=fs.readFileSync(path.join(root,'beta55-delivery-settlement-shift-cash.js'),'utf8');
 const offlineTransport=fs.readFileSync(path.join(root,'beta45-offline-v2-transport.js'),'utf8');
-const loader=fs.readFileSync(path.join(root,'beta36-integration-loader.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 const audit=fs.readFileSync(path.join(root,'scripts/audit-permissions-v2-shift-expense-provenance.js'),'utf8');
 
 function need(src,token,label){
@@ -61,13 +62,15 @@ for(const token of [
 if(/rest\(\s*['"]expenses['"][\s\S]{0,240}?method\s*:\s*['"]PATCH['"]/i.test(helper))
   throw new Error('PV2-F3 candidate must not retain direct expense PATCH fallback');
 
-if(loader.includes('permissions-v2-expense-edit-routing.js'))
-  throw new Error('PV2-F3 renderer candidate must remain unwired before coordinated deploy');
+if(!index.includes(`permissions-v2-expense-edit-routing.js?v=${pkg.version}`))
+  throw new Error('PV2-F3 runtime routing asset must be wired at package version');
 
 const shiftDirect=(app.match(/rest\(\s*['"]shifts['"][\s\S]{0,260}?method\s*:\s*['"](?:POST|PATCH|DELETE)['"]/g)||[]).length;
 const expensePatch=(app.match(/rest\(\s*['"]expenses['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]).length;
 if(shiftDirect!==0)throw new Error('PV2-F3 unexpected direct Shift DML paths='+shiftDirect);
-if(expensePatch!==1)throw new Error('PV2-F3 expected one current direct Expense PATCH path, found '+expensePatch);
+if(expensePatch!==0)throw new Error('PV2-F3 direct Expense PATCH regression: expected 0, found '+expensePatch);
+const routed=(app.match(/__SharawlaPV2ExpenseEdit/g)||[]).length;
+if(routed!==1)throw new Error('PV2-F3 expected exactly one routed Expense Edit surface, found '+routed);
 
 for(const token of [
   "rpc('open_pos_shift_idempotent'",
@@ -81,4 +84,4 @@ need(offlineTransport,"const APPLY_RPC='sharawla_offline_v2_apply_event'",'PV2-F
 need(audit,'OWNER_PROVENANCE_DRIFT','PV2-F3 provenance gate');
 need(audit,'NEGATIVE REPLACEMENT SCAN PASS','PV2-F3 provenance gate');
 
-console.log('PV2-F3 Shift/Expense durable Action boundary SOURCE PREP PASS');
+console.log('PV2-F3 Shift/Expense RUNTIME CUTOVER PASS — routed='+routed);

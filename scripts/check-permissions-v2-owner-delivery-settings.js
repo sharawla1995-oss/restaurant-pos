@@ -4,7 +4,8 @@ const root=path.resolve(__dirname,'..');
 const sql=fs.readFileSync(path.join(root,'permissions-v2-owner-delivery-settings.sql'),'utf8');
 const helper=fs.readFileSync(path.join(root,'permissions-v2-delivery-settings-routing.js'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
-const loader=fs.readFileSync(path.join(root,'beta36-integration-loader.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
 function need(src,token,label){
   if(!src.toLowerCase().includes(token.toLowerCase()))throw new Error(label+' missing: '+token);
@@ -39,8 +40,8 @@ for(const token of [
 if(/rest\(\s*['"]delivery_(?:drivers|zones)['"][\s\S]{0,260}?method\s*:\s*['"](?:POST|PATCH|DELETE)['"]/i.test(helper))
   throw new Error('PV2-F4 routing candidate must not contain direct Delivery Settings DML');
 
-if(loader.includes('permissions-v2-delivery-settings-routing.js'))
-  throw new Error('PV2-F4 routing candidate must remain unwired before coordinated deploy');
+if(!index.includes(`permissions-v2-delivery-settings-routing.js?v=${pkg.version}`))
+  throw new Error('PV2-F4 runtime routing asset must be wired at package version');
 
 function count(resource,method){
   const re=new RegExp("rest\\(\\s*['\"]"+resource+"['\"][\\s\\S]{0,360}?method\\s*:\\s*['\"]"+method+"['\"]","g");
@@ -54,8 +55,10 @@ const counts={
  zonePatch:count('delivery_zones','PATCH'),
  zoneDelete:count('delivery_zones','DELETE')
 };
-const expected={driverPost:2,driverPatch:2,driverDelete:0,zonePost:2,zonePatch:2,zoneDelete:0};
+const expected={driverPost:0,driverPatch:0,driverDelete:0,zonePost:0,zonePatch:0,zoneDelete:0};
 for(const k of Object.keys(expected))if(counts[k]!==expected[k])
   throw new Error('PV2-F4 direct path count drift '+k+'='+counts[k]+' expected='+expected[k]);
+const routed=(app.match(/__SharawlaPV2DeliverySettings/g)||[]).length;
+if(routed!==8)throw new Error('PV2-F4 expected exactly 8 routed Delivery Settings surfaces, found '+routed);
 
-console.log('PV2-F4 Delivery Drivers/Zones owner hardening SOURCE PREP PASS — '+JSON.stringify(counts));
+console.log('PV2-F4 Delivery Drivers/Zones RUNTIME CUTOVER PASS — '+JSON.stringify(counts)+' routed='+routed);

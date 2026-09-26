@@ -5,7 +5,8 @@ const hardening=fs.readFileSync(path.join(root,'permissions-v2-owner-customers-c
 const helper=fs.readFileSync(path.join(root,'permissions-v2-customers-create-routing.js'),'utf8');
 const owner=fs.readFileSync(path.join(root,'supabase-beta54-shared-customer-foundation.sql'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
-const loader=fs.readFileSync(path.join(root,'beta36-integration-loader.js'),'utf8');
+const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
 
 function need(src,token,label){
   if(!src.toLowerCase().includes(token.toLowerCase()))throw new Error(label+' missing: '+token);
@@ -37,8 +38,8 @@ for(const token of [
 if(/rest\(\s*['"]customers['"][\s\S]{0,200}method\s*:\s*['"]POST['"]/i.test(helper))
   throw new Error('PV2-F1 routing candidate must not contain direct customer INSERT fallback');
 
-if(loader.includes('permissions-v2-customers-create-routing.js'))
-  throw new Error('PV2-F1 helper must remain unwired before coordinated Beta deploy');
+if(!index.includes(`permissions-v2-customers-create-routing.js?v=${pkg.version}`))
+  throw new Error('PV2-F1 runtime routing asset must be wired at package version');
 
 // Runtime routing is now switched to the fail-closed V2 owner. Direct customer INSERTs
 // must stay at zero; the three established create surfaces must route through the helper.
@@ -49,4 +50,4 @@ const routedCreates=(app.match(/__SharawlaPV2CustomerCreate/g)||[]).length;
 if(routedCreates!==3)
   throw new Error('PV2-F1 expected exactly 3 routed customer-create surfaces, found '+routedCreates);
 
-console.log('PV2-F1 Customers Create owner hardening SOURCE PASS — direct='+directCreates+' routed='+routedCreates);
+console.log('PV2-F1 Customers Create RUNTIME CUTOVER PASS — direct='+directCreates+' routed='+routedCreates);
