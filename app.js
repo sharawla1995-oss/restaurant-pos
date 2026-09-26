@@ -2319,8 +2319,12 @@ async function resetGroups(groups){
  if(window.topBurgerDesktop?.sandbox?.cleanRuntime){
   const st=await loadLicenseState(),supportCode=String(st?.support_code||'').trim(),testBranch=String(branchName(currentBranchId())||'').trim().toUpperCase();
   if(supportCode==='SH-0007'&&testBranch==='TEST'){
-   try{await window.topBurgerDesktop.sandbox.cleanRuntime({support_code:supportCode,branch_name:testBranch,groups})}
-   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر تنظيف حالة الاختبار المحلية: ${e?.message||e}`)}
+   try{
+    const scope={support_code:supportCode,branch_name:testBranch,groups};
+    if(window.topBurgerDesktop?.offlineV2?.resetTestAll)await window.topBurgerDesktop.offlineV2.resetTestAll(scope);
+    await window.topBurgerDesktop.sandbox.cleanRuntime(scope);
+   }
+   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر إكمال Full Clean على SH-0007: ${e?.message||e}`)}
   }
  }
  return cloud
