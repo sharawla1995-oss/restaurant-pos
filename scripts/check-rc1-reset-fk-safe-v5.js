@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('fs');
+const sql=fs.readFileSync('supabase-rc1-reset-fk-safe-v5.sql','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(sql.includes("if v_md5 is distinct from '91df4995ca1b0f40b3cc593a85cf02b1' then"),'reset V5 MD5 precondition missing');
+must(sql.includes("update public.branch_invoice_counters set next_number=1 where branch_id is not null;"),'invoice counter UPDATE needs WHERE');
+must(sql.includes("update public.branch_return_counters set next_number=1 where branch_id is not null;"),'return counter UPDATE needs WHERE');
+must(!sql.includes("update public.branch_invoice_counters set next_number=1;"),'unsafe invoice counter UPDATE remains');
+must(!sql.includes("update public.branch_return_counters set next_number=1;"),'unsafe return counter UPDATE remains');
+must(sql.includes('shift_history_preserved'),'shift history contract missing');
+must(sql.includes('expense_history_preserved'),'expense history contract missing');
+must(sql.includes('customers_preserved_by_history'),'customer history contract missing');
+must(!sql.includes('delete from public.offline_v2_server_receipts'),'server receipts must be preserved');
+console.log('RC1 FK-safe reset V5 source gate PASS');
