@@ -5,7 +5,7 @@ const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const src=read('owner-acceptance-advanced-v4.js');
 const pkg=JSON.parse(read('package.json'));
 const ver=JSON.parse(read('version.json'));
-const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(betaMatch&&Number(betaMatch[1])>=52,'Package version must be Beta52+');
 assert.strictEqual(ver.version,pkg.version);
 assert.strictEqual(ver.channel,'beta');

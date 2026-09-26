@@ -10,7 +10,7 @@ const sync=read('scripts/sync-version.js');
 const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
 const need=(s,t,m=t)=>assert(s.includes(t),`Beta49 gate missing: ${m}`);
 const no=(s,t,m=t)=>assert(!s.includes(t),`Beta49 gate forbidden: ${m}`);
-const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);assert(betaMatch&&Number(betaMatch[1])>=49,'package version must be Beta49+');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline Engine V2');
+const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);assert(betaMatch&&Number(betaMatch[1])>=49,'package version must be Beta49+');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline');need(pkg.description,'SH-0007');
 for(const t of ["EXPECTED_SUPPORT='SH-0007'","EXPECTED_BUSINESS='91826502-590e-4afa-8826-2c0f4b99c490'","EXPECTED_HOST='xihcxydjnzemflhedzor.supabase.co'",'ensureAcceptanceContext','current_employee_id','classifyLegacyMismatches','acceptanceResidue','cleanupAcceptanceResidue','SharawlaOfflineV2Takeover.arm','SharawlaOfflineV2Takeover.prepareMigration','SharawlaOfflineV2Transport.attestTransport','SharawlaOfflineV2Takeover.activate','preserved_conflicts','ownerOpen()'])need(safety,t);
 for(const t of ["/^ACC-/i","['failed','conflict']",'SHARAWLA_ACCEPTANCE','discarded','canonical_pinned','device_fingerprint'])need(safety,t);
 no(safety,'SH-0005');no(safety,'SH-0006');no(safety,'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7');no(safety,'kzokretuuigjhxjzdlmk');

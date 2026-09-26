@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const version=String(pkg.version||'');
-const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(m&&Number(m[1])>=54,`Beta54+ package version required; got ${version}`);
 const versionConst=`const VERSION='${version}'`;
 const versionQuery=`?v=${version}`;
@@ -21,7 +21,7 @@ const lazy=read('owner-acceptance-lazy-loader-v47.js');
 const sync=read('scripts/sync-version.js');
 const syntax=read('scripts/check-runtime-syntax.js');
 
-assert(String(pkg.description||'').includes('Offline Engine V2'),'Accepted Offline V2 release identity must remain present');
+{const d=String(pkg.description||'');assert(d.includes('Offline')&&d.includes('SH-0007'),'Accepted Offline SH-0007 release identity must remain present');}
 
 for(const token of [
  'Feature Enable -> Page Permission -> Action Permission -> Branch/Data Scope -> Audit Log',

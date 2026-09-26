@@ -5,9 +5,9 @@ const pkg=JSON.parse(read('package.json'));
 const loader=read('owner-acceptance-lazy-loader-v47.js');
 const pack=read('owner-acceptance-retail-coverage-v53.js');
 const sync=read('scripts/sync-version.js');
-const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(m&&Number(m[1])>=53,'Beta53+ package version required');
-assert(String(pkg.description||'').includes('Offline Engine V2'),'Offline V2 release identity must be preserved');
+{const d=String(pkg.description||'');assert(d.includes('Offline')&&d.includes('SH-0007'),'Offline SH-0007 acceptance identity must be preserved');}
 assert(loader.includes(`owner-acceptance-retail-coverage-v53.js?v=${pkg.version}`),'Beta53 Retail coverage pack missing from lazy loader/current version sync');
 assert(loader.indexOf('owner-acceptance-retail-coverage-v53.js')<loader.indexOf('owner-acceptance-ui-v47.js'),'Retail coverage pack must load before acceptance UI');
 for(const token of [

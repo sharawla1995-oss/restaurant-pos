@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const src=read('beta45-offline-v2-transport.js');
 const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
-const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(m&&Number(m[1])>=50,'package version must be Beta50+');
 assert.strictEqual(ver.version,pkg.version);
 assert.strictEqual(ver.channel,'beta');
