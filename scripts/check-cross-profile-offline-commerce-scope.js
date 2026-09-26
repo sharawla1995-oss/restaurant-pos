@@ -23,5 +23,5 @@ must(pharmacyMatrix.includes('Current Pharmacy sale Offline:')&&pharmacyMatrix.i
 for(const p of ['Restaurant','Retail','Pharmacy','Service','Warehouse','Membership','Logistics'])must(scope.includes(`| ${p} |`),`Cross-profile scope missing ${p}`);
 must(scope.includes('implemented=true')&&scope.includes('does not imply'),'scope must distinguish catalog implementation from Offline eligibility');
 must(String(pkg.scripts?.check||'').includes('scripts/check-cross-profile-offline-commerce-scope.js'),'cross-profile Offline gate missing from npm run check');
-must(wf.includes('node scripts/check-cross-profile-offline-commerce-scope.js'),'cross-profile Offline gate missing from CI candidate validation');
+must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
 console.log('Cross-profile Offline commerce scope static gate PASS');

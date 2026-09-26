@@ -14,5 +14,5 @@ must(ui.includes('data-acc-v47-focus="point15"')&&ui.includes('🎯 Point 15 Foc
 must(ui.includes('Point 15 Focused selection incomplete'),'Point15 focused selection completeness guard missing');
 must(!/runPoint15Focused\(\)[\s\S]{0,1200}R\.start\(\{level:'chaos',mode:'sandbox',failFast/.test(ui),'Point15 focused runner must not fall back to broad chaos');
 must(String(pkg.scripts?.check||'').includes('scripts/check-point15-focused-acceptance-runner.js'),'Point15 focused runner gate missing from npm run check');
-must(wf.includes('node scripts/check-point15-focused-acceptance-runner.js'),'Point15 focused runner gate missing from CI candidate validation');
+must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
 console.log('Point15 focused acceptance runner static gate PASS');

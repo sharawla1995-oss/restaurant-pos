@@ -19,5 +19,5 @@ must(test.includes("replay?.duplicate!==true")&&test.includes("replay?.idempoten
 must(test.includes("server_event_id)!==text(a.server_event_id)"),'focused HTTP503 acceptance must preserve server event identity');
 must(loader.includes('owner-acceptance-offline-http503-v58.js'),'focused HTTP503 acceptance is not loaded');
 must(String(pkg.scripts?.check||'').includes('scripts/check-offline-http503-recovery-acceptance.js'),'HTTP503 gate missing from npm run check');
-must(wf.includes('node scripts/check-offline-http503-recovery-acceptance.js'),'HTTP503 gate missing from CI candidate validation');
+must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
 console.log('Offline HTTP503 durability/recovery/exactly-once static gate PASS');

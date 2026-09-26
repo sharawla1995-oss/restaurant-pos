@@ -24,5 +24,5 @@ must(test.includes("id:'runtime-snapshot.anti-rollback-runtime-e2e'"),'anti-roll
 must(test.includes("r?.reject_code!=='SNAPSHOT_ROLLBACK'")&&test.includes('live_store_touched'),'anti-rollback runtime assertions missing');
 must(loader.includes('owner-acceptance-runtime-snapshot-anti-rollback-v58.js'),'anti-rollback acceptance not loaded');
 must(String(pkg.scripts?.check||'').includes('scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js'),'anti-rollback gate missing from npm run check');
-must(wf.includes('node scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js'),'anti-rollback gate missing from CI candidate validation');
+must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
 console.log('Runtime Snapshot isolated anti-rollback runtime acceptance static gate PASS');

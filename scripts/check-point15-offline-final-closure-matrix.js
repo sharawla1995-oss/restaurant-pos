@@ -23,7 +23,7 @@ for(const id of ids)must(ui.includes(id),`focused runner missing ${id}`);
 must(ui.includes("R.start({level:'chaos',mode:'sandbox',ids:[...POINT15_IDS],failFast:false})"),'focused runner is not ID-scoped');
 must(matrix.includes('do not install intermediate commits')||matrix.includes('do not install intermediate'),'matrix must preserve consolidated-install policy');
 must(String(pkg.scripts?.check||'').includes('scripts/check-point15-offline-final-closure-matrix.js'),'Point15 matrix checker missing from npm run check');
-must(wf.includes('node scripts/check-point15-offline-final-closure-matrix.js'),'Point15 matrix checker missing from CI candidate validation');
+must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
 console.log('Point15 Offline/Sync final closure matrix checker PASS');
 console.log('state=READY_FOR_FOCUSED_RUNTIME');
 console.log('pending=offline.shift-lifecycle-runtime-e2e,offline.http503-recovery-runtime-e2e,runtime-snapshot.anti-rollback-runtime-e2e');
