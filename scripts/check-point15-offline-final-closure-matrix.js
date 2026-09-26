@@ -2,6 +2,7 @@
 const fs=require('fs');
 function must(c,m){if(!c)throw new Error(m)}
 const matrix=fs.readFileSync('docs/OFFLINE-SYNC-FINAL-CLOSURE-EVIDENCE-MATRIX-2026-09-26.md','utf8');
+const master=fs.readFileSync('SHARAWLA_MASTER_STATUS.md','utf8');
 const scope=fs.readFileSync('docs/OFFLINE-CROSS-PROFILE-SCOPE-2026-09-26.md','utf8');
 const shift=fs.readFileSync('owner-acceptance-offline-shift-v58.js','utf8');
 const http503=fs.readFileSync('owner-acceptance-offline-http503-v58.js','utf8');
@@ -9,21 +10,41 @@ const snapshot=fs.readFileSync('owner-acceptance-runtime-snapshot-anti-rollback-
 const ui=fs.readFileSync('owner-acceptance-ui-v47.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const wf=fs.readFileSync('.github/workflows/beta55-1-runtime-snapshot-build.yml','utf8');
-for(const id of ['ACC-20260926-033522-X5BSV','ACC-20260926-033735-PZPJX'])must(matrix.includes(id),`authoritative Restaurant evidence missing: ${id}`);
-for(const seq of ['Seq293','Seq304','Seq316'])must(matrix.includes(seq),`preserved historical evidence missing: ${seq}`);
-must(matrix.includes('READY_FOR_FOCUSED_RUNTIME'),'Point15 matrix must remain ready-for-focused-runtime before device proof');
-must(matrix.includes('| Shift open | PARTIAL |')&&matrix.includes('| Shift close | PARTIAL |'),'Shift rows must remain PARTIAL before focused device proof');
-must(matrix.includes('| Synthetic HTTP 5xx / partial server failure | PARTIAL |'),'HTTP503 row must remain PARTIAL before focused device proof');
-must(matrix.includes('| Runtime Snapshot anti-rollback | PARTIAL |'),'anti-rollback row must remain PARTIAL before focused device proof');
-must(matrix.includes('| Cross-profile Offline acceptance | PROVEN |'),'current-support cross-profile scope must be closed');
+
+for(const id of ['ACC-20260926-033522-X5BSV','ACC-20260926-033735-PZPJX','ACC-20260926-065330-BYFAZ'])
+  must(matrix.includes(id),`authoritative Point15 evidence missing: ${id}`);
+for(const seq of ['Seq293','Seq304','Seq316'])
+  must(matrix.includes(seq),`preserved historical evidence missing: ${seq}`);
+
+must(matrix.includes('POINT15_CLOSED'),'Point15 matrix closure marker missing');
+must(matrix.includes('| Shift open | PROVEN |')&&matrix.includes('| Shift close | PROVEN |'),'Shift rows must be PROVEN after focused device proof');
+must(matrix.includes('| Synthetic HTTP 5xx / partial server failure | PROVEN |'),'HTTP503 row must be PROVEN after focused device proof');
+must(matrix.includes('| Runtime Snapshot anti-rollback | PROVEN |'),'anti-rollback row must be PROVEN after focused device proof');
+must(!matrix.includes('| Shift open | PARTIAL |')&&!matrix.includes('| Shift close | PARTIAL |'),'Shift PARTIAL state must not remain after closure');
+must(!matrix.includes('| Synthetic HTTP 5xx / partial server failure | PARTIAL |'),'HTTP503 PARTIAL state must not remain after closure');
+must(!matrix.includes('| Runtime Snapshot anti-rollback | PARTIAL |'),'anti-rollback PARTIAL state must not remain after closure');
+must(matrix.includes('close_seq=359')&&matrix.includes('open_seq=360')&&matrix.includes('Seq361'),'final focused sequence evidence missing');
+must(matrix.includes('cleanup=closed'),'focused shift cleanup evidence missing');
+
+must(matrix.includes('| Cross-profile Offline acceptance | PROVEN |'),'current-support cross-profile scope must remain closed');
 must(scope.includes('| Restaurant | SUPPORTED |')&&scope.includes('| Retail | SUPPORTED for POS-critical core |')&&scope.includes('| Pharmacy | NOT SUPPORTED for commerce today |')&&scope.includes('| Logistics | NOT ELIGIBLE for generic POS commerce |'),'cross-profile support scope incomplete');
+
 const ids=['offline.shift-lifecycle-runtime-e2e','offline.http503-recovery-runtime-e2e','runtime-snapshot.anti-rollback-runtime-e2e'];
-must(shift.includes(ids[0]),'focused shift runtime test missing');must(http503.includes(ids[1]),'focused HTTP503 runtime test missing');must(snapshot.includes(ids[2]),'focused anti-rollback runtime test missing');
+must(shift.includes(ids[0]),'focused shift runtime test missing');
+must(http503.includes(ids[1]),'focused HTTP503 runtime test missing');
+must(snapshot.includes(ids[2]),'focused anti-rollback runtime test missing');
 for(const id of ids)must(ui.includes(id),`focused runner missing ${id}`);
 must(ui.includes("R.start({level:'chaos',mode:'sandbox',ids:[...POINT15_IDS],failFast:false})"),'focused runner is not ID-scoped');
-must(matrix.includes('do not install intermediate commits')||matrix.includes('do not install intermediate'),'matrix must preserve consolidated-install policy');
+
+must(master.includes('15. ✅ Offline / Sync Final Closure: CLOSED'),'Master roadmap Point15 closure missing');
+must(master.includes('# 2026-09-26 POINT 15 FINAL CLOSURE — CLOSED'),'Master final closure checkpoint missing');
+must(master.includes('ACC-20260926-065330-BYFAZ'),'Master focused runtime evidence missing');
+must(master.includes('Advance to Roadmap **Point 16 — RC1**'),'Master exact next step must advance to RC1');
+
 must(String(pkg.scripts?.check||'').includes('scripts/check-point15-offline-final-closure-matrix.js'),'Point15 matrix checker missing from npm run check');
 must(wf.includes('run: npm run check'),'CI candidate validation must execute consolidated npm run check');
+
 console.log('Point15 Offline/Sync final closure matrix checker PASS');
-console.log('state=READY_FOR_FOCUSED_RUNTIME');
-console.log('pending=offline.shift-lifecycle-runtime-e2e,offline.http503-recovery-runtime-e2e,runtime-snapshot.anti-rollback-runtime-e2e');
+console.log('state=POINT15_CLOSED');
+console.log('focused_run=ACC-20260926-065330-BYFAZ');
+console.log('pending=none');

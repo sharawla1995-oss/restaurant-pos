@@ -62,7 +62,7 @@ Important current source facts visible on this branch:
 12. ⬜ Beta62 — Cross-Profile Closure
 13. ⬜ Permissions Final Closure
 14. ⬜ Reports & Accounting / Financial Closure
-15. ⬜ Offline / Sync Final Closure
+15. ✅ Offline / Sync Final Closure: CLOSED
 16. ⬜ RC1
 17. ⬜ Pilot Production → Sharawla V1 Production Ready
 
@@ -4983,3 +4983,74 @@ Exact next runtime step:
 Authoritative existing Restaurant runtime remains:
 - Full `ACC-20260926-033522-X5BSV` — READY_FOR_RC / 100%.
 - Chaos `ACC-20260926-033735-PZPJX` — READY_FOR_RC / 100%.
+
+---
+
+# 2026-09-26 POINT 15 FINAL CLOSURE — CLOSED
+
+This section is the authoritative continuation checkpoint for Roadmap Point 15 and **supersedes all earlier Point-15 OPEN / READY_FOR_FOCUSED_RUNTIME instructions in this file**.
+
+## Final SH-0007 focused runtime proof
+
+Candidate source:
+- Commit: `907e0ac9b7ca3856f710d4e59e02e2a88a5cee38`
+- CI Run: `36215665352` — **SUCCESS**
+- Candidate Validation: PASS
+- Windows x64 build: PASS
+- packaged app.asar verification: PASS
+- SH-0007 sandbox artifact upload: PASS
+
+Final focused acceptance:
+- Run: `ACC-20260926-065330-BYFAZ`
+- Runtime: `10.5.4-beta.58.29`
+- Profile: restaurant
+- Level: chaos
+- Mode: sandbox
+- Readiness: **READY_FOR_RC**
+- Coverage: **100%**
+
+Exact focused results:
+- `offline.shift-lifecycle-runtime-e2e`: **PASS** — sandbox_branch=3; close_shift=57; close_seq=359; open_shift=58; open_seq=360; explicit_ack=2; replay=stable; cleanup=closed.
+- `offline.http503-recovery-runtime-e2e`: **PASS** — order=231; HTTP 503 retryable; attempts=1; Seq361; recovery=synced; exactly_once=server-receipt-replay; replay=same-event.
+- `runtime-snapshot.anti-rollback-runtime-e2e`: **PASS** — isolated=temp; accepted=2; rejected=1; code=SNAPSHOT_ROLLBACK; lkg=2; high_water=2; live_store=untouched.
+
+Independent Beta operational-backend read-back:
+- Seq359 receipt: `shift_close` / `close_pos_shift_idempotent` / server shift 57.
+- Seq360 receipt: `shift_open` / `open_pos_shift_idempotent` / server shift 58.
+- Seq361 receipt: `order_status` / `order_status_apply_offline_v2` / order 231.
+- Focused sandbox branch 3 has zero open shifts for Employee 2 after cleanup.
+- The focused cloud-mutating paths therefore have durable server receipts and did not leave a new open-shift sandbox residue.
+
+Historical context:
+- The immediately prior focused run `ACC-20260926-065253-TBNEO` executed the Shift lifecycle successfully at raw runtime level but was displayed as FLAKY because the registry anti-flap rule compared it with the preceding FAIL precondition result. Repeating the same corrected candidate produced the final PASS above; the recorded history is not rewritten.
+- Full Restaurant evidence remains `ACC-20260926-033522-X5BSV` — READY_FOR_RC / 100%.
+- Chaos Restaurant evidence remains `ACC-20260926-033735-PZPJX` — READY_FOR_RC / 100%.
+
+## Point-15 closure decision
+
+**Roadmap Point 15 — Offline / Sync Final Closure = CLOSED.**
+
+The remaining focused rows in `docs/OFFLINE-SYNC-FINAL-CLOSURE-EVIDENCE-MATRIX-2026-09-26.md` are PROVEN. The current advertised cross-profile Offline commerce support boundary remains unchanged.
+
+Preserved evidence:
+- Seq293 — historical Dead Letter / Sale.
+- Seq304 — historical Dead Letter / Sale.
+- Seq316 — historical Conflict / Return.
+
+Do not Retry / Delete / Reset those rows merely to hide historical evidence.
+
+Safety boundary remains unchanged:
+- Production SH-0005 / SH-0006 = 10.5.3 CLEAN, immutable/read-only.
+- SH-0007 remains the isolated Beta device.
+- Canonical Stock OFF.
+- Cutover OFF.
+- Point-15 closure does **not** authorize Production deployment.
+
+## Exact Next Step — authoritative
+
+Advance to Roadmap **Point 16 — RC1**.
+
+Do not repeat Full Sandbox, Deep Chaos, or Point-15 Focused only to generate newer timestamps. Any new run must be justified by an actual regression or by a specific RC1 acceptance requirement.
+
+Production rollout remains NOT AUTHORIZED.
+
