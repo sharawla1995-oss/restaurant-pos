@@ -1,8 +1,12 @@
 'use strict';
-const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
-const model=(app.match(/function onlineOrderLifecycleState\([\s\S]*?\r?\r?\n}\r?\n\r?\nfunction resolveOnlineOrderFulfillment/)||[])[0]||'';
-const accept=(app.match(/async function acceptOnlineOrderFromChannel\([\s\S]*?\r?\r?\n}\r?\n\r?\nfunction onlineOrderLifecycleState/)||[])[0]||'';
-const reject=(app.match(/async function rejectOnlineOrderFromChannel\([\s\S]*?\r?\r?\n}\r?\n\r?\nasync function renderOnlineOrders/)||[])[0]||'';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const fail=[];
+const need=(x,m)=>{if(!x)fail.push(m)};
+const section=(start,end)=>{const s=app.indexOf(start);if(s<0)return '';const e=app.indexOf(end,s+start.length);return app.slice(s,e>s?e:app.length)};
+const model=section('function onlineOrderLifecycleState(','function resolveOnlineOrderFulfillment(');
+const accept=section('async function acceptOnlineOrderFromChannel(','function onlineOrderLifecycleState(');
+const reject=section('async function rejectOnlineOrderFromChannel(','async function renderOnlineOrders(');
 need(/status==='pending'.*state:'new'/.test(model),'raw pending -> Core new missing');
 need(/status==='accepted'.*state:'accepted'/.test(model),'raw accepted mapping missing');
 need(/status==='rejected'.*state:'rejected'.*terminal:true/.test(model),'raw rejected terminal mapping missing');

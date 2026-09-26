@@ -1,7 +1,12 @@
 'use strict';
-const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const registry=fs.readFileSync('sharawla-navigation-registry.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
-const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\r?\r?\n}\r?\n\r?\nasync function renderDeliveryOrders/)||[])[0]||'';
-const delivery=(app.match(/async function renderDeliveryOrders\([\s\S]*?\r?\n}\nfunction deliveryOrderCard/)||[])[0]||'';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const registry=fs.readFileSync('sharawla-navigation-registry.js','utf8');
+const fail=[];
+const need=(x,m)=>{if(!x)fail.push(m)};
+const section=(start,end)=>{const s=app.indexOf(start);if(s<0)return '';const e=app.indexOf(end,s+start.length);return app.slice(s,e>s?e:app.length)};
+const inbox=section('async function renderOnlineOrders(','async function renderDeliveryOrders(');
+const delivery=section('async function renderDeliveryOrders(','function deliveryOrderCard(');
 need(!!inbox&&!!delivery,'renderer boundaries missing');
 need(/rest\('website_orders'/.test(inbox),'Online Inbox must own raw pending website fetch');
 need(/data-online-accept/.test(inbox)&&/data-online-reject/.test(inbox),'Online Inbox actions missing');
