@@ -451,6 +451,20 @@ async function refreshOfflineCustomerCache(){
   try{const customers=await fetchAll('customers','select=id,name,phone,area,address,updated_at');await odbSet('customersCache',customers);const addresses=await fetchAll('customer_addresses','select=*');await odbSet('customerAddressesCache',addresses);await odbSet('customersCacheAt',new Date().toISOString())}catch(e){console.warn('customer offline cache',e)}
 }
 async function cachedCustomerByPhone(raw){const normalized=normalizePhone(raw),all=(await odbGet('customersCache'))||[];const tail=normalized.slice(-10);return all.find(c=>normalizePhone(c.phone)===normalized)||all.find(c=>normalizePhone(c.phone).slice(-10)===tail)||null}
+async function offlineCustomerRowsFromOutbox(){
+ try{
+  const api=window.topBurgerDesktop?.offlineV2;if(!api?.outbox)return[];
+  const rows=await api.outbox();
+  return (rows||[]).filter(r=>r.operation_type==='customer_create'&&r.status!=='synced').map(r=>{
+   const p=r.envelope?.payload?.rpc_payload||{},status=String(r.status||'pending');
+   return {id:r.local_entity_id||`offline-customer_create-${r.client_tx_id}`,name:p.p_name||'',phone:p.p_phone||'',area:p.p_area||'',address:p.p_address||'',notes:p.p_notes||null,created_at:r.created_local_at||r.created_at||null,client_tx_id:r.client_tx_id,_offline:true,_offline_status:status};
+  });
+ }catch(e){console.warn('offline customer outbox projection',e);return[]}
+}
+async function mergeOfflineCustomerRows(base=[]){
+ const local=await offlineCustomerRowsFromOutbox();
+ return [...local,...(base||[]).filter(c=>!local.some(l=>String(l.id)===String(c.id)))];
+}
 async function cachedAddressesForCustomer(id){return ((await odbGet('customerAddressesCache'))||[]).filter(a=>String(a.customer_id)===String(id)).sort((a,b)=>Number(b.is_default===true)-Number(a.is_default===true)||Number(b.id||0)-Number(a.id||0))}
 async function cachedOpenShift(){return await odbGet(`openShift:${state.employee?.id}:${currentBranchId()}`)}
 async function rememberOpenShift(sh){if(sh)await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,sh);return sh}
@@ -1296,12 +1310,17 @@ async function checkout(payment,payments=null){
       const customerRouter=globalThis.__SharawlaPV2CustomerCreate;
       const addressRouter=globalThis.__SharawlaPV2CustomerEditAddress;
       if(typeof customerRouter?.createCustomer!=='function')throw new Error('مسار إنشاء العميل غير جاهز');
-      customerId=await customerRouter.createCustomer({name:name||phone,phone,address:deliveryInput?.address||null,area});
-      if(customerId && deliveryInput?.address){
-        if(typeof addressRouter?.saveAddress!=='function')throw new Error('مسار عناوين العميل غير جاهز');
-        await addressRouter.saveAddress({customer_id:customerId,label:'العنوان الأساسي',address:deliveryInput.address,area,is_default:true});
+      const createdCustomer=await customerRouter.createCustomer({name:name||phone,phone,address:deliveryInput?.address||null,area});
+      if(createdCustomer&&typeof createdCustomer==='object'&&createdCustomer.offline===true){
+        customerId=null;
+      }else{
+        customerId=createdCustomer;
+        if(customerId && deliveryInput?.address){
+          if(typeof addressRouter?.saveAddress!=='function')throw new Error('مسار عناوين العميل غير جاهز');
+          await addressRouter.saveAddress({customer_id:customerId,label:'العنوان الأساسي',address:deliveryInput.address,area,is_default:true});
+        }
       }
-    }catch(e){}
+    }catch(e){console.warn('customer auto-create',e)}
   }
   const branchId=currentBranchId();
   const source=(state.employee.role==='delivery'||state.employee.role==='callcenter')?'callcenter':'pos';
@@ -1438,9 +1457,10 @@ async function openCustomerImport(){
 async function renderCustomers(){
  // CUSTOMERS-MANUAL-CREATE-V1
  let rows=[];try{rows=await fetchAll('customers','select=*&order=created_at.desc');await odbSet('customersCache',rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet('customersCache'))||[]}
+ rows=await mergeOfflineCustomerRows(rows);
  $('#page').innerHTML=`<div class="panel"><div class="toolbar customer-toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="newCustomerBtn" class="primary">+ عميل جديد</button><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
- const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>`<tr><td>${esc(c.name||'')}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td><div class="row-actions"><button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button><button class="secondary" data-addresses="${c.id}">📍 العناوين</button></div></td></tr>`).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};
- const openCreate=()=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card customer-create-modal" id="customerCreateForm"><div class="section-head"><div><h2>👤 عميل جديد</h2><p class="muted">أضف بيانات العميل مرة واحدة لتظهر تلقائيًا في الكاشير عند كتابة رقم الهاتف.</p></div></div><div class="form-grid"><label>اسم العميل<input id="ncName" autocomplete="name" required></label><label>رقم الموبايل<input id="ncPhone" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx" required></label><label>المنطقة<input id="ncArea" autocomplete="address-level2"></label><label>العنوان<input id="ncAddress" autocomplete="street-address"></label></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ العميل</button></div></form>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove()};m.querySelector('#customerCreateForm').onsubmit=async e=>{e.preventDefault();const name=m.querySelector('#ncName').value.trim(),phone=m.querySelector('#ncPhone').value.trim(),normalized=normalizePhone(phone),area=m.querySelector('#ncArea').value.trim(),address=m.querySelector('#ncAddress').value.trim();if(!name)return toast('اكتب اسم العميل');if(!normalized)return toast('اكتب رقم الموبايل');const dup=rows.find(x=>normalizePhone(x.phone)===normalized);if(dup)return toast('رقم الموبايل مسجل لعميل آخر');const submit=e.submitter;if(submit)submit.disabled=true;try{const router=globalThis.__SharawlaPV2CustomerCreate;if(typeof router?.createCustomer!=='function')throw new Error('مسار إنشاء العميل غير جاهز');await router.createCustomer({name,phone,area:area||null,address:address||null});m.remove();toast('تمت إضافة العميل');renderCustomers()}catch(err){toast(err.message||'تعذر إضافة العميل')}finally{if(submit)submit.disabled=false}};setTimeout(()=>m.querySelector('#ncName')?.focus(),0)};
+ const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>{const local=c._offline===true,status=String(c._offline_status||'');const stateText=local?(status==='conflict'||status==='dead_letter'?'مشكلة مزامنة':'محفوظ محليًا — بانتظار المزامنة'):'';return `<tr><td>${esc(c.name||'')}${stateText?`<small style="display:block">${esc(stateText)}</small>`:''}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td>${local?'<span class="tag">Local</span>':`<div class="row-actions"><button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button><button class="secondary" data-addresses="${c.id}">📍 العناوين</button></div>`}</td></tr>`}).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};
+ const openCreate=()=>{const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card customer-create-modal" id="customerCreateForm"><div class="section-head"><div><h2>👤 عميل جديد</h2><p class="muted">أضف بيانات العميل مرة واحدة لتظهر تلقائيًا في الكاشير عند كتابة رقم الهاتف.</p></div></div><div class="form-grid"><label>اسم العميل<input id="ncName" autocomplete="name" required></label><label>رقم الموبايل<input id="ncPhone" inputmode="tel" autocomplete="tel" placeholder="اختياري — 01xxxxxxxxx"></label><label>المنطقة<input id="ncArea" autocomplete="address-level2"></label><label>العنوان<input id="ncAddress" autocomplete="street-address"></label></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ العميل</button></div></form>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove()};m.querySelector('#customerCreateForm').onsubmit=async e=>{e.preventDefault();const name=m.querySelector('#ncName').value.trim(),phone=m.querySelector('#ncPhone').value.trim(),normalized=normalizePhone(phone),area=m.querySelector('#ncArea').value.trim(),address=m.querySelector('#ncAddress').value.trim();if(!name)return toast('اكتب اسم العميل');if(phone&&!validEgyptMobile(phone))return toast('رقم الموبايل غير صحيح');const dup=normalized?rows.find(x=>normalizePhone(x.phone)===normalized):null;if(dup)return toast('رقم الموبايل مسجل لعميل آخر');const submit=e.submitter;if(submit)submit.disabled=true;try{const router=globalThis.__SharawlaPV2CustomerCreate;if(typeof router?.createCustomer!=='function')throw new Error('مسار إنشاء العميل غير جاهز');const created=await router.createCustomer({name,phone:normalized||null,area:area||null,address:address||null});m.remove();toast(created&&typeof created==='object'&&created.offline===true?'تم حفظ العميل محليًا وسيُزامن عند رجوع الاتصال':'تمت إضافة العميل');renderCustomers()}catch(err){toast(err.message||'تعذر إضافة العميل')}finally{if(submit)submit.disabled=false}};setTimeout(()=>m.querySelector('#ncName')?.focus(),0)};
  $('#customerSearch').oninput=draw;draw();$('#newCustomerBtn').onclick=openCreate;$('#importCustomers').onclick=openCustomerImport;
  $('#customersBody').onclick=async e=>{const eb=e.target.closest('[data-edit-customer]'),ab=e.target.closest('[data-addresses]');if(eb){const c=rows.find(x=>String(x.id)===eb.dataset.editCustomer);const name=await uiPrompt('اسم العميل',c.name||'');if(name===null)return;const phone=await uiPrompt('رقم الموبايل',c.phone||'');if(phone===null)return;const area=await uiPrompt('المنطقة',c.area||'');if(area===null)return;const address=await uiPrompt('العنوان',c.address||'');if(address===null)return;const dup=rows.find(x=>x.id!==c.id&&normalizePhone(x.phone)===normalizePhone(phone));if(dup)return toast('رقم الموبايل مسجل لعميل آخر');const router=globalThis.__SharawlaPV2CustomerEditAddress;if(typeof router?.updateCustomer!=='function')throw new Error('مسار تعديل العميل غير جاهز');await router.updateCustomer({id:c.id,name:name.trim(),phone:phone.trim(),area:area.trim()||null,address:address.trim()||null,notes:c.notes||null});toast('تم تعديل العميل');renderCustomers();return;}if(ab){openCustomerAddresses(Number(ab.dataset.addresses));}};
 }
