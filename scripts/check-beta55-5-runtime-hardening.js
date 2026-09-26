@@ -5,8 +5,9 @@ function ok(cond,msg){if(!cond){console.error('FAIL',msg);process.exitCode=1}els
 const hard=read('beta55-5-runtime-hardening.js');
 const loader=read('beta36-integration-loader.js');
 const app=read('app.js');
+const pkg=JSON.parse(read('package.json'));
 
-ok(hard.includes("const VERSION='10.5.4-beta.55.5'"),'55.5 hardening version');
+ok(hard.includes(`const VERSION='${pkg.version}'`),'55.5 hardening synced version');
 ok(hard.includes("shifts:Object.freeze({mode:'full'"),'shifts declared full offline');
 ok(hard.includes("expenses:Object.freeze({mode:'full-create'"),'expenses offline create contract');
 ok(hard.includes("deliverySettings:Object.freeze({mode:'cache-read'"),'delivery settings cache-read contract');

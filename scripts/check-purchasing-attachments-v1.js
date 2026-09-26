@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const version=String(pkg.version||'');
-const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 assert(m&&Number(m[1])>=54,`Beta54+ package version required; got ${version}`);
 const versionQuery=`?v=${version}`;
 const sql=read('supabase-purchasing-attachments-v1.sql');
