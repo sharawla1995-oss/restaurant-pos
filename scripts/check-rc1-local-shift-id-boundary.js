@@ -13,4 +13,10 @@ const close=s.slice(s.indexOf("if(open)$('#closeShift')"),s.indexOf("else $('#op
 must(close.indexOf("!isServerShiftId(open.id)")<close.indexOf("p_shift_id:Number(open.id)"),'close RPC can receive local shift ID');
 const expense=s.slice(s.indexOf("$('#addExpense').onclick"),s.indexOf("function catalogOrderValue"));
 must(expense.indexOf("!isServerShiftId(shift.id)")<expense.indexOf("p_shift_id:Number(shift.id)"),'expense RPC can receive local shift ID');
+must(s.includes("if(!isServerShiftId(sh.id)){const q=await offlineQueue()"),'offline bon badge guard missing');
+must(s.includes("p_shift_id:isServerShiftId(shift.id)?Number(shift.id):shift.id"),'offline expense must preserve local shift ID');
+const localProjection=s.slice(s.indexOf('async function localShiftProjectionRows'),s.indexOf('async function localShiftMetrics'));
+must(localProjection.includes("if(isServerShiftId(sid))"),'local projection server boundary missing');
+must(localProjection.includes("await offlineQueue()"),'local projection must read local queue');
+must(localProjection.includes("await cachedOrderBundles()"),'local projection must read cached orders');
 console.log('RC1 local shift bigint boundary gate PASS');
