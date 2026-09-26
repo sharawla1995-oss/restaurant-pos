@@ -1303,7 +1303,7 @@ async function checkout(payment,payments=null){
   const deliveryInput=orderType==='delivery'?validatedDeliveryCheckoutInput():null;
   let openShift=await getOpenShift();if(!openShift){toast('لازم تفتح وردية قبل تسجيل البيع');setTimeout(()=>showPage('shifts'),700);return;}
   const phone=deliveryInput?.phone||($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
-  let customerId=state.selectedCustomer?.id||null;
+  let customerId=state.selectedCustomer?.id||null,customerCreateTx=null;
   const area=deliveryInput?.area||null;
   if(phone && !customerId){
     try{
@@ -1312,7 +1312,7 @@ async function checkout(payment,payments=null){
       if(typeof customerRouter?.createCustomer!=='function')throw new Error('مسار إنشاء العميل غير جاهز');
       const createdCustomer=await customerRouter.createCustomer({name:name||phone,phone,address:deliveryInput?.address||null,area});
       if(createdCustomer&&typeof createdCustomer==='object'&&createdCustomer.offline===true){
-        customerId=null;
+        customerId=null;customerCreateTx=String(createdCustomer.client_tx_id||'').trim()||null;
       }else{
         customerId=createdCustomer;
         if(customerId && deliveryInput?.address){
@@ -1326,7 +1326,7 @@ async function checkout(payment,payments=null){
   const source=(state.employee.role==='delivery'||state.employee.role==='callcenter')?'callcenter':'pos';
   const selectedDriver=orderType==='delivery'&&$('#deliveryDriver')?.value?Number($('#deliveryDriver').value):null;
   const orderPayload={
-    branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
+    branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,customer_create_tx:customerCreateTx,shift_id:openShift?.id||null,order_type:orderType,
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:['delivery','pickup'].includes(orderType)?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
     delivery_address:deliveryInput?.address||null,delivery_area:area,
