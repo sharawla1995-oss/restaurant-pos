@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 const POINT15_IDS=Object.freeze(['offline.shift-lifecycle-runtime-e2e','offline.http503-recovery-runtime-e2e','runtime-snapshot.anti-rollback-runtime-e2e']);
 const $=(s,r=document)=>r.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

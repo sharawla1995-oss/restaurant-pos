@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 async function rpc(name,payload){if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');return global.rpc(name,payload)}
 function clean(v){const s=String(v??'').trim();return s||null}
 function tx(){return global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}

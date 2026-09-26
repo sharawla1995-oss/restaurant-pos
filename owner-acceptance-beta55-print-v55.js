@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 const R=()=>global.__SharawlaAcceptanceRegistry;
 const TYPES={delivery:['دليفري','DELIVERY'],takeaway:['تيك أواي','TAKEAWAY'],pickup:['استلام فرع','PICKUP'],dinein:['صالة','DINE-IN']};
 function ensureIncludes(html,needle,label){if(!String(html||'').includes(needle))throw new Error(`${label}: missing ${needle}`)}

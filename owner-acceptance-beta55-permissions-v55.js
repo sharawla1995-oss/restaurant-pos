@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 const R=()=>global.__SharawlaAcceptanceRegistry;
 const CODES=[
  'inventory.supply.request.emergency',

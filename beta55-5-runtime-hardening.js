@@ -5,7 +5,7 @@
 // This layer does not touch licensing, canonical fingerprint, auth encryption,
 // Production devices, or backend schema. It formalizes the Restaurant offline
 // page contract and prevents Navigation Parity cards from leaking into sub-pages.
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 const READ_CACHE_PAGES=new Set(['deliverySettings','products']);
 const FULL_OFFLINE_PAGES=new Set(['shifts','expenses']);
 const OFFLINE_CONTRACT=Object.freeze({

@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.58.32';
+const VERSION='10.5.4-beta.58.33';
 const R=()=>global.__SharawlaAcceptanceRegistry;
 const branch=()=>Number(global.currentBranchId?.()||0);
 function ensure(){if(typeof global.rpc!=='function'||typeof global.rest!=='function')throw new Error('Runtime RPC/REST unavailable');if(!branch())throw new Error('Active branch missing')}
