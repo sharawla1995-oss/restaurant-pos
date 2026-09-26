@@ -65,7 +65,12 @@ function annotateOfflinePage(){
     :'<b>✓ وضع أوفلاين</b><div class="muted">الحركات الجديدة محفوظة محليًا وستتم مزامنتها بعد رجوع الاتصال والجلسة Online.</div>';
   host.prepend(note);
 }
-function scheduleUiHardening(){setTimeout(()=>{setScopeClass();annotateOfflinePage()},0)}
+let uiHardeningScheduled=false;
+function scheduleUiHardening(){
+ if(uiHardeningScheduled)return;
+ uiHardeningScheduled=true;
+ requestAnimationFrame(()=>{uiHardeningScheduled=false;setScopeClass();annotateOfflinePage()});
+}
 
 function offlineAudit(){
   const page=activePage();const contract=OFFLINE_CONTRACT[page]||null;
@@ -76,7 +81,7 @@ function offlineAudit(){
 function start(){
   ensureScopeStyle();setScopeClass();
   document.addEventListener('click',guardOfflineMutations,true);
-  const obs=new MutationObserver(scheduleUiHardening);obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+  const obs=new MutationObserver(scheduleUiHardening);obs.observe(document.querySelector('#page')||document.body,{subtree:true,childList:true});
   global.addEventListener('offline',scheduleUiHardening);global.addEventListener('online',scheduleUiHardening);
   global.addEventListener('sharawla:offline-v2-projection-changed',scheduleUiHardening);
   global.addEventListener('sharawla:offline-cache-fallback',scheduleUiHardening);
