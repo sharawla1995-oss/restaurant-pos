@@ -36,10 +36,19 @@ jobs:
       - name: Reconstruct exact consolidated source
         shell: pwsh
         run: |
+          # Windows hosted runners may check text files out as CRLF. The reviewed
+          # patches and repository blobs are LF, so normalize the worktree first.
+          git config core.autocrlf false
+          git reset --hard HEAD
+          if ($LASTEXITCODE -ne 0) { throw "Could not normalize candidate worktree to LF" }
           git apply --check "rc1-patches/work-c0bb-to-4a9d893.patch"
+          if ($LASTEXITCODE -ne 0) { throw "Reviewed Work patch does not apply to c0bb base" }
           git apply "rc1-patches/work-c0bb-to-4a9d893.patch"
+          if ($LASTEXITCODE -ne 0) { throw "Reviewed Work patch application failed" }
           git apply --check "rc1-patches/overlay-4a9d893-to-beta58-31.patch"
+          if ($LASTEXITCODE -ne 0) { throw "Consolidated beta58.31 overlay does not apply" }
           git apply "rc1-patches/overlay-4a9d893-to-beta58-31.patch"
+          if ($LASTEXITCODE -ne 0) { throw "Consolidated beta58.31 overlay application failed" }
           Remove-Item "sharawla-pos-v10-5-2-PHASE2-STEP2-PATCH-ONLY-NO-DUPLICATES.zip" -Force -ErrorAction SilentlyContinue
           Remove-Item "rc1-patches" -Recurse -Force
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
