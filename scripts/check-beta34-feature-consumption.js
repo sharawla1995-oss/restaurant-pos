@@ -55,7 +55,7 @@ function testRuntime(){
 function testStaticWiring(){
   const pkg=JSON.parse(read('package.json'));
   const version=String(pkg.version||'');
-  const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+  const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
   must(!!m&&Number(m[1])>=34,'package version must be Beta34 or newer');
   const index=read('index.html'),sw=read('sw.js'),app=read('app.js'),ui=read('beta34-feature-ui.js');
   for(const asset of ['sharawla-feature-consumption.js','beta34-feature-ui.js']){

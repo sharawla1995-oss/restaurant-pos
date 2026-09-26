@@ -98,7 +98,7 @@ function testCapabilityBridge(){
 function testShellWiring(){
   const pkg=JSON.parse(read('package.json'));
   const version=String(pkg.version||'');
-  const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+  const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
   must(m&&Number(m[1])>=33,'package version must be Beta33 or newer');
   const index=read('index.html'),sw=read('sw.js');
   const assets=['sharawla-capabilities-beta33.js','sharawla-capability-runtime-bridge.js','sharawla-cloud-runtime-v2.js'];

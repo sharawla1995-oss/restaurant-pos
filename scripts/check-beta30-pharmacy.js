@@ -10,7 +10,7 @@ const pkg=JSON.parse(read('package.json'));
 const sw=read('sw.js');
 const syntax=read('scripts/check-runtime-syntax.js');
 const version=String(pkg.version||'');
-const m=version.match(/^10\.5\.4-beta\.(\d+)$/);
+const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 must(m&&Number(m[1])>=30,'package version must be beta30 or newer');
 must(engine.includes("code:'pharmacy'")&&engine.includes('pharmacyCatalog')&&engine.includes('pharmacyInsurance'),'Pharmacy engine incomplete');
 must(ui.includes('create_pharmacy_pos_order_atomic')&&ui.includes('pharmacy_receive_batch')&&ui.includes('pharmacy_update_claim_status'),'Pharmacy operational workflows missing');

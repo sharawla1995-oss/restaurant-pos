@@ -40,7 +40,7 @@ function runtimeTest(){
 
 function shellTest(){
  const pkg=JSON.parse(read('package.json')),version=String(pkg.version||'');
- must(/^10\.5\.4-beta\.(\d+)$/.test(version)&&Number(version.match(/beta\.(\d+)$/)[1])>=39,'package version must be Beta39 or newer');
+ const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);must(m&&Number(m[1])>=39,'package version must be Beta39 or newer');
  const index=read('index.html'),sw=read('sw.js');
  const chain=['sharawla-runtime-core.js','sharawla-capabilities.js','sharawla-capabilities-beta33.js','sharawla-capabilities-v3.js','sharawla-capability-runtime-bridge.js','sharawla-feature-consumption.js','sharawla-cloud-runtime-v2.js','restaurant-engine.js'];
  let prev=-1;

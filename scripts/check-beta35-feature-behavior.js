@@ -31,7 +31,7 @@ function testBehaviorHelper(){
 
 function testStaticWiring(){
   const pkg=JSON.parse(read('package.json'));
-  const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+  const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
   must(m&&Number(m[1])>=35,'package version must be Beta35 or newer');
   must(String(pkg.scripts?.check||'').includes('check-beta35-feature-behavior.js'),'npm check missing Beta35 gate');
 

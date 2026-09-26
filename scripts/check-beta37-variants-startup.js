@@ -3,7 +3,7 @@ const path=require('path');
 const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
-const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);
+const m=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 if(!m||Number(m[1])<37)throw new Error(`Expected beta37 or later, got ${pkg.version}`);
 const hotfix=read('retail-variants-startup-hotfix.js');
 const retail=read('retail-engine.js');
