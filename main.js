@@ -785,18 +785,16 @@ function registerIpc(){
    const operational=['orders','shifts','expenses','customers','delivery'];
    if(!operational.some(x=>groups.has(x)))return {ok:true,archived_operations:0,cleared_keys:0,scope:'SH-0007/TEST'};
    const backup=createBackup('pre-sandbox-clean-reset');
-   const pending=one(`select count(*) c from local_operations where status='pending'`);
-   run(`update local_operations set status='reset_archived',last_error='Archived by SH-0007 clean reset',updated_at=datetime('now') where status='pending'`);
-   const exact=new Set(['queue','queueCount']);
-   if(groups.has('orders')||groups.has('delivery'))exact.add('cachedOrders');
-   if(groups.has('customers'))for(const k of ['customersCache','customerAddressesCache','customersCacheAt'])exact.add(k);
+   const legacy=one(`select count(*) c from local_operations`);
+   const syncLog=one(`select count(*) c from sync_log`);
+   run(`delete from local_operations`);
+   run(`delete from sync_log`);
+   const exact=new Set(['queue','queueCount','cachedOrders','customersCache','customerAddressesCache','customersCacheAt','offlineV2ReturnPayments']);
    let cleared=0;
    for(const k of exact){const before=one('select count(*) c from kv where key=?',[k]);if(Number(before?.c||0)>0){run('delete from kv where key=?',[k]);cleared++}}
-   const prefixes=[];
-   if(groups.has('orders')||groups.has('delivery'))prefixes.push('cachedReturns:','returnUsage:','point4OrderIdentity:');
-   if(groups.has('shifts'))prefixes.push('openShift:','shiftHistory:');
+   const prefixes=['cachedReturns:','returnUsage:','point4OrderIdentity:','openShift:','shiftHistory:','sharawla55.4:read:','sharawla55.4:bon:'];
    for(const prefix of prefixes){const before=one('select count(*) c from kv where key like ?',[prefix+'%']);run('delete from kv where key like ?',[prefix+'%']);cleared+=Number(before?.c||0)}
-   return {ok:true,archived_operations:Number(pending?.c||0),cleared_keys:cleared,backup,scope:'SH-0007/TEST',offline_v2_evidence_preserved:true};
+   return {ok:true,deleted_legacy_operations:Number(legacy?.c||0),deleted_sync_log:Number(syncLog?.c||0),cleared_keys:cleared,backup,scope:'SH-0007/TEST',full_clean:true};
  });
  ipcMain.handle('license-state:get',()=>readLicenseStateFile());
  ipcMain.handle('license-state:set',(_e,v)=>writeLicenseStateFile(v));
