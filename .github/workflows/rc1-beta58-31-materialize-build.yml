@@ -1,0 +1,109 @@
+name: RC1 Beta58.31 Materialize and Build
+
+on:
+  push:
+    branches:
+      - rc1-beta58-31-consolidated-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rc1-beta58-31-consolidated-candidate
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Verify pinned bootstrap base
+        shell: bash
+        run: |
+          set -euo pipefail
+          parent="$(git rev-parse HEAD^)"
+          test "$parent" = "c0bb9df2a830485a863450d29df5b74a077d53e7"
+      - name: Materialize Work source and consolidated RC1 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply .rc1-transfer/c0bb-to-work.patch
+          patch -p1 --batch < .rc1-transfer/work-to-beta58.31.patch
+          rm -f sharawla-pos-v10-5-2-PHASE2-STEP2-PATCH-ONLY-NO-DUPLICATES.zip
+          rm -rf .rc1-transfer
+          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.31"
+      - name: Run full source and regression gates
+        run: npm run check
+      - name: Commit materialized source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: materialize RC1 offline candidate beta.58.31"
+          git push origin HEAD:rc1-beta58-31-consolidated-candidate
+
+  build-x64:
+    if: github.actor != 'github-actions[bot]'
+    needs: materialize
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rc1-beta58-31-consolidated-candidate
+          fetch-depth: 0
+      - name: Verify materialized source
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne '10.5.4-beta.58.31') { throw "Wrong package version" }
+          if ([string]$ver.version -ne [string]$pkg.version) { throw "Version mismatch" }
+          if (Test-Path '.rc1-transfer') { throw "Transfer patches still present" }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source and regression gates
+        run: npm run check
+      - name: Build Windows x64 candidate
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save installer and SHA256
+        id: artifact
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.31'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content rc1-beta58.31-sha256.txt -Encoding ascii
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+      - name: Upload SH-0007 x64 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.4-beta.58.31-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.31-x64.exe
+            rc1-beta58.31-sha256.txt
+          if-no-files-found: error
+          retention-days: 7
