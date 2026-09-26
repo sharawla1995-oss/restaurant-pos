@@ -6,7 +6,7 @@ const engine=fs.readFileSync('retail-engine.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const version=String(pkg.version||'');
-const m=version.match(/^10\.5\.4-beta\.(\d+)$/);if(!m||Number(m[1])<29)fail('package version must be beta29 or later');ok('package version beta29+ regression gate');
+const m=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);if(!m||Number(m[1])<29)fail('package version must be beta29 or later');ok('package version beta29+ regression gate');
 for(const marker of ['activationDeveloperContactBtn','activationSupportCode','retail_offer_set_active','buy_x_get_y','data-b29-edit-offer','data-b29-archive-offer','retailWebsiteOrdersNav','repairOwnerSessionResult'])if(!runtime.includes(marker))fail('missing runtime marker '+marker);ok('Beta29 runtime markers');
 if(!engine.includes("promoCodes:'promocodes'"))fail('Retail promoCodes module mapping missing');
 if(!engine.includes("'retailOffers','promoCodes'"))fail('Retail page order missing promoCodes');ok('Retail promoCodes route');
