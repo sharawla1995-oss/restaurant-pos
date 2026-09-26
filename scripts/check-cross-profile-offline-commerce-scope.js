@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('fs');
+function must(c,m){if(!c)throw new Error(m)}
+const transport=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const pharmacy=fs.readFileSync('pharmacy-ui.js','utf8');
+const retailMatrix=fs.readFileSync('docs/RETAIL-OFFLINE-SUPPORT-MATRIX.md','utf8');
+const pharmacyMatrix=fs.readFileSync('docs/PHARMACY-OFFLINE-SUPPORT-MATRIX.md','utf8');
+const scope=fs.readFileSync('docs/OFFLINE-CROSS-PROFILE-SCOPE-2026-09-26.md','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const wf=fs.readFileSync('.github/workflows/beta55-1-runtime-snapshot-build.yml','utf8');
+must(transport.includes("const OFFLINE_COMMERCE_PROFILES=new Set(['restaurant','retail'])"),'Offline V2 commerce eligibility set must be Restaurant/Retail only');
+must((transport.match(/OFFLINE_V2_COMMERCE_PROFILE_UNSUPPORTED/g)||[]).length>=2,'sale/return transport fail-closed guards missing');
+must(transport.includes("e.operation='sale'")&&transport.includes("e.operation='return'"),'sale/return unsupported profile diagnostics missing');
+must(app.includes("function assertOfflineCommerceProfile")&&app.includes("OFFLINE_COMMERCE_PROFILE_UNSUPPORTED"),'legacy Offline commerce profile guard missing');
+must(app.includes("saveOfflineSale(orderPayload,itemPayload,payRows,providedClientTx=null){assertOfflineCommerceProfile('sale')"),'legacy Offline sale guard missing');
+must(app.includes("saveOfflineReturn(o,selected,reason,notes,method,total,available,providedClientTx=null,identity=null){assertOfflineCommerceProfile('return')"),'legacy Offline return guard missing');
+must(app.includes("if(profile!=='restaurant'&&profile!=='retail')return toast(`المرتجعات لهذا النشاط"),'generic return route must block unsupported profiles');
+must(pharmacy.includes("if(!navigator.onLine)return toast('بيع الباتشات والتأمين يحتاج اتصال إنترنت في Beta30')"),'Pharmacy checkout offline fail-closed guard missing');
+must(app.includes('data-pos-profile-fail-closed="PROFILE_NOT_POS"'),'non-POS generic route fail-closed marker missing');
+must(retailMatrix.includes('Retail POS Offline core:')&&retailMatrix.includes('SUBSTANTIALLY PRESENT.'),'Retail Offline support contract missing');
+must(pharmacyMatrix.includes('Current Pharmacy sale Offline:')&&pharmacyMatrix.includes('NOT SUPPORTED.'),'Pharmacy Offline unsupported contract missing');
+for(const p of ['Restaurant','Retail','Pharmacy','Service','Warehouse','Membership','Logistics'])must(scope.includes(`| ${p} |`),`Cross-profile scope missing ${p}`);
+must(scope.includes('implemented=true')&&scope.includes('does not imply'),'scope must distinguish catalog implementation from Offline eligibility');
+must(String(pkg.scripts?.check||'').includes('scripts/check-cross-profile-offline-commerce-scope.js'),'cross-profile Offline gate missing from npm run check');
+must(wf.includes('node scripts/check-cross-profile-offline-commerce-scope.js'),'cross-profile Offline gate missing from CI candidate validation');
+console.log('Cross-profile Offline commerce scope static gate PASS');

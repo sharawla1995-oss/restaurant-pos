@@ -9,6 +9,7 @@ const VERSION='10.5.4-beta.54';
 const CONNECTION_KEY='sharawlaBusinessConnectionV1';
 const FALLBACK_CONTEXT_MS=30_000;
 const POS_PROFILES=new Set(['restaurant','retail','pharmacy','service','warehouse','membership','logistics']);
+const OFFLINE_COMMERCE_PROFILES=new Set(['restaurant','retail']);
 const adaptersByType=new Map();
 const typeByRpc=new Map();
 const fallbackByType=new Map();
@@ -49,6 +50,7 @@ function enrichSaleItems(items){
 }
 function resolveSale(payload={},profile=authoritativeProfile()){
   const p=clone(payload||{});p.p_items=enrichSaleItems(p.p_items||[]);
+  if(!OFFLINE_COMMERCE_PROFILES.has(profile)){const e=new Error(`Offline V2 sale is not supported for profile: ${profile}`);e.code='OFFLINE_V2_COMMERCE_PROFILE_UNSUPPORTED';e.profile=profile;e.operation='sale';throw e}
   if(profile==='retail'){
     if(foodOn())return {rpc_name:'create_food_retail_pos_order_atomic_v1',rpc_payload:{...p,p_use_variants:variantsOn()||foodApi()?.variantsOperational?.()===true}};
     if(variantsOn())return {rpc_name:'create_retail_variant_pos_order_atomic_v1',rpc_payload:p};
@@ -58,6 +60,7 @@ function resolveSale(payload={},profile=authoritativeProfile()){
 }
 function resolveReturn(payload={},profile=authoritativeProfile()){
   const p=clone(payload||{});
+  if(!OFFLINE_COMMERCE_PROFILES.has(profile)){const e=new Error(`Offline V2 return is not supported for profile: ${profile}`);e.code='OFFLINE_V2_COMMERCE_PROFILE_UNSUPPORTED';e.profile=profile;e.operation='return';throw e}
   if(profile==='retail'){
     if(foodOn())return {rpc_name:'create_food_retail_order_return_idempotent_v1',rpc_payload:{...p,p_use_variants:variantsOn()||foodApi()?.variantsOperational?.()===true}};
     if(variantsOn())return {rpc_name:'create_retail_variant_order_return_idempotent_v1',rpc_payload:p};
