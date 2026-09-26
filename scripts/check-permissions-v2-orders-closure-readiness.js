@@ -19,5 +19,6 @@ need(fulfillment,"has_action_permission_v2('orders.fulfillment.manage')",'fulfil
 need(assignment,"has_action_permission_v2('orders.delivery.assign_driver')",'driver assignment owner');
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
 if(direct.length!==0)throw new Error('Orders direct PATCH remains: '+direct.length);
-if(/revoke\s+update\s+on\s+(table\s+)?public\.orders/i.test(fulfillment+assignment+payment))throw new Error('Premature Orders UPDATE revoke found');
+const ownerSql=(fulfillment+'\n'+assignment+'\n'+payment).replace(/--[^\n]*/g,' ');
+if(/revoke\s+update\s+on\s+(table\s+)?public\.orders/i.test(ownerSql))throw new Error('Premature Orders UPDATE revoke found');
 console.log('PV2-F5E readiness PASS — renderer direct PATCH=0; Offline delivery/status routed; specialized owners present; closure artifact may now be prepared (SOURCE ONLY)');
