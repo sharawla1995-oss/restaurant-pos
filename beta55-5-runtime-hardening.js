@@ -56,7 +56,7 @@ function guardOfflineMutations(e){
   toast55(page==='products'?'إدارة الأصناف متاحة للقراءة أوفلاين. الإضافة والتعديل تحتاج إنترنت.':'بيانات الدليفري متاحة للقراءة أوفلاين. تعديل المناديب والمناطق والتسويات يحتاج إنترنت.');
 }
 function annotateOfflinePage(){
-  const fallback=global.__SharawlaOfflineCacheFallback,existing=document.querySelector('#page [data-beta55-5-offline-note]');if(navigator.onLine&&fallback?.active!==true){existing?.remove();return}
+  const fallback=global.__SharawlaOfflineCacheFallback,existing=document.querySelector('#page [data-beta555-offline-note]');if(navigator.onLine&&fallback?.active!==true){existing?.remove();return}
   const page=activePage();const c=OFFLINE_CONTRACT[page];if(!c)return;
   const host=document.querySelector('#page');if(!host||host.querySelector('[data-beta55-5-offline-note]'))return;
   const note=document.createElement('div');note.dataset.beta555OfflineNote='1';note.className='panel';note.style.marginBottom='10px';
