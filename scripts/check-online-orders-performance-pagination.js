@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
-const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\n}\n\nasync function renderDeliveryOrders/)||[])[0]||'';
+const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\r?\r?\n}\r?\n\r?\nasync function renderDeliveryOrders/)||[])[0]||'';
 need(/renderOnlineOrders\(opts=\{\}\)/.test(inbox),'options renderer missing');
 need(/pageSize=100,offset=\(page-1\)\*pageSize/.test(inbox),'100-row pagination contract missing');
 need(/created_at=gte\.\$\{fromIso\}&created_at=lte\.\$\{toIso\}/.test(inbox),'server-side date window missing');

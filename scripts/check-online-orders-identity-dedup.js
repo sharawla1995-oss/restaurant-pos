@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs');const app=fs.readFileSync('app.js','utf8');const fail=[];const need=(x,m)=>{if(!x)fail.push(m)};
-const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\n}\n\nasync function renderDeliveryOrders/)||[])[0]||'';
+const inbox=(app.match(/async function renderOnlineOrders\([\s\S]*?\r?\r?\n}\r?\n\r?\nasync function renderDeliveryOrders/)||[])[0]||'';
 need(/canonicalById=new Map/.test(inbox),'canonical identity index missing');
 need(/w\.order_id\?\?w\.accepted_order_id\?\?null/.test(inbox),'existing website->canonical lineage fields not consumed');
 need(/linkedCanonicalIds=new Set/.test(inbox),'linked canonical dedupe set missing');
