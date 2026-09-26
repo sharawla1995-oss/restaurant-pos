@@ -11,6 +11,8 @@ let installed=false;
 let syncBusy=false;
 let lastReconnectNotice=0;
 let cacheFallbackState=null;
+let warmCachesPromise=null;
+let lastWarmCachesAt=0;
 
 const text=v=>String(v??'').trim();
 const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -272,6 +274,9 @@ async function updateNextBonRecovery(){
 
 async function warmRuntimeCaches(){
  if(!onlineAuthorized()||!branchId()||!employeeId())return false;
+ if(warmCachesPromise)return warmCachesPromise;
+ if(Date.now()-lastWarmCachesAt<60000)return false;
+ warmCachesPromise=(async()=>{
  const b=branchId();const calls=[
   ['shifts',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=100`],
   ['order_items',`select=*&order_id=not.is.null&order=id.desc&limit=5000`],
@@ -285,7 +290,10 @@ async function warmRuntimeCaches(){
  ];
  for(const [t,q] of calls){try{const rows=await baseRest(t,q);await dbSet(readKey(t,q),rows);if(t==='shifts')await dbSet(`shiftHistory:${b}`,rows);if(t==='orders'){const bundles=(await dbGet('cachedOrders'))||[],itemsByOrder=new Map();for(const x of ((await dbGet(readKey('order_items','select=*&order_id=not.is.null&order=id.desc&limit=5000')))||[])){const k=String(x.order_id);if(!itemsByOrder.has(k))itemsByOrder.set(k,[]);itemsByOrder.get(k).push(x)}await dbSet('cachedOrders',rows.map(o=>({order:o,items:itemsByOrder.get(String(o.id))||[]})).concat(bundles.filter(x=>!rows.some(o=>String(o.id)===String(x.order?.id)))).slice(0,500))}if(t==='customers')await dbSet('customersCache',rows);if(t==='customer_addresses')await dbSet('customerAddressesCache',rows)}catch{}}
  try{await getOpenShiftRecovery(employeeId(),b)}catch{}
+ lastWarmCachesAt=Date.now();
  return true;
+ })();
+ try{return await warmCachesPromise}finally{warmCachesPromise=null}
 }
 
 function install(){
