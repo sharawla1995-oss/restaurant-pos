@@ -35,6 +35,7 @@ async function ownership55(job){const gate=global.SharawlaOfflineOwnership;if(!g
 function legacyMayRead55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayRead?gate.legacyMayRead(owner):false}
 function legacyMayOperate55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayOperate?gate.legacyMayOperate(owner):false}
 
+function isLocalShiftId(v){return /^offline-shift-[0-9a-f-]+$/i.test(text(v))}
 function parseEq(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=eq\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
 function parseIn(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=in\\.\\(([^)]*)\\)`));return m?m[1].split(',').map(x=>text(x)).filter(Boolean):null}
 function parseBound(query,key,op){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=${op}\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
@@ -186,6 +187,13 @@ async function restRecovery(table,query='',opt={}){
    if(!navigator.onLine)throw new Error('العملية دي تحتاج إنترنت. البيانات الحالية محفوظة ومش هتتمسح.');
    try{return await baseRest(table,query,opt)}catch(e){if(netError(e))throw new Error('العملية دي تحتاج اتصالًا بالإنترنت. لم يتم تأكيد أي تغيير؛ راجع البيانات بعد رجوع الاتصال قبل إعادة المحاولة.');throw e}
  }
+ const localShiftEq=parseEq(query,'shift_id');
+ const localShiftId=(table==='shifts'?parseEq(query,'id'):null);
+ if(isLocalShiftId(localShiftEq)||isLocalShiftId(localShiftId)){
+   const local=await baselineRows(table,query);
+   if(local!==null){publishFallback(table,'local-shift-id');return local}
+   throw new Error('الوردية المحلية لم تتزامن بعد، والبيانات المطلوبة غير محفوظة محليًا.');
+ }
  let networkFailed=false;
  if(onlineAuthorized()){
    try{const remote=await baseRest(table,query,opt),rows=applyQuery(await mergeNative(table,remote),query);await dbSet(readKey(table,query),rows);clearFallback();return rows}catch(e){if(!netError(e))throw e;networkFailed=true}
@@ -208,7 +216,11 @@ async function pendingLocalShift(){
 let baseGetOpenShift=null;
 async function getOpenShiftRecovery(employee=employeeId(),branch=branchId()){
  if(!onlineAuthorized())return (await cachedShift())||(await pendingLocalShift())||null;
- try{const sh=await baseGetOpenShift(employee,branch);if(sh)await rememberShift(sh);return sh}catch(e){if(netError(e))return (await cachedShift())||(await pendingLocalShift())||null;throw e}
+ try{
+  const sh=await baseGetOpenShift(employee,branch);
+  if(sh){await rememberShift(sh);return sh}
+  return (await pendingLocalShift())||null;
+ }catch(e){if(netError(e))return (await cachedShift())||(await pendingLocalShift())||null;throw e}
 }
 
 async function remapQueuedShift(q,localId,serverId){
