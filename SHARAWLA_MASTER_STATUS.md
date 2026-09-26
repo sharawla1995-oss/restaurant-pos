@@ -4894,3 +4894,49 @@ Interpretation:
 - It does not by itself close broad Roadmap Point 15 Offline/Sync Final Closure or authorize Production rollout.
 
 Production remains untouched; Seq293 / Seq304 / Seq316 remain preserved.
+
+
+---
+
+# 2026-09-26 DEEP CHAOS FINAL CONFIRMATION — PZPJX
+
+Real-device SH-0007 acceptance:
+- Run: `ACC-20260926-033735-PZPJX`
+- Runtime: `10.5.4-beta.58.29`
+- Profile: restaurant
+- Level: chaos
+- Mode: sandbox
+- Readiness: **READY_FOR_RC**
+- Coverage Score: **100%**
+
+Critical Offline runtime paths are explicit PASS:
+- Order Status: PASS — order=226; new->preparing; Seq343; explicit_ack=1; replay=stable.
+- Expense: PASS — Seq344; expense=20; receipt=1; replay=stable.
+- Return: PASS — order=153; Seq345; return=81; receipt=1; replay=stable.
+- Customer Create: PASS — customer=37; Seq346; receipt=1; replay=stable.
+- Customer dependent address: PASS — customer=38; address=7; dependency=ACK-mapped; replay=stable.
+- Customer mutations: PASS — isolated create/update/address-save/delete synced; receipts=4.
+- Delivery driver assignment: PASS — order=227; driver=26; Seq353; replay=stable.
+- Delivery economic completion: PASS — order=228; cash; custody=1; Seq354; economic replay=stable.
+
+Broader runtime evidence:
+- Restaurant full roundtrip: PASS; cleanup=zero.
+- Delivery settlement / shift cash: PASS; cleanup=zero.
+- Native Offline health: PASS (native-sqlite3, WAL, FK).
+- Offline migration compatibility: PASS; integrity=ok/ok; counts preserved; max_seq=354.
+- Permissions contracts: PASS.
+- Recovery guard: PASS; unresolved=3.
+- Backup/restore-copy, temp restore, corruption detection, and clock/device-sequence recovery: PASS.
+- The unresolved count remains exactly the preserved historical baseline Seq293 / Seq304 / Seq316; this Chaos run created no additional unresolved operation.
+
+Manual items remain explicitly manual:
+- enabled-feature coverage reports 11 uncovered capabilities.
+- backend role impersonation requires dedicated sandbox users.
+- live DB restore remains a guided sandbox-only drill.
+
+Interpretation:
+- The prior K54AX FLAKY classification issue is now independently superseded for current runtime evidence by a fresh Chaos run where all targeted Offline runtime E2E paths report PASS.
+- PZPJX is the authoritative Restaurant Chaos runtime acceptance evidence: **READY_FOR_RC / 100%**.
+- This confirms the Restaurant Chaos scope on SH-0007; it does not by itself authorize Production rollout or automatically close broader multi-profile/manual Roadmap requirements.
+
+Production remains untouched. Canonical Stock and Cutover remain OFF. Seq293 / Seq304 / Seq316 remain preserved.
