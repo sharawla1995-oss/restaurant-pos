@@ -9,7 +9,10 @@ need(sql,"has_action_permission_v2('delivery.mark_delivered')",'delivery action 
 need(sql,"has_action_permission_v2('delivery.payment.change_at_delivery')",'payment-change action gate');
 need(wrapper,"rpc('delivery_mark_delivered_v2'",'online routing');
 need(wrapper,"if(!isOnline())return false",'offline bridge');
-need(wrapper,"if(!isOnline())return;\n  const raw=btn.dataset.delivered",'offline click fallthrough');
+need(wrapper,"const raw=btn.dataset.delivered||lastDeliveryDetailId||'';",'delivery click identity');
+need(wrapper,"if(!isOnline()){",'offline delivery branch');
+need(wrapper,"const ov2=global.SharawlaOfflineV2Takeover;",'offline takeover owner');
+need(wrapper,"ov2.saveOrderStatus(raw,'delivered')",'offline durable delivered routing');
 need(wrapper,'e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();','online interception');
 need(sql,"delivery_cash_custody_amount=v_after",'custody materialization');
 need(sql,"insert into public.order_payments(order_id,method,amount)",'payment ledger alignment');
