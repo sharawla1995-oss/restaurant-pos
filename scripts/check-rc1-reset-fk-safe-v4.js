@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('fs');
+const sql=fs.readFileSync('supabase-rc1-reset-fk-safe-v4.sql','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(sql.includes("if v_md5 is distinct from '3c96c8494d0b5109b8f36c1a30b1b4e3' then"),'reset V4 MD5 precondition missing');
+for(const marker of ['driver_settlement_items','delivery_payment_events','restaurant_table_session_orders']) must(sql.includes(marker),`missing cleanup: ${marker}`);
+must(sql.indexOf('delete from public.driver_settlement_items')<sql.indexOf('delete from public.orders'),'settlement child order wrong');
+must(sql.includes('shift_history_preserved')&&!sql.includes('delete from public.shifts where true'),'shift history contract broken');
+must(sql.includes('expense_history_preserved')&&!sql.includes('delete from public.expenses where true'),'expense history contract broken');
+must(sql.includes('customers_preserved_by_history'),'customer history preservation missing');
+must(!sql.includes('delete from public.offline_v2_customer_merge_receipts'),'offline customer evidence must be preserved');
+must(!sql.includes('delete from public.offline_v2_server_receipts'),'server receipts must be preserved');
+console.log('RC1 FK-safe reset V4 source gate PASS');
