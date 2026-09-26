@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs');
+const s=fs.readFileSync('beta55-4-runtime-recovery.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(s.includes('let warmCachesPromise=null;'),'cache warmup in-flight guard missing');
+must(s.includes('let lastWarmCachesAt=0;'),'cache warmup cooldown state missing');
+must(s.includes('if(warmCachesPromise)return warmCachesPromise;'),'concurrent cache warmups must coalesce');
+must(s.includes('if(Date.now()-lastWarmCachesAt<60000)return false;'),'cache warmup cooldown missing');
+must(s.includes('lastWarmCachesAt=Date.now();'),'successful warmup timestamp missing');
+must(s.includes('finally{warmCachesPromise=null}'),'cache warmup guard must release');
+console.log('RC1 online runtime performance gate PASS');
