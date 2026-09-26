@@ -124,7 +124,7 @@ function appRuntimeConfigInterface(posProfile){
 
   // Diagnostics must use the transport-owned read-only sqlite query helper; this
   // prevents Sync Now diagnostics from failing before the sync engine can claim work.
-  {const src=fs.readFileSync(path.join(root,'beta45-offline-v2-transport.js'),'utf8');
+  {const src=read('beta45-offline-v2-transport.js');
    assert(src.includes("function all(sql,params=[]){return new Promise((resolve,reject)=>db.all(sql,params,(err,rows)=>err?reject(err):resolve(rows||[])))}"));
    assert(!src.includes('_allForTransportDiagnostics'));
    assert(src.includes("const rows=await all(\`SELECT employee_id,status,COUNT(*) count"));
