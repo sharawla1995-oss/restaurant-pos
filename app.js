@@ -1531,16 +1531,136 @@ async function renderDelivery(){
 
 async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(b.dataset.id,b.dataset.status);toast(navigator.onLine===false?'تم حفظ تحديث الحالة للمزامنة':'تم تحديث حالة الطلب');renderKitchen()}}
 
-async function shiftMetrics(shift){
- const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id);
- const [orders,payments,expenses,returns,returnPays]=await Promise.all([
-  rest('orders',`select=id,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status&shift_id=eq.${shift.id}`),
-  rest('order_payments',`select=order_id,method,amount&order_id=in.(${orderIds.join(',')||0})`),
-  rest('expenses',`select=amount&shift_id=eq.${shift.id}`),
-  rest('returns',`select=id,total&shift_id=eq.${shift.id}`).catch(()=>[]),
-  rest('return_payments',`select=return_id,method,amount&return_id=in.(${(await rest('returns',`select=id&shift_id=eq.${shift.id}`).catch(()=>[])).map(x=>x.id).join(',')||0})`).catch(()=>[])
- ]);
- const operational=orders.filter(o=>o.status!=='cancelled');const valid=operational.filter(o=>String(o.source||'')!=='website'||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase())));const ids=new Set(valid.map(o=>String(o.id)));const paymentTotals={};
+function rc1IsoMs(v){const n=Date.parse(String(v||''));return Number.isFinite(n)?n:0}
+function rc1ShouldOverlayOutbox(row,baseAt=null){
+ if(!row)return true;
+ const st=String(row.status||'');
+ if(st!=='synced')return true;
+ return !!baseAt&&rc1IsoMs(row.synced_at)>rc1IsoMs(baseAt);
+}
+function rc1ShiftRefMatches(value,shiftId){
+ const a=String(value??''),b=String(shiftId??'');
+ return !!a&&!!b&&(a===b||Number(a)>0&&Number(b)>0&&Number(a)===Number(b));
+}
+async function rc1NativeOutboxRows(){
+ try{return (await window.topBurgerDesktop?.offlineV2?.outbox?.())||[]}catch(e){console.warn('RC1 native outbox read',e);return[]}
+}
+function rc1OrderPaidForMetrics(o){
+ const web=String(o?.source||'')==='website';
+ return o?.status!=='cancelled'&&(!web||o?.payment_status==='confirmed'||(String(o?.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o?.status||'').toLowerCase())));
+}
+async function rc1OverlayShiftLocal(base,shift){
+ const model={
+  ...base,
+  orders:[...(base.orders||[])],payments:[...(base.payments||[])],expenses:[...(base.expenses||[])],
+  returns:[...(base.returns||[])],returnPays:[...(base.returnPays||[])],
+  items:[...(base.items||[])],returnItems:[...(base.returnItems||[])]
+ };
+ const native=await rc1NativeOutboxRows(),nativeByTx=new Map(native.map(r=>[String(r.client_tx_id||''),r]));
+ let compat=[];try{compat=await offlineQueue()}catch{}
+ const included=new Set();
+ const orderIds=()=>new Set(model.orders.map(o=>String(o.id)));
+ const pushSale=(tx,pOrder,pItems,pPays,localOrder=null,localItems=null)=>{
+  const key=String(tx||'');if(!key||included.has('sale:'+key))return;
+  if(!rc1ShiftRefMatches(pOrder?.shift_id??localOrder?.shift_id,shift.id))return;
+  const n=nativeByTx.get(key);if(n&&!rc1ShouldOverlayOutbox(n,base.cacheAt))return;
+  const id=localOrder?.id||n?.local_entity_id||`offline-${key}`;
+  if(model.orders.some(o=>String(o.client_tx_id||'')===key||String(o.id)===String(id)))return;
+  const order={...(pOrder||{}),...(localOrder||{}),id,client_tx_id:key,_offline:true,_offline_status:String(n?.status||'pending'),created_at:localOrder?.created_at||n?.created_local_at||new Date().toISOString()};
+  model.orders.push(order);
+  const its=(localItems?.length?localItems:(pItems||[]).map((x,i)=>({...x,id:x.id||`${id}-line-${x.line_uid||i+1}`,order_id:id})));
+  model.items.push(...its.map(x=>({...x,order_id:id,_offline:true,client_tx_id:key})));
+  model.payments.push(...(pPays||[]).map((p,i)=>({...p,id:p.id||`${id}-pay-${i+1}`,order_id:id,_offline:true,client_tx_id:key})));
+  included.add('sale:'+key);
+ };
+ const pushExpense=(tx,p,local=null)=>{
+  const key=String(tx||'');if(!key||included.has('expense:'+key))return;
+  if(!rc1ShiftRefMatches(p?.p_shift_id??local?.shift_id,shift.id))return;
+  const n=nativeByTx.get(key);if(n&&!rc1ShouldOverlayOutbox(n,base.cacheAt))return;
+  const id=local?.id||n?.local_entity_id||`offline-exp-${key}`;
+  if(model.expenses.some(x=>String(x.client_tx_id||'')===key||String(x.id)===String(id)))return;
+  model.expenses.push(local||{id,branch_id:Number(n?.branch_id||currentBranchId()),employee_id:Number(n?.employee_id||state.employee?.id),shift_id:p.p_shift_id,description:p.p_description,amount:Number(p.p_amount||0),created_at:n?.created_local_at||new Date().toISOString(),client_tx_id:key,_offline:true,_offline_status:String(n?.status||'pending')});
+  included.add('expense:'+key);
+ };
+ const pushReturn=(tx,p,local=null,localItems=[],localPays=[])=>{
+  const key=String(tx||'');if(!key||included.has('return:'+key))return;
+  const n=nativeByTx.get(key);if(n&&!rc1ShouldOverlayOutbox(n,base.cacheAt))return;
+  const originalOrderId=String(p?.p_order_id??local?.order_id??'');
+  const original=model.orders.find(o=>String(o.id)===originalOrderId);
+  if(!rc1ShiftRefMatches(local?.shift_id??original?.shift_id,shift.id))return;
+  const id=local?.id||n?.local_entity_id||`offline-ret-${key}`;
+  if(model.returns.some(x=>String(x.client_tx_id||'')===key||String(x.id)===String(id)))return;
+  const pays=localPays?.length?localPays:(p?.p_payments||[]).map((x,i)=>({...x,return_id:id,id:`${id}-p-${i+1}`}));
+  const total=Number(local?.total??pays.reduce((a,x)=>a+Number(x.amount||0),0));
+  model.returns.push(local||{id,order_id:p.p_order_id,shift_id:original?.shift_id,total,reason:p.p_reason,notes:p.p_notes,created_at:n?.created_local_at||new Date().toISOString(),client_tx_id:key,_offline:true,_offline_status:String(n?.status||'pending')});
+  const its=localItems?.length?localItems:(p?.p_items||[]).map((x,i)=>({...x,return_id:id,id:`${id}-line-${i+1}`}));
+  model.returnItems.push(...its.map(x=>({...x,return_id:id,_offline:true,client_tx_id:key})));
+  model.returnPays.push(...pays.map(x=>({...x,return_id:id,_offline:true,client_tx_id:key})));
+  included.add('return:'+key);
+ };
+
+ for(const j of compat||[]){
+  const tx=String(j.client_tx_id||'');
+  if(j.type==='sale')pushSale(tx,j.p_order,j.p_items,j.p_payments,j.local_order,j.local_items);
+  else if(j.type==='expense')pushExpense(tx,{p_shift_id:j.p_shift_id,p_description:j.p_description,p_amount:j.p_amount},j.local_expense);
+  else if(j.type==='return')pushReturn(tx,{p_order_id:j.p_order_id,p_items:j.p_items,p_payments:j.p_payments,p_reason:j.p_reason,p_notes:j.p_notes},j.local_return,j.local_items,j.local_payments);
+ }
+ for(const n of native){
+  if(!rc1ShouldOverlayOutbox(n,base.cacheAt))continue;
+  const tx=String(n.client_tx_id||''),p=n.envelope?.payload?.rpc_payload||{};
+  if(n.operation_type==='sale')pushSale(tx,p.p_order,p.p_items,p.p_payments);
+  else if(n.operation_type==='expense')pushExpense(tx,p);
+  else if(n.operation_type==='return')pushReturn(tx,p);
+ }
+ // Apply newer local status transitions to server-known orders before metrics/close guards.
+ const statusRows=native.filter(n=>n.operation_type==='order_status'&&rc1ShouldOverlayOutbox(n,base.cacheAt)).sort((a,b)=>Number(a.device_sequence||0)-Number(b.device_sequence||0));
+ for(const n of statusRows){
+  const p=n.envelope?.payload?.rpc_payload||{},o=model.orders.find(x=>String(x.id)===String(p.p_order_id));
+  if(o&&p.p_target_status)o.status=p.p_target_status;
+ }
+ model.localPendingCount=[...included].length;
+ model.localProblemCount=native.filter(n=>['conflict','dead_letter'].includes(String(n.status||''))&&['sale','expense','return','order_status'].includes(String(n.operation_type||''))).length;
+ return model;
+}
+async function rc1LoadShiftReadModel(shift){
+ const sid=String(shift?.id??''),numericId=Number(sid),key=`rc1ShiftReadModel:${currentBranchId()}:${sid}`;
+ let base=null,onlineRead=false;
+ if(Number.isFinite(numericId)&&numericId>0&&navigator.onLine){
+  try{
+   const orders=await rest('orders',`select=*&shift_id=eq.${numericId}&order=created_at.asc`);
+   const ids=orders.map(o=>o.id);
+   const [payments,expenses,returns,items]=await Promise.all([
+    ids.length?rest('order_payments',`select=*&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
+    rest('expenses',`select=*&shift_id=eq.${numericId}&order=created_at.asc`),
+    rest('returns',`select=*&shift_id=eq.${numericId}&order=created_at.asc`).catch(()=>[]),
+    ids.length?rest('order_items',`select=*&order_id=in.(${ids.join(',')})`):Promise.resolve([])
+   ]);
+   const returnIds=returns.map(r=>r.id);
+   const [returnPays,returnItems]=await Promise.all([
+    returnIds.length?rest('return_payments',`select=*&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([]),
+    returnIds.length?rest('return_items',`select=*&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([])
+   ]);
+   base={orders,payments,expenses,returns,returnPays,items,returnItems,cacheAt:new Date().toISOString(),fromCache:false};
+   await odbSet(key,base);onlineRead=true;
+  }catch(e){if(!isNetError(e))throw e}
+ }
+ if(!base){
+  base=await odbGet(key);
+  if(!base){
+   if(Number.isFinite(numericId)&&numericId>0)throw new Error('لا توجد قراءة محلية كاملة لهذه الوردية. اتصل بالإنترنت مرة واحدة قبل الاعتماد على أرقام الوردية أوفلاين.');
+   base={orders:[],payments:[],expenses:[],returns:[],returnPays:[],items:[],returnItems:[],cacheAt:null,fromCache:true};
+  }else base={...base,fromCache:true};
+ }
+ const model=await rc1OverlayShiftLocal(base,shift);
+ model.offlineRead=!onlineRead;
+ return model;
+}
+async function shiftMetrics(shift,providedModel=null){
+ const model=providedModel||await rc1LoadShiftReadModel(shift);
+ const {orders,payments,expenses,returns,returnPays}=model;
+ const operational=orders.filter(o=>o.status!=='cancelled');
+ const valid=operational.filter(rc1OrderPaidForMetrics);
+ const ids=new Set(valid.map(o=>String(o.id))),paymentTotals={};
  const addPay=(method,amount)=>{const k=String(method||'unknown');paymentTotals[k]=(paymentTotals[k]||0)+Number(amount||0)};
  for(const p of payments){if(!ids.has(String(p.order_id)))continue;addPay(p.method,p.amount)}
  for(const o of valid){
@@ -1554,38 +1674,30 @@ async function shiftMetrics(shift){
  const cash=Number(paymentTotals.cash||0),wallet=Number(paymentTotals.wallet||0),instapay=Number(paymentTotals.instapay||0);
  const returnCash=Number(returnPaymentTotals.cash||0),returnWallet=Number(returnPaymentTotals.wallet||0),returnInstapay=Number(returnPaymentTotals.instapay||0);
  const grossSales=valid.reduce((a,o)=>a+Number(o.total||0),0),returnTotal=(returns||[]).reduce((a,r)=>a+Number(r.total||0),0),sales=grossSales-returnTotal,exp=expenses.reduce((a,e)=>a+Number(e.amount||0),0),expected=Number(shift.opening_cash||0)+cash-exp;
- return{orders,valid,sales,grossSales,returnTotal,returns,cash,wallet,instapay,paymentTotals,returnPaymentTotals,returnCash,returnWallet,returnInstapay,exp,expected,count:valid.length,cancelled:orders.filter(o=>o.status==='cancelled').length}
+ return{orders,valid,sales,grossSales,returnTotal,returns,cash,wallet,instapay,paymentTotals,returnPaymentTotals,returnCash,returnWallet,returnInstapay,exp,expected,count:valid.length,cancelled:orders.filter(o=>o.status==='cancelled').length,_offlineRead:model.offlineRead,_cacheAt:model.cacheAt,_localPendingCount:model.localPendingCount||0,_localProblemCount:model.localProblemCount||0,_model:model}
 }
-async function shiftReportData(shift){
- const orders=await rest('orders',`select=id,order_number,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status,created_at&shift_id=eq.${shift.id}&order=created_at.asc`);
- const ids=(orders||[]).map(o=>o.id);
- const [items,expenses,returnRows]=await Promise.all([
-   ids.length?rest('order_items',`select=order_id,product_name,quantity,unit_price,total&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
-   rest('expenses',`select=id,description,amount,created_at,employee_id&shift_id=eq.${shift.id}&order=created_at.asc`),
-   rest('returns',`select=*&shift_id=eq.${shift.id}&order=created_at.asc`).catch(()=>[])
- ]);
- const valid=(orders||[]).filter(o=>{const web=String(o.source||'')==='website',paid=!web||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase()));return o.status!=='cancelled'&&paid});
- const validIds=new Set(valid.map(o=>String(o.id)));
- const products=new Map();
+async function shiftReportData(shift,providedModel=null){
+ const model=providedModel||await rc1LoadShiftReadModel(shift);
+ const {orders,items,expenses,returns:returnRows,returnItems}=model;
+ const valid=(orders||[]).filter(rc1OrderPaidForMetrics),validIds=new Set(valid.map(o=>String(o.id))),products=new Map();
  for(const i of (items||[])){
    if(!validIds.has(String(i.order_id)))continue;
    const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
    x.qty+=Number(i.quantity||0);x.total+=Number(i.total||0);products.set(k,x);
  }
- const returnIds=(returnRows||[]).map(r=>r.id);
- const returnItems=returnIds.length?await rest('return_items',`select=return_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):[];
- for(const i of returnItems){
+ for(const i of (returnItems||[])){
    const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
    x.qty-=Number(i.quantity||0);x.total-=Number(i.total||0);products.set(k,x);
  }
  return {
-   orders:orders||[],valid,items:items||[],expenses:expenses||[],returnItems,
+   orders:orders||[],valid,items:items||[],expenses:expenses||[],returnItems:returnItems||[],
    products:[...products.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty),
    deliveryCount:valid.filter(o=>o.order_type==='delivery').length,
    deliveryFees:valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0),
    cancelled:(orders||[]).filter(o=>o.status==='cancelled'),
    cancelledValue:(orders||[]).filter(o=>o.status==='cancelled').reduce((a,o)=>a+Number(o.total||0),0),
-   returns:returnRows||[],returnTotal:(returnRows||[]).reduce((a,r)=>a+Number(r.total||0),0)
+   returns:returnRows||[],returnTotal:(returnRows||[]).reduce((a,r)=>a+Number(r.total||0),0),
+   _offlineRead:model.offlineRead,_cacheAt:model.cacheAt
  };
 }
 function shiftReportHTML(sh,employees,mtr,data){
@@ -1598,21 +1710,48 @@ function shiftReportHTML(sh,employees,mtr,data){
  <h3>المصروفات</h3><table class="shift-report-table"><thead><tr><th>البيان</th><th>المبلغ</th></tr></thead><tbody>${data.expenses.map(x=>`<tr><td>${esc(x.description||'مصروف')}<small>${fmtDate(x.created_at)}</small></td><td>${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</tbody></table><div class="r-totals"><div><span>إجمالي المصروفات</span><b>${money(exp)}</b></div></div><hr>
  <div class="r-totals"><div><span>افتتاحية الخزنة</span><b>${money(sh.opening_cash)}</b></div><div><span>الكاش المتوقع</span><b>${money(expected)}</b></div>${sh.closed_at?`<div><span>الكاش الفعلي</span><b>${money(sh.closing_cash)}</b></div><div class="grand-print"><span>العجز / الزيادة</span><b>${money(sh.cash_difference||0)}</b></div>`:''}</div><hr><div class="r-footer">تقرير الوردية • ${new Date().toLocaleString('ar-EG')}</div></div>`;
 }
-async function openShiftReport(sh,employees){const [mtr,data]=await Promise.all([shiftMetrics(sh),shiftReportData(sh)]);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
-async function renderShifts(){let employees=[],rows=[];try{employees=await rest('employees','select=id,name,branch_id,role,active&order=name');rows=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);await odbSet(`shiftHistory:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;employees=[state.employee];rows=(await odbGet(`shiftHistory:${currentBranchId()}`))||[];const cached=await cachedOpenShift();if(cached&&!rows.some(x=>String(x.id)===String(cached.id)))rows.unshift(cached)}const isAdmin=state.employee.role==='admin';const open=rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;$('#page').innerHTML=`${open?`<div class="panel shift-current"><div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div>${Object.entries(metrics.paymentTotals||{}).filter(([k,v])=>k!=='cash'&&Math.abs(Number(v||0))>0.005).map(([k,v])=>`<div>${esc(state.paymentMethods.find(x=>String(x.code)===String(k))?.name||k)} <b>${money(v)}</b></div>`).join('')}<div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
+async function openShiftReport(sh,employees){const model=await rc1LoadShiftReadModel(sh),mtr=await shiftMetrics(sh,model),data=await shiftReportData(sh,model);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
+async function renderShifts(){let employees=[],rows=[];try{employees=await rest('employees','select=id,name,branch_id,role,active&order=name');rows=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);await odbSet(`shiftHistory:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;employees=[state.employee];rows=(await odbGet(`shiftHistory:${currentBranchId()}`))||[];const cached=await cachedOpenShift();if(cached&&!rows.some(x=>String(x.id)===String(cached.id)))rows.unshift(cached)}const isAdmin=state.employee.role==='admin';const open=rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;$('#page').innerHTML=`${open?`<div class="panel shift-current">${metrics?._offlineRead?`<p class="hint">وضع Offline: الأرقام من آخر قراءة محلية كاملة${metrics._cacheAt?` • آخر تحديث ${fmtDate(metrics._cacheAt)}`:''} + الحركات المحلية المعلقة.</p>`:''}<div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div>${Object.entries(metrics.paymentTotals||{}).filter(([k,v])=>k!=='cash'&&Math.abs(Number(v||0))>0.005).map(([k,v])=>`<div>${esc(state.paymentMethods.find(x=>String(x.code)===String(k))?.name||k)} <b>${money(v)}</b></div>`).join('')}<div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
  const drawHistory=()=>{const list=rows;$('#shiftRows').innerHTML=list.map(x=>`<tr><td>${x.id}</td><td>${esc(branchName(x.branch_id))}</td><td>${esc(employeeName(x.employee_id,employees))}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'-'}</td><td>${money(x.sales_total||0)}</td><td>${money(x.cash_sales||0)}</td><td>${money(x.expenses_total||0)}</td><td class="${Number(x.cash_difference||0)<0?'negative':'positive'}">${x.closed_at?money(x.cash_difference||0):'-'}</td><td><span class="tag">${x.status==='open'?'مفتوحة':'مقفولة'}</span></td><td><button class="secondary" data-shift="${x.id}">التفاصيل</button></td></tr>`).join('')||'<tr><td colspan="11">لا توجد ورديات</td></tr>'};drawHistory();
  if(open)$('#closeShift').onclick=async()=>{const actual=Number($('#closingCash').value);if(!Number.isFinite(actual)||actual<0)return toast('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');const pending=metrics.orders.filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));if(pending.length)return toast(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);const diff=actual-metrics.expected;let closedShift;try{closedShift=await rpc('close_pos_shift_idempotent',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count},p_client_tx_id:uuid()});await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,null);toast(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${money(Math.abs(diff))}`)}catch(err){if(!isNetError(err)){toast(err?.message||String(err));return}closedShift=await saveOfflineShiftClose(open,metrics,actual);toast(`تم قفل الوردية محليًا — ${diff===0?'الخزنة مظبوطة':(diff>0?'زيادة ':'عجز ')+money(Math.abs(diff))} — ستتم المزامنة تلقائيًا`)}try{if(window.topBurgerDesktop?.backup?.create)await window.topBurgerDesktop.backup.create('shift-close')}catch{};if(navigator.onLine&&window.topBurgerDesktop?.isDesktop)createDesktopFullBackup('shift-close-full').catch(e=>console.warn('shift close full backup',e));await window.renderShifts();if(navigator.onLine)await openShiftReport(closedShift,employees)};
  else $('#openShift').onclick=async()=>{const opening=Number($('#openingCash').value||0);if(!Number.isFinite(opening)||opening<0)return toast('عهدة بداية الوردية لازم تكون صفر أو أكبر');try{const created=await rpc('open_pos_shift_idempotent',{p_branch_id:Number(currentBranchId()),p_opening_cash:opening,p_client_tx_id:uuid()});await rememberOpenShift(created);toast('تم فتح الوردية')}catch(err){if(!isNetError(err))throw err;await saveOfflineShiftOpen(opening);toast('تم فتح الوردية محليًا — ستتم المزامنة تلقائيًا')}window.renderShifts()};
  $('#page').addEventListener('click',async e=>{const b=e.target.closest('[data-shift]');if(!b)return;const sh=rows.find(x=>String(x.id)===String(b.dataset.shift));if(!sh)return;await openShiftReport(sh,employees)});
 }
 
+async function rc1PendingExpenseRows(baseAt=null){
+ const byTx=new Map(),native=await rc1NativeOutboxRows(),nativeByTx=new Map(native.map(r=>[String(r.client_tx_id||''),r]));
+ let compat=[];try{compat=await offlineQueue()}catch{}
+ const put=(tx,row,p={})=>{
+  const key=String(tx||'');if(!key)return;const n=nativeByTx.get(key);
+  if(n&&!rc1ShouldOverlayOutbox(n,baseAt))return;
+  byTx.set(key,row||{id:n?.local_entity_id||`offline-exp-${key}`,branch_id:Number(n?.branch_id||currentBranchId()),employee_id:Number(n?.employee_id||state.employee?.id),shift_id:p.p_shift_id,description:p.p_description,amount:Number(p.p_amount||0),created_at:n?.created_local_at||new Date().toISOString(),client_tx_id:key,_offline:true,_offline_status:String(n?.status||'pending')});
+ };
+ for(const j of compat||[])if(j.type==='expense'&&Number(j.local_expense?.branch_id||currentBranchId())===Number(currentBranchId()))put(j.client_tx_id,j.local_expense,{p_shift_id:j.p_shift_id,p_description:j.p_description,p_amount:j.p_amount});
+ for(const n of native)if(n.operation_type==='expense'&&Number(n.branch_id||0)===Number(currentBranchId()))put(n.client_tx_id,null,n.envelope?.payload?.rpc_payload||{});
+ return [...byTx.values()].map(x=>({...x,_offline:true}));
+}
+async function rc1ExpenseRows(fromIso,toIso){
+ const branch=currentBranchId(),key=`rc1ExpenseHistory:${branch}`,atKey=`rc1ExpenseHistoryAt:${branch}`;
+ let history=(await odbGet(key))||[],cacheAt=await odbGet(atKey),onlineRead=false;
+ try{
+  const fresh=await rest('expenses',`select=*&branch_id=eq.${branch}&created_at=gte.${encodeURIComponent(fromIso)}&created_at=lte.${encodeURIComponent(toIso)}&order=created_at.desc&limit=500`);
+  const map=new Map(history.map(x=>[String(x.id),x]));for(const x of fresh)map.set(String(x.id),x);
+  history=[...map.values()].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,2000);
+  cacheAt=new Date().toISOString();await odbSet(key,history);await odbSet(atKey,cacheAt);onlineRead=true;
+ }catch(e){if(!isNetError(e))throw e}
+ const a=rc1IsoMs(fromIso),b=rc1IsoMs(toIso);
+ const base=history.filter(x=>{const t=rc1IsoMs(x.created_at);return t>=a&&t<=b});
+ const local=await rc1PendingExpenseRows(cacheAt),seen=new Set(local.map(x=>String(x.client_tx_id||x.id)));
+ const merged=[...local.filter(x=>{const t=rc1IsoMs(x.created_at);return t>=a&&t<=b}),...base.filter(x=>!seen.has(String(x.client_tx_id||x.id)))].sort((x,y)=>String(y.created_at||'').localeCompare(String(x.created_at||'')));
+ return{rows:merged,offlineRead:!onlineRead,cacheAt};
+}
 async function renderExpenses(){
  const today=localDateInput();
  $('#page').innerHTML=`<div class="panel"><h2>إضافة مصروف</h2><div class="form-grid"><label>البيان<input id="exTitle"></label><label>المبلغ<input id="exAmount" type="number" min="0" step="0.01"></label></div><button id="addExpense" class="primary">حفظ المصروف</button></div>
  <div class="panel"><div class="toolbar expense-toolbar"><button class="secondary" data-period="today">اليوم</button><button class="secondary" data-period="yesterday">أمس</button><button class="secondary" data-period="week">الأسبوع</button><button class="secondary" data-period="month">الشهر</button><label>من<input id="exFrom" type="date" value="${today}"></label><label>إلى<input id="exTo" type="date" value="${today}"></label><button id="loadExpenses" class="primary">عرض</button></div><div class="kpi-line">إجمالي مصروفات الفترة: <strong id="expenseTotal">0</strong></div><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>الوردية</th><th>إجراء</th></tr></thead><tbody id="expenseRows"></tbody></table></div></div>`;
- const load=async()=>{const from=$('#exFrom').value,to=$('#exTo').value;if(!from||!to||from>to)return toast('راجع فترة المصروفات: تاريخ البداية لازم يكون قبل أو يساوي تاريخ النهاية');const a=new Date(from+'T00:00:00').toISOString(),b=new Date(to+'T23:59:59.999').toISOString();const rows=await rest('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(a)}&created_at=lte.${encodeURIComponent(b)}&order=created_at.desc&limit=500`);$('#expenseTotal').textContent=money(rows.reduce((x,e)=>x+Number(e.amount||0),0));$('#expenseRows').innerHTML=rows.map(e=>`<tr><td>${fmtDate(e.created_at)}</td><td>${esc(e.description)}</td><td>${money(e.amount)}</td><td>${e.shift_id?'#'+e.shift_id:'-'}</td><td><button class="secondary" data-edit-exp="${e.id}">✏️ تعديل</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد مصروفات في الفترة</td></tr>';$('#expenseRows').onclick=async ev=>{const btn=ev.target.closest('[data-edit-exp]');if(!btn)return;const e=rows.find(x=>String(x.id)===btn.dataset.editExp);if(!e)return;const desc=await uiPrompt('بيان المصروف',e.description);if(desc===null)return;const amount=await uiPrompt('المبلغ',e.amount);const amountNum=Number(amount);if(amount===null||!desc.trim()||!Number.isFinite(amountNum)||amountNum<=0)return toast('اكتب بيانًا ومبلغًا أكبر من صفر');const router=globalThis.__SharawlaPV2ExpenseEdit;if(typeof router?.updateExpense!=='function')throw new Error('مسار تعديل المصروف غير جاهز');await router.updateExpense({id:e.id,description:desc.trim(),amount:amountNum});await audit('edit_expense','expense',e.id,{amount:Number(amount)});toast('تم تعديل المصروف');load()};};
+ const load=async()=>{const from=$('#exFrom').value,to=$('#exTo').value;if(!from||!to||from>to)return toast('راجع فترة المصروفات: تاريخ البداية لازم يكون قبل أو يساوي تاريخ النهاية');const a=new Date(from+'T00:00:00').toISOString(),b=new Date(to+'T23:59:59.999').toISOString();const read=await rc1ExpenseRows(a,b),rows=read.rows||[];let note=$('#expenseOfflineReadNote');if(!note){note=document.createElement('p');note.id='expenseOfflineReadNote';note.className='hint';$('#expenseRows')?.closest('.table-wrap')?.before(note)}note.textContent=read.offlineRead?`وضع Offline: المصروفات من آخر Cache محفوظة + الحركات المحلية المعلقة${read.cacheAt?` • آخر تحديث ${fmtDate(read.cacheAt)}`:''}`:'';note.classList.toggle('hidden',!read.offlineRead);$('#expenseTotal').textContent=money(rows.reduce((x,e)=>x+Number(e.amount||0),0));$('#expenseRows').innerHTML=rows.map(e=>{const local=e._offline===true,stateText=local?(['conflict','dead_letter'].includes(String(e._offline_status||''))?'مشكلة مزامنة':'محلي — بانتظار المزامنة'):'';return `<tr><td>${fmtDate(e.created_at)}</td><td>${esc(e.description)}${stateText?`<small style="display:block">${esc(stateText)}</small>`:''}</td><td>${money(e.amount)}</td><td>${e.shift_id?'#'+esc(e.shift_id):'-'}</td><td>${local?'<span class="tag">Local</span>':`<button class="secondary" data-edit-exp="${e.id}">✏️ تعديل</button>`}</td></tr>`}).join('')||'<tr><td colspan="5">لا توجد مصروفات في الفترة</td></tr>';$('#expenseRows').onclick=async ev=>{const btn=ev.target.closest('[data-edit-exp]');if(!btn)return;const e=rows.find(x=>String(x.id)===btn.dataset.editExp);if(!e||e._offline===true)return;const desc=await uiPrompt('بيان المصروف',e.description);if(desc===null)return;const amount=await uiPrompt('المبلغ',e.amount);const amountNum=Number(amount);if(amount===null||!desc.trim()||!Number.isFinite(amountNum)||amountNum<=0)return toast('اكتب بيانًا ومبلغًا أكبر من صفر');const router=globalThis.__SharawlaPV2ExpenseEdit;if(typeof router?.updateExpense!=='function')throw new Error('مسار تعديل المصروف غير جاهز');await router.updateExpense({id:e.id,description:desc.trim(),amount:amountNum});await audit('edit_expense','expense',e.id,{amount:Number(amount)});toast('تم تعديل المصروف');load()};};
  $('#loadExpenses').onclick=load;$('#page').onclick=e=>{const b=e.target.closest('[data-period]');if(!b)return;const d=new Date(),fmt=x=>{const z=new Date(x.getTime()-x.getTimezoneOffset()*60000);return z.toISOString().slice(0,10)};let from=new Date(d),to=new Date(d);if(b.dataset.period==='yesterday'){from.setDate(d.getDate()-1);to=new Date(from)}if(b.dataset.period==='week')from.setDate(d.getDate()-6);if(b.dataset.period==='month')from=new Date(d.getFullYear(),d.getMonth(),1);$('#exFrom').value=fmt(from);$('#exTo').value=fmt(to);load()};
- $('#addExpense').onclick=async()=>{const description=$('#exTitle').value.trim(),amount=Number($('#exAmount').value);if(!description||!Number.isFinite(amount)||amount<=0)return toast('أدخل بيانًا ومبلغًا أكبر من صفر');const shift=await getOpenShift();if(!shift)return toast('افتح وردية أولًا قبل تسجيل المصروف');let created;try{created=await rpc('create_pos_expense_idempotent',{p_shift_id:Number(shift.id),p_description:description,p_amount:amount,p_client_tx_id:uuid()});await audit('create_expense','expense',created?.id,{amount,shift_id:shift.id});toast('تم حفظ المصروف وربطه بالوردية')}catch(err){if(!isNetError(err))throw err;await saveOfflineExpense(shift,description,amount);toast('تم حفظ المصروف أوفلاين وسيُزامن تلقائيًا')}if(navigator.onLine)load()};load();
+ $('#addExpense').onclick=async()=>{const description=$('#exTitle').value.trim(),amount=Number($('#exAmount').value);if(!description||!Number.isFinite(amount)||amount<=0)return toast('أدخل بيانًا ومبلغًا أكبر من صفر');const shift=await getOpenShift();if(!shift)return toast('افتح وردية أولًا قبل تسجيل المصروف');let created;try{created=await rpc('create_pos_expense_idempotent',{p_shift_id:Number(shift.id),p_description:description,p_amount:amount,p_client_tx_id:uuid()});await audit('create_expense','expense',created?.id,{amount,shift_id:shift.id});toast('تم حفظ المصروف وربطه بالوردية')}catch(err){if(!isNetError(err))throw err;await saveOfflineExpense(shift,description,amount);toast('تم حفظ المصروف أوفلاين وسيُزامن تلقائيًا')}await load()};load();
 }
 
 function catalogOrderValue(x){const w=Number(x?.website_sort_order);if(Number.isFinite(w)&&w>0)return w;const s=Number(x?.sort_order);if(Number.isFinite(s)&&s>0)return s;return 1000000+Number(x?.id||0)}
