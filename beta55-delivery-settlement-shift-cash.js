@@ -12,6 +12,7 @@ const moneyLocal=v=>typeof global.money==='function'?global.money(v):`${num(v).t
 const toastLocal=v=>typeof global.toast==='function'?global.toast(v):console.log(v);
 const branchId=()=>Number(global.currentBranchId?.()||global.state?.activeBranchId||0);
 const isOnline=()=>typeof navigator==='undefined'||navigator.onLine!==false;
+const isServerShiftId=v=>/^[1-9][0-9]*$/.test(String(v??''));
 function custodyCacheKey(bid){return `${CUSTODY_KEY_PREFIX}${Number(bid)||0}`}
 function readCustodyCache(bid){try{return JSON.parse(localStorage.getItem(custodyCacheKey(bid))||'null')}catch{return null}}
 function writeCustodyCache(bid,rows){const snapshot={cached_at:new Date().toISOString(),rows:Array.isArray(rows)?rows:[]};try{localStorage.setItem(custodyCacheKey(bid),JSON.stringify(snapshot))}catch{}return snapshot}
@@ -170,7 +171,8 @@ if(baseShiftMetrics){
  global.shiftMetrics=async function(shift){
   const base=await baseShiftMetrics.call(this,shift);
   let m=null;
-  if(isOnline()){
+  const serverShift=isServerShiftId(shift?.id);
+  if(isOnline()&&serverShift){
    try{
     m=await global.rpc('shift_cash_metrics_v2',{p_shift_id:Number(shift.id)});
     try{localStorage.setItem(KEY_PREFIX+shift.id,JSON.stringify(m))}catch{}
@@ -194,7 +196,7 @@ if(baseShiftMetrics){
    const cashGross=num(base.cash)+cashReturns;
    const received=num(cached?.driver_settlements_received);
    m={
-    shift_id:Number(shift.id),opening_cash:num(shift.opening_cash),cash_sales_gross:cashGross,
+    shift_id:serverShift?Number(shift.id):shift.id,opening_cash:num(shift.opening_cash),cash_sales_gross:cashGross,
     cash_returns:cashReturns,cash_sales_net:num(base.cash),delivery_cash_originated:deliveryOriginated,
     driver_custody_unsettled:unsettled,driver_settlements_received:received,expenses:num(base.exp),
     expected_drawer_cash:num(shift.opening_cash)+cashGross-deliveryOriginated+received-cashReturns-num(base.exp),offline_fallback:true
@@ -252,6 +254,19 @@ if(baseRenderShifts){
       const unsettled=num(fresh.driverCustodyUnsettled);
       if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
       if(!isOnline())return await legacyClose?.();
+      if(!isServerShiftId(open?.id)){
+       closeBtn.disabled=true;
+       try{
+        await global.__SharawlaBeta554RuntimeRecovery?.syncNow?.();
+        const mapped=typeof global.getOpenShift==='function'?await global.getOpenShift():null;
+        if(isServerShiftId(mapped?.id)){
+         toastLocal('تم ربط الوردية المحلية بالسيرفر — افتح شاشة الوردية مرة أخرى لإتمام القفل');
+         await global.renderShifts();
+        }else toastLocal('الوردية المحلية لسه في انتظار المزامنة — لن يتم إرسال رقم محلي للسيرفر');
+       }catch(err){toastLocal(err?.message||String(err))}
+       finally{closeBtn.disabled=false}
+       return;
+      }
       closeBtn.disabled=true;
       const closed=await global.rpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
       try{await global.odbSet?.(`openShift:${open.employee_id}:${bid}`,null)}catch{}
