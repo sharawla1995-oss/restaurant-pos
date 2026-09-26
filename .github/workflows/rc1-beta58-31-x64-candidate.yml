@@ -1,0 +1,108 @@
+name: RC1 Beta58.31 SH-0007 x64 Candidate
+
+on:
+  push:
+    branches:
+      - rc1-beta58-31-x64-candidate
+    paths:
+      - ".github/workflows/rc1-beta58-31-x64-candidate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc1-beta58-31-x64-candidate
+  cancel-in-progress: false
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout isolated candidate branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify isolated branch and patch blobs
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -ne "rc1-beta58-31-x64-candidate") { throw "Wrong candidate branch" }
+          $work = (git hash-object "rc1-patches/work-c0bb-to-4a9d893.patch").Trim()
+          $overlay = (git hash-object "rc1-patches/overlay-4a9d893-to-beta58-31.patch").Trim()
+          if ($work -ne "228e0155e36525e4677c56b1c86f6024e5b5c573") { throw "Work patch hash mismatch: $work" }
+          if ($overlay -ne "739aca6b5e44b28943d71dc157b88ffe033c4129") { throw "Overlay patch hash mismatch: $overlay" }
+
+      - name: Reconstruct exact consolidated source
+        shell: pwsh
+        run: |
+          git apply --check "rc1-patches/work-c0bb-to-4a9d893.patch"
+          git apply "rc1-patches/work-c0bb-to-4a9d893.patch"
+          git apply --check "rc1-patches/overlay-4a9d893-to-beta58-31.patch"
+          git apply "rc1-patches/overlay-4a9d893-to-beta58-31.patch"
+          Remove-Item "sharawla-pos-v10-5-2-PHASE2-STEP2-PATCH-ONLY-NO-DUPLICATES.zip" -Force -ErrorAction SilentlyContinue
+          Remove-Item "rc1-patches" -Recurse -Force
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne "10.5.4-beta.58.31") { throw "Unexpected package version: $($pkg.version)" }
+          if ([string]$ver.version -ne "10.5.4-beta.58.31") { throw "Unexpected version.json version: $($ver.version)" }
+          if ([string]$ver.channel -ne "beta") { throw "Candidate channel must remain beta" }
+          if (-not (Test-Path "supabase-rc1-offline-outer-consolidated-v3.sql")) { throw "Outer V3 reviewed SQL missing" }
+          if (-not (Test-Path "supabase-rc1-delivery-required-fields-guard-v1.sql")) { throw "Delivery guard reviewed SQL missing" }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "16"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+
+      - name: Stamp Beta update repository for installed candidate
+        shell: pwsh
+        run: |
+          $cfg = @{ enabled = $true; owner = "${{ github.repository_owner }}"; repo = "${{ github.event.repository.name }}"; channel = "beta"; checkEveryHours = 6 }
+          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Run full source and RC1 regression gates
+        run: npm run check
+
+      - name: Build one Windows x64 candidate
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Normalize installer name and compute SHA256
+        id: artifact
+        shell: pwsh
+        run: |
+          $version = "10.5.4-beta.58.31"
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" |
+            Where-Object { $_.Name -notmatch "ia32|x86" } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content "Sharawla-POS-$version-x64-SHA256.txt" -Encoding ascii
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "x64 SHA256=$hash"
+
+      - name: Upload single SH-0007 candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sharawla-POS-10.5.4-beta.58.31-SH0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.31-x64.exe
+            Sharawla-POS-10.5.4-beta.58.31-x64-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
