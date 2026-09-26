@@ -2,7 +2,7 @@
 const fs=require('fs');
 const sql=fs.readFileSync('supabase-rc1-reset-fk-safe-v3.sql','utf8');
 const must=(x,m)=>{if(!x)throw new Error(m)};
-must(sql.includes("1a81036c4f0aaf7767943281c3bdf13a"),'reset V3 MD5 precondition missing');
+must(sql.includes("if v_md5 is distinct from '1a81036c4f0aaf7767943281c3bdf13a' then"),'reset V3 MD5 precondition missing');
 for(const marker of ['driver_settlement_items','delivery_payment_events','restaurant_table_session_orders']){
   must(sql.includes(marker),`missing reset child cleanup: ${marker}`);
 }
