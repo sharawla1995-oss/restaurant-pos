@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(app.includes('async function rc1PendingReturnUsage(orderId,baseAt=null){'),'pending return usage helper missing');
+must(app.includes("if(j.type!=='return'||String(j.p_order_id)!==String(orderId))continue;"),'legacy pending returns must be scoped');
+must(app.includes("if(n.operation_type!=='return')continue;"),'native return filter missing');
+must(app.includes("if(String(p.p_order_id)!==String(orderId))continue;"),'native return order scope missing');
+must(app.includes("if(n&&n.operation_type==='return'&&!rc1ShouldOverlayOutbox(n,baseAt))return;"),'synced return freshness guard missing');
+must(app.includes("used[itemKey]=(used[itemKey]||0)+Number(x.quantity||0)"),'pending quantities must reduce availability');
+must(app.includes('await odbSet(`returnUsageAt:${o.id}`,baseAt);'),'return usage freshness timestamp missing');
+must(app.includes('const available=rc1AvailableReturnItems(items,used);'),'initial availability must include pending local returns');
+must(app.includes('const latestUsage=await rc1ReturnUsageForOrder(o)'),'submit must re-read return usage');
+must(app.includes("toast('الكمية المتاحة للمرتجع اتغيرت بسبب مرتجع آخر محفوظ."),'submit must fail closed when availability changed');
+must(app.includes('تم خصم كميات مرتجعات محلية معلقة قبل المزامنة من المتاح'),'pending return UI disclosure missing');
+console.log('RC1 pending return quantity gate PASS');
