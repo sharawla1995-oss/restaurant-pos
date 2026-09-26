@@ -778,6 +778,26 @@ function deviceInfo(){const candidates=deviceFingerprintCandidates();return {fin
 function registerIpc(){
  ipcMain.handle('db:get',(_e,k)=>{const r=one('select value from kv where key=?',[String(k)]);return r?JSON.parse(r.value):undefined});
  ipcMain.handle('db:set',(_e,k,v)=>run(`insert into kv(key,value,updated_at) values(?,?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=datetime('now')`,[String(k),JSON.stringify(v)]));
+ ipcMain.handle('sandbox:clean-runtime',(_e,input={})=>{
+   const supportCode=String(input?.support_code||'').trim(),branchName=String(input?.branch_name||'').trim().toUpperCase();
+   if(supportCode!=='SH-0007'||branchName!=='TEST')throw new Error('Sandbox local reset is restricted to SH-0007 / TEST');
+   const groups=new Set(Array.isArray(input?.groups)?input.groups.map(x=>String(x||'').trim()).filter(Boolean):[]);
+   const operational=['orders','shifts','expenses','customers','delivery'];
+   if(!operational.some(x=>groups.has(x)))return {ok:true,archived_operations:0,cleared_keys:0,scope:'SH-0007/TEST'};
+   const backup=createBackup('pre-sandbox-clean-reset');
+   const pending=one(`select count(*) c from local_operations where status='pending'`);
+   run(`update local_operations set status='reset_archived',last_error='Archived by SH-0007 clean reset',updated_at=datetime('now') where status='pending'`);
+   const exact=new Set(['queue','queueCount']);
+   if(groups.has('orders')||groups.has('delivery'))exact.add('cachedOrders');
+   if(groups.has('customers'))for(const k of ['customersCache','customerAddressesCache','customersCacheAt'])exact.add(k);
+   let cleared=0;
+   for(const k of exact){const before=one('select count(*) c from kv where key=?',[k]);if(Number(before?.c||0)>0){run('delete from kv where key=?',[k]);cleared++}}
+   const prefixes=[];
+   if(groups.has('orders')||groups.has('delivery'))prefixes.push('cachedReturns:','returnUsage:','point4OrderIdentity:');
+   if(groups.has('shifts'))prefixes.push('openShift:','shiftHistory:');
+   for(const prefix of prefixes){const before=one('select count(*) c from kv where key like ?',[prefix+'%']);run('delete from kv where key like ?',[prefix+'%']);cleared+=Number(before?.c||0)}
+   return {ok:true,archived_operations:Number(pending?.c||0),cleared_keys:cleared,backup,scope:'SH-0007/TEST',offline_v2_evidence_preserved:true};
+ });
  ipcMain.handle('license-state:get',()=>readLicenseStateFile());
  ipcMain.handle('license-state:set',(_e,v)=>writeLicenseStateFile(v));
  ipcMain.handle('license-state:clear',()=>writeLicenseStateFile(null));
