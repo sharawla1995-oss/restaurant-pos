@@ -5,9 +5,9 @@ const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
 const ui=read('owner-acceptance-ui-v47.js'),registry=read('owner-acceptance-registry-v3.js'),e2e=read('owner-acceptance-e2e-v3.js'),advanced=read('owner-acceptance-advanced-v4.js'),lazy=read('owner-acceptance-lazy-loader-v47.js'),sync=read('scripts/sync-version.js'),loader=read('beta36-integration-loader.js'),app=read('app.js');
 function need(src,t,msg=t){assert(src.includes(t),`Beta48 gate missing: ${msg}`)}
 function no(src,t,msg=t){assert(!src.includes(t),`Beta48 gate forbidden: ${msg}`)}
-const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)$/);assert(betaMatch&&Number(betaMatch[1])>=48,'package version must be Beta48+');
+const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);assert(betaMatch&&Number(betaMatch[1])>=48,'package version must be Beta48+');
 assert.strictEqual(ver.version,pkg.version,'version.json version');
-assert(String(pkg.description).includes('Offline Engine V2'),'Offline Engine V2 description invariant');
+const description=String(pkg.description||'');assert(description.includes('Offline')&&description.includes('SH-0007'),'Offline SH-0007 acceptance description invariant');
 need(ui,"e.ctrlKey&&e.shiftKey&&e.key==='F12'",'F12 owner rerender reattach');
 need(ui,"setTimeout(attachSoon,0)",'event-driven acceptance reattach');
 need(ui,"failFast:level==='quick'",'Full/Chaos must continue collecting diagnostics');
