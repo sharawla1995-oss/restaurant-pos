@@ -16,7 +16,7 @@ need(!/data-web-receipt/.test(delivery),'Delivery raw website receipt action rem
 need(!/data-web-accept/.test(delivery),'Delivery raw website Accept action remained');
 need(!/data-web-reject/.test(delivery),'Delivery raw website Reject action remained');
 need(/rest\('orders'/.test(delivery),'Delivery canonical orders fetch missing');
-need(/o\.order_type==='delivery'\|\|\(o\.source==='website'&&o\.order_type==='pickup'\)/.test(delivery),'post-accept delivery/pickup operational scope changed');
+need(/or=\(order_type\.eq\.delivery,order_type\.eq\.pickup\)/.test(delivery)&&/\['delivery','pickup'\]\.includes\(String\(o\.order_type\|\|''\)\)/.test(delivery),'post-accept delivery/pickup operational scope changed');
 need((app.match(/rpc\('accept_website_order'/g)||[]).length===1,'Accept RPC ownership regressed');
 need((app.match(/rpc\('reject_website_order'/g)||[]).length===1,'Reject RPC ownership regressed');
 need(/routeKey:'deliveryOrders'[^\n]+ONLINE_INBOX_EXTRACTED/.test(registry),'registry extraction marker missing');
