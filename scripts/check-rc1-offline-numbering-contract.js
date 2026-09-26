@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(app.includes('function offlineSaleReference(clientTx,n){'),'local reference generator missing');
+must(app.includes('invoice_number:null,bon_number:null,offline_reference:offlineReference,_official_number_pending:true'),'offline sale must not overload official number fields');
+must(!app.includes('invoice_number:`OFF-${n}`,bon_number:`OFF-${n}`'),'legacy OFF-* official field overload must be removed');
+must(app.includes("function officialBonNumber(o)"),'official bon parser missing');
+must(app.includes("function officialInvoiceNumber(o)"),'official invoice parser missing');
+must(app.includes("<span>رقم البون الرسمي</span><b>بعد المزامنة</b>"),'Offline next-bon UI must not guess official number');
+must(app.includes("pending?'مرجع محلي':'رقم البون'"),'receipt must distinguish local reference from official bon');
+must(app.includes("الرقم الرسمي يُعتمد بعد المزامنة"),'receipt must explain pending official number');
+must(app.includes("officialNumberPending(o)?'مرجع محلي':'بون'"),'prep receipt must distinguish local reference');
+must(app.includes('تم الحفظ محليًا — المرجع'),'checkout success must call OFF-* a local reference');
+must(app.includes('function legacyOfflineReference(o){'),'historical OFF-* rows must remain display-compatible');
+console.log('RC1 offline numbering contract gate PASS');
