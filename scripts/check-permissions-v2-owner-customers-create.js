@@ -40,10 +40,13 @@ if(/rest\(\s*['"]customers['"][\s\S]{0,200}method\s*:\s*['"]POST['"]/i.test(help
 if(loader.includes('permissions-v2-customers-create-routing.js'))
   throw new Error('PV2-F1 helper must remain unwired before coordinated Beta deploy');
 
-// Freeze the three currently known direct customer-create paths so none is forgotten
-// when the Runtime routing switch is authorized.
+// Runtime routing is now switched to the fail-closed V2 owner. Direct customer INSERTs
+// must stay at zero; the three established create surfaces must route through the helper.
 const directCreates=(app.match(/rest\(\s*['"]customers['"][\s\S]{0,260}?method\s*:\s*['"]POST['"]/g)||[]).length;
-if(directCreates!==3)
-  throw new Error('PV2-F1 expected exactly 3 current direct customer-create paths, found '+directCreates);
+if(directCreates!==0)
+  throw new Error('PV2-F1 direct customer-create path regression: expected 0, found '+directCreates);
+const routedCreates=(app.match(/__SharawlaPV2CustomerCreate/g)||[]).length;
+if(routedCreates!==3)
+  throw new Error('PV2-F1 expected exactly 3 routed customer-create surfaces, found '+routedCreates);
 
-console.log('PV2-F1 Customers Create owner hardening SOURCE PREP PASS — direct paths frozen='+directCreates);
+console.log('PV2-F1 Customers Create owner hardening SOURCE PASS — direct='+directCreates+' routed='+routedCreates);
