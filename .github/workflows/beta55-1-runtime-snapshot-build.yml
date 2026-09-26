@@ -54,6 +54,7 @@ jobs:
           node scripts/check-offline-runtime-acceptance-coverage.js
           node scripts/check-offline-shift-lifecycle-acceptance.js
           node scripts/check-offline-http503-recovery-acceptance.js
+          node scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js
           node scripts/check-offline-customer-delivery-owner-design.js
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never

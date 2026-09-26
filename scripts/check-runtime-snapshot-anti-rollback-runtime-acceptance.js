@@ -1,0 +1,28 @@
+'use strict';
+const fs=require('fs');
+function must(c,m){if(!c)throw new Error(m)}
+const consumer=fs.readFileSync('beta56-runtime-snapshot-consumer.js','utf8');
+const main=fs.readFileSync('beta56-runtime-snapshot-main.js','utf8');
+const preload=fs.readFileSync('preload.js','utf8');
+const test=fs.readFileSync('owner-acceptance-runtime-snapshot-anti-rollback-v58.js','utf8');
+const loader=fs.readFileSync('owner-acceptance-lazy-loader-v47.js','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const wf=fs.readFileSync('.github/workflows/beta55-1-runtime-snapshot-build.yml','utf8');
+must(consumer.includes("fail('SNAPSHOT_ROLLBACK'")&&consumer.includes('allowEqualSequence'),'consumer anti-rollback contract missing');
+must(consumer.includes('SAFE_SNAPSHOT_SEQUENCE_MISMATCH')&&consumer.includes('atomicReplaceJson(statePath,next)'),'consumer LKG/high-water atomic contract missing');
+const start=main.indexOf('function acceptanceAntiRollbackProbe()'),end=main.indexOf('function installRuntimeSnapshotMain()',start);
+must(start>=0&&end>start,'main isolated anti-rollback probe missing');
+const probe=main.slice(start,end);
+must(probe.includes("sandbox()")&&probe.includes("app.getPath('temp')")&&probe.includes('fs.mkdtempSync'),'anti-rollback probe must be SH-0007 sandboxed and temp-isolated');
+must(probe.includes('consumer.createRuntimeSnapshotStore(tempRoot)'),'anti-rollback probe must use temp store, not live store');
+must(!probe.includes('const isolatedStore=store()'),'anti-rollback probe must not open live Runtime Snapshot store');
+must(probe.includes("rejectCode!=='SNAPSHOT_ROLLBACK'")&&probe.includes('lkgUnchanged')&&probe.includes('live_store_touched:false'),'rollback rejection/LKG preservation proof missing');
+must(probe.includes('fs.rmSync(tempRoot,{recursive:true,force:true})'),'anti-rollback temp cleanup missing');
+must(main.includes("ipcMain.handle('runtime-snapshot:acceptance-anti-rollback'"),'anti-rollback IPC handler missing');
+must(preload.includes("antiRollbackProbe:()=>ipcRenderer.invoke('runtime-snapshot:acceptance-anti-rollback')"),'anti-rollback preload bridge missing');
+must(test.includes("id:'runtime-snapshot.anti-rollback-runtime-e2e'"),'anti-rollback runtime acceptance id missing');
+must(test.includes("r?.reject_code!=='SNAPSHOT_ROLLBACK'")&&test.includes('live_store_touched'),'anti-rollback runtime assertions missing');
+must(loader.includes('owner-acceptance-runtime-snapshot-anti-rollback-v58.js'),'anti-rollback acceptance not loaded');
+must(String(pkg.scripts?.check||'').includes('scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js'),'anti-rollback gate missing from npm run check');
+must(wf.includes('node scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js'),'anti-rollback gate missing from CI candidate validation');
+console.log('Runtime Snapshot isolated anti-rollback runtime acceptance static gate PASS');

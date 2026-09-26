@@ -21,6 +21,7 @@ const FILES=[
   ['owner-acceptance-offline-core-ops-v58','owner-acceptance-offline-core-ops-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-shift-v58','owner-acceptance-offline-shift-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-http503-v58','owner-acceptance-offline-http503-v58.js?v=10.5.4-beta.58.29'],
+ ['owner-acceptance-runtime-snapshot-anti-rollback-v58','owner-acceptance-runtime-snapshot-anti-rollback-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-customer-delivery-v58','owner-acceptance-offline-customer-delivery-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=10.5.4-beta.55'],
  ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.55'],

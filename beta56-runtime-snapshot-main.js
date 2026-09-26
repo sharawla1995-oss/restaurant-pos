@@ -4,6 +4,7 @@ const {app,ipcMain}=require('electron');
 const fs=require('fs');
 const path=require('path');
 const https=require('https');
+const crypto=require('crypto');
 const consumer=require('./beta56-runtime-snapshot-consumer.js');
 
 const VERSION='10.5.4-beta.56-runtime-snapshot-main-v2-routing';
@@ -57,6 +58,31 @@ async function refresh(options={}){
 }
 function state(){const gate=sandbox(),s=store();if(!gate.ok)return {ok:false,version:VERSION,mode:'disabled',sandbox:{ok:false,reasons:gate.reasons},high_water:s.highWater()};try{const cached=s.loadOffline(expectedFrom(gate));return {ok:true,version:VERSION,mode:'safe-cache',sequence:cached.sequence,high_water:s.highWater(),snapshot_id:text(cached.snapshot.snapshot_id),expires_at:cached.snapshot.expires_at,baseline_version:cached.snapshot.baseline_version,policy_version:cached.snapshot.policy_version,runtime_environment:cached.snapshot.runtime_environment,composition_version:cached.snapshot.composition_version,decision_count:Object.keys(cached.snapshot.decisions||{}).length,sandbox:{ok:true,support_code:BETA_SUPPORT,business_id:BETA_BUSINESS_ID}}}catch(e){return {ok:false,version:VERSION,mode:'fail-closed',reason_code:String(e.code||'SAFE_SNAPSHOT_MISSING'),high_water:s.highWater(),sandbox:{ok:true,support_code:BETA_SUPPORT,business_id:BETA_BUSINESS_ID}}}}
 function feature(featureCode){const gate=sandbox();if(!gate.ok)return {allowed:false,reason_code:'RUNTIME_SNAPSHOT_SANDBOX_LOCK'};try{const cached=store().loadOffline(expectedFrom(gate));return decisionFrom(cached.snapshot,featureCode)}catch(e){return {allowed:false,reason_code:String(e.code||'SNAPSHOT_UNAVAILABLE'),feature_code:text(featureCode)}}}
-function installRuntimeSnapshotMain(){if(installed)return module.exports.api;installed=true;ipcMain.handle('runtime-snapshot:refresh',(_e,input)=>refresh(input||{}));ipcMain.handle('runtime-snapshot:state',()=>state());ipcMain.handle('runtime-snapshot:feature',(_e,code)=>feature(code));return module.exports.api}
-module.exports.api=Object.freeze({version:VERSION,installRuntimeSnapshotMain,sandbox,refresh,state,feature,requestSnapshot,offlineEligible,snapshotPath});
+function signAcceptanceSnapshot(payload,privateKey,keyId){
+  const canonical=consumer.canonicalize(payload);
+  return {...payload,payload_hash:crypto.createHash('sha256').update(Buffer.from(canonical,'utf8')).digest('hex'),signature:crypto.sign(null,Buffer.from(canonical,'utf8'),privateKey).toString('base64'),signing_key_id:keyId};
+}
+function acceptanceAntiRollbackProbe(){
+  const gate=sandbox();if(!gate.ok){const e=new Error(`Runtime snapshot acceptance sandbox lock failed: ${gate.reasons.join(',')}`);e.code='RUNTIME_SNAPSHOT_SANDBOX_LOCK';throw e}
+  const tempRoot=fs.mkdtempSync(path.join(app.getPath('temp'),'sharawla-snapshot-antirollback-'));
+  try{
+    const {publicKey,privateKey}=crypto.generateKeyPairSync('ed25519'),keyId='sharawla-acceptance-ephemeral';
+    const keyRing={[keyId]:publicKey.export({format:'der',type:'spki'}).toString('base64')};
+    const expected=expectedFrom(gate),now=Date.now();
+    const base={profile:'restaurant',decisions:{'core.offline':{allowed:true,reason_code:'ALLOWED'}},device_id:expected.device_id,issued_at:new Date(now-1000).toISOString(),business_id:expected.business_id,verified_at:new Date(now-1000).toISOString(),policy_version:1,baseline_version:'acceptance-isolated',signature_scheme:'ed25519-v1',snapshot_version:1,composition_version:1,runtime_environment:'beta',device_fingerprint_hash:consumer.fingerprintHash(expected.device_fingerprint),canonicalization_version:1,expires_at:new Date(now+10*60*1000).toISOString()};
+    const newer=signAcceptanceSnapshot({...base,snapshot_id:crypto.randomUUID(),snapshot_sequence:2},privateKey,keyId);
+    const older=signAcceptanceSnapshot({...base,snapshot_id:crypto.randomUUID(),snapshot_sequence:1},privateKey,keyId);
+    const isolatedStore=consumer.createRuntimeSnapshotStore(tempRoot);
+    const accepted=isolatedStore.acceptOnline(newer,expected,{keyRing,nowMs:now});
+    const lkgBefore=isolatedStore.loadOffline(expected,{keyRing,nowMs:now});
+    let rejectCode=null;try{isolatedStore.acceptOnline(older,expected,{keyRing,nowMs:now})}catch(e){rejectCode=text(e?.code)}
+    if(rejectCode!=='SNAPSHOT_ROLLBACK'){const e=new Error(`Runtime snapshot rollback was not rejected: ${rejectCode||'accepted'}`);e.code='ANTI_ROLLBACK_ACCEPTANCE_FAILED';throw e}
+    const lkgAfter=isolatedStore.loadOffline(expected,{keyRing,nowMs:now});
+    const lkgUnchanged=lkgBefore.sequence===accepted.sequence&&lkgAfter.sequence===accepted.sequence&&text(lkgBefore.snapshot?.snapshot_id)===text(newer.snapshot_id)&&text(lkgAfter.snapshot?.snapshot_id)===text(newer.snapshot_id)&&isolatedStore.highWater()===accepted.sequence;
+    if(!lkgUnchanged){const e=new Error('Runtime snapshot LKG changed after rollback rejection');e.code='ANTI_ROLLBACK_LKG_CHANGED';throw e}
+    return {ok:true,isolated:true,temp_store:true,accepted_sequence:accepted.sequence,rejected_sequence:older.snapshot_sequence,reject_code:rejectCode,lkg_sequence:lkgAfter.sequence,high_water:isolatedStore.highWater(),lkg_unchanged:true,live_store_touched:false};
+  }finally{try{fs.rmSync(tempRoot,{recursive:true,force:true})}catch{}}
+}
+function installRuntimeSnapshotMain(){if(installed)return module.exports.api;installed=true;ipcMain.handle('runtime-snapshot:refresh',(_e,input)=>refresh(input||{}));ipcMain.handle('runtime-snapshot:state',()=>state());ipcMain.handle('runtime-snapshot:feature',(_e,code)=>feature(code));ipcMain.handle('runtime-snapshot:acceptance-anti-rollback',()=>acceptanceAntiRollbackProbe());return module.exports.api}
+module.exports.api=Object.freeze({version:VERSION,installRuntimeSnapshotMain,sandbox,refresh,state,feature,requestSnapshot,offlineEligible,snapshotPath,acceptanceAntiRollbackProbe});
 module.exports.installRuntimeSnapshotMain=installRuntimeSnapshotMain;
