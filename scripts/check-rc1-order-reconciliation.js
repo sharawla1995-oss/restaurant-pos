@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+must(app.includes('async function rc1OrderClientTx(o){'),'order reconciliation helper missing');
+must(app.includes("outbox?.('synced')"),'ACK mapping lookup missing');
+must(app.includes("r.operation_type==='sale'"),'sale ACK binding missing');
+must(app.includes("String(x.order?.id||'').startsWith('offline-')"),'local order id reconciliation missing');
+must(app.includes('return cachedTx!==tx;'),'cache must evict local/server duplicate by client_tx_id');
+console.log('RC1 order local/server reconciliation gate PASS');

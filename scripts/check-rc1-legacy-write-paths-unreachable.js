@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs');
+const inbox=fs.readFileSync('beta45-offline-v2-inbox-runtime.js','utf8');
+const fulfillment=fs.readFileSync('permissions-v2-order-fulfillment-routing.js','utf8');
+const customer=fs.readFileSync('permissions-v2-customers-create-routing.js','utf8');
+const must=(x,m)=>{if(!x)throw new Error(m)};
+const start=inbox.indexOf("async function restV2(table,query='',opt={}){");
+const end=inbox.indexOf('function installRestAuthority',start);
+const body=inbox.slice(start,end);
+must(start>=0&&end>start,'restV2 boundary missing');
+must(!body.includes("table==='orders'&&method==='PATCH'"),'legacy order PATCH interception remains reachable');
+must(!body.includes("table==='customers'&&method==='POST'"),'legacy customer POST interception remains reachable');
+must(!inbox.includes('Object.freeze({version:VERSION,pullNow,queueCustomerMerge,queueOrderStatus'),'legacy queue helpers remain publicly exported');
+must(fulfillment.includes('SharawlaOfflineV2Takeover')&&fulfillment.includes('saveOrderStatus'),'accepted order-status route missing');
+must(customer.includes('__SharawlaPV2CustomerCreate')&&customer.includes("commitRpc('offline_customer_create_v1'"),'accepted customer-create route missing');
+console.log('RC1 legacy Phase-7 write paths unreachable gate PASS');

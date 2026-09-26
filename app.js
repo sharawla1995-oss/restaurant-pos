@@ -481,7 +481,27 @@ async function cachedAddressesForCustomer(id){return ((await odbGet('customerAdd
 async function cachedOpenShift(){return await odbGet(`openShift:${state.employee?.id}:${currentBranchId()}`)}
 async function rememberOpenShift(sh){if(sh)await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,sh);return sh}
 async function saveOfflineSale(orderPayload,itemPayload,payRows,providedClientTx=null){assertOfflineCommerceProfile('sale');const q=await offlineQueue(),n=offlineOrderNo(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();setOfflineOrderNo(n);const localId=`offline-${clientTx}`,offlineReference=offlineSaleReference(clientTx,n);const localOrder={...orderPayload,id:localId,client_tx_id:clientTx,invoice_number:null,bon_number:null,offline_reference:offlineReference,_official_number_pending:true,created_at:created,payment_status:'confirmed',_offline:true};const localItems=itemPayload.map(x=>({...x,id:`${localId}-line-${x.line_uid}`,order_id:localId}));const job={type:'sale',engine:isRetailProfile()?'retail':'restaurant',client_tx_id:clientTx,created_at:created,p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows,local_order:localOrder,local_items:localItems};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {order:localOrder,items:localItems,client_tx_id:clientTx}}
-async function cacheOrderBundle(o,items=[]){if(!o?.id)return;const all=(await odbGet('cachedOrders'))||[];const next=[{order:o,items},...all.filter(x=>String(x.order?.id)!==String(o.id))].slice(0,250);await odbSet('cachedOrders',next)}
+async function rc1OrderClientTx(o){
+ const direct=String(o?.client_tx_id||'').trim();if(direct)return direct;
+ const id=String(o?.id||'').trim();if(!id)return '';
+ if(id.startsWith('offline-'))return id.slice('offline-'.length);
+ try{
+  const rows=(await window.topBurgerDesktop?.offlineV2?.outbox?.('synced'))||[];
+  const hit=rows.find(r=>r.operation_type==='sale'&&String(r.server_ack?.result?.order?.id||r.server_ack?.server_entity_id||'')===id);
+  return String(hit?.client_tx_id||'').trim();
+ }catch{return ''}
+}
+async function cacheOrderBundle(o,items=[]){
+ if(!o?.id)return;
+ const all=(await odbGet('cachedOrders'))||[],tx=await rc1OrderClientTx(o);
+ const next=[{order:o,items},...all.filter(x=>{
+  if(String(x.order?.id)===String(o.id))return false;
+  if(!tx)return true;
+  const cachedTx=String(x.order?.client_tx_id||'').trim()||(String(x.order?.id||'').startsWith('offline-')?String(x.order.id).slice('offline-'.length):'');
+  return cachedTx!==tx;
+ })].slice(0,250);
+ await odbSet('cachedOrders',next);
+}
 async function cachedOrderBundles(){return (await odbGet('cachedOrders'))||[]}
 async function saveOfflineExpense(shift,description,amount,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();const local={id:`offline-exp-${clientTx}`,branch_id:currentBranchId(),employee_id:state.employee.id,shift_id:shift.id,description,amount,created_at:created,_offline:true};const job={type:'expense',client_tx_id:clientTx,created_at:created,p_shift_id:Number(shift.id),p_description:description,p_amount:Number(amount),local_expense:local};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
 async function saveOfflineReturn(o,selected,reason,notes,method,total,available,providedClientTx=null,identity=null){assertOfflineCommerceProfile('return');const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),sh=await getOpenShift(),canonical=identity||point4ReturnIdentity(clientTx,o,selected),canonicalItems=canonical.lines;const localReturn={id:`offline-ret-${clientTx}`,return_number:`OFF-${clientTx.slice(0,6)}`,branch_id:o.branch_id,order_id:o.id,shift_id:sh?.id,document_uid:canonical.document_uid,source_document_id:canonical.source_document_id,original_source_document_id:canonical.original_source_document_id,original_invoice_number:o.invoice_number,original_bon_number:o.bon_number,reason,notes,subtotal:total,total,created_at:created,_offline:true};const localItems=canonicalItems.map(x=>{const i=available.find(z=>String(z.id)===String(x.order_item_id));const unit=Number(i?.total||0)/Number(i?.quantity||1);return {return_id:localReturn.id,line_uid:x.line_uid,effect_line_key:x.effect_line_key,order_item_id:x.order_item_id,product_name:i?.product_name||'صنف',quantity:x.quantity,unit_refund:unit,total:unit*x.quantity}});const localPayments=[{return_id:localReturn.id,method,amount:total}];const job={type:'return',engine:isRetailProfile()?'retail':'restaurant',client_tx_id:clientTx,created_at:created,point4_identity:canonical,p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:canonicalItems,p_payments:[{method,amount:total}],local_return:localReturn,local_items:localItems,local_payments:localPayments};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {r:localReturn,items:localItems,payments:localPayments}}
