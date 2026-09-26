@@ -1,0 +1,23 @@
+'use strict';
+const fs=require('fs');
+function must(c,m){if(!c)throw new Error(m)}
+const lab=fs.readFileSync('owner-acceptance-network-lab.js','utf8');
+const main=fs.readFileSync('beta46-acceptance-network-main.js','utf8');
+const sync=fs.readFileSync('beta45-offline-v2-sync.js','utf8');
+const test=fs.readFileSync('owner-acceptance-offline-http503-v58.js','utf8');
+const loader=fs.readFileSync('owner-acceptance-lazy-loader-v47.js','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const wf=fs.readFileSync('.github/workflows/beta55-1-runtime-snapshot-build.yml','utf8');
+must(lab.includes("if(d.action==='http500')return new Response")&&lab.includes('status:503'),'renderer Network Lab must synthesize HTTP 503');
+must(main.includes("if(action==='http500')")&&main.includes('res.statusCode=503'),'main Network Lab must synthesize HTTP 503');
+must(sync.includes('status>=500')&&sync.includes("kind:'transient'")&&sync.includes('retryable:true'),'Offline sync must classify HTTP 5xx as retryable transient');
+must(test.includes("id:'offline.http503-recovery-runtime-e2e'"),'focused HTTP503 acceptance id missing');
+must(test.includes("lab.enable('http500'"),'focused HTTP503 acceptance must inject the existing 503 fault mode');
+must(test.includes("failed?.status)!=='retryable'"),'focused HTTP503 acceptance must require retryable durability');
+must(test.includes("sharawla_offline_v2_apply_event"),'focused HTTP503 acceptance must execute server replay');
+must(test.includes("replay?.duplicate!==true")&&test.includes("replay?.idempotent_replay!==true"),'focused HTTP503 acceptance must prove exactly-once server receipt replay');
+must(test.includes("server_event_id)!==text(a.server_event_id)"),'focused HTTP503 acceptance must preserve server event identity');
+must(loader.includes('owner-acceptance-offline-http503-v58.js'),'focused HTTP503 acceptance is not loaded');
+must(String(pkg.scripts?.check||'').includes('scripts/check-offline-http503-recovery-acceptance.js'),'HTTP503 gate missing from npm run check');
+must(wf.includes('node scripts/check-offline-http503-recovery-acceptance.js'),'HTTP503 gate missing from CI candidate validation');
+console.log('Offline HTTP503 durability/recovery/exactly-once static gate PASS');
