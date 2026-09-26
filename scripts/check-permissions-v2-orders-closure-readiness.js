@@ -12,7 +12,8 @@ function need(s,t,l){if(!s.includes(t))throw new Error(l+' missing: '+t)}
 need(v7,'create policy orders_branch_update on public.orders','historical Orders UPDATE policy');
 need(takeover,"registerOperation('order_status'","Offline takeover registry");
 need(transport,"if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)}",'Offline order-status transport');
-need(transport,"if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)",'local order dependency defer');
+need(transport,"if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id)",'dependency-identified local return allowance');
+need(transport,"if(type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)",'order status/driver local dependency defer');
 need(wrapper,"ov2.saveOrderStatus(raw,'delivered')",'Offline delivery durable route');
 need(payment,"has_action_permission_v2('orders.payment.review')",'website payment owner');
 need(fulfillment,"has_action_permission_v2('orders.fulfillment.manage')",'fulfillment owner');

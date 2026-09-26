@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+const inbox=fs.readFileSync('beta45-offline-v2-inbox-runtime.js','utf8');
+const transport=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
+const customer=fs.readFileSync('permissions-v2-customers-create-routing.js','utf8');
+const need=(s,t,m)=>{if(!s.includes(t))throw new Error(m||`missing ${t}`)};
+need(app,'offline_reference:offlineReference','offline reference contract missing');
+need(app,'invoice_number:null,bon_number:null','offline sale must not allocate official numbers');
+need(app,'validatedDeliveryCheckoutInput()','delivery pre-write validation missing');
+need(app,'customer_create_tx:customerCreateTx','customer-sale dependency marker missing');
+need(app,'rc1PendingReturnUsage','pending return reservation missing');
+if(inbox.includes("table==='orders'&&method==='PATCH'")||inbox.includes("table==='customers'&&method==='POST'"))throw new Error('legacy generic REST writes reachable');
+need(transport,"type==='sale'&&row?.status==='synced'",'sale reconciliation missing');
+need(transport,"localId=`offline-${tx}`",'local/server sale dedup key missing');
+need(customer,'commitRpcLocal','customer durable local-first owner missing');
+console.log('RC1 consolidated Work merge gate PASS');

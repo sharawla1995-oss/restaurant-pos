@@ -138,8 +138,14 @@ begin
       v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
     elsif v_operation in ('return','order_status','delivery_assign_driver') then
       v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_update' then
+      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_save' and nullif(trim(coalesce(v_payload->>'p_address_save_tx','')),'') is not null then
+      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
     elsif v_operation='customer_address_save' then
       v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_delete' then
+      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
     end if;
   end if;
 

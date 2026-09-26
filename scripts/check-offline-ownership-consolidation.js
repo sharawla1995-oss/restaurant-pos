@@ -37,6 +37,6 @@ function runtime({active=true,mappings={},online=false,queue=[]}={}){
  assert(!app.includes("types=new Set(['sale','return','expense','shift_open','shift_close','engine_action_v2'])"),'engine_action_v2 must not enter Legacy POS recovery');
  for(const token of ['VERIFIED_DURABLE_MIGRATION_SNAPSHOT','LEGACY_MIGRATION_EVIDENCE_UNVERIFIED','function legacyMayRead47','function legacyMayOperate47(owner){return owner===OWN.LEGACY_FALLBACK}',"if(own.owner===OWN.LEGACY_HISTORICAL){legacyFrozen++;continue}","same47(env.legacy_payload,job)"])assert(ownership.includes(token),`Beta47 ownership freeze missing: ${token}`);
  for(const token of ["skipped:'takeover_active_legacy_frozen'","skipped:'takeover_ownership_state_unavailable'"])assert(safety.includes(token),`Beta49 classifier freeze missing: ${token}`);
- for(const token of ['function legacyMayRead55','if(legacyMayRead55(own.owner))eligible.push','if(!legacyMayRead55(own.owner))','if(legacyMayOperate55(own.owner))redundant.push'])assert(recovery.includes(token),`Beta55.4 read/mutate boundary missing: ${token}`);
+ for(const token of ['function legacyMayRead55','if(legacyMayRead55(own.owner))eligible.push','if(!legacyMayOperate55(own.owner))continue','if(legacyMayOperate55(own.owner))redundant.push'])assert(recovery.includes(token),`Beta55.4 read/mutate boundary missing: ${token}`);
  console.log('Offline Ownership Consolidation gate PASS — Native V2 sole ACTIVE owner / legacy historical evidence frozen / recovery filtered');
 })().catch(e=>{console.error(e);process.exitCode=1});

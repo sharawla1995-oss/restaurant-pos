@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.54';
+const VERSION='10.5.4-beta.58.31';
 const KEY='sharawlaRuntimeConfigV1';
 let timer=null;
 let tries=0;

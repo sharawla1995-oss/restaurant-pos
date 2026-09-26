@@ -42,7 +42,7 @@ for(const t of [
   'sharawlaOfflineV2InboxCursor','offline_v2_pull_events_v1','website.order_created','customer_address.deleted',
   "event.entity_type==='customer'","event.entity_type==='customer_address'",
   'inboxReceive(event)','inboxApply(event.event_id)','queueCustomerMerge','queueOrderStatus','customer_merge','order_status',
-  'offline_v2_merge_customer_v1','offline_v2_update_order_status_v1','OFFLINE_V2_CUSTOMER_PENDING',
+  'offline_v2_merge_customer_v1','offline_v2_update_order_status_v1',
   'depends_on_tx_id:dependsOnTx','function orderDependency','function restV2'
 ])need(runtime,t);
 const applyAt=runtime.indexOf('await a.inboxApply(event.event_id)');
@@ -50,9 +50,8 @@ const cursorAt=runtime.indexOf('saveCursor(st.business_id,branch,event)',applyAt
 if(!(applyAt>=0&&cursorAt>applyAt))throw new Error('Beta45 Phase 7 cursor must advance only after durable Inbox apply');
 const recvAt=runtime.indexOf('await a.inboxReceive(event)');
 if(!(recvAt>=0&&recvAt<applyAt))throw new Error('Beta45 Phase 7 must durably receive before applying compatibility caches');
-const customerCommit=runtime.indexOf("type:'customer_merge'");
-const customerPending=runtime.indexOf("throw deferredError('OFFLINE_V2_CUSTOMER_PENDING')");
-if(!(customerCommit>=0&&customerPending>customerCommit))throw new Error('Customer fallback must remain durable without writing local text customer_id into order');
+if(runtime.includes("table==='orders'&&method==='PATCH'")||runtime.includes("table==='customers'&&method==='POST'"))throw new Error('Generic REST write interception must remain unreachable in RC1');
+if(!runtime.includes('generic REST is read/delegation only'))throw new Error('RC1 explicit-owner isolation marker missing');
 
 need(main,"require('./beta45-offline-v2-inbox-store.js').installOfflineV2InboxStore()");
 for(const t of [

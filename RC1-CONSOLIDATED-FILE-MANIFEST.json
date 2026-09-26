@@ -1,0 +1,199 @@
+{
+  "recorded": "2026-09-26",
+  "baseline": {
+    "description": "Work handoff source",
+    "head": "4a9d893c3e242dfab0b99cc2a3714e401ae3e5b3"
+  },
+  "candidate": {
+    "description": "RC1 consolidated source-only candidate",
+    "runtime_version": "10.5.4-beta.58.30"
+  },
+  "exclusions": [
+    "self manifest",
+    ".git",
+    "node_modules",
+    "dist/build/release/out",
+    "binary installer/archive outputs"
+  ],
+  "counts": {
+    "added": 14,
+    "modified": 20,
+    "removed": 0,
+    "unchanged": 785
+  },
+  "added": [
+    {
+      "path": "RC1-CONSOLIDATED-MERGE-STATUS.txt",
+      "sha256": "2e376097a8db6b87f3a4613188842a40fe993e2466ef400abf3d99b438d24f21",
+      "bytes": 3293
+    },
+    {
+      "path": "RC1-CONSOLIDATED-SOURCE-READINESS-2026-09-26.md",
+      "sha256": "5e0af16dab1cb46916a9ca23c47f1b66d049e6b5488daaa098ce84b9e4dd195f",
+      "bytes": 9546
+    },
+    {
+      "path": "scripts/check-rc1-consolidated-work-merge.js",
+      "sha256": "629ab97cc2f84b191177cf45268934611fcbcd1ce38d2b19e5acdd562599eab8",
+      "bytes": 1301
+    },
+    {
+      "path": "scripts/check-rc1-customer-sale-linkage-consolidated-v2.js",
+      "sha256": "c652241804f7fd7f90eb750f95d50d89a8f8a23c44b287231c05231c0a3721ac",
+      "bytes": 6799
+    },
+    {
+      "path": "scripts/check-rc1-delivery-server-guard.js",
+      "sha256": "61a9a0480a842d3011ecb649eecb493ff215dcdee11ab20b8f59912da1a11d0e",
+      "bytes": 1546
+    },
+    {
+      "path": "scripts/check-rc1-driver-custody-local-projection.js",
+      "sha256": "9b8ffc51479e1921fc08c09c1873c288a9bd1fc9bc80173a40b70c5df201f8a9",
+      "bytes": 4798
+    },
+    {
+      "path": "scripts/check-rc1-inventory-complete-snapshot.js",
+      "sha256": "1b11b6ac72339554330c47e8c7ad0a55cf380d2c9174294c03bbe700ba0ad968",
+      "bytes": 3340
+    },
+    {
+      "path": "scripts/check-rc1-official-number-reconciliation.js",
+      "sha256": "799b02df4c9e57b7553082a7b9349dfee5a9bf9c063ba56e304b188d2c2f3286",
+      "bytes": 2219
+    },
+    {
+      "path": "scripts/check-rc1-online-only-storage-admin.js",
+      "sha256": "abd95b55367722ebe24878f3b88722f6c5b70a0b921ec146fbcea424a1f46cd2",
+      "bytes": 2588
+    },
+    {
+      "path": "scripts/check-rc1-pending-sale-return-v1.js",
+      "sha256": "557eb40490f03fe193c5475af564292cae279dcc160b0b51669bd632e6f1c06a",
+      "bytes": 4280
+    },
+    {
+      "path": "scripts/check-rc1-printer-failure-no-duplicate.js",
+      "sha256": "e3510d2d51f34dda11e4f015519c9a3c22eeff683fef3479306dba9ba128e197",
+      "bytes": 2419
+    },
+    {
+      "path": "supabase-rc1-delivery-required-fields-guard-v1.sql",
+      "sha256": "5216a7724912dad5c5d573584aa2be8332e85cfbc07bcac75a0ed9dd30db6ff9",
+      "bytes": 3741
+    },
+    {
+      "path": "supabase-rc1-offline-outer-consolidated-v3.sql",
+      "sha256": "a49e28526099f9d2c827c5f3681e36a0c2901222a02124e749b7718b04bcc536",
+      "bytes": 24440
+    },
+    {
+      "path": "verification/RC1-CONSOLIDATED-FINAL-CHECK-2026-09-26.txt",
+      "sha256": "71a2485ab86c51bdf6f69cb7082fb9cff91990381fb24d93ef94484c0f55a151",
+      "bytes": 592
+    }
+  ],
+  "modified": [
+    {
+      "path": "app.js",
+      "sha256": "cde1c97964b4b7ffccab2402d501953811651533a968ad8d3d74e78742c33118",
+      "bytes": 415238
+    },
+    {
+      "path": "beta45-offline-v2-inbox-runtime.js",
+      "sha256": "80e6575efee56f2bd25091c56462b61ee88a9314105abb2f8a6ff8040eadebc5",
+      "bytes": 12450
+    },
+    {
+      "path": "beta45-offline-v2-runtime-takeover.js",
+      "sha256": "170b0ca8e85cf494e1564aa3d1b3dcfa10dedac0bbe91ca04d6a53776b9a74ca",
+      "bytes": 23115
+    },
+    {
+      "path": "beta45-offline-v2-sync.js",
+      "sha256": "5705be038dddee56f6c79a451461bfe757958d9ac8e6312d5b150a21ae2f8ef6",
+      "bytes": 12182
+    },
+    {
+      "path": "beta45-offline-v2-transport-runtime.js",
+      "sha256": "a54ea98b696612a91c9943839476ef0d79ef0a968c65e40c7759ffda49ab6764",
+      "bytes": 32697
+    },
+    {
+      "path": "beta55-4-runtime-recovery.js",
+      "sha256": "f9d86bacb5b37230abc55d039a5addc4fdcad1dfef71076ddd561dcf05792dd1",
+      "bytes": 26852
+    },
+    {
+      "path": "beta55-delivery-settlement-shift-cash.js",
+      "sha256": "41c59c9d4bcc62c892b76077815195f342fd0403f6e100c9b9abbe4979bf553b",
+      "bytes": 31595
+    },
+    {
+      "path": "inventory-overview-v1.js",
+      "sha256": "99ca3214230f28bb9ca8765619cffcba6fdb8f8268899c07f50e5493b31a79c7",
+      "bytes": 16987
+    },
+    {
+      "path": "package.json",
+      "sha256": "70b426710be2d153d5689e969213ee54d4f95cec03cbacd0839ffa7101d9920a",
+      "bytes": 12262
+    },
+    {
+      "path": "permissions-v2-customers-create-routing.js",
+      "sha256": "fee57b5a94f8a239d9d6352676d83f59e4d30ace6e70c34582a58de6d86202b0",
+      "bytes": 3351
+    },
+    {
+      "path": "purchasing-attachments-v1.js",
+      "sha256": "425b1f128ee5305b6900aa9fe1b8165d0bf3a093c7551fd7660616d1af8a88b0",
+      "bytes": 17695
+    },
+    {
+      "path": "scripts/check-beta45-offline-v2-inbox.js",
+      "sha256": "3e052666b3bd63346ca6073da63d258563637150c4bf30fdb38c7d6c3eede45d",
+      "bytes": 4689
+    },
+    {
+      "path": "scripts/check-beta58-30-offline-practical-rc1.js",
+      "sha256": "1d7d263a78ca4d537ef34f916b4bf8d3d7d0555f712014bf1b66398a6be0cc64",
+      "bytes": 8072
+    },
+    {
+      "path": "scripts/check-delivery-settlement-runtime-ownership.js",
+      "sha256": "9fefb2f6edf0f92b93e03c6e79ee4890bba224269c4e1dc352713e28be54990d",
+      "bytes": 1638
+    },
+    {
+      "path": "scripts/check-inventory-overview-v1.js",
+      "sha256": "3d5d1dc3f0c4b454b6a4acd86c697b9d2c041538bfbaad9ebf058fd0574d4ee9",
+      "bytes": 3701
+    },
+    {
+      "path": "scripts/check-offline-ownership-consolidation.js",
+      "sha256": "124c81dbf1527d82eaf387c3364748bedbf9f038bc2e01e8d30100ddad082ec6",
+      "bytes": 5727
+    },
+    {
+      "path": "scripts/check-permissions-v2-offline-order-status-replay.js",
+      "sha256": "64d695b33a92aac1988fdddede3a42610731c15be9280be28ecd0280ef6333b6",
+      "bytes": 1117
+    },
+    {
+      "path": "scripts/check-permissions-v2-offline-order-status-transport.js",
+      "sha256": "92721e7a5b98fd7dc0bd7890a1e24d23830b09690311eb5f797bc9e1bcd7b38d",
+      "bytes": 2453
+    },
+    {
+      "path": "scripts/check-permissions-v2-orders-closure-readiness.js",
+      "sha256": "866ffef27da0ad0b0dacabec9dfff4273b3be9a64214581f6de25933ec464328",
+      "bytes": 2336
+    },
+    {
+      "path": "scripts/check-purchasing-attachments-v1.js",
+      "sha256": "2cee67b7821148a3684d3a095912ff88c85c1c9b6f0218b42f7050886c84e258",
+      "bytes": 7275
+    }
+  ],
+  "removed": []
+}

@@ -9,10 +9,10 @@ assert(sql.includes("v_result:=coalesce(public.order_assign_driver_v2(p_order_id
 assert(sql.includes("values(v_tx,'delivery_assign_driver',v_d,p_order_id,v_result);"),'driver receipt must persist complete first-call result');
 for(const [op,rpc] of [['customer_create','offline_customer_create_v1'],['customer_update','offline_customer_update_v1'],['customer_address_save','offline_customer_address_save_v1'],['customer_address_delete','offline_customer_address_delete_v1'],['delivery_assign_driver','offline_delivery_assign_driver_v1']]){assert(runtime.includes(`registerOne('${op}'`),'runtime adapter missing '+op);assert(runtime.includes(`rpc_name:'${rpc}'`),'runtime binding missing '+rpc);assert(outer.includes(`v_operation='${op}'`),'outer operation whitelist missing '+op);assert(outer.includes(`when '${rpc}'`),'outer dispatch missing '+rpc)}
 assert(outer.includes("v_operation='customer_address_save'")&&outer.includes("'{p_customer_id}'"),'dependent customer address mapping missing');
-assert(runtime.includes('commitRpc:authoritativeRpc'),'durable routed-owner API must be exposed');
-assert(customerCreate.includes("commitRpc('offline_customer_create_v1'"),'customer create user path must route offline to durable owner');
-for(const rpc of ['offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1'])assert(customerEdit.includes(`offlineRpc('${rpc}'`),'customer edit/address user path missing '+rpc);
-assert(driverRouting.includes("commitRpc('offline_delivery_assign_driver_v1'"),'driver assignment user path must route offline to durable owner');
+assert(runtime.includes('commitRpc:authoritativeRpc')&&runtime.includes('commitRpcLocal'),'durable routed-owner and local-success APIs must be exposed');
+assert(customerCreate.includes("commitRpcLocal('offline_customer_create_v1'"),'customer create user path must route to durable local-success owner');
+for(const rpc of ['offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1'])assert(customerEdit.includes(`durableRpc('${rpc}'`),'customer edit/address durable local-success path missing '+rpc);
+assert(driverRouting.includes("commitRpcLocal('offline_delivery_assign_driver_v1'"),'driver assignment user path must route to durable local-success owner');
 assert(!driverRouting.includes('Offline assignment remains blocked'),'stale online-only driver declaration must be removed');
 for(const id of ['offline.customer-create-runtime-e2e','offline.customer-dependent-address-runtime-e2e','offline.customer-mutations-runtime-e2e','offline.delivery-driver-runtime-e2e','offline.delivery-economic-runtime-e2e'])assert(acceptance.includes(id),'acceptance missing '+id);
 for(const proof of ['delivery_payment_events','order_payments','delivery_cash_custody_amount','economic replay=stable'])assert(acceptance.includes(proof),'delivery economic proof missing '+proof);

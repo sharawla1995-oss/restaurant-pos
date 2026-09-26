@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.54';
+const VERSION='10.5.4-beta.58.31';
 const CRASH_KEY='sharawlaAcceptanceCrashV4';
 const CRASH_RESULT_KEY='sharawlaAcceptanceCrashResultV6';
 const CRASH_ARCHIVE_PREFIX='sharawlaAcceptanceCrashArchiveV1';

@@ -4,7 +4,7 @@
 // Sharawla Offline Engine V2 — Phase 7 renderer Inbox + Customer/Order events.
 // Cloud/domain events are received durably before compatibility caches are
 // touched. Cursor advances only after the event is locally applied.
-const VERSION='10.5.4-beta.54';
+const VERSION='10.5.4-beta.58.31';
 const CURSOR_PREFIX='sharawlaOfflineV2InboxCursor';
 const PULL_RPC='offline_v2_pull_events_v1';
 const ORDER_STATUSES=new Set(['new','preparing','ready','out_for_delivery','completed','delivered','cancelled']);
@@ -149,21 +149,8 @@ function deferredError(code='OFFLINE_V2_DEFERRED'){const e=new TypeError('Failed
 
 async function restV2(table,query='',opt={}){
   if(!(await takeoverActive()))return baseRest(table,query,opt);
-  const method=text(opt?.method||'GET').toUpperCase(),body=parseBody(opt);
-  if(table==='orders'&&method==='PATCH'&&body&&ORDER_STATUSES.has(text(body.status).toLowerCase())){
-    const id=querySingleId(query);if(!id)return baseRest(table,query,opt);
-    const result=await queueOrderStatus(id,body.status,{driver_id:body.driver_id,cancelled_reason:body.cancelled_reason});
-    if(terminalRow(result.row))throw Object.assign(new Error(result.row.last_error_message||'تعذر مزامنة حالة الطلب'),{code:result.row.last_error_code||'OFFLINE_V2_ORDER_STATUS_FAILED'});
-    return [clone(result.order)];
-  }
-  if(table==='customers'&&method==='POST'&&Array.isArray(body)&&body.length===1&&text(body[0]?.phone)){
-    const result=await queueCustomerMerge(body[0]);
-    if(result.synced)return [clone(result.customer)];
-    // Preserve checkout compatibility: the durable customer remains in Outbox,
-    // while legacy checkout continues with customer_id=null rather than writing a
-    // local text id into a bigint order.customer_id field.
-    throw deferredError('OFFLINE_V2_CUSTOMER_PENDING');
-  }
+  // RC1 consolidated: generic REST is read/delegation only.
+  // Supported Offline writes must use their explicit accepted owners.
   return baseRest(table,query,opt);
 }
 function installRestAuthority(){
@@ -180,7 +167,7 @@ function start(){
   global.addEventListener('sharawla:runtime-config-updated',()=>{pullNow().catch(()=>{})});
   timer=setInterval(()=>{if(navigator.onLine)pullNow().catch(()=>{})},15_000);
   setTimeout(()=>{if(navigator.onLine)pullNow().catch(()=>{})},1200);
-  global.SharawlaOfflineV2Inbox=Object.freeze({version:VERSION,pullNow,queueCustomerMerge,queueOrderStatus,cursorKey,normalizePhone});
+  global.SharawlaOfflineV2Inbox=Object.freeze({version:VERSION,pullNow,cursorKey,normalizePhone});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);

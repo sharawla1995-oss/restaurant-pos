@@ -1,32 +1,32 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55';
+const VERSION='10.5.4-beta.58.31';
 // Legacy static/sync compatibility marker only; runtime registry is v55:
-// 'owner-acceptance-registry-v3.js?v=10.5.4-beta.55'
+// 'owner-acceptance-registry-v3.js?v=10.5.4-beta.58.31'
 const FILES=[
- ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-registry-v55','owner-acceptance-registry-v55.js?v=10.5.4-beta.58.31'],
  ['owner-acceptance-beta55-restaurant-compat-v55','owner-acceptance-beta55-restaurant-compat-v55.js?v=10.5.4-beta.55'],
- ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.55'],
- ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.55'],
- ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.55'],
- ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.55'],
- ['owner-acceptance-shared-core-v54','owner-acceptance-shared-core-v54.js?v=10.5.4-beta.55'],
- ['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js?v=10.5.4-beta.55'],
- ['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.55'],
- ['owner-acceptance-beta55-v55','owner-acceptance-beta55-v55.js?v=10.5.4-beta.55'],
- ['owner-acceptance-beta55-permissions-v55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.55'],
- ['owner-acceptance-beta55-restaurant-v55','owner-acceptance-beta55-restaurant-v55.js?v=10.5.4-beta.55'],
- ['owner-acceptance-beta55-delivery-settlement-v55','owner-acceptance-beta55-delivery-settlement-v55.js?v=10.5.4-beta.55'],
+ ['owner-acceptance-network-lab','owner-acceptance-network-lab.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-e2e-v3','owner-acceptance-e2e-v3.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-profile-packs-v3','owner-acceptance-profile-packs-v3.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-retail-coverage-v53','owner-acceptance-retail-coverage-v53.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-shared-core-v54','owner-acceptance-shared-core-v54.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-shared-core-extra-v54','owner-acceptance-shared-core-extra-v54.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-purchasing-attachments-v54','owner-acceptance-purchasing-attachments-v54.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-beta55-v55','owner-acceptance-beta55-v55.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-beta55-permissions-v55','owner-acceptance-beta55-permissions-v55.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-beta55-restaurant-v55','owner-acceptance-beta55-restaurant-v55.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-beta55-delivery-settlement-v55','owner-acceptance-beta55-delivery-settlement-v55.js?v=10.5.4-beta.58.31'],
  ['owner-acceptance-offline-order-status-v58','owner-acceptance-offline-order-status-v58.js?v=10.5.4-beta.58.29'],
   ['owner-acceptance-offline-core-ops-v58','owner-acceptance-offline-core-ops-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-shift-v58','owner-acceptance-offline-shift-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-http503-v58','owner-acceptance-offline-http503-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-runtime-snapshot-anti-rollback-v58','owner-acceptance-runtime-snapshot-anti-rollback-v58.js?v=10.5.4-beta.58.29'],
  ['owner-acceptance-offline-customer-delivery-v58','owner-acceptance-offline-customer-delivery-v58.js?v=10.5.4-beta.58.29'],
- ['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=10.5.4-beta.55'],
- ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.55'],
- ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.55'],
- ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.55']
+ ['owner-acceptance-beta55-print-v55','owner-acceptance-beta55-print-v55.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-advanced-v4','owner-acceptance-advanced-v4.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-recovery-permissions-v5','owner-acceptance-recovery-permissions-v5.js?v=10.5.4-beta.58.31'],
+ ['owner-acceptance-ui-v47','owner-acceptance-ui-v47.js?v=10.5.4-beta.58.31']
 ];
 let loading=null,loaded=false;
 function load(key,src){return new Promise((resolve,reject)=>{if(document.querySelector(`script[data-owner-lazy-${key}]`))return resolve();const s=document.createElement('script');s.src=src;s.async=false;s.setAttribute(`data-owner-lazy-${key}`,'1');s.onload=()=>resolve();s.onerror=()=>reject(new Error(`Beta55 owner lazy load failed: ${src}`));document.head.appendChild(s)})}

@@ -20,7 +20,7 @@ const transportRuntime=read('beta45-offline-v2-transport-runtime.js');
 const customerCreateRouting=read('permissions-v2-customers-create-routing.js');
 const customerEditRouting=read('permissions-v2-customers-edit-address-routing.js');
 for(const t of ["registerOne('customer_create'","registerOne('customer_update'","registerOne('customer_address_save'","registerOne('customer_address_delete'","registerOne('delivery_assign_driver'"])has(transportRuntime,t);
-has(customerCreateRouting,"commitRpc('offline_customer_create_v1'",'Customer create durable offline route');
+has(customerCreateRouting,"commitRpcLocal('offline_customer_create_v1'",'Customer create durable local-success route');
 for(const t of ["offline_customer_update_v1","offline_customer_address_save_v1","offline_customer_address_delete_v1"])has(customerEditRouting,t);
 
 for(const t of ["id:'retail.offline-sale-sync'","id:'retail.lost-ack-idempotency'",'saveOfflineSale','syncClientTx'])has(e2e,t);
@@ -31,7 +31,7 @@ has(lazy,'owner-acceptance-offline-core-ops-v58.js','offline core ops runtime ac
 for(const t of ["id:'beta55.delivery-settlement-shift-cash'",'delivery_mark_delivered_v2','delivery_driver_settle_v2','driver_custody_unsettled'])has(delivery,t);
 has(fulfillment,'global.SharawlaOfflineV2Takeover','fulfillment offline durable status owner binding');
 has(fulfillment,'return ov2.saveOrderStatus(raw,target)','fulfillment offline durable status route');
-has(driver,"commitRpc('offline_delivery_assign_driver_v1'",'driver assignment durable offline route');
+has(driver,"commitRpcLocal('offline_delivery_assign_driver_v1'",'driver assignment durable local-success route');
 for(const t of ["id:'offline.customer-create-runtime-e2e'","id:'offline.customer-dependent-address-runtime-e2e'","id:'offline.customer-mutations-runtime-e2e'","id:'offline.delivery-driver-runtime-e2e'","id:'offline.delivery-economic-runtime-e2e'",'server_ack','sharawla_beta58_offline_driver_fixture_v1','sharawla_beta58_offline_status_fixture_v1','MUTATION_FIXTURE','delivery_payment_events','delivery_cash_custody_amount','economic replay=stable'])has(customerDeliveryE2E,t);
 has(lazy,'owner-acceptance-offline-customer-delivery-v58.js','customer/delivery runtime acceptance must be lazy-loaded');
 has(settlement,'if(!isOnline())return false','interactive payment-choice delivery UI remains online-only; offline completion preserves stored method');

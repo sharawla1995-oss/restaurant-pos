@@ -9,7 +9,7 @@ const need=(ok,msg)=>{if(!ok)fail.push(msg)};
 
 try{new Function(js)}catch(e){fail.push('Inventory Overview syntax: '+e.message)}
 need(pkg.version.startsWith('10.5.4-beta.58.'),'Inventory Overview must stay on Beta58 line');
-need(js.includes("const VERSION='1.0.0-core-profile-aware'"),'Core Inventory Overview marker missing');
+need(js.includes("const VERSION='1.1.0-core-profile-aware-rc1-snapshot'"),'Core Inventory Overview marker missing');
 need(js.includes("global.SharawlaRuntimeConfig?.current?.()"),'Authoritative Runtime Config profile read missing');
 need(js.includes("mode:'CORE_PROFILE_AWARE_READ_ONLY'"),'Read-only Core mode marker missing');
 need(!/\brpc\s*\(/.test(js),'Core Inventory Overview must not call mutation RPCs');

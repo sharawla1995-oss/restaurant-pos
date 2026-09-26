@@ -2,6 +2,7 @@
 'use strict';
 const VERSION='10.5.4-beta.55';
 const KEY_PREFIX='sharawlaShiftCashV2:';
+const CUSTODY_KEY_PREFIX='sharawlaDriverCustodyV2:';
 let lastDeliveryDetailId=null;
 
 const num=v=>Number(v||0);
@@ -11,6 +12,45 @@ const moneyLocal=v=>typeof global.money==='function'?global.money(v):`${num(v).t
 const toastLocal=v=>typeof global.toast==='function'?global.toast(v):console.log(v);
 const branchId=()=>Number(global.currentBranchId?.()||global.state?.activeBranchId||0);
 const isOnline=()=>typeof navigator==='undefined'||navigator.onLine!==false;
+function custodyCacheKey(bid){return `${CUSTODY_KEY_PREFIX}${Number(bid)||0}`}
+function readCustodyCache(bid){try{return JSON.parse(localStorage.getItem(custodyCacheKey(bid))||'null')}catch{return null}}
+function writeCustodyCache(bid,rows){const snapshot={cached_at:new Date().toISOString(),rows:Array.isArray(rows)?rows:[]};try{localStorage.setItem(custodyCacheKey(bid),JSON.stringify(snapshot))}catch{}return snapshot}
+function custodyOrderKey(o){return String(o?.order_id??o?.id??'')}
+function projectedCustodyRow(o){
+ if(!o||String(o.order_type||'')!=='delivery'||String(o.status||'')==='cancelled')return null;
+ const method=String(o.payment_method||'').toLowerCase(),status=String(o.status||'').toLowerCase();
+ if(method!=='cash'||!['delivered','completed'].includes(status)||o.driver_id==null||o.driver_settled_at!=null)return null;
+ const amount=num(o.delivery_cash_custody_amount)>0?num(o.delivery_cash_custody_amount):num(o.total);
+ if(amount<=0)return null;
+ return {order_id:o.id,driver_id:Number(o.driver_id),source_shift_id:o.shift_id??null,custody_amount:amount,bon_number:o.bon_number??null,invoice_number:o.invoice_number??null,offline_reference:o.offline_reference??null,delivered_at:o.delivered_at||o._offline_status_at||o.updated_at||o.created_at||null,_offline_projection:o._offline===true||o._offline_status_pending===true,client_tx_id:o.client_tx_id||null};
+}
+async function custodyReadModel(bid,degraded=false){
+ const cached=readCustodyCache(bid)||{cached_at:null,rows:[]};
+ const byOrder=new Map((cached.rows||[]).map(x=>[custodyOrderKey(x),{...x,_snapshot:true}]));
+ let bundles=[];try{bundles=await global.odbGet?.('cachedOrders')||[]}catch{}
+ for(const b of (bundles||[])){
+  const o=b?.order;if(!o||Number(o.branch_id)!==Number(bid))continue;
+  const key=String(o.id??'');if(!key)continue;
+  // A newer local order projection is authoritative for visibility. It can add
+  // pending custody or remove a cached custody row after a non-cash/settled state.
+  byOrder.delete(key);
+  const row=projectedCustodyRow(o);if(row)byOrder.set(key,row);
+ }
+ const rows=[...byOrder.values()].filter(x=>num(x.custody_amount)>0);
+ const stale=!isOnline()||degraded;return {rows,cached_at:cached.cached_at,offline:stale,degraded:!!degraded,source:stale?'cache+local':'live+local'};
+}
+async function liveCustodyRows(bid){
+ const rows=await global.rpc('delivery_driver_pending_v2',{p_branch_id:Number(bid)})||[];
+ writeCustodyCache(bid,rows);
+ return rows;
+}
+async function custodyRowsForView(bid){
+ if(isOnline()){
+  try{const rows=await liveCustodyRows(bid);return {rows,cached_at:new Date().toISOString(),offline:false,source:'live'}}
+  catch(err){console.warn('delivery_driver_pending_v2',err);return custodyReadModel(bid,true)}
+ }
+ return custodyReadModel(bid,false);
+}
 
 async function paymentOptions(order){
  const bid=Number(order?.branch_id||branchId());
@@ -140,16 +180,14 @@ if(baseShiftMetrics){
    let cached=null;try{cached=JSON.parse(localStorage.getItem(KEY_PREFIX+shift.id)||'null')}catch{}
    let deliveryOriginated=0,unsettled=0;
    try{
-    const orders=await global.rest('orders',`select=id,total,status,order_type,payment_method,source,payment_status,driver_id,driver_settled_at,delivery_cash_custody_amount&shift_id=eq.${Number(shift.id)}`);
+    const orders=await global.rest('orders',`select=id,total,status,order_type,payment_method,source,payment_status,driver_id,driver_settled_at,delivery_cash_custody_amount,shift_id,branch_id,client_tx_id,created_at&shift_id=eq.${encodeURIComponent(String(shift.id))}`);
     for(const o of (orders||[])){
      if(o.status==='cancelled'||o.order_type!=='delivery'||String(o.payment_method||'').toLowerCase()!=='cash')continue;
      const website=String(o.source||'')==='website';
      if(website&&o.payment_status!=='confirmed'&&!['delivered','completed'].includes(String(o.status||'')))continue;
      const cash=num(o.total);
      if(num(o.delivery_cash_custody_amount)>0||o.driver_settled_at==null)deliveryOriginated+=cash;
-     if(['delivered','completed'].includes(String(o.status||''))&&o.driver_id!=null&&o.driver_settled_at==null){
-      unsettled+=num(o.delivery_cash_custody_amount)>0?num(o.delivery_cash_custody_amount):cash;
-     }
+     const c=projectedCustodyRow(o);if(c)unsettled+=num(c.custody_amount);
     }
    }catch(err){console.warn('offline delivery cash fallback',err)}
    const cashReturns=num(base.returnCash);
@@ -255,24 +293,22 @@ if(baseShiftReportHTML){
 // orders. The server RPC remains the sole accounting authority.
 // ---------------------------------------------------------------------------
 async function enhanceDeliveryOrdersSettlement(){
- if(!isOnline())return;
  const bid=branchId();if(!bid)return;
  const page=document.querySelector('#page');if(!page||!page.querySelector('#deliveryRows'))return;
- let pending=[];try{pending=await global.rpc('delivery_driver_pending_v2',{p_branch_id:bid})||[]}catch(err){console.warn('delivery_driver_pending_v2',err);return}
- const rows=(pending||[]).filter(o=>num(o.custody_amount)>0);
+ const model=await custodyRowsForView(bid),rows=(model.rows||[]).filter(o=>num(o.custody_amount)>0);
  const byDriver=new Map();for(const o of rows){const did=Number(o.driver_id);if(!byDriver.has(did))byDriver.set(did,[]);byDriver.get(did).push(o)}
  const drivers=global.state?.drivers||[];
- const cards=[...byDriver].map(([did,items])=>{const d=drivers.find(x=>Number(x.id)===did);const amount=items.reduce((a,x)=>a+num(x.custody_amount),0);return `<div class="driver-custody-card panel"><div class="section-head"><div><h3>🛵 ${escLocal(d?.name||`مندوب #${did}`)}</h3><p>عهدة كاش غير مسواة: <b>${moneyLocal(amount)}</b> • ${items.length} طلب</p></div><button class="primary" data-delivery-settle-all-v2="${did}">تسوية كل العهدة</button></div><div class="table-wrap"><table><thead><tr><th>البون</th><th>العهدة</th><th>التسليم</th><th></th></tr></thead><tbody>${items.map(o=>`<tr><td>${escLocal(o.bon_number||o.invoice_number||o.order_id)}</td><td>${moneyLocal(o.custody_amount)}</td><td>${escLocal(global.fmtDate?.(o.delivered_at)||o.delivered_at||'-')}</td><td><button class="secondary" data-delivery-settle-order-v2="${o.order_id}" data-driver-v2="${did}">تسوية العهدة</button></td></tr>`).join('')}</tbody></table></div></div>`}).join('');
- const host=document.createElement('div');host.className='panel delivery-custody-v2';host.setAttribute('data-delivery-custody-v2','');host.innerHTML=`<div class="section-head"><div><h2>💰 عهد المناديب</h2><p>تظهر هنا طلبات الدليفري المسلمة التي ما زال عليها كاش فعلي مع المندوب.</p></div></div>${cards||'<div class="empty">لا توجد عهدة كاش غير مسواة</div>'}`;
+ const cards=[...byDriver].map(([did,items])=>{const d=drivers.find(x=>Number(x.id)===did);const amount=items.reduce((a,x)=>a+num(x.custody_amount),0);return `<div class="driver-custody-card panel"><div class="section-head"><div><h3>🛵 ${escLocal(d?.name||`مندوب #${did}`)}</h3><p>عهدة كاش غير مسواة: <b>${moneyLocal(amount)}</b> • ${items.length} طلب</p></div><button class="primary" data-delivery-settle-all-v2="${did}" ${model.offline?'disabled':''}>تسوية كل العهدة</button></div><div class="table-wrap"><table><thead><tr><th>البون</th><th>العهدة</th><th>التسليم</th><th></th></tr></thead><tbody>${items.map(o=>`<tr><td>${escLocal(o.bon_number||o.invoice_number||o.order_id)}</td><td>${moneyLocal(o.custody_amount)}</td><td>${escLocal(global.fmtDate?.(o.delivered_at)||o.delivered_at||'-')}</td><td><button class="secondary" data-delivery-settle-order-v2="${o.order_id}" data-driver-v2="${did}" ${model.offline?'disabled':''}>تسوية العهدة</button></td></tr>`).join('')}</tbody></table></div></div>`}).join('');
+ const host=document.createElement('div');host.className='panel delivery-custody-v2';host.setAttribute('data-delivery-custody-v2','');host.innerHTML=`<div class="section-head"><div><h2>💰 عهد المناديب</h2><p>تظهر هنا طلبات الدليفري المسلمة التي ما زال عليها كاش فعلي مع المندوب.</p>${model.offline?`<p class="muted">وضع Offline: آخر Snapshot للعهدة + الحركات المحلية المعلقة${model.cached_at?` • آخر تحديث ${escLocal(global.fmtDate?.(model.cached_at)||model.cached_at)}`:''}. التسوية تحتاج إنترنت.</p>`:''}</div></div>${cards||'<div class="empty">لا توجد عهدة كاش غير مسواة</div>'}`;
  const queue=page.querySelector('.delivery-queue-panel');queue?.insertAdjacentElement('beforebegin',host);
  host.querySelectorAll('[data-delivery-settle-order-v2]').forEach(btn=>btn.onclick=async e=>{
-  e.preventDefault();e.stopPropagation();
+  e.preventDefault();e.stopPropagation();if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.deliverySettleOrderV2);const row=rows.find(x=>Number(x.order_id)===oid);if(!row)return;
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row.custody_amount)} من المندوب وتسوية عهدة هذا الطلب؟`)))return;
   btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal('تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  host.querySelectorAll('[data-delivery-settle-all-v2]').forEach(btn=>btn.onclick=async e=>{
-  e.preventDefault();e.stopPropagation();
+  e.preventDefault();e.stopPropagation();if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.deliverySettleAllV2),items=byDriver.get(did)||[],amount=items.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام وتسوية كل عهدة المندوب: ${items.length} طلب بإجمالي ${moneyLocal(amount)}؟`)))return;
   btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:null,p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal('تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
@@ -296,26 +332,26 @@ async function enhanceDeliverySettings(){
  // settlement controls, whose handler settles by payment_method + order total.
  // A user could click that stale owner while the V2 pending RPC was loading.
  panel.innerHTML='<h2>💰 عهد وتسويات المناديب</h2><p class="muted" data-settlement-v2-loading>جاري تحميل العهد النقدية الفعلية...</p>';
- let pending=[];try{pending=await global.rpc('delivery_driver_pending_v2',{p_branch_id:bid})||[]}catch(err){panel.innerHTML=`<h2>💰 عهد وتسويات المناديب</h2><p class="negative">${escLocal(err?.message||String(err))}</p>`;return}
- const settlements=await global.rest('driver_settlements',`select=id,driver_id,branch_id,employee_id,orders_count,amount,created_at,receiving_shift_id,status&branch_id=eq.${bid}&status=eq.posted&order=created_at.desc&limit=50`).catch(()=>[]);
+ const model=await custodyRowsForView(bid),pending=model.rows||[];
+ const settlements=isOnline()?await global.rest('driver_settlements',`select=id,driver_id,branch_id,employee_id,orders_count,amount,created_at,receiving_shift_id,status&branch_id=eq.${bid}&status=eq.posted&order=created_at.desc&limit=50`).catch(()=>[]):[];
  const byDriver=new Map();
  for(const o of pending){const k=Number(o.driver_id);if(!byDriver.has(k))byDriver.set(k,[]);byDriver.get(k).push(o)}
  const drivers=(global.state?.drivers||[]).filter(d=>Number(d.branch_id)===bid);
  const allDriverIds=new Set([...drivers.map(d=>Number(d.id)),...byDriver.keys()]);
  const driverBlock=[...allDriverIds].map(did=>{
   const d=drivers.find(x=>Number(x.id)===did);const rows=byDriver.get(did)||[];const amount=rows.reduce((a,x)=>a+num(x.custody_amount),0);
-  return `<div class="panel driver-custody-card"><div class="section-head"><div><h3>🛵 ${escLocal(d?.name||`مندوب #${did}`)}</h3><p>عهدة غير مسواة: <b>${moneyLocal(amount)}</b> • ${rows.length} أوردر</p></div>${rows.length?`<button class="primary" data-settle-all-v2="${did}">تسوية الكل</button>`:''}</div>${rows.length?`<div class="table-wrap"><table><thead><tr><th>البون</th><th>وردية البيع</th><th>التسليم</th><th>العهدة</th><th></th></tr></thead><tbody>${rows.map(o=>`<tr><td>${escLocal(o.bon_number||o.invoice_number||o.order_id)}</td><td>#${escLocal(o.source_shift_id||'-')}</td><td>${escLocal(global.fmtDate?.(o.delivered_at)||o.delivered_at||'-')}</td><td>${moneyLocal(o.custody_amount)}</td><td><button class="secondary" data-settle-order-v2="${o.order_id}" data-driver-v2="${did}">تسوية الأوردر</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لا توجد عهدة كاش معلقة</div>'}</div>`;
+  return `<div class="panel driver-custody-card"><div class="section-head"><div><h3>🛵 ${escLocal(d?.name||`مندوب #${did}`)}</h3><p>عهدة غير مسواة: <b>${moneyLocal(amount)}</b> • ${rows.length} أوردر</p></div>${rows.length?`<button class="primary" data-settle-all-v2="${did}" ${model.offline?'disabled':''}>تسوية الكل</button>`:''}</div>${rows.length?`<div class="table-wrap"><table><thead><tr><th>البون</th><th>وردية البيع</th><th>التسليم</th><th>العهدة</th><th></th></tr></thead><tbody>${rows.map(o=>`<tr><td>${escLocal(o.bon_number||o.invoice_number||o.order_id)}</td><td>#${escLocal(o.source_shift_id||'-')}</td><td>${escLocal(global.fmtDate?.(o.delivered_at)||o.delivered_at||'-')}</td><td>${moneyLocal(o.custody_amount)}</td><td><button class="secondary" data-settle-order-v2="${o.order_id}" data-driver-v2="${did}" ${model.offline?'disabled':''}>تسوية الأوردر</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">لا توجد عهدة كاش معلقة</div>'}</div>`;
  }).join('');
- panel.innerHTML=`<h2>💰 عهد وتسويات المناديب</h2><p>الكاش يظل عهدة على المندوب حتى يتم استلامه داخل وردية مفتوحة. التسوية المالية Online فقط.</p><div class="driver-settle-v2-list">${driverBlock||'<div class="empty">لا يوجد مناديب في هذا الفرع</div>'}</div>${settlements.length?`<h3>آخر التسويات المستلمة</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>المندوب</th><th>وردية الاستلام</th><th>الطلبات</th><th>المبلغ</th></tr></thead><tbody>${settlements.map(s=>`<tr><td>${escLocal(global.fmtDate?.(s.created_at)||s.created_at)}</td><td>${escLocal(global.driverName?.(s.driver_id)||`#${s.driver_id}`)}</td><td>${s.receiving_shift_id?`#${s.receiving_shift_id}`:'Legacy'}</td><td>${s.orders_count}</td><td>${moneyLocal(s.amount)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+ panel.innerHTML=`<h2>💰 عهد وتسويات المناديب</h2><p>الكاش يظل عهدة على المندوب حتى يتم استلامه داخل وردية مفتوحة. التسوية المالية Online فقط.</p>${model.offline?`<p class="muted">وضع Offline: العهدة من آخر Snapshot + العمليات المحلية المعلقة${model.cached_at?` • آخر تحديث ${escLocal(global.fmtDate?.(model.cached_at)||model.cached_at)}`:''}. لا يمكن تنفيذ تسوية بدون إنترنت.</p>`:''}<div class="driver-settle-v2-list">${driverBlock||'<div class="empty">لا يوجد مناديب في هذا الفرع</div>'}</div>${settlements.length?`<h3>آخر التسويات المستلمة</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>المندوب</th><th>وردية الاستلام</th><th>الطلبات</th><th>المبلغ</th></tr></thead><tbody>${settlements.map(s=>`<tr><td>${escLocal(global.fmtDate?.(s.created_at)||s.created_at)}</td><td>${escLocal(global.driverName?.(s.driver_id)||`#${s.driver_id}`)}</td><td>${s.receiving_shift_id?`#${s.receiving_shift_id}`:'Legacy'}</td><td>${s.orders_count}</td><td>${moneyLocal(s.amount)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 
  panel.querySelectorAll('[data-settle-order-v2]').forEach(btn=>btn.onclick=async()=>{
-  if(!isOnline())return toastLocal('تسوية عهدة المناديب متاحة Online فقط');
+  if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.settleOrderV2);const row=pending.find(x=>Number(x.order_id)===oid);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row?.custody_amount)} من المندوب وتسوية هذا الأوردر؟`)))return;
   btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_client_tx_id:tx('B55-SETTLE-ONE')});toastLocal('تمت تسوية الأوردر ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  panel.querySelectorAll('[data-settle-all-v2]').forEach(btn=>btn.onclick=async()=>{
-  if(!isOnline())return toastLocal('تسوية عهدة المناديب متاحة Online فقط');
+  if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.settleAllV2),rows=byDriver.get(did)||[],amount=rows.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`تسوية كل عهدة المندوب: ${rows.length} أوردر بإجمالي ${moneyLocal(amount)}؟`)))return;
   btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:null,p_client_tx_id:tx('B55-SETTLE-ALL')});toastLocal('تمت تسوية كل العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
@@ -327,6 +363,6 @@ if(baseRenderDeliverySettings){
  global.renderDeliverySettings=async function(){await baseRenderDeliverySettings.apply(this,arguments);try{await enhanceDeliverySettings()}catch(err){console.warn('Beta55 delivery settlement UI',err)}};
 }
 
-global.__SharawlaDeliverySettlementShiftCashV55=Object.freeze({version:VERSION,markDeliveredInteractive,changeDeliveryPaymentInteractive,enhanceDeliverySettings,onlineSettlementOnly:true,shiftCashV2:true});
+global.__SharawlaDeliverySettlementShiftCashV55=Object.freeze({version:VERSION,markDeliveredInteractive,changeDeliveryPaymentInteractive,enhanceDeliverySettings,custodyReadModel,custodyRowsForView,projectedCustodyRow,onlineSettlementOnly:true,shiftCashV2:true});
 global.dispatchEvent(new CustomEvent('sharawla-beta55-delivery-settlement-ready',{detail:{version:VERSION}}));
 })(window);

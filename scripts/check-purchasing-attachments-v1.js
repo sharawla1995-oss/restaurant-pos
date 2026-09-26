@@ -68,7 +68,9 @@ for(const token of [
  'purchase_attachment_prepare_v1','purchase_attachment_finalize_v1','purchase_attachment_abort_v1','purchase_attachment_soft_delete_v1','purchase_attachment_list_v1',
  '/storage/v1/object/','method:\'DELETE\'','JSON.stringify({prefixes:[String(path||\'\')]})',
  '/storage/v1/object/authenticated/${encodeURIComponent(bucket)}/${encodedPath(path)}','حد أقصى 15MB للملف',
- 'رفع الصور يحتاج اتصال بالإنترنت. يمكنك فتح الفاتورة ورفع المستند لاحقًا.',
+ 'async function requireCloud(action)',
+ "await requireCloud('رفع مرفقات المشتريات')",
+ "await requireCloud('فتح أرشيف مرفقات المشتريات')",
  'global.__SharawlaPurchasingAttachmentsV1'
 ])assert(ui.includes(token),`Purchasing attachments UI invariant missing: ${token}`);
 

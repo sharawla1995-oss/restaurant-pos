@@ -3,7 +3,7 @@
 
 // PV2-F4 SOURCE CANDIDATE ONLY.
 // Runtime bridge: use the V2 owner only. Missing owner fails closed during the coordinated Beta transition.
-const VERSION='pv2-f4-delivery-settings-source';
+const VERSION='10.5.4-beta.58.31';
 
 async function rpc(name,payload){
   if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');

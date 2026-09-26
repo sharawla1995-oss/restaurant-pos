@@ -1,0 +1,56 @@
+Sharawla POS — RC1 Consolidated Offline Source Candidate
+Date: 2026-09-26
+Status: SOURCE READY FOR CONTROLLED BETA SQL DEPLOYMENT REVIEW — RC1 NOT YET CLOSED
+Runtime version in tree: 10.5.4-beta.58.30
+
+Safety:
+- Production SH-0005 / SH-0006 = 10.5.3 CLEAN, untouched/read-only.
+- Only isolated Beta SH-0007 / business تجريبي is eligible for later runtime work.
+- Canonical Stock OFF. Cutover OFF.
+- Seq293 / Seq304 / Seq316 preserved; never Retry/Delete/Reset.
+- No Supabase write, installer deployment, GitHub integration merge, or Production change performed by this consolidation.
+
+Inputs reconciled:
+- Later RC1 contract/reference lineage through 5c5fc25aa708c8347d3c521b5a9c7720713cb1b3.
+- Work practical-audit lineage through 4a9d893c3e242dfab0b99cc2a3714e401ae3e5b3 (principal source fix 1aea3d8).
+
+Consolidated source closures:
+- Work beta58.30 practical Offline projections/cache/stale/fail-closed improvements retained.
+- OFF-* is local offline_reference only; official bon/invoice fields remain null until server allocation.
+- Local/server Sale reconciliation by TX/ACK mapping.
+- Delivery phone/address/zone validation before local durable write.
+- Customer durable local-first + customer_create_tx dependency.
+- Customer parent ACK wait, terminal/missing-parent fail-closed behavior.
+- Brand-new Offline Sale -> Return dependency with authoritative server item-id remap after parent ACK.
+- Duplicate pending Return quantity reservation.
+- Delivery/Kitchen/Orders local operational projections.
+- Shift metrics/Expenses local overlay.
+- Driver cash-custody local snapshot + pending delivered overlay; settlement remains Online-only.
+- Complete Inventory snapshot or fail-closed; no fake zero/partial snapshot.
+- Storage/Admin covered flows preflight connectivity before first mutation and compensate orphan uploads.
+- Legacy generic write interception removed from supported current owners.
+- Printer failure/reprint source contract cannot create a duplicate Sale.
+
+Live Beta read-only review:
+- Outer MD5 = a269349dbc9a71f453e12699bc0617ce
+- create_pos_order_atomic MD5 = a677482d9944aa8ae40003408506c7c1
+- create_food_pos_order_atomic_v1 MD5 = c6de3f95f85c6bb2f9d4854c1d7c5a8c
+- create_order_return MD5 = 3fe18445ec4e05799bd8bebdeeb716c9
+- create_order_return_idempotent MD5 = 8fb379d606004c895befb2b0f9787586
+- assign_order_numbers MD5 = b2b1154fa33599e60fbae758fe6e9853
+- Official numbering trigger exists on orders BEFORE INSERT.
+- Required receipt columns/RPC families present.
+
+SOURCE-ONLY SQL — NOT DEPLOYED:
+1) supabase-rc1-offline-outer-consolidated-v3.sql
+   SHA256 a49e28526099f9d2c827c5f3681e36a0c2901222a02124e749b7718b04bcc536
+2) supabase-rc1-delivery-required-fields-guard-v1.sql
+   SHA256 5216a7724912dad5c5d573584aa2be8332e85cfbc07bcac75a0ed9dd30db6ff9
+
+Final validation:
+- npm run check = PASS after all consolidated source changes, including ACL and printer no-duplicate gates.
+
+Remaining gate:
+- Explicit authorization for Beta-only deployment of the two SQL artifacts + post-deploy verification.
+- Then allocate a new unique candidate version (recommended beta.58.31), build ONE Windows x64 candidate, install only SH-0007, and run the consolidated practical Offline acceptance.
+- Printer/OS/session/device behavior remains MANUAL until that run.

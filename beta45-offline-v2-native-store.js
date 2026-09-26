@@ -166,7 +166,12 @@ function validateCommit(input){
     if(rpcName!==boundRpc)errors.push('invalid:'+text(input?.operation_type)+'_rpc_binding');
     if(!rpcPayload||typeof rpcPayload!=='object'||Array.isArray(rpcPayload))errors.push('invalid:'+text(input?.operation_type)+'_rpc_payload');
     else if(text(rpcPayload.p_client_tx_id)!==text(input?.client_tx_id))errors.push('invalid:'+text(input?.operation_type)+'_client_tx_binding');
-    if(text(input?.operation_type)==='customer_address_save'&&text(input?.depends_on_tx_id)&&text(rpcPayload?.p_customer_create_tx)!==text(input?.depends_on_tx_id))errors.push('invalid:customer_address_dependency_binding');
+    if(text(input?.operation_type)==='customer_update'&&text(input?.depends_on_tx_id)&&text(rpcPayload?.p_customer_create_tx)!==text(input?.depends_on_tx_id))errors.push('invalid:customer_update_dependency_binding');
+    if(text(input?.operation_type)==='customer_address_save'&&text(input?.depends_on_tx_id)){
+      const dependency=text(rpcPayload?.p_address_save_tx)||text(rpcPayload?.p_customer_create_tx);
+      if(dependency!==text(input.depends_on_tx_id))errors.push('invalid:customer_address_dependency_binding');
+    }
+    if(text(input?.operation_type)==='customer_address_delete'&&text(input?.depends_on_tx_id)&&text(rpcPayload?.p_address_save_tx)!==text(input?.depends_on_tx_id))errors.push('invalid:customer_address_delete_dependency_binding');
   }
   const records=Array.isArray(input?.records)?input.records:[];
   for(const [i,r] of records.entries())if(!text(r?.record_type)||!text(r?.local_id))errors.push(`invalid:record:${i}`);

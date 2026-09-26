@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55';
+const VERSION='10.5.4-beta.58.31';
 let queued=false,observer=null;
 function reconcile(){
  const panels=[...document.querySelectorAll('#page [data-advanced-purchasing]')];

@@ -1,0 +1,23 @@
+Sharawla POS — RC1 Consolidated Source-Ready Package
+Date: 2026-09-26
+Purpose: source review / controlled Beta SQL deployment review only.
+NOT an installer. NOT authorized for Production. NOT authorized for SH-0005/SH-0006.
+
+Current source version marker: 10.5.4-beta.58.30
+Important: do not install/build this materially changed source under the already-used beta.58.30 identity.
+Allocate the next unique candidate version only after Beta SQL deployment/post-verification is explicitly authorized.
+
+Final local validation:
+  npm run check = PASS
+  log: verification/RC1-CONSOLIDATED-FINAL-RECHECK-2026-09-26.txt
+
+Source-only SQL, NOT deployed:
+  supabase-rc1-offline-outer-consolidated-v3.sql
+  supabase-rc1-delivery-required-fields-guard-v1.sql
+
+Safety preserved:
+  Production SH-0005 / SH-0006 = 10.5.3 CLEAN, untouched/read-only.
+  SH-0007 not installed/modified by this package step.
+  Canonical Stock OFF.
+  Cutover OFF.
+  Seq293 / Seq304 / Seq316 preserved; never Retry/Delete/Reset.

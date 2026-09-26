@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55';
+const VERSION='10.5.4-beta.58.31';
 let observer=null,queued=false,poOpening=false;
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const qfmt=v=>Number(v||0).toLocaleString('ar-EG',{maximumFractionDigits:3});

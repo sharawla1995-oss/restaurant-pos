@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.4-beta.55';
+const VERSION='10.5.4-beta.58.31';
 const ACTIONS=[
  'inventory.supply.view','inventory.supply.configure','inventory.supply.request.create','inventory.supply.request.submit',
  'inventory.supply.request.approve','inventory.supply.stock.availability','inventory.supply.stock.exact',

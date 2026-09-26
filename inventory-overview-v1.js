@@ -4,7 +4,8 @@
 // Sharawla Core Inventory Overview V1.
 // READ-ONLY overview layer: no stock mutation, no Point 4/Cutover activation.
 // Profile-specific detail owners remain unchanged.
-const VERSION='1.0.0-core-profile-aware';
+const VERSION='1.1.0-core-profile-aware-rc1-snapshot';
+const SNAPSHOT_PREFIX='sharawlaInventoryOverviewSnapshotV1:';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
@@ -37,6 +38,38 @@ function inventoryEnabled(){
 async function rest(table,query=''){
   if(typeof global.rest!=='function')throw new Error('Inventory Overview: REST runtime غير جاهز');
   return global.rest(table,query);
+}
+function online(){try{return navigator.onLine!==false}catch{return true}}
+function foodSnapshotKey(bid){return `${SNAPSHOT_PREFIX}food:${Number(bid)||0}`}
+async function cacheGet(key){try{if(typeof global.odbGet==='function')return await global.odbGet(key)}catch{}try{return JSON.parse(localStorage.getItem(key)||'null')}catch{return null}}
+async function cacheSet(key,value){try{if(typeof global.odbSet==='function')return await global.odbSet(key,value)}catch{}try{localStorage.setItem(key,JSON.stringify(value))}catch{}return value}
+function recoveryFallbackFor(table){const f=global.__SharawlaOfflineCacheFallback;return f?.active===true&&String(f.table||'')===String(table)}
+async function loadFoodInventoryData(bid){
+  let degraded=false;
+  if(online()){
+    try{
+      const ingredients=await rest('ingredients','select=*&order=active.desc,name');
+      const ingredientsFallback=recoveryFallbackFor('ingredients');
+      const stock=await rest('ingredient_stock',`select=*&branch_id=eq.${bid}&order=id`);
+      const stockFallback=recoveryFallbackFor('ingredient_stock');
+      if(!ingredientsFallback&&!stockFallback){
+        const snapshot={version:1,complete:true,profile:'food',branch_id:Number(bid),cached_at:new Date().toISOString(),ingredients:Array.isArray(ingredients)?ingredients:[],stock:Array.isArray(stock)?stock:[]};
+        await cacheSet(foodSnapshotKey(bid),snapshot);
+        return {...snapshot,stale:false,source:'live'};
+      }
+      degraded=true;
+    }catch(e){degraded=true;console.warn('[Inventory Overview V1] live food snapshot unavailable',e)}
+  }
+  const snapshot=await cacheGet(foodSnapshotKey(bid));
+  if(!snapshot||snapshot.complete!==true||Number(snapshot.branch_id)!==Number(bid)||!Array.isArray(snapshot.ingredients)||!Array.isArray(snapshot.stock)){
+    const e=new Error('المخزون يحتاج إنترنت لعمل Snapshot كاملة أول مرة. لا توجد قراءة محلية كاملة يمكن عرضها بأمان.');e.code='INVENTORY_SNAPSHOT_MISSING';throw e;
+  }
+  return {...snapshot,stale:true,degraded:degraded||online(),source:'snapshot'};
+}
+function freshnessNote(data){
+  if(!data?.stale)return '<p class="muted" data-inventory-freshness="live">القراءة الحالية من Cloud وتم حفظ Snapshot كاملة لهذا الفرع.</p>';
+  const at=data?.cached_at?(global.fmtDate?.(data.cached_at)||data.cached_at):'غير معروف';
+  return `<p class="muted" data-inventory-freshness="snapshot">وضع Offline / Cache: الأرقام من آخر Snapshot كاملة محفوظة بتاريخ ${esc(at)}. الحركات المعلقة التي تحتاج حسم Cloud لا يتم اختلاق أثر مخزني لها قبل ACK.</p>`;
 }
 function pageRoot(){return document.querySelector('#page')}
 function navButton(route){
@@ -72,11 +105,7 @@ function errorView(message,code='ERROR'){
 }
 
 async function renderFoodOverview(p){
-  const bid=branchId();
-  const [ingredients,stock]=await Promise.all([
-    rest('ingredients','select=*&order=active.desc,name'),
-    rest('ingredient_stock',`select=*&branch_id=eq.${bid}&order=id`).catch(()=>[])
-  ]);
+  const bid=branchId(),data=await loadFoodInventoryData(bid),ingredients=data.ingredients,stock=data.stock;
   const active=(ingredients||[]).filter(x=>x.active!==false);
   const sm=new Map((stock||[]).map(x=>[String(x.ingredient_id),x]));
   const tracked=active.filter(x=>x.track_inventory!==false);
@@ -88,7 +117,7 @@ async function renderFoodOverview(p){
   const zero=rows.filter(x=>x.quantity<=0);
   const value=rows.reduce((a,x)=>a+x.quantity*x.averageCost,0);
   const alertRows=low.slice(0,8);
-  const body=`${kpis([
+  const body=`${freshnessNote(data)}${kpis([
     {label:'الخامات النشطة',value:String(active.length)},
     {label:'خامات تحت المتابعة',value:String(tracked.length)},
     {label:'منخفض / عند الحد',value:String(low.length)},
@@ -216,7 +245,7 @@ async function render(){
   if(!adapter)return errorView(`لا يوجد Inventory Adapter معتمد للنشاط (${p}). تم إيقاف العرض بأمان بدل استخدام Restaurant fallback.`,'PROFILE_ADAPTER_MISSING');
   try{return await adapter(p)}catch(e){
     console.error('[Inventory Overview V1]',e);
-    return errorView(e?.message||String(e),'ADAPTER_ERROR');
+    return errorView(e?.message||String(e),e?.code||'ADAPTER_ERROR');
   }
 }
 
@@ -224,6 +253,7 @@ global.__SharawlaInventoryOverviewV1=Object.freeze({
   version:VERSION,
   mode:'CORE_PROFILE_AWARE_READ_ONLY',
   profiles:Object.freeze(Object.keys(ADAPTERS)),
+  loadFoodInventoryData,foodSnapshotKey,recoveryFallbackFor,
   render
 });
 })(window);

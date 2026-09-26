@@ -5,7 +5,7 @@
 // Generic by operation type, not by business profile. Restaurant/Retail/
 // Pharmacy/Logistics/Warehouse/Service/Membership can register handlers without
 // changing the Offline V2 core.
-const VERSION='10.5.4-beta.54';
+const VERSION='10.5.4-beta.58.31';
 const FALLBACK_CONTEXT_MS=30_000;
 const registry=new Map();
 const rpcToOperation=new Map();
@@ -148,8 +148,8 @@ function mustDeferAfterCommit(type,payload={}){
 }
 
 function localSaleResult(entry,payload){
-  const localId=entry.commit.local_entity_id,created=entry.commit.created_local_at,code=`OFF-${entry.tx.slice(0,8)}`;
-  const order={...(clone(payload.p_order)||{}),id:localId,client_tx_id:entry.tx,invoice_number:code,bon_number:code,created_at:created,payment_status:'confirmed',_offline:true};
+  const localId=entry.commit.local_entity_id,created=entry.commit.created_local_at,offlineReference=`OFF-${entry.tx.replace(/-/g,'').slice(0,8).toUpperCase()}`;
+  const order={...(clone(payload.p_order)||{}),id:localId,client_tx_id:entry.tx,invoice_number:null,bon_number:null,offline_reference:offlineReference,_official_number_pending:true,created_at:created,payment_status:'confirmed',_offline:true};
   const items=(payload.p_items||[]).map((x,i)=>({...clone(x),id:`${localId}-i${i+1}`,order_id:localId}));
   return {order,items,client_tx_id:entry.tx};
 }
@@ -157,7 +157,7 @@ function localExpense(entry,shift,description,amount){return {id:entry.commit.lo
 function localShiftOpen(entry,opening){return {id:entry.commit.local_entity_id,branch_id:runtimeBranch(),employee_id:runtimeEmployee(),opening_cash:Number(opening||0),status:'open',opened_at:entry.commit.created_local_at,_offline:true,client_tx_id:entry.tx}}
 function localReturnResult(entry,o,selected,reason,notes,method,total,available=[]){
   const id=entry.commit.local_entity_id;
-  const r={id,return_number:`OFF-${entry.tx.slice(0,8)}`,branch_id:o?.branch_id??runtimeBranch(),order_id:o?.id,shift_id:null,original_invoice_number:o?.invoice_number,original_bon_number:o?.bon_number,reason,notes,subtotal:Number(total),total:Number(total),created_at:entry.commit.created_local_at,_offline:true,client_tx_id:entry.tx};
+  const r={id,return_number:`OFF-${entry.tx.slice(0,8)}`,branch_id:o?.branch_id??runtimeBranch(),order_id:o?.id,shift_id:o?._offline_return_shift_id??null,original_invoice_number:o?.invoice_number,original_bon_number:o?.bon_number,reason,notes,subtotal:Number(total),total:Number(total),created_at:entry.commit.created_local_at,_offline:true,client_tx_id:entry.tx};
   const items=(selected||[]).map(x=>{const i=(available||[]).find(z=>String(z.id)===String(x.order_item_id));const unit=Number(i?.total||0)/Math.max(1,Number(i?.quantity||1));return {return_id:id,order_item_id:x.order_item_id,product_name:i?.product_name||'صنف',quantity:x.quantity,unit_refund:unit,total:unit*x.quantity}});
   const payments=[{return_id:id,method,amount:Number(total)}];return {r,items,payments};
 }
@@ -186,29 +186,41 @@ async function rpcTakeover(name,payload={}){
 async function saveSaleV2(orderPayload,itemPayload,payRows,providedClientTx=null){
   if(!(await isTakeoverActive()))return base.saveOfflineSale(orderPayload,itemPayload,payRows,providedClientTx);
   const tx=text(providedClientTx)||uid(),payload={p_order:{...clone(orderPayload),client_tx_id:tx},p_items:clone(itemPayload||[]),p_payments:clone(payRows||[])};
-  const entry=await ensureCommitted('sale',payload,tx);return localSaleResult(entry,payload);
+  const entry=await ensureCommitted('sale',payload,tx),result=localSaleResult(entry,payload);
+  try{if(typeof cacheOrderBundle==='function')await cacheOrderBundle(result.order,result.items)}catch(e){console.warn('Offline V2 sale projection',e)}
+  return result;
 }
 async function saveExpenseV2(shift,description,amount,providedClientTx=null){
   if(!(await isTakeoverActive()))return base.saveOfflineExpense(shift,description,amount,providedClientTx);
   let entry=consumeFailed('expense');
   const tx=text(providedClientTx||entry?.tx)||uid();
   if(!entry||entry.tx!==tx){const payload={p_shift_id:shift?.id,p_description:description,p_amount:Number(amount),p_client_tx_id:tx};entry=await ensureCommitted('expense',payload,tx)}
-  return localExpense(entry,shift,description,amount);
+  const local=localExpense(entry,shift,description,amount);
+  try{const rows=clone(await odbGet('offlineV2Expenses'))||[];await odbSet('offlineV2Expenses',[local,...rows.filter(x=>String(x.id)!==String(local.id))].slice(0,1000))}catch(e){console.warn('Offline V2 expense projection',e)}
+  return local;
 }
 async function saveShiftOpenV2(opening,providedClientTx=null){
   if(!(await isTakeoverActive()))return base.saveOfflineShiftOpen(opening,providedClientTx);
   let entry=consumeFailed('shift_open');const tx=text(providedClientTx||entry?.tx)||uid();
   if(!entry||entry.tx!==tx){entry=await ensureCommitted('shift_open',{p_branch_id:runtimeBranch(),p_opening_cash:Number(opening||0),p_client_tx_id:tx},tx)}
-  const local=localShiftOpen(entry,opening);try{if(typeof rememberOpenShift==='function')await rememberOpenShift(local)}catch{}return local;
+  const local=localShiftOpen(entry,opening);try{if(typeof rememberOpenShift==='function')await rememberOpenShift(local);const key=`shiftHistory:${runtimeBranch()}`,rows=clone(await odbGet(key))||[];await odbSet(key,[local,...rows.filter(x=>String(x.id)!==String(local.id))].slice(0,500))}catch{}return local;
 }
 async function saveReturnV2(o,selected,reason,notes,method,total,available,providedClientTx=null){
   if(!(await isTakeoverActive()))return base.saveOfflineReturn(o,selected,reason,notes,method,total,available,providedClientTx);
   let entry=consumeFailed('return');const tx=text(providedClientTx||entry?.tx)||uid();
   if(!entry||entry.tx!==tx){
-    const payload={p_order_id:o?.id,p_reason:reason,p_notes:notes,p_items:clone(selected||[]),p_payments:[{method,amount:Number(total)}],p_client_tx_id:tx};
+    const payload={p_order_id:o?.id,p_shift_id:o?._offline_return_shift_id??null,p_reason:reason,p_notes:notes,p_items:clone(selected||[]),p_payments:[{method,amount:Number(total)}],p_client_tx_id:tx};
     entry=await ensureCommitted('return',payload,tx);
   }
-  return localReturnResult(entry,o,selected,reason,notes,method,total,available);
+  const result=localReturnResult(entry,o,selected,reason,notes,method,total,available);
+  try{
+    const key=`cachedReturns:${runtimeBranch()}`,rows=clone(await odbGet(key))||[];
+    await odbSet(key,[result.r,...rows.filter(x=>String(x.id)!==String(result.r.id))].slice(0,1000));
+    const itemRows=clone(await odbGet('offlineV2ReturnItems'))||[],paymentRows=clone(await odbGet('offlineV2ReturnPayments'))||[];
+    await odbSet('offlineV2ReturnItems',[...result.items,...itemRows.filter(x=>String(x.return_id)!==String(result.r.id))].slice(0,5000));
+    await odbSet('offlineV2ReturnPayments',[...result.payments,...paymentRows.filter(x=>String(x.return_id)!==String(result.r.id))].slice(0,2000));
+  }catch(e){console.warn('Offline V2 return projection',e)}
+  return result;
 }
 async function saveOrderStatusV2(orderId,targetStatus,providedClientTx=null){
   if(!(await isTakeoverActive()))throw Object.assign(new Error('Offline V2 order status requires active takeover'),{code:'OFFLINE_V2_ORDER_STATUS_TAKEOVER_REQUIRED'});
@@ -241,7 +253,7 @@ async function saveShiftCloseV2(shift,metrics,actual,providedClientTx=null){
     entry=await ensureCommitted('shift_close',payload,tx);
   }
   const local=localShiftClosed(entry,shift,metrics,actual);
-  try{await odbSet(`openShift:${state.employee?.id}:${runtimeBranch()}`,null)}catch{}
+  try{await odbSet(`openShift:${state.employee?.id}:${runtimeBranch()}`,null);const key=`shiftHistory:${runtimeBranch()}`,rows=clone(await odbGet(key))||[];await odbSet(key,[local,...rows.filter(x=>String(x.id)!==String(local.id))].slice(0,500))}catch{}
   return local;
 }
 

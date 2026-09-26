@@ -45,9 +45,10 @@ function classifyError(error){
   const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
   if(business)return {kind:'conflict',code,message,retryable:false,http_status:status};
   if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true,http_status:status};
-  const transient=error?.kind==='network'||status===0||status===408||status===425||status===429||status>=500||['ECONNRESET','ECONNREFUSED','ETIMEDOUT','ENOTFOUND','EAI_AGAIN','ABORT_ERR'].includes(code)||lower.includes('timeout')||lower.includes('network')||lower.includes('failed to fetch')||lower.includes('socket hang up');
+  if(error?.kind==='permanent')return {kind:'permanent',code,message,retryable:false,http_status:status};
+  const transient=error?.kind==='transient'||error?.kind==='network'||status===0||status===408||status===425||status===429||status>=500||['ECONNRESET','ECONNREFUSED','ETIMEDOUT','ENOTFOUND','EAI_AGAIN','ABORT_ERR'].includes(code)||lower.includes('timeout')||lower.includes('network')||lower.includes('failed to fetch')||lower.includes('socket hang up');
   if(transient)return {kind:'transient',code,message,retryable:true,http_status:status};
-  if(error?.kind==='permanent'||(status>=400&&status<500))return {kind:'permanent',code,message,retryable:false,http_status:status};
+  if(status>=400&&status<500)return {kind:'permanent',code,message,retryable:false,http_status:status};
   return {kind:'transient',code,message,retryable:true,http_status:status};
 }
 
@@ -69,9 +70,9 @@ function retryDelayMs(attempts,opts={},random=Math.random){
   return Math.max(100,Math.min(cap,Math.round(raw*factor)));
 }
 
-function outboundEnvelope(row,deviceFingerprint,dependencyMapping){
+function outboundEnvelope(row,deviceFingerprint,dependencyMapping,customerDependencyMapping=null){
   const base=clone(row?.envelope||{});
-  return {
+  const out={
     ...base,
     client_tx_id:text(row?.client_tx_id||base.client_tx_id),
     device_id:text(row?.device_id||base.device_id),
@@ -90,6 +91,8 @@ function outboundEnvelope(row,deviceFingerprint,dependencyMapping){
     device_fingerprint:text(deviceFingerprint),
     dependency_mapping:dependencyMapping?clone(dependencyMapping):null
   };
+  if(customerDependencyMapping)out.customer_dependency_mapping=clone(customerDependencyMapping);
+  return out;
 }
 
 function createSyncEngine(options={}){
@@ -147,12 +150,23 @@ function createSyncEngine(options={}){
         if(!row)break;
         result.attempted++;
         try{
-          let dependencyMapping=null;
+          let dependencyMapping=null,customerDependencyMapping=null;
           if(text(row.depends_on_tx_id)){
             dependencyMapping=await store.getMappingByTx(text(row.depends_on_tx_id));
             if(!dependencyMapping)throw err('OFFLINE_V2_DEPENDENCY_MAPPING_MISSING','Acknowledged parent has no server mapping','dependency');
           }
-          const outbound=outboundEnvelope(row,fingerprint,dependencyMapping);
+          const customerTx=text(row?.envelope?.payload?.rpc_payload?.p_order?.customer_create_tx);
+          if(text(row?.operation_type)==='sale'&&customerTx){
+            customerDependencyMapping=await store.getMappingByTx(customerTx);
+            if(!customerDependencyMapping){
+              const customerParent=typeof store.getOutbox==='function'?await store.getOutbox(customerTx):null;
+              const parentStatus=text(customerParent?.status);
+              if(parentStatus==='conflict'||parentStatus==='dead_letter')throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_TERMINAL',`Customer create dependency is ${parentStatus}; sale cannot sync without the mapped customer`,'business_conflict');
+              if(!customerParent)throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_PARENT_MISSING','Customer create dependency row is missing','permanent');
+              throw err('OFFLINE_V2_CUSTOMER_DEPENDENCY_MAPPING_MISSING','Customer create has no acknowledged server mapping yet','transient');
+            }
+          }
+          const outbound=outboundEnvelope(row,fingerprint,dependencyMapping,customerDependencyMapping);
           const ack=validateAck({...row,...outbound},await transport.send(outbound));
           await store.markAcked(row.client_tx_id,ack);
           result.acked++;

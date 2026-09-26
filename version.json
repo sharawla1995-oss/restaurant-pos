@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4-beta.58.29",
+  "version": "10.5.4-beta.58.31",
   "channel": "beta",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "SH-0007-only acceptance corrective. Stabilizes the live Offline V2 migration-compatibility snapshot probe by retrying when the source DB changes during VACUUM INTO. No business, stock, Point4, Cloud, or Production behavior change."
+  "notes": "SH-0007-only Restaurant RC1 practical Offline audit candidate. Adds local projections and cached operational fallbacks, preserves durable local success UX, and makes unsupported Cloud actions fail closed. Official Offline bon/invoice continuity remains a release blocker. No Production deployment or database migration is included."
 }

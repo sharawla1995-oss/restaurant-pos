@@ -11,7 +11,8 @@ for(const t of[
  "registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']))"
 ])need(rt,t);
 for(const t of[
- "if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)"
+ "if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id)",
+ "if(type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)"
 ])need(rt,t);
 const takeover=fs.readFileSync('beta45-offline-v2-runtime-takeover.js','utf8');
 for(const t of[
