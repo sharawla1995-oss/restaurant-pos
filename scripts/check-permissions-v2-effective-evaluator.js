@@ -60,8 +60,8 @@ function before(a,b){
 }
 before('current_operational_profile_v1()','ACTION_UNKNOWN_OR_INAPPLICABLE');
 before('ACTION_UNKNOWN_OR_INAPPLICABLE','FEATURE_NOT_ENTITLED');
-before('FEATURE_NOT_ENTITLED','role_action_default_state_v2(profile_code,role_code,v_action)');
-before('role_action_default_state_v2(profile_code,role_code,v_action)','from public.employee_action_permissions_v2');
+before('FEATURE_NOT_ENTITLED','role_action_default_state_v2(v_profile_code,v_role_code,v_action)');
+before('role_action_default_state_v2(v_profile_code,v_role_code,v_action)','from public.employee_action_permissions_v2');
 before('from public.employee_action_permissions_v2','ALLOW_USER_OVERRIDE');
 before('ROLE_DEFAULT_MISSING','ALLOW_LEGACY_TRANSITION');
 
