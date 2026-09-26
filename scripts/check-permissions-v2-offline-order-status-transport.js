@@ -23,7 +23,7 @@ for(const t of[
  "'sale','return','expense','shift_open','shift_close','order_status'",
  "v_operation='order_status'",
  "when 'order_status_apply_offline_v2' then",
- "elsif v_operation in ('return','order_status') then",
+ "elsif v_operation in ('return','order_status','delivery_assign_driver') then",
  "public.order_status_apply_offline_v2((v_payload->>'p_order_id')::bigint,v_payload->>'p_target_status',v_payload->>'p_client_tx_id')"
 ])need(sql,t);
 need(owner,'OFFLINE_ORDER_STATUS_REPLAY_MISMATCH');
