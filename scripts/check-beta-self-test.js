@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const pkg=JSON.parse(read('package.json'));
 const version=String(pkg.version||'');
-const match=version.match(/^10\.5\.4-beta\.(\d+)$/);
+const match=version.match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);
 if(!match||Number(match[1])<45)throw new Error(`Offline V2 Self-Test requires 10.5.4-beta.45+, got ${version}`);
 const src=read('beta-self-test.js');
 const index=read('index.html');
