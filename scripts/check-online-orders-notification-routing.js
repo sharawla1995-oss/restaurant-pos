@@ -9,6 +9,6 @@ n(/resolveOnlineOrderChannel\(source\)/.test(r)&&/channel\.supported\?'onlineOrd
 n(/onlineOrderNotificationRoute\('website'\)/.test(a)&&/showPage\(route\)/.test(a),'alert route boundary missing');
 n(!/showPage\('deliveryOrders'\)/.test(a),'alert recoupled to Delivery');
 n(/canAccessPage\('onlineOrders'\)/.test(w),'watcher permission route wrong');
-n(/websiteOrderBeep\(\)/.test(a)&&/setInterval\(checkWebsiteOrders,5000\)/.test(app),'notification behavior regressed');
+n(/websiteOrderBeep\(\)/.test(a)&&/setInterval\(checkWebsiteOrders,WEBSITE_ORDER_WATCH_INTERVAL_MS\)/.test(app),'notification behavior regressed');
 if(f.length){console.error('Online Orders Notification Final Routing: FAIL');f.forEach(x=>console.error('- '+x));process.exit(1)}
 console.log('Online Orders Notification Final Routing: PASS');

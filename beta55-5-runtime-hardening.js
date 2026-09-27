@@ -6,6 +6,7 @@
 // Production devices, or backend schema. It formalizes the Restaurant offline
 // page contract and prevents Navigation Parity cards from leaking into sub-pages.
 const VERSION='10.5.4-beta.58.32';
+const OFFLINE_NOTE_SELECTOR='[data-beta555-offline-note]';
 const READ_CACHE_PAGES=new Set(['deliverySettings','products']);
 const FULL_OFFLINE_PAGES=new Set(['shifts','expenses']);
 const OFFLINE_CONTRACT=Object.freeze({
@@ -55,21 +56,48 @@ function guardOfflineMutations(e){
   e.preventDefault();e.stopImmediatePropagation();
   toast55(page==='products'?'إدارة الأصناف متاحة للقراءة أوفلاين. الإضافة والتعديل تحتاج إنترنت.':'بيانات الدليفري متاحة للقراءة أوفلاين. تعديل المناديب والمناطق والتسويات يحتاج إنترنت.');
 }
+let offlineNoteNode=null;
+let offlinePresentationState=null;
+function offlinePresentationActive(){return !navigator.onLine||global.__SharawlaOfflineCacheFallback?.active===true}
+function removeExtraOfflineNotes(host,keep){
+  [...host.querySelectorAll(OFFLINE_NOTE_SELECTOR)].forEach(note=>{if(note!==keep)note.remove()});
+}
 function annotateOfflinePage(){
-  const fallback=global.__SharawlaOfflineCacheFallback,existing=document.querySelector('#page [data-beta555-offline-note]');if(navigator.onLine&&fallback?.active!==true){existing?.remove();return}
+  const offline=offlinePresentationActive();
+  if(!offline){
+    document.querySelectorAll(`#page ${OFFLINE_NOTE_SELECTOR}`).forEach(note=>note.remove());
+    offlineNoteNode=null;offlinePresentationState='online';return;
+  }
   const page=activePage();const c=OFFLINE_CONTRACT[page];if(!c)return;
-  const host=document.querySelector('#page');if(!host||host.querySelector('[data-beta55-5-offline-note]'))return;
-  const note=document.createElement('div');note.dataset.beta555OfflineNote='1';note.className='panel';note.style.marginBottom='10px';
-  note.innerHTML=c.mode==='cache-read'
-    ?'<b>⚠️ وضع أوفلاين — بيانات محلية</b><div class="muted">المعروض من آخر نسخة محفوظة والحركات المعلّقة على هذا الجهاز، وقد لا يشمل بيانات Cloud الأحدث.</div>'
-    :'<b>✓ وضع أوفلاين</b><div class="muted">الحركات الجديدة محفوظة محليًا وستتم مزامنتها بعد رجوع الاتصال والجلسة Online.</div>';
-  host.prepend(note);
+  const host=document.querySelector('#page');if(!host)return;
+  let note=host.querySelector(OFFLINE_NOTE_SELECTOR);
+  if(note){offlineNoteNode=note;removeExtraOfflineNotes(host,note)}
+  else if(offlinePresentationState==='offline'&&offlineNoteNode)note=offlineNoteNode;
+  else{note=document.createElement('div');note.dataset.beta555OfflineNote='1';note.className='panel';note.style.marginBottom='10px';offlineNoteNode=note}
+  const mode=c.mode==='cache-read'?'cache-read':'durable';
+  if(note.dataset.beta555OfflineMode!==mode){
+    note.dataset.beta555OfflineMode=mode;
+    note.innerHTML=mode==='cache-read'
+      ?'<b>⚠️ وضع أوفلاين — بيانات محلية</b><div class="muted">المعروض من آخر نسخة محفوظة والحركات المعلّقة على هذا الجهاز، وقد لا يشمل بيانات Cloud الأحدث.</div>'
+      :'<b>✓ وضع أوفلاين</b><div class="muted">الحركات الجديدة محفوظة محليًا وستتم مزامنتها بعد رجوع الاتصال والجلسة Online.</div>';
+  }
+  offlinePresentationState='offline';
+  if(note.parentNode!==host)host.prepend(note);
 }
 let uiHardeningScheduled=false;
 function scheduleUiHardening(){
  if(uiHardeningScheduled)return;
  uiHardeningScheduled=true;
  requestAnimationFrame(()=>{uiHardeningScheduled=false;setScopeClass();annotateOfflinePage()});
+}
+function isOfflineNoteMutation(record){
+  const target=record?.target;
+  if(target?.matches?.(OFFLINE_NOTE_SELECTOR)||target?.closest?.(OFFLINE_NOTE_SELECTOR))return true;
+  const nodes=[...(record?.addedNodes||[]),...(record?.removedNodes||[])].filter(node=>node?.nodeType===1);
+  return nodes.length>0&&nodes.every(node=>node.matches?.(OFFLINE_NOTE_SELECTOR));
+}
+function handleUiMutations(records){
+  if((records||[]).some(record=>!isOfflineNoteMutation(record)))scheduleUiHardening();
 }
 
 function offlineAudit(){
@@ -78,10 +106,12 @@ function offlineAudit(){
   return {ok:leakedVisible.length===0,version:VERSION,page,online:navigator.onLine,contract,visible_navigation_leaks:leakedVisible.map(x=>x.dataset.navParityKey||x.textContent.trim().slice(0,40))};
 }
 
+let started=false;
 function start(){
+  if(started)return;started=true;
   ensureScopeStyle();setScopeClass();
   document.addEventListener('click',guardOfflineMutations,true);
-  const obs=new MutationObserver(scheduleUiHardening);obs.observe(document.querySelector('#page')||document.body,{subtree:true,childList:true});
+  const obs=new MutationObserver(handleUiMutations);obs.observe(document.querySelector('#page')||document.body,{subtree:true,childList:true});
   global.addEventListener('offline',scheduleUiHardening);global.addEventListener('online',scheduleUiHardening);
   global.addEventListener('sharawla:offline-v2-projection-changed',scheduleUiHardening);
   global.addEventListener('sharawla:offline-cache-fallback',scheduleUiHardening);

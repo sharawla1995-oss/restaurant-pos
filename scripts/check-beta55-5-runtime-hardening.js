@@ -13,10 +13,11 @@ ok(hard.includes("expenses:Object.freeze({mode:'full-create'"),'expenses offline
 ok(hard.includes("deliverySettings:Object.freeze({mode:'cache-read'"),'delivery settings cache-read contract');
 ok(hard.includes("products:Object.freeze({mode:'cache-read'"),'products cache-read contract');
 ok(hard.includes("#page .home-grid > .home-card[data-nav-parity-key]"),'non-home navigation leak shield');
-ok(hard.includes("document.querySelector('#page [data-beta555-offline-note]')"),'offline note lookup matches dataset-generated attribute');
-ok(!hard.includes("document.querySelector('#page [data-beta55-5-offline-note]')"),'mismatched recursive offline note selector absent');
+ok(hard.includes("const OFFLINE_NOTE_SELECTOR='[data-beta555-offline-note]'"),'offline note uses one canonical selector');
+ok(!hard.includes('data-beta55-5-offline-note'),'legacy mismatched offline note selector absent');
 ok(hard.includes('let uiHardeningScheduled=false'),'UI hardening scheduler coalesces mutation bursts');
 ok(hard.includes('requestAnimationFrame(()=>{uiHardeningScheduled=false;setScopeClass();annotateOfflinePage()})'),'UI hardening runs at most once per frame');
+ok(hard.includes('new MutationObserver(handleUiMutations)'),'observer filters self-generated offline note mutations');
 ok(hard.includes("obs.observe(document.querySelector('#page')||document.body,{subtree:true,childList:true})"),'observer is scoped to page child-list mutations');
 ok(!hard.includes("attributes:true,attributeFilter:['class']"),'global class-attribute observation removed');
 ok(hard.includes("activePage()==='home'&&!!document.querySelector('#page > .home-hero')"),'strict true-home scope');

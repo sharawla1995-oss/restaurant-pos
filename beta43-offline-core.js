@@ -103,7 +103,8 @@ async function loadOfflineBootstrap43(){
 }
 
 async function logout43(){
-  clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;
+  if(typeof stopWebsiteOrderWatch==='function')stopWebsiteOrderWatch(true);
+  else{clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null}
   try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}
   session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');
   // Beta43 intentionally preserves per-user offline enrollment + bootstrap.

@@ -314,9 +314,15 @@ settings:{
 },
 modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false};
 let websiteOrderWatchTimer=null;
+let websiteOrderWatchInFlight=null;
+let websiteOrderWatchAbortController=null;
+let websiteOrderWatchBranchId=null;
+let websiteOrderWatchListenersBound=false;
 let knownWebsiteOrderIds=new Set();
 let websiteOrderWatchPrimed=false;
 let websiteAudioCtx=null;
+const WEBSITE_ORDER_WATCH_INTERVAL_MS=5000;
+const WEBSITE_ORDER_WATCH_TIMEOUT_MS=10000;
 function websiteOrderBeep(){
   try{
     websiteAudioCtx=websiteAudioCtx||new (window.AudioContext||window.webkitAudioContext)();
@@ -345,9 +351,15 @@ function showWebsiteOrderAlert(w){
   el.querySelector('.website-alert-close').onclick=()=>el.remove();
 }
 async function checkWebsiteOrders(){
-  if(!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('onlineOrders'))return;
-  try{
-    const rows=await rest('website_orders',`select=id,customer_name,total,created_at&branch_id=eq.${currentBranchId()}&status=eq.pending&order=created_at.asc&limit=100`);
+  if(!navigator.onLine||!session?.access_token||!state.employee||!state.activeBranchId||!canAccessPage('onlineOrders'))return null;
+  if(websiteOrderWatchInFlight)return websiteOrderWatchInFlight;
+  const branchId=currentBranchId();
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  websiteOrderWatchAbortController=controller;
+  const run=(async()=>{let timeout=null;try{
+    if(controller)timeout=setTimeout(()=>controller.abort(),WEBSITE_ORDER_WATCH_TIMEOUT_MS);
+    const rows=await rest('website_orders',`select=id,customer_name,total,created_at&branch_id=eq.${branchId}&status=eq.pending&order=created_at.asc&limit=100`,controller?{signal:controller.signal}:{});
+    if(!navigator.onLine||String(currentBranchId())!==String(branchId))return null;
     const list=rows||[];
     const ids=new Set(list.map(x=>String(x.id)));
 
@@ -362,19 +374,42 @@ async function checkWebsiteOrders(){
     const fresh=list.filter(x=>!knownWebsiteOrderIds.has(String(x.id)));
     knownWebsiteOrderIds=ids;
     if(fresh.length) showWebsiteOrderAlert(fresh[fresh.length-1]);
-  }catch(e){console.warn('website order watch',e)}
+    return list;
+  }catch(e){if(e?.name!=='AbortError'&&navigator.onLine)console.warn('website order watch',e);return null}
+  finally{if(timeout)clearTimeout(timeout)}})();
+  websiteOrderWatchInFlight=run;
+  try{return await run}finally{
+    if(websiteOrderWatchInFlight===run)websiteOrderWatchInFlight=null;
+    if(websiteOrderWatchAbortController===controller)websiteOrderWatchAbortController=null;
+  }
+}
+function stopWebsiteOrderWatch(resetSeen=false){
+  if(websiteOrderWatchTimer!==null)clearInterval(websiteOrderWatchTimer);
+  websiteOrderWatchTimer=null;
+  websiteOrderWatchAbortController?.abort();
+  if(resetSeen){websiteOrderWatchBranchId=null;websiteOrderWatchPrimed=false;knownWebsiteOrderIds=new Set()}
 }
 function startWebsiteOrderWatch(){
-  clearInterval(websiteOrderWatchTimer);
-  websiteOrderWatchPrimed=false;
-  knownWebsiteOrderIds=new Set();
-  checkWebsiteOrders();
-  websiteOrderWatchTimer=setInterval(checkWebsiteOrders,5000);
+  const branchId=state.activeBranchId?String(currentBranchId()):null;
+  if(!navigator.onLine||!branchId){stopWebsiteOrderWatch(false);return}
+  if(websiteOrderWatchTimer!==null&&websiteOrderWatchBranchId===branchId){void checkWebsiteOrders();return}
+  const branchChanged=websiteOrderWatchBranchId!==branchId;
+  stopWebsiteOrderWatch(branchChanged);
+  websiteOrderWatchBranchId=branchId;
+  void checkWebsiteOrders();
+  websiteOrderWatchTimer=setInterval(checkWebsiteOrders,WEBSITE_ORDER_WATCH_INTERVAL_MS);
 }
 
 // لو رجع للشاشة أو فتح التبويب بعد ما كان بالخلفية، افحص فورًا بدل انتظار المؤقت.
-window.addEventListener('focus',()=>{if(state.activeBranchId)checkWebsiteOrders()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.activeBranchId)checkWebsiteOrders()});
+function bindWebsiteOrderWatchListeners(){
+  if(websiteOrderWatchListenersBound)return;
+  websiteOrderWatchListenersBound=true;
+  window.addEventListener('focus',()=>{if(state.activeBranchId)void checkWebsiteOrders()});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.activeBranchId)void checkWebsiteOrders()});
+  window.addEventListener('offline',()=>stopWebsiteOrderWatch(false));
+  window.addEventListener('online',()=>{if(state.activeBranchId)startWebsiteOrderWatch()});
+}
+bindWebsiteOrderWatchListeners();
 const money=n=>`${Number(n||0).toFixed(2)} ${state.business?.currency_symbol||'ج.م'}`;
 const fmtDate=s=>new Date(s).toLocaleString('ar-EG');
 function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2600)}
@@ -501,7 +536,7 @@ async function signIn(email,password){
   localStorage.setItem('sbResumeSession',JSON.stringify(d));
   return d;
 }
-async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
+async function logout(){stopWebsiteOrderWatch(true);try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
