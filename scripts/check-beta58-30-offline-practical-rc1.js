@@ -43,7 +43,8 @@ need(recovery,"order=([a-zA-Z0-9_]+)\\.(asc|desc)",'cached query ordering');
 need(recovery,"'invoice_number','bon_number'",'cached official-number search filters');
 need(recovery,"parseEq(query,'returns.order_id')",'return-item parent filter');
 reject(recovery,/\['driver_settlements','website_orders'/,'live Cloud tables must not fall back to a misleading empty dataset');
-need(recovery,"rowTx&&text(out[i]?.client_tx_id)===rowTx",'ACK projection deduplicates matching local client TX');
+need(recovery,"if(at&&bt&&at===bt)return true",'ACK projection prioritizes matching local client TX');
+need(recovery,'canonicalIdentity(a)','ACK projection supports canonical/local/server mappings');
 need(recovery,"type==='shift_open'",'native shift-open projection');
 need(recovery,"type==='shift_close'",'native shift-close projection');
 

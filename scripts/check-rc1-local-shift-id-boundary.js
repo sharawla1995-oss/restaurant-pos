@@ -17,6 +17,10 @@ must(s.includes("if(!isServerShiftId(sh.id)){const q=await offlineQueue()"),'off
 must(s.includes("p_shift_id:isServerShiftId(shift.id)?Number(shift.id):shift.id"),'offline expense must preserve local shift ID');
 const localProjection=s.slice(s.indexOf('async function localShiftProjectionRows'),s.indexOf('async function localShiftMetrics'));
 must(localProjection.includes("if(isServerShiftId(sid))"),'local projection server boundary missing');
+must(localProjection.includes('__SharawlaBeta554RuntimeRecovery?.readOperationalRows'),'local shift projection must use unified operational reader');
 must(localProjection.includes("await offlineQueue()"),'local projection must read local queue');
 must(localProjection.includes("await cachedOrderBundles()"),'local projection must read cached orders');
-console.log('RC1 local shift bigint boundary gate PASS');
+const localMetrics=s.slice(s.indexOf('async function localShiftMetrics'),s.indexOf('async function shiftMetrics'));
+must(localMetrics.includes("localOperationalProjectionRows('return_payments')"),'local shift metrics must read Native return payments');
+must(localMetrics.includes('addPay(k,-Number(p.amount||0))'),'local shift metrics must subtract Native return payments from cash');
+require('./check-rc1-offline-read-after-write.js').runShiftProjectionRegression().then(()=>console.log('RC1 local shift bigint boundary + Native projection gate PASS')).catch(error=>{console.error(error);process.exitCode=1});
