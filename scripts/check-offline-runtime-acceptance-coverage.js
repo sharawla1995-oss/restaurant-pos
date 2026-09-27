@@ -30,7 +30,10 @@ for(const t of ["id:'offline.expense-runtime-e2e'","id:'offline.return-runtime-e
 has(lazy,'owner-acceptance-offline-core-ops-v58.js','offline core ops runtime acceptance must be lazy-loaded');
 for(const t of ["id:'beta55.delivery-settlement-shift-cash'",'delivery_mark_delivered_v2','delivery_driver_settle_v2','driver_custody_unsettled'])has(delivery,t);
 has(fulfillment,'global.SharawlaOfflineV2Takeover','fulfillment offline durable status owner binding');
-has(fulfillment,'return ov2.saveOrderStatus(raw,target)','fulfillment offline durable status route');
+has(fulfillment,"const localId=String(order?.id??'').trim()",'fulfillment local identity extraction');
+has(fulfillment,"const serverId=String(order?._server_entity_id??'').trim()",'fulfillment server identity extraction');
+has(fulfillment,'const id=Number(serverId||localId)','online fulfillment must prefer authoritative server identity');
+has(fulfillment,'return ov2.saveOrderStatus(localId,target)','fulfillment offline durable status route must preserve local identity');
 has(driver,"commitRpcLocal('offline_delivery_assign_driver_v1'",'driver assignment durable local-success route');
 for(const t of ["id:'offline.customer-create-runtime-e2e'","id:'offline.customer-dependent-address-runtime-e2e'","id:'offline.customer-mutations-runtime-e2e'","id:'offline.delivery-driver-runtime-e2e'","id:'offline.delivery-economic-runtime-e2e'",'server_ack','sharawla_beta58_offline_driver_fixture_v1','sharawla_beta58_offline_status_fixture_v1','MUTATION_FIXTURE','delivery_payment_events','delivery_cash_custody_amount','economic replay=stable'])has(customerDeliveryE2E,t);
 has(lazy,'owner-acceptance-offline-customer-delivery-v58.js','customer/delivery runtime acceptance must be lazy-loaded');
