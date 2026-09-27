@@ -397,10 +397,13 @@ async function resetTestGroups(input={}){
     const groups=[...new Set((Array.isArray(input?.groups)?input.groups:[]).map(text).filter(Boolean))];
     const operations=[...new Set(groups.flatMap(g=>RESET_GROUP_OPERATIONS[g]||[]))];
     if(!operations.length)return {ok:true,cleared:0,groups,scope:'SH-0007/TEST',scoped:true};
-    const opMarks=operations.map(()=>'?').join(','),protectedMarks=RESET_PROTECTED_DEVICE_SEQUENCES.map(()=>'?').join(',');
+    const opMarks=operations.map(()=>'?').join(',');
     await exec('BEGIN IMMEDIATE TRANSACTION');
     try{
-      const txRows=await all(`SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks}) AND device_sequence NOT IN (${protectedMarks})`,[...operations,...RESET_PROTECTED_DEVICE_SEQUENCES]);
+      // A user-selected Reset must purge the selected operational group completely.
+      // Acceptance fixture sequences are protected from queue-only diagnostics, not from
+      // an explicit SH-0007/TEST group reset.
+      const txRows=await all(`SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks})`,operations);
       const txs=txRows.map(r=>text(r.client_tx_id)).filter(Boolean);
       if(txs.length){
         const marks=txs.map(()=>'?').join(',');
@@ -409,7 +412,10 @@ async function resetTestGroups(input={}){
         await run(`DELETE FROM offline_v2_outbox WHERE client_tx_id IN (${marks})`,txs);
       }
       await exec('COMMIT');
-      return {ok:true,cleared:txs.length,groups,operations,protected_device_sequences:[...RESET_PROTECTED_DEVICE_SEQUENCES],scope:'SH-0007/TEST',scoped:true,device_sequence_reset:false};
+      const remainingRow=await get(`SELECT COUNT(*) c FROM offline_v2_outbox WHERE operation_type IN (${opMarks})`,operations);
+      const remaining=number(remainingRow?.c);
+      if(remaining!==0)throw new Error(`Offline V2 scoped reset verification failed: ${remaining} selected operations remain`);
+      return {ok:true,cleared:txs.length,remaining,verified:true,groups,operations,scope:'SH-0007/TEST',scoped:true,device_sequence_reset:false};
     }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
   });
 }
