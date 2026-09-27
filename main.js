@@ -830,7 +830,19 @@ function registerIpc(){
      const b=one('select value from kv where key=?',['bootstrap']);
      if(b)try{const v=JSON.parse(b.value);if(v&&typeof v==='object'){v.deliveryZones=[];v.drivers=[];run(`update kv set value=?,updated_at=datetime('now') where key='bootstrap'`,[JSON.stringify(v)]);cleared++}}catch(e){throw new Error('Sandbox scoped reset refused malformed bootstrap: '+String(e?.message||e))}
    }
-   return {ok:true,deleted_legacy_operations:deletedLegacy,deleted_sync_log:deletedSync,cleared_keys:cleared,backup,groups:[...groups],scope:'SH-0007/TEST',scoped:true,full_clean:false};
+   let remainingLegacy=0,remainingSync=0,remainingQueue=0,remainingKeys=0;
+   if(types.length){
+     const marks=types.map(()=>'?').join(',');
+     remainingLegacy=Number(one(`select count(*) c from local_operations where type in (${marks})`,types)?.c||0);
+     remainingSync=Number(one(`select count(*) c from sync_log where type in (${marks})`,types)?.c||0);
+     const q=one('select value from kv where key=?',['queue']);
+     if(q){const rows=JSON.parse(q.value);remainingQueue=Array.isArray(rows)?rows.filter(x=>types.includes(String(x?.type||''))).length:0}
+   }
+   for(const k of exact)remainingKeys+=Number(one('select count(*) c from kv where key=?',[k])?.c||0);
+   for(const prefix of prefixes)remainingKeys+=Number(one('select count(*) c from kv where key like ?',[prefix+'%'])?.c||0);
+   const remaining={legacy_operations:remainingLegacy,sync_log:remainingSync,queue:remainingQueue,cache_keys:remainingKeys};
+   if(Object.values(remaining).some(Number))throw new Error('Sandbox scoped reset verification failed: '+JSON.stringify(remaining));
+   return {ok:true,deleted_legacy_operations:deletedLegacy,deleted_sync_log:deletedSync,cleared_keys:cleared,remaining,verified:true,backup,groups:[...groups],scope:'SH-0007/TEST',scoped:true,full_clean:false};
  });
  ipcMain.handle('license-state:get',()=>readLicenseStateFile());
  ipcMain.handle('license-state:set',(_e,v)=>writeLicenseStateFile(v));
