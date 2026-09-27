@@ -206,11 +206,11 @@ async function compatibilityRows(table){
  if(rows===null)return null;
  return clone(rows);
 }
-async function readOperationalRows(table,query='',baseline=null){
+async function readOperationalRows(table,query='',baseline=null,baselineAuthoritative=false){
  const operational=['orders','order_items','order_payments','expenses','returns','return_items','return_payments','customers','customer_addresses','shifts'],compatibility=await compatibilityRows(table),supported=compatibility!==null||operational.includes(table);
  if(!supported&&!Array.isArray(baseline))return null;
  if(!operational.includes(table))return applyQuery(clone(Array.isArray(baseline)?baseline:(compatibility||[])),query);
- const serverBaseline=(Array.isArray(baseline)?baseline:[]).map(row=>({...clone(row),__sharawla_server_baseline:true}));
+ const serverBaseline=(Array.isArray(baseline)?baseline:[]).map(row=>baselineAuthoritative?({...clone(row),__sharawla_server_baseline:true}):clone(row));
  let rows=mergeByIdentity(compatibility||[],serverBaseline);
  rows=await mergeNative(table,rows);
  rows=rows.map(row=>{if(!row||row.__sharawla_server_baseline!==true)return row;const clean={...row};delete clean.__sharawla_server_baseline;return clean});
@@ -235,7 +235,7 @@ async function restRecovery(table,query='',opt={}){
  }
  let networkFailed=false;
  if(onlineAuthorized()){
-   try{const remote=await baseRest(table,remoteQueryForUnion(query),opt),rows=await readOperationalRows(table,query,remote);await dbSet(readKey(table,query),remote);clearFallback();return rows}catch(e){if(!netError(e))throw e;networkFailed=true}
+   try{const remote=await baseRest(table,remoteQueryForUnion(query),opt),rows=await readOperationalRows(table,query,remote,true);await dbSet(readKey(table,query),remote);clearFallback();return rows}catch(e){if(!netError(e))throw e;networkFailed=true}
  }
  const exact=await dbGet(readKey(table,query));if(Array.isArray(exact)){publishFallback(table,networkFailed?'network-failure':'offline');return readOperationalRows(table,query,clone(exact))}
  const local=await readOperationalRows(table,query,null);if(local!==null){publishFallback(table,networkFailed?'network-failure':'offline');return local}
