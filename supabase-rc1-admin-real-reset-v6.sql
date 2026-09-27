@@ -9,7 +9,7 @@ do $pre$
 declare v_md5 text;
 begin
   select md5(pg_get_functiondef('public.reset_pos_data(text[])'::regprocedure)) into v_md5;
-  if v_md5 is distinct from '91df4995ca1b0f40b3cc593a85cf02b1' then
+  if v_md5 is distinct from '80a007923fd6494a8767b8842d60d29d' then
     raise exception 'RC1 Admin Real Reset V6 refused: reset_pos_data drifted (md5=%)',v_md5;
   end if;
 end;
@@ -26,7 +26,9 @@ declare
   v_employee_id bigint;
   v_result jsonb := '{}'::jsonb;
   v_preserved_customers bigint := 0;
+  v_auth_uid uuid;
 begin
+  v_auth_uid:=auth.uid();
   select e.id,e.role into v_employee_id,v_role
   from public.employees e
   where e.auth_user_id=auth.uid() and e.active=true
@@ -74,7 +76,7 @@ begin
   if 'expenses'=any(p_groups) then
     perform set_config('request.jwt.claim.sub','',true);
     delete from public.expenses where true;
-    perform set_config('request.jwt.claim.sub',auth.uid()::text,true);
+    perform set_config('request.jwt.claim.sub',v_auth_uid::text,true);
     if exists(select 1 from public.expenses) then raise exception 'RESET_VERIFY_EXPENSES_NOT_ZERO'; end if;
     v_result:=v_result||jsonb_build_object('expenses',true,'remaining',0);
   end if;
@@ -90,7 +92,7 @@ begin
     delete from public.shift_bon_counters where true;
     perform set_config('request.jwt.claim.sub','',true);
     delete from public.shifts where true;
-    perform set_config('request.jwt.claim.sub',auth.uid()::text,true);
+    perform set_config('request.jwt.claim.sub',v_auth_uid::text,true);
     if exists(select 1 from public.shifts) then raise exception 'RESET_VERIFY_SHIFTS_NOT_ZERO'; end if;
     v_result:=v_result||jsonb_build_object('shifts',true,'remaining',0);
   end if;
