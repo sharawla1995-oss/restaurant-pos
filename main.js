@@ -782,19 +782,55 @@ function registerIpc(){
    const supportCode=String(input?.support_code||'').trim(),branchName=String(input?.branch_name||'').trim().toUpperCase();
    if(supportCode!=='SH-0007'||branchName!=='TEST')throw new Error('Sandbox local reset is restricted to SH-0007 / TEST');
    const groups=new Set(Array.isArray(input?.groups)?input.groups.map(x=>String(x||'').trim()).filter(Boolean):[]);
-   const operational=['orders','shifts','expenses','customers','delivery'];
-   if(!operational.some(x=>groups.has(x)))return {ok:true,archived_operations:0,cleared_keys:0,scope:'SH-0007/TEST'};
-   const backup=createBackup('pre-sandbox-clean-reset');
-   const legacy=one(`select count(*) c from local_operations`);
-   const syncLog=one(`select count(*) c from sync_log`);
-   run(`delete from local_operations`);
-   run(`delete from sync_log`);
-   const exact=new Set(['queue','queueCount','cachedOrders','customersCache','customerAddressesCache','customersCacheAt','offlineV2ReturnPayments']);
-   let cleared=0;
+   const typeByGroup={
+     orders:['sale','return','order_status','delivery_assign_driver'],
+     shifts:['shift_open','shift_close'],
+     expenses:['expense'],
+     customers:['customer_create','customer_update','customer_address_save','customer_address_delete'],
+     delivery:[]
+   };
+   const types=[...new Set([...groups].flatMap(g=>typeByGroup[g]||[]))];
+   if(!types.length&&!groups.has('delivery'))return {ok:true,deleted_legacy_operations:0,deleted_sync_log:0,cleared_keys:0,scope:'SH-0007/TEST',scoped:true};
+   const backup=createBackup('pre-sandbox-scoped-reset');
+   let deletedLegacy=0,deletedSync=0,cleared=0;
+   if(types.length){
+     const marks=types.map(()=>'?').join(',');
+     deletedLegacy=Number(one(`select count(*) c from local_operations where type in (${marks})`,types)?.c||0);
+     deletedSync=Number(one(`select count(*) c from sync_log where type in (${marks})`,types)?.c||0);
+     run(`delete from local_operations where type in (${marks})`,types);
+     run(`delete from sync_log where type in (${marks})`,types);
+     const q=one('select value from kv where key=?',['queue']);
+     if(q){
+       try{
+         const rows=JSON.parse(q.value),kept=Array.isArray(rows)?rows.filter(x=>!types.includes(String(x?.type||''))):[];
+         run(`insert into kv(key,value,updated_at) values('queue',?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=excluded.updated_at`,[JSON.stringify(kept)]);
+         run(`insert into kv(key,value,updated_at) values('queueCount',?,datetime('now')) on conflict(key) do update set value=excluded.value,updated_at=excluded.updated_at`,[JSON.stringify(kept.length)]);
+       }catch(e){throw new Error('Sandbox scoped reset refused malformed legacy queue: '+String(e?.message||e))}
+     }
+   }
+   const exactByGroup={
+     orders:['cachedOrders','offlineV2ReturnItems','offlineV2ReturnPayments'],
+     shifts:[],
+     expenses:['offlineV2Expenses'],
+     customers:['customersCache','customerAddressesCache','customersCacheAt'],
+     delivery:[]
+   };
+   const prefixesByGroup={
+     orders:['cachedReturns:','returnUsage:','point4OrderIdentity:','sharawla55.4:bon:','sharawla55.4:read:orders:','sharawla55.4:read:order_items:','sharawla55.4:read:order_payments:','sharawla55.4:read:returns:','sharawla55.4:read:return_items:','sharawla55.4:read:return_payments:'],
+     shifts:['openShift:','shiftHistory:','sharawla55.4:read:shifts:'],
+     expenses:['sharawla55.4:read:expenses:'],
+     customers:['sharawla55.4:read:customers:','sharawla55.4:read:customer_addresses:'],
+     delivery:['sharawla55.4:read:delivery_zones:','sharawla55.4:read:delivery_drivers:']
+   };
+   const exact=[...new Set([...groups].flatMap(g=>exactByGroup[g]||[]))];
    for(const k of exact){const before=one('select count(*) c from kv where key=?',[k]);if(Number(before?.c||0)>0){run('delete from kv where key=?',[k]);cleared++}}
-   const prefixes=['cachedReturns:','returnUsage:','point4OrderIdentity:','openShift:','shiftHistory:','sharawla55.4:read:','sharawla55.4:bon:'];
+   const prefixes=[...new Set([...groups].flatMap(g=>prefixesByGroup[g]||[]))];
    for(const prefix of prefixes){const before=one('select count(*) c from kv where key like ?',[prefix+'%']);run('delete from kv where key like ?',[prefix+'%']);cleared+=Number(before?.c||0)}
-   return {ok:true,deleted_legacy_operations:Number(legacy?.c||0),deleted_sync_log:Number(syncLog?.c||0),cleared_keys:cleared,backup,scope:'SH-0007/TEST',full_clean:true};
+   if(groups.has('delivery')){
+     const b=one('select value from kv where key=?',['bootstrap']);
+     if(b)try{const v=JSON.parse(b.value);if(v&&typeof v==='object'){v.deliveryZones=[];v.drivers=[];run(`update kv set value=?,updated_at=datetime('now') where key='bootstrap'`,[JSON.stringify(v)]);cleared++}}catch(e){throw new Error('Sandbox scoped reset refused malformed bootstrap: '+String(e?.message||e))}
+   }
+   return {ok:true,deleted_legacy_operations:deletedLegacy,deleted_sync_log:deletedSync,cleared_keys:cleared,backup,groups:[...groups],scope:'SH-0007/TEST',scoped:true,full_clean:false};
  });
  ipcMain.handle('license-state:get',()=>readLicenseStateFile());
  ipcMain.handle('license-state:set',(_e,v)=>writeLicenseStateFile(v));

@@ -2366,10 +2366,11 @@ async function resetGroups(groups){
   if(supportCode==='SH-0007'&&testBranch==='TEST'){
    try{
     const scope={support_code:supportCode,branch_name:testBranch,groups};
-    if(window.topBurgerDesktop?.offlineV2?.resetTestAll)await window.topBurgerDesktop.offlineV2.resetTestAll(scope);
+    if(window.topBurgerDesktop?.offlineV2?.resetTestGroups)await window.topBurgerDesktop.offlineV2.resetTestGroups(scope);
+    else throw new Error('Scoped Offline V2 reset is unavailable; refusing unsafe full reset');
     await window.topBurgerDesktop.sandbox.cleanRuntime(scope);
    }
-   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر إكمال Full Clean على SH-0007: ${e?.message||e}`)}
+   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر إكمال Scoped Clean على SH-0007: ${e?.message||e}`)}
   }
  }
  return cloud
@@ -2722,17 +2723,20 @@ async function openDeliveryOrderDetails(id){
  m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(bonDisplay(o))}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div>${o.source==='website'?`<div class="payment-review-box"><h3>💳 حالة الدفع</h3><p>${paymentStatusHTML(o.payment_status)}</p><p><b>الطريقة:</b> ${esc(paymentLabel(o.payment_method))}${o.payment_reference?` • <b>المرجع:</b> ${esc(o.payment_reference)}`:''}</p><div class="payment-review-actions">${o.payment_receipt_path?`<button class="secondary" data-view-payment-receipt>🧾 عرض الإيصال</button>`:''}<button class="primary" data-payment-confirm>✅ تأكيد الدفع</button><button class="danger" data-payment-reject>رفض الإثبات</button><button class="secondary" data-payment-unpaid>غير مدفوع</button></div></div>`:''}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${o.order_type==='delivery'&&['out_for_delivery','delivered','completed'].includes(String(o.status||''))&&o.driver_settled_at==null?`<button class="secondary" data-change-delivery-payment="${o.id}">💳 تعديل طريقة الدفع</button>`:''}${action}</div></div>`;
  document.body.appendChild(m);
  m.onclick=async e=>{
+  try{
    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
-   if(e.target.closest('[data-preparing]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o.id,'preparing');await audit('mark_preparing','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ بدء التجهيز للمزامنة':'تم بدء تجهيز الطلب');return renderDeliveryOrders()}
-   if(e.target.closest('[data-ready]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o.id,'ready');await audit('mark_ready','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ حالة جاهز للمزامنة':(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب'));return renderDeliveryOrders()}
+   if(e.target.closest('[data-preparing]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o,'preparing');await audit('mark_preparing','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ بدء التجهيز للمزامنة':'تم بدء تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-ready]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o,'ready');await audit('mark_ready','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ حالة جاهز للمزامنة':(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب'));return renderDeliveryOrders()}
    if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));m.remove();openDriverPicker(o.id,list,()=>renderDeliveryOrders());return}
    if(e.target.closest('[data-view-payment-receipt]')){return openPaymentReceipt(o.payment_receipt_path)}
    if(e.target.closest('[data-payment-confirm]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'confirmed'});o.payment_status='confirmed';m.remove();toast('تم تأكيد الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-reject]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'rejected'});o.payment_status='rejected';m.remove();toast('تم رفض إثبات الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
-   if(e.target.closest('[data-completed]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o.id,'completed');await audit('mark_pickup_completed','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ تسليم طلب الاستلام للمزامنة':'تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
+   if(e.target.closest('[data-completed]')){const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(o,'completed');await audit('mark_pickup_completed','order',o.id,{});m.remove();toast(navigator.onLine===false?'تم حفظ تسليم طلب الاستلام للمزامنة':'تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
    if(e.target.closest('[data-delivered]')){return; /* handled authoritatively by beta55 delivery capture */}
+  }catch(error){console.error('Delivery order action failed',error);toast(error?.message||'تعذر تنفيذ الإجراء على الطلب')}
+
  };
 }
 

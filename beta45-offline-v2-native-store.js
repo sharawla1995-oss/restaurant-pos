@@ -381,6 +381,39 @@ async function resetTestQueue(input={}){
   });
 }
 
+const RESET_GROUP_OPERATIONS=Object.freeze({
+  orders:['sale','return','order_status','delivery_assign_driver'],
+  shifts:['shift_open','shift_close'],
+  expenses:['expense'],
+  customers:['customer_create','customer_update','customer_address_save','customer_address_delete'],
+  delivery:[]
+});
+const RESET_PROTECTED_DEVICE_SEQUENCES=Object.freeze([293,304,316]);
+async function resetTestGroups(input={}){
+  await ready();
+  return serializeWrite(async()=>{
+    const supportCode=text(input?.support_code),branchName=text(input?.branch_name).toUpperCase();
+    if(supportCode!=='SH-0007'||branchName!=='TEST')throw new Error('Offline V2 scoped test reset is restricted to SH-0007 / TEST');
+    const groups=[...new Set((Array.isArray(input?.groups)?input.groups:[]).map(text).filter(Boolean))];
+    const operations=[...new Set(groups.flatMap(g=>RESET_GROUP_OPERATIONS[g]||[]))];
+    if(!operations.length)return {ok:true,cleared:0,groups,scope:'SH-0007/TEST',scoped:true};
+    const opMarks=operations.map(()=>'?').join(','),protectedMarks=RESET_PROTECTED_DEVICE_SEQUENCES.map(()=>'?').join(',');
+    await exec('BEGIN IMMEDIATE TRANSACTION');
+    try{
+      const txRows=await all(`SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks}) AND device_sequence NOT IN (${protectedMarks})`,[...operations,...RESET_PROTECTED_DEVICE_SEQUENCES]);
+      const txs=txRows.map(r=>text(r.client_tx_id)).filter(Boolean);
+      if(txs.length){
+        const marks=txs.map(()=>'?').join(',');
+        await run(`DELETE FROM offline_v2_records WHERE client_tx_id IN (${marks})`,txs);
+        await run(`DELETE FROM offline_v2_mappings WHERE client_tx_id IN (${marks})`,txs);
+        await run(`DELETE FROM offline_v2_outbox WHERE client_tx_id IN (${marks})`,txs);
+      }
+      await exec('COMMIT');
+      return {ok:true,cleared:txs.length,groups,operations,protected_device_sequences:[...RESET_PROTECTED_DEVICE_SEQUENCES],scope:'SH-0007/TEST',scoped:true,device_sequence_reset:false};
+    }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
+  });
+}
+
 async function resetTestAll(input={}){
   await ready();
   return serializeWrite(async()=>{
@@ -424,9 +457,10 @@ function installOfflineV2NativeStore(){
   ipcMain.handle('offline-v2:health',()=>health());
   ipcMain.handle('offline-v2:sync-stats',()=>syncStats());
   ipcMain.handle('offline-v2:reset-test-queue',(_e,input={})=>resetTestQueue(input));
+  ipcMain.handle('offline-v2:reset-test-groups',(_e,input={})=>resetTestGroups(input));
   ipcMain.handle('offline-v2:reset-test-all',(_e,input={})=>resetTestAll(input));
   ready().catch(e=>console.error('Offline V2 native store init failed',e));
-  return {ready,commitOperation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestAll};
+  return {ready,commitOperation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestGroups,resetTestAll};
 }
 
 module.exports={installOfflineV2NativeStore,PROTOCOL_VERSION,SCHEMA_VERSION,STORE_VERSION};

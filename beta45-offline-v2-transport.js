@@ -129,6 +129,7 @@ async function manualRetry(input={}){
     if(row.status==='synced')return {ok:true,already_synced:true,event:hydrate(row)};
     if(row.status==='syncing')throw fail('OFFLINE_V2_EVENT_IN_FLIGHT','Offline V2 event is currently syncing');
     if(row.last_error_code==='OFFLINE_V2_LEGACY_PRESERVED')throw fail('OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE','Legacy-authoritative event cannot be manually retried from V2');
+    if(row.status!=='retryable')throw fail('OFFLINE_V2_MANUAL_RETRY_NOT_ALLOWED',`Offline V2 manual retry is allowed only for retryable events; current status: ${text(row.status)||'unknown'}`);
     const now=nowIso();await run(`UPDATE offline_v2_outbox SET status='pending',next_retry_at=NULL,last_error_code='OFFLINE_V2_MANUAL_RETRY',last_error_message='Manual safe retry requested',updated_at=? WHERE client_tx_id=?`,[now,tx]);
     return {ok:true,event:hydrate(await get('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',[tx]))};
   });

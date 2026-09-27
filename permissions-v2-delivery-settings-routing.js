@@ -10,8 +10,10 @@ async function rpc(name,payload){
   return global.rpc(name,payload);
 }
 function clean(v){const s=String(v??'').trim();return s||null}
+function requireOnline(){if(typeof navigator!=='undefined'&&navigator.onLine===false){const e=new Error('إدارة المناديب ومناطق التوصيل تحتاج اتصالًا بالإنترنت. لم يتم حفظ أي تعديل.');e.code='ONLINE_ONLY_INTERNET_REQUIRED';throw e}}
 
 async function saveDriver(input={}){
+  requireOnline();
   const branchId=Number(input.branch_id);
   const driverId=input.id==null?null:Number(input.id);
   if(!Number.isFinite(branchId)||branchId<=0)throw new Error('الفرع غير صالح');
@@ -22,6 +24,7 @@ async function saveDriver(input={}){
 }
 
 async function saveZone(input={}){
+  requireOnline();
   const branchId=Number(input.branch_id);
   const zoneId=input.id==null?null:Number(input.id);
   const fee=Number(input.delivery_fee??0);

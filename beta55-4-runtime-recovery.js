@@ -124,8 +124,22 @@ function mergeByIdentity(base,overlay){
 }
 async function mergeNative(table,rows){
  const p=await nativeProjection();if(!p)return Array.isArray(rows)?rows:[];
- let out=mergeByIdentity(rows,p[table]||[]);
- if(table==='orders')out=mergeByIdentity(out,p.order_patches||[]);
+ let out=Array.isArray(rows)?rows.map(clone):[];
+ for(const nativeRow of (p[table]||[])){
+  const synced=text(nativeRow?._offline_sync_status)==='synced';
+  const serverRow=synced?out.find(x=>x?.__sharawla_server_baseline===true&&identityMatches(x,nativeRow)):null;
+  if(serverRow){
+   const reconciled={...clone(nativeRow),...clone(serverRow),client_tx_id:text(nativeRow.client_tx_id)||serverRow.client_tx_id||null,_local_entity_id:nativeRow._local_entity_id??serverRow._local_entity_id??null,_server_entity_id:nativeRow._server_entity_id??serverRow.id??null,_offline:false,_offline_sync_status:'synced',__sharawla_server_baseline:true};
+   out=mergeByIdentity(out,[reconciled]);
+  }else out=mergeByIdentity(out,[nativeRow]);
+ }
+ if(table==='orders'){
+  for(const patch of (p.order_patches||[])){
+   const serverRow=patch?._offline_status_pending===false?out.find(x=>x?.__sharawla_server_baseline===true&&identityMatches(x,patch)):null;
+   if(serverRow)continue;
+   out=mergeByIdentity(out,[patch]);
+  }
+ }
  return out;
 }
 
@@ -196,8 +210,10 @@ async function readOperationalRows(table,query='',baseline=null){
  const operational=['orders','order_items','order_payments','expenses','returns','return_items','return_payments','customers','customer_addresses','shifts'],compatibility=await compatibilityRows(table),supported=compatibility!==null||operational.includes(table);
  if(!supported&&!Array.isArray(baseline))return null;
  if(!operational.includes(table))return applyQuery(clone(Array.isArray(baseline)?baseline:(compatibility||[])),query);
- let rows=mergeByIdentity(Array.isArray(baseline)?baseline:[],compatibility||[]);
+ const serverBaseline=(Array.isArray(baseline)?baseline:[]).map(row=>({...clone(row),__sharawla_server_baseline:true}));
+ let rows=mergeByIdentity(compatibility||[],serverBaseline);
  rows=await mergeNative(table,rows);
+ rows=rows.map(row=>{if(!row||row.__sharawla_server_baseline!==true)return row;const clean={...row};delete clean.__sharawla_server_baseline;return clean});
  if(table==='return_items'){
   const orderId=parseEq(query,'returns.order_id');
   if(orderId!==null){const returns=await readOperationalRows('returns',`order_id=eq.${encodeURIComponent(orderId)}`,[]),ids=new Set((returns||[]).map(x=>String(x.id)));rows=rows.filter(x=>ids.has(String(x.return_id)))}
