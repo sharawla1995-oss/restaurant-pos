@@ -41,53 +41,7 @@ function parseEq(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)$
 function parseIn(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=in\\.\\(([^)]*)\\)`));return m?m[1].split(',').map(x=>text(x)).filter(Boolean):null}
 function parseBound(query,key,op){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=${op}\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
 function parseIlike(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=ilike\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
-function ilike(value,pattern){const escaped=String(pattern||'').replace(/[.+?^${}()|[\]\\]/g,'\\function parseBound(query,key,op){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=${op}\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
-function applyQuery(rows,query){
- let out=Array.isArray(rows)?rows.slice():[];
- const keys=['id','branch_id','employee_id','shift_id','order_id','return_id','customer_id','driver_id','product_id','status','order_type','source','active','auth_user_id','invoice_number','bon_number','payment_method','payment_status'];
- for(const k of keys){const v=parseEq(query,k);if(v!==null)out=out.filter(r=>String(r?.[k])===String(v));const vals=parseIn(query,k);if(vals)out=out.filter(r=>vals.includes(String(r?.[k])))}
- for(const k of ['created_at','opened_at'])').replace(/\*/g,'.*');return new RegExp(`^${escaped}(function(global){
-'use strict';
-
-// Beta55.4 — SH-0007 regression recovery layer.
-// Scope: offline read fallbacks, open-shift continuity, reconnect reconciliation,
-// and offline bon sequencing. Authentication/fingerprint/licensing are untouched.
-const VERSION='10.5.4-beta.58.32';
-const CACHE_PREFIX='sharawla55.4:read:';
-const BON_PREFIX='sharawla55.4:bon:';
-let installed=false;
-let syncBusy=false;
-let lastReconnectNotice=0;
-let cacheFallbackState=null;
-let warmCachesPromise=null;
-let lastWarmCachesAt=0;
-
-const text=v=>String(v??'').trim();
-const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-function appState(){try{return state}catch{return null}}
-function appSession(){try{return session}catch{return null}}
-function branchId(){try{return Number(typeof currentBranchId==='function'?currentBranchId():appState()?.activeBranchId||0)}catch{return 0}}
-function employeeId(){return Number(appState()?.employee?.id||0)}
-function onlineAuthorized(){return navigator.onLine===true&&!!appSession()?.access_token}
-function netError(e){try{return typeof isNetError==='function'?isNetError(e):/failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}catch{return /failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}}
-function toast55(m){try{if(typeof toast==='function')return toast(m)}catch{}try{return global.toast?.(m)}catch{}}
-function hash(s){let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
-function readKey(table,query){return `${CACHE_PREFIX}${table}:${hash(query)}`}
-function publishFallback(table,reason){cacheFallbackState={active:true,table:text(table),reason:text(reason)||'offline',at:new Date().toISOString()};global.__SharawlaOfflineCacheFallback=clone(cacheFallbackState);try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:clone(cacheFallbackState)}))}catch{}}
-function clearFallback(){if(!cacheFallbackState)return;cacheFallbackState=null;global.__SharawlaOfflineCacheFallback=null;try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:{active:false,at:new Date().toISOString()}}))}catch{}}
-async function dbGet(k){try{if(typeof odbGet==='function')return await odbGet(k)}catch{}try{return await global.odbGet?.(k)}catch{return null}}
-async function dbSet(k,v){try{if(typeof odbSet==='function')return await odbSet(k,v)}catch{}try{return await global.odbSet?.(k)}catch{return v}}
-async function getQueue(){try{if(typeof offlineQueue==='function')return (await offlineQueue())||[]}catch{}try{return (await global.offlineQueue?.())||[]}catch{return[]}}
-async function setQueue(q){try{if(typeof setOfflineQueue==='function')return await setOfflineQueue(q)}catch{}if(global.setOfflineQueue)return await global.setOfflineQueue(q);return q}
-async function rememberShift(sh){if(!sh)return sh;try{if(typeof rememberOpenShift==='function')return await rememberOpenShift(sh)}catch{}try{return await global.rememberOpenShift?.(sh)}catch{return sh}}
-async function cachedShift(){try{if(typeof cachedOpenShift==='function')return await cachedOpenShift()}catch{}try{return await global.cachedOpenShift?.()}catch{return null}}
-async function ownership55(job){const gate=global.SharawlaOfflineOwnership;if(!gate?.resolve)return {owner:'UNKNOWN',reason:'OWNERSHIP_GATE_UNAVAILABLE'};try{return await gate.resolve(job)}catch(e){return {owner:'UNKNOWN',reason:'OWNERSHIP_RESOLUTION_FAILED',error:text(e?.message||e)}}}
-function legacyMayRead55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayRead?gate.legacyMayRead(owner):false}
-function legacyMayOperate55(owner){const gate=global.SharawlaOfflineOwnership;return gate?.legacyMayOperate?gate.legacyMayOperate(owner):false}
-
-function parseEq(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=eq\\.([^&]+)`));if(!m)return null;try{return decodeURIComponent(m[1])}catch{return m[1]}}
-function parseIn(query,key){const m=String(query||'').match(new RegExp(`(?:^|&)${key}=in\\.\\(([^)]*)\\)`));return m?m[1].split(',').map(x=>text(x)).filter(Boolean):null}
-,'i').test(String(value??''))}
+function ilike(value,pattern){const escaped=String(pattern||'').replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*');return new RegExp(`^${escaped}$`,'i').test(String(value??''))}
 function applyQuery(rows,query){
  let out=Array.isArray(rows)?rows.slice():[];
  const keys=['id','branch_id','employee_id','shift_id','order_id','return_id','customer_id','driver_id','product_id','status','order_type','source','active','auth_user_id','invoice_number','bon_number','payment_method','payment_status','phone','customer_phone'];
