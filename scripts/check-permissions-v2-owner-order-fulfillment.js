@@ -24,7 +24,10 @@ if(/delivery_mark_delivered_v2\s*\(/i.test(sql))throw new Error('PV2-F5A must no
 if(/review_order_payment\s*\(/i.test(sql))throw new Error('PV2-F5A must not replace Website payment review owner');
 if(/accept_website_order\s*\(/i.test(sql)||/cancel_website_order_customer\s*\(/i.test(sql))throw new Error('PV2-F5A must not replace Website accept/cancel owners');
 need(helper,"SharawlaOfflineV2Takeover",'PV2-F5A offline routing');
-need(helper,"saveOrderStatus(raw,target)",'PV2-F5A offline routing');
+need(helper,"const localId=String(order?.id??'').trim()",'PV2-F5A local identity routing');
+need(helper,"const serverId=String(order?._server_entity_id??'').trim()",'PV2-F5A server identity routing');
+need(helper,"const id=Number(serverId||localId)",'PV2-F5A online authoritative identity routing');
+need(helper,"saveOrderStatus(localId,target)",'PV2-F5A offline local identity routing');
 need(loader,"permissions-v2-order-fulfillment-routing.js",'PV2-F5A loader wiring');
 
 const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]PATCH['"]/g)||[]);
