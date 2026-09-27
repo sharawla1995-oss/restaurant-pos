@@ -2360,6 +2360,14 @@ async function exportBackup(groups){
 async function createDesktopFullBackup(reason='auto-full'){if(!window.topBurgerDesktop?.backup?.saveJson||!navigator.onLine||!session?.access_token)return null;await refreshSessionIfNeeded();const data=await buildBackupData(Object.keys(BACKUP_GROUPS));const p=await window.topBurgerDesktop.backup.saveJson(JSON.stringify(data,null,2),reason);await odbSet('lastFullBackupAt',new Date().toISOString());return p}
 async function maybeDesktopDailyBackup(){if(!window.topBurgerDesktop?.isDesktop||!navigator.onLine)return;const last=await odbGet('lastFullBackupAt');if(last&&Date.now()-new Date(last).getTime()<24*60*60*1000)return;try{await createDesktopFullBackup('daily-full')}catch(e){console.warn('daily full backup',e)}}
 async function resetGroups(groups){
+ if(!navigator.onLine)throw new Error('إعادة الضبط تحتاج اتصالًا بالإنترنت لإنشاء آخر Backup كامل قبل المسح');
+ if(!window.topBurgerDesktop?.backup?.create||!window.topBurgerDesktop?.backup?.saveJson)throw new Error('تعذر الوصول لنظام النسخ الاحتياطي على الجهاز — تم إلغاء إعادة الضبط');
+ // Reset is fail-closed: capture both the complete local SQLite state and a complete
+ // server-data JSON snapshot before the first destructive Cloud call.
+ const localBackup=await window.topBurgerDesktop.backup.create('pre-reset-full');
+ if(!localBackup)throw new Error('تعذر إنشاء Backup محلي كامل — تم إلغاء إعادة الضبط');
+ const cloudBackup=await createDesktopFullBackup('pre-reset-full');
+ if(!cloudBackup)throw new Error('تعذر إنشاء Backup كامل لآخر بيانات Cloud — تم إلغاء إعادة الضبط');
  const cloud=await req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})});
  if(window.topBurgerDesktop?.sandbox?.cleanRuntime){
   const st=await loadLicenseState(),supportCode=String(st?.support_code||'').trim(),testBranch=String(branchName(currentBranchId())||'').trim().toUpperCase();
