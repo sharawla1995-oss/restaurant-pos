@@ -1546,12 +1546,19 @@ async function renderDelivery(){
 async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(b.dataset.id,b.dataset.status);toast(navigator.onLine===false?'تم حفظ تحديث الحالة للمزامنة':'تم تحديث حالة الطلب');renderKitchen()}}
 
 function isServerShiftId(value){const s=String(value??'').trim();return /^\d+$/.test(s)&&Number(s)>0}
+async function localOperationalProjectionRows(table,query='select=*'){
+ const reader=globalThis.__SharawlaBeta554RuntimeRecovery?.readOperationalRows;
+ if(typeof reader==='function')return (await reader(table,query,[]))||[];
+ try{return (await rest(table,query))||[]}catch(e){if(isNetError(e))return[];throw e}
+}
 async function localShiftProjectionRows(table,shiftId){
  const sid=String(shiftId??'');
  if(isServerShiftId(sid)){
   const q=`select=*&shift_id=eq.${encodeURIComponent(sid)}`;
   try{return (await rest(table,q))||[]}catch(e){if(isNetError(e))return[];throw e}
  }
+ const reader=globalThis.__SharawlaBeta554RuntimeRecovery?.readOperationalRows;
+ if(typeof reader==='function')return (await reader(table,`select=*&shift_id=eq.${encodeURIComponent(sid)}`,[]))||[];
  const rows=[];
  if(table==='orders'){
   for(const b of await cachedOrderBundles()){const o=b?.order;if(String(o?.shift_id)===sid)rows.push(o)}
@@ -1564,23 +1571,26 @@ async function localShiftProjectionRows(table,shiftId){
 }
 async function localShiftMetrics(shift){
  const sid=String(shift?.id??'');
- const [orders,expenses,returns]=await Promise.all([
+ const [orders,expenses,returns,paymentsAll,returnPaymentsAll]=await Promise.all([
   localShiftProjectionRows('orders',sid),
   localShiftProjectionRows('expenses',sid),
-  localShiftProjectionRows('returns',sid).catch(()=>[])
+  localShiftProjectionRows('returns',sid).catch(()=>[]),
+  localOperationalProjectionRows('order_payments').catch(()=>[]),
+  localOperationalProjectionRows('return_payments').catch(()=>[])
  ]);
  const orderIds=new Set((orders||[]).map(o=>String(o.id)));
- let payments=[];
- try{payments=(await rest('order_payments','select=*'))||[]}catch(e){if(!isNetError(e))throw e}
- payments=payments.filter(p=>orderIds.has(String(p.order_id)));
+ const payments=(paymentsAll||[]).filter(p=>orderIds.has(String(p.order_id)));
  const valid=(orders||[]).filter(o=>o.status!=='cancelled'&&(String(o.source||'')!=='website'||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase()))));
  const ids=new Set(valid.map(o=>String(o.id))),paymentTotals={};
  const addPay=(method,amount)=>{const k=String(method||'unknown');paymentTotals[k]=(paymentTotals[k]||0)+Number(amount||0)};
  for(const p of payments){if(ids.has(String(p.order_id)))addPay(p.method,p.amount)}
  for(const o of valid){if(payments.some(p=>String(p.order_id)===String(o.id)))continue;addPay(o.payment_method,Number(o.total||0))}
+ const returnIds=new Set((returns||[]).map(r=>String(r.id))),returnPays=(returnPaymentsAll||[]).filter(p=>returnIds.has(String(p.return_id))),returnPaymentTotals={};
+ for(const p of returnPays){const k=String(p.method||'unknown');returnPaymentTotals[k]=(returnPaymentTotals[k]||0)+Number(p.amount||0);addPay(k,-Number(p.amount||0))}
  const grossSales=valid.reduce((a,o)=>a+Number(o.total||0),0),returnTotal=(returns||[]).reduce((a,r)=>a+Number(r.total||0),0);
  const cash=Number(paymentTotals.cash||0),wallet=Number(paymentTotals.wallet||0),instapay=Number(paymentTotals.instapay||0),exp=(expenses||[]).reduce((a,e)=>a+Number(e.amount||0),0);
- return{orders,valid,sales:grossSales-returnTotal,grossSales,returnTotal,returns,cash,wallet,instapay,paymentTotals,returnPaymentTotals:{},returnCash:0,returnWallet:0,returnInstapay:0,exp,expected:Number(shift?.opening_cash||0)+cash-exp,count:valid.length,cancelled:(orders||[]).filter(o=>o.status==='cancelled').length,_local_shift:true}
+ const returnCash=Number(returnPaymentTotals.cash||0),returnWallet=Number(returnPaymentTotals.wallet||0),returnInstapay=Number(returnPaymentTotals.instapay||0);
+ return{orders,valid,sales:grossSales-returnTotal,grossSales,returnTotal,returns,cash,wallet,instapay,paymentTotals,returnPaymentTotals,returnCash,returnWallet,returnInstapay,exp,expected:Number(shift?.opening_cash||0)+cash-exp,count:valid.length,cancelled:(orders||[]).filter(o=>o.status==='cancelled').length,_local_shift:true}
 }
 async function shiftMetrics(shift){
  if(!isServerShiftId(shift?.id))return localShiftMetrics(shift);
@@ -1668,7 +1678,7 @@ async function renderExpenses(){
  <div class="panel"><div class="toolbar expense-toolbar"><button class="secondary" data-period="today">اليوم</button><button class="secondary" data-period="yesterday">أمس</button><button class="secondary" data-period="week">الأسبوع</button><button class="secondary" data-period="month">الشهر</button><label>من<input id="exFrom" type="date" value="${today}"></label><label>إلى<input id="exTo" type="date" value="${today}"></label><button id="loadExpenses" class="primary">عرض</button></div><div class="kpi-line">إجمالي مصروفات الفترة: <strong id="expenseTotal">0</strong></div><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>الوردية</th><th>إجراء</th></tr></thead><tbody id="expenseRows"></tbody></table></div></div>`;
  const load=async()=>{const from=$('#exFrom').value,to=$('#exTo').value;if(!from||!to||from>to)return toast('راجع فترة المصروفات: تاريخ البداية لازم يكون قبل أو يساوي تاريخ النهاية');const a=new Date(from+'T00:00:00').toISOString(),b=new Date(to+'T23:59:59.999').toISOString();const rows=await rest('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(a)}&created_at=lte.${encodeURIComponent(b)}&order=created_at.desc&limit=500`);$('#expenseTotal').textContent=money(rows.reduce((x,e)=>x+Number(e.amount||0),0));$('#expenseRows').innerHTML=rows.map(e=>`<tr><td>${fmtDate(e.created_at)}</td><td>${esc(e.description)}</td><td>${money(e.amount)}</td><td>${e.shift_id?'#'+e.shift_id:'-'}</td><td><button class="secondary" data-edit-exp="${e.id}">✏️ تعديل</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد مصروفات في الفترة</td></tr>';$('#expenseRows').onclick=async ev=>{const btn=ev.target.closest('[data-edit-exp]');if(!btn)return;const e=rows.find(x=>String(x.id)===btn.dataset.editExp);if(!e)return;const desc=await uiPrompt('بيان المصروف',e.description);if(desc===null)return;const amount=await uiPrompt('المبلغ',e.amount);const amountNum=Number(amount);if(amount===null||!desc.trim()||!Number.isFinite(amountNum)||amountNum<=0)return toast('اكتب بيانًا ومبلغًا أكبر من صفر');const router=globalThis.__SharawlaPV2ExpenseEdit;if(typeof router?.updateExpense!=='function')throw new Error('مسار تعديل المصروف غير جاهز');await router.updateExpense({id:e.id,description:desc.trim(),amount:amountNum});await audit('edit_expense','expense',e.id,{amount:Number(amount)});toast('تم تعديل المصروف');load()};};
  $('#loadExpenses').onclick=load;$('#page').onclick=e=>{const b=e.target.closest('[data-period]');if(!b)return;const d=new Date(),fmt=x=>{const z=new Date(x.getTime()-x.getTimezoneOffset()*60000);return z.toISOString().slice(0,10)};let from=new Date(d),to=new Date(d);if(b.dataset.period==='yesterday'){from.setDate(d.getDate()-1);to=new Date(from)}if(b.dataset.period==='week')from.setDate(d.getDate()-6);if(b.dataset.period==='month')from=new Date(d.getFullYear(),d.getMonth(),1);$('#exFrom').value=fmt(from);$('#exTo').value=fmt(to);load()};
- $('#addExpense').onclick=async()=>{const description=$('#exTitle').value.trim(),amount=Number($('#exAmount').value);if(!description||!Number.isFinite(amount)||amount<=0)return toast('أدخل بيانًا ومبلغًا أكبر من صفر');const shift=await getOpenShift();if(!shift)return toast('افتح وردية أولًا قبل تسجيل المصروف');let created;try{if(!isServerShiftId(shift.id)){const localErr=new TypeError('LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE');localErr.code='LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE';throw localErr}created=await rpc('create_pos_expense_idempotent',{p_shift_id:Number(shift.id),p_description:description,p_amount:amount,p_client_tx_id:uuid()});await audit('create_expense','expense',created?.id,{amount,shift_id:shift.id});toast('تم حفظ المصروف وربطه بالوردية')}catch(err){if(!isNetError(err)&&err?.code!=='LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE')throw err;await saveOfflineExpense(shift,description,amount);toast('تم حفظ المصروف أوفلاين وسيُزامن تلقائيًا')}if(navigator.onLine)load()};load();
+ $('#addExpense').onclick=async()=>{const description=$('#exTitle').value.trim(),amount=Number($('#exAmount').value);if(!description||!Number.isFinite(amount)||amount<=0)return toast('أدخل بيانًا ومبلغًا أكبر من صفر');const shift=await getOpenShift();if(!shift)return toast('افتح وردية أولًا قبل تسجيل المصروف');let created;try{if(!isServerShiftId(shift.id)){const localErr=new TypeError('LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE');localErr.code='LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE';throw localErr}created=await rpc('create_pos_expense_idempotent',{p_shift_id:Number(shift.id),p_description:description,p_amount:amount,p_client_tx_id:uuid()});await audit('create_expense','expense',created?.id,{amount,shift_id:shift.id});toast('تم حفظ المصروف وربطه بالوردية')}catch(err){if(!isNetError(err)&&err?.code!=='LOCAL_SHIFT_REQUIRES_OFFLINE_EXPENSE')throw err;await saveOfflineExpense(shift,description,amount);toast('تم حفظ المصروف أوفلاين وسيُزامن تلقائيًا')}await load()};load();
 }
 
 function catalogOrderValue(x){const w=Number(x?.website_sort_order);if(Number.isFinite(w)&&w>0)return w;const s=Number(x?.sort_order);if(Number.isFinite(s)&&s>0)return s;return 1000000+Number(x?.id||0)}
