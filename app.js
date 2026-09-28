@@ -2377,6 +2377,31 @@ async function resetGroups(groups){
     if(window.topBurgerDesktop?.offlineV2?.resetTestGroups)await window.topBurgerDesktop.offlineV2.resetTestGroups(scope);
     else throw new Error('Scoped Offline V2 reset is unavailable; refusing unsafe full reset');
     await window.topBurgerDesktop.sandbox.cleanRuntime(scope);
+    // Beta44 mirrors compatibility/read caches into IndexedDB. Purge the same
+    // selected group keys there before any post-reset read can resurrect them
+    // back into Desktop SQLite after restart.
+    const exactByGroup={
+     orders:['cachedOrders','offlineV2ReturnItems','offlineV2ReturnPayments'],
+     shifts:[],
+     expenses:['offlineV2Expenses'],
+     customers:['customersCache','customerAddressesCache','customersCacheAt'],
+     delivery:[]
+    };
+    const prefixesByGroup={
+     orders:['cachedReturns:','returnUsage:','point4OrderIdentity:','sharawla55.4:bon:','sharawla55.4:read:orders:','sharawla55.4:read:order_items:','sharawla55.4:read:order_payments:','sharawla55.4:read:returns:','sharawla55.4:read:return_items:','sharawla55.4:read:return_payments:'],
+     shifts:['openShift:','shiftHistory:','sharawla55.4:read:shifts:'],
+     expenses:['sharawla55.4:read:expenses:'],
+     customers:['sharawla55.4:read:customers:','sharawla55.4:read:customer_addresses:'],
+     delivery:['sharawla55.4:read:delivery_zones:','sharawla55.4:read:delivery_drivers:']
+    };
+    const idb=window.__SharawlaBeta44StorageRecovery;
+    if(!idb?.idbDeleteMatching)throw new Error('IndexedDB scoped purge is unavailable; refusing reset completion');
+    const exact=[...new Set(groups.flatMap(g=>exactByGroup[g]||[]))],prefixes=[...new Set(groups.flatMap(g=>prefixesByGroup[g]||[]))];
+    await idb.idbDeleteMatching({exact,prefixes});
+    for(const k of exact){if((await idb.idbGet(k))!==undefined)throw new Error('IndexedDB reset verification failed: '+k)}
+    const idbKeys=await new Promise((resolve,reject)=>{const q=indexedDB.open('topburger-pos-offline-v98',1);q.onsuccess=()=>{const d=q.result,t=d.transaction('kv','readonly'),r=t.objectStore('kv').getAllKeys();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)};q.onerror=()=>reject(q.error)});
+    const residue=idbKeys.map(String).filter(k=>prefixes.some(p=>k.startsWith(p)));
+    if(residue.length)throw new Error('IndexedDB reset verification failed: '+residue.slice(0,5).join(','));
    }
    catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر إكمال Scoped Clean على SH-0007: ${e?.message||e}`)}
   }
