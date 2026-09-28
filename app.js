@@ -2407,7 +2407,7 @@ async function resetGroups(groups){
     const residue=idbKeys.map(String).filter(k=>prefixes.some(p=>k.startsWith(p)));
     if(residue.length)throw new Error('IndexedDB reset verification failed: '+residue.slice(0,5).join(','));
    }
-   catch(e){throw new Error(`تمت إعادة ضبط Cloud لكن تعذر إكمال Scoped Clean على SH-0007: ${e?.message||e}`)}
+   catch(e){const err=new Error(`Partial Failure: تمت إعادة ضبط Cloud لكن تعذر إكمال Scoped Clean على SH-0007: ${e?.message||e}`);err.code='RESET_PARTIAL_FAILURE';err.cloud_reset_succeeded=true;err.local_cleanup_succeeded=false;throw err}
   }
  }
  return cloud
