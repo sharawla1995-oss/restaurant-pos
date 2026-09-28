@@ -18,6 +18,7 @@ declare
   v_employee_id bigint;
   v_role text;
   v_auth_uid uuid:=auth.uid();
+  v_jwt_claims text:=current_setting('request.jwt.claims',true);
   v_allowed text[]:=array['orders','shifts','expenses','customers','delivery','catalog','promos','permissions','settings','audit'];
   v_unknown text[];
   v_result jsonb:='{}'::jsonb;
@@ -114,8 +115,10 @@ begin
 
   if 'expenses'=any(p_groups) then
     perform set_config('request.jwt.claim.sub','',true);
+    perform set_config('request.jwt.claims','{}',true);
     delete from public.expenses where branch_id=p_branch_id;
     perform set_config('request.jwt.claim.sub',v_auth_uid::text,true);
+    perform set_config('request.jwt.claims',coalesce(v_jwt_claims,'{}'),true);
     if exists(select 1 from public.expenses where branch_id=p_branch_id) then
       raise exception 'RESET_V7_VERIFY_EXPENSES_FAILED';
     end if;
@@ -138,8 +141,10 @@ begin
     delete from public.shift_bon_counters where branch_id=p_branch_id;
 
     perform set_config('request.jwt.claim.sub','',true);
+    perform set_config('request.jwt.claims','{}',true);
     delete from public.shifts where id in(select id from _reset_v7_shifts);
     perform set_config('request.jwt.claim.sub',v_auth_uid::text,true);
+    perform set_config('request.jwt.claims',coalesce(v_jwt_claims,'{}'),true);
     if exists(select 1 from public.shifts where branch_id=p_branch_id) then
       raise exception 'RESET_V7_VERIFY_SHIFTS_FAILED';
     end if;
@@ -239,6 +244,7 @@ begin
 exception when others then
   -- restore JWT claim inside the transaction before propagating; PostgreSQL rolls all writes back.
   perform set_config('request.jwt.claim.sub',coalesce(v_auth_uid::text,''),true);
+  perform set_config('request.jwt.claims',coalesce(v_jwt_claims,'{}'),true);
   raise;
 end;
 $function$;
