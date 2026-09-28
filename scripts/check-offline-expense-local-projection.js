@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path'),vm=require('vm');
 const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
-function line(prefix){const x=app.split('\n').find(l=>l.startsWith(prefix));if(!x)throw new Error('missing source function: '+prefix);return x}
+function line(prefix){const x=app.split('\n').map(l=>l.trimStart()).find(l=>l.startsWith(prefix));if(!x)throw new Error('missing source function: '+prefix);return x}
 const source=[line('async function localExpenseProjectionRows('),line('function mergeExpenseProjectionRows(')].join('\n');
 const ctx={currentBranchId:()=>7,odbGet:async key=>key==='offlineV2Expenses'?[{id:'offline-exp-a',client_tx_id:'tx-a',branch_id:7,shift_id:2,description:'A',amount:123,created_at:'2026-09-28T06:00:00.000Z'}]:[],offlineQueue:async()=>[{type:'expense',local_expense:{id:'offline-exp-a',client_tx_id:'tx-a',branch_id:7,shift_id:2,description:'A duplicate',amount:123,created_at:'2026-09-28T06:00:00.000Z'}},{type:'expense',local_expense:{id:'offline-exp-b',client_tx_id:'tx-b',branch_id:7,shift_id:2,description:'B',amount:50,created_at:'2026-09-28T07:00:00.000Z'}},{type:'expense',local_expense:{id:'offline-exp-other',client_tx_id:'tx-other',branch_id:8,amount:9,created_at:'2026-09-28T07:30:00.000Z'}}]};
 vm.createContext(ctx);vm.runInContext(source+';this.localExpenseProjectionRows=localExpenseProjectionRows;this.mergeExpenseProjectionRows=mergeExpenseProjectionRows;',ctx);
