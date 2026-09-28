@@ -14,7 +14,7 @@ function runtime(branch=1,online=false){
  await r.SharawlaOfflineV2Transport.commitRpcLocal('restaurant_table_save_v1',{p_table_id:null,p_branch_id:1,p_floor_id:null,p_name:'Table Offline',p_code:'T1',p_capacity:4,p_active:true,p_client_tx_id:ttx});
  assert.strictEqual(store.get('offlineV2RestaurantTables').length,1);
  // unresolved local parent must fail closed before durable commit
- const bad=tx();await assert.rejects(()=>r.SharawlaOfflineV2Transport.commitRpcLocal('restaurant_table_save_v1',{p_table_id:null,p_branch_id:1,p_floor_id:'offline-floor-'+ftx,p_name:'Bad Child',p_capacity:2,p_active:true,p_client_tx_id:bad}),e=>e&&e.code==='OFFLINE_V2_LOCAL_DEPENDENCY_UNRESOLVED');assert(!events.has(bad));
+ const bad=tx();await assert.rejects(()=>r.SharawlaOfflineV2Transport.commitRpcLocal('restaurant_table_save_v1',{p_table_id:null,p_branch_id:1,p_floor_id:'offline-floor-'+ftx,p_name:'Bad Child',p_capacity:2,p_active:true,p_client_tx_id:bad}),e=>e&&e.code==='OFFLINE_V2_LOCAL_DEPENDENCY_REQUIRED');assert(!events.has(bad));
  // cold restart
  r=runtime(1,false);await r.SharawlaOfflineV2Transport.reconcileCompatibilityProjections();assert.strictEqual(store.get('offlineV2RestaurantFloors').length,1);assert.strictEqual(store.get('offlineV2RestaurantTables').length,1);
  const ui=fs.readFileSync(path.join(__dirname,'..','beta55-restaurant-closure-ui.js'),'utf8');assert(ui.includes("local.filter(x=>Number(x.branch_id)===Number(b))"),'branch scoped restaurant config projection missing');assert(ui.includes("startsWith('offline-floor-')"),'pending floor dependency guard missing');
