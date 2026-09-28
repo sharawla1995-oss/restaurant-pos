@@ -6,7 +6,7 @@ must(src.includes("const CUSTODY_KEY_PREFIX='sharawlaDriverCustodyV2:'"),'custod
 must(src.includes('async function custodyReadModel(bid,degraded=false){'),'offline/degraded custody read model missing');
 must(src.includes('const row=projectedCustodyRow(o);if(row)byOrder.set(key,row);'),'local order projection must overlay custody snapshot');
 must(src.includes("if(method!=='cash'||!['delivered','completed'].includes(status)||o.driver_id==null||o.driver_settled_at!=null)return null"),'cash/delivered/driver/unsettled custody contract missing');
-must(src.includes("if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر')"),'settlement must remain fail-closed on Offline/degraded network');
+must(src.includes("commitOptionalTxRpc('delivery_driver_settle_v2'")&&src.includes('p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0)'),'settlement must use durable owner with frozen receiving shift');
 must(src.includes('وضع Offline: آخر Snapshot للعهدة + الحركات المحلية المعلقة'),'delivery custody stale semantics missing');
 must(src.includes('وضع Offline: العهدة من آخر Snapshot + العمليات المحلية المعلقة'),'settings custody stale semantics missing');
 must(!/async function enhanceDeliveryOrdersSettlement\(\)\{\s*if\(!isOnline\(\)\)return;/.test(src),'custody view must not disappear Offline');
