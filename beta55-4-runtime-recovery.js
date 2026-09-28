@@ -137,7 +137,12 @@ async function mergeNative(table,rows){
   for(const patch of (p.order_patches||[])){
    const serverRow=patch?._offline_status_pending===false?out.find(x=>x?.__sharawla_server_baseline===true&&identityMatches(x,patch)):null;
    if(serverRow)continue;
-   out=mergeByIdentity(out,[patch]);
+   // A status/driver patch targets the original local order identity. After the
+   // sale ACK has mapped that identity to a canonical server id, the patch may
+   // update operational fields but must never overwrite the canonical id.
+   const target=out.find(x=>identityMatches(x,patch));
+   const projected=target&&text(target.id)!==text(patch.id)?{...patch,id:target.id,_local_entity_id:target._local_entity_id??patch.id,_server_entity_id:target._server_entity_id??null}:patch;
+   out=mergeByIdentity(out,[projected]);
   }
  }
  return out;
