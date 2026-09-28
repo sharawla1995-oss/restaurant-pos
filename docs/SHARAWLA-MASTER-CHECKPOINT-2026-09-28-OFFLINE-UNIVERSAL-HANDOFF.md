@@ -159,3 +159,11 @@ Do NOT call RC1/Offline Production-ready yet. Source architecture is being corre
 
 ## Master trigger
 When user says "بلح", report this checkpoint as the current official Master continuation unless newer contradictory evidence/commits exist.
+
+## Continuation progress after handoff
+- a7d3456502954eb10cd44e8418e599faea3eb141 — Return invoice lookup now consumes shared order bundles through resolveReturnOrderBundles + resolveOrderBundleLocalFirst; duplicate Return-only order_items retrieval was removed. No DB deployment.
+- a90098a526cee56f82fd5cc2bd764b1c02773b6d — added general resolveOperationOwner() and migrated order_status ownership decision to it. The resolver enforces one owner only and returns NO_SAFE_OWNER when neither V2 nor an existing safe Legacy owner is available.
+- Source review proved order_status has no existing Legacy queue owner. Do not invent a fake fallback merely to suppress the error.
+- Source review also proved SharawlaOfflineV2Transport.isActive()/commitRpcLocal still depend on takeoverState active + migration_verified + transport_ready. Delivery assignment therefore does not provide an independent operation-scoped activation precedent.
+- Current blocker is now explicit: define and prove the safe activation/readiness policy for order_status (and then delivery operations) without auto-activating global takeover and without dual-write. Until that policy is proven, fail closed is intentional.
+- Current source HEAD before this documentation update: a90098a526cee56f82fd5cc2bd764b1c02773b6d.
