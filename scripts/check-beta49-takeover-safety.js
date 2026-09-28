@@ -11,7 +11,7 @@ const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
 const need=(s,t,m=t)=>assert(s.includes(t),`Beta49 gate missing: ${m}`);
 const no=(s,t,m=t)=>assert(!s.includes(t),`Beta49 gate forbidden: ${m}`);
 const betaMatch=String(pkg.version||'').match(/^10\.5\.4-beta\.(\d+)(?:\.\d+)*$/);assert(betaMatch&&Number(betaMatch[1])>=49,'package version must be Beta49+');assert.strictEqual(ver.version,pkg.version);assert.strictEqual(ver.channel,'beta');need(pkg.description,'Offline');need(pkg.description,'SH-0007');
-for(const t of ["EXPECTED_SUPPORT='SH-0007'","EXPECTED_BUSINESS='91826502-590e-4afa-8826-2c0f4b99c490'","EXPECTED_HOST='xihcxydjnzemflhedzor.supabase.co'",'ensureAcceptanceContext','current_employee_id','classifyLegacyMismatches','acceptanceResidue','cleanupAcceptanceResidue','SharawlaOfflineV2Takeover.arm','SharawlaOfflineV2Takeover.prepareMigration','SharawlaOfflineV2Transport.attestTransport','SharawlaOfflineV2Takeover.activate','preserved_conflicts','ownerOpen()'])need(safety,t);
+for(const t of ["EXPECTED_SUPPORT='SH-0007'","EXPECTED_BUSINESS='91826502-590e-4afa-8826-2c0f4b99c490'","EXPECTED_HOST='xihcxydjnzemflhedzor.supabase.co'","ALLOWED_OFFLINE_COMMERCE_PROFILES=new Set(['restaurant','retail'])",'ALLOWED_OFFLINE_COMMERCE_PROFILES.has(profile)','ensureAcceptanceContext','current_employee_id','classifyLegacyMismatches','acceptanceResidue','cleanupAcceptanceResidue','SharawlaOfflineV2Takeover.arm','SharawlaOfflineV2Takeover.prepareMigration','SharawlaOfflineV2Transport.attestTransport','SharawlaOfflineV2Takeover.activate','preserved_conflicts','ownerOpen()'])need(safety,t);
 for(const t of ["/^ACC-/i","['failed','conflict']",'SHARAWLA_ACCEPTANCE','discarded','canonical_pinned','device_fingerprint'])need(safety,t);
 no(safety,'SH-0005');no(safety,'SH-0006');no(safety,'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7');no(safety,'kzokretuuigjhxjzdlmk');
 no(safety,'setInterval','Beta49 safety controller must not poll');no(safety,'MutationObserver','Beta49 safety controller must be event-driven');
@@ -23,3 +23,11 @@ need(ui,`const VERSION='${pkg.version}'`);
 need(loader,'beta49-takeover-activation-safety.js');need(loader,'owner-acceptance-lazy-loader-v47.js');assert(loader.indexOf('beta49-takeover-activation-safety.js')<loader.indexOf('owner-acceptance-lazy-loader-v47.js'),'Beta49 safety must load before owner acceptance lazy loader');
 need(sync,"'beta49-takeover-activation-safety.js'");
 console.log('Beta49 Takeover Safety gate PASS — SH-0007-only explicit activation / canonical acceptance context / conflict-preserving migration verified');
+
+// Restaurant and Retail are the only commerce profiles authorized by this guarded takeover gate.
+// Do not regress to the historical Retail-only Beta49 preflight or broaden to unsupported profiles.
+need(safety,"new Set(['restaurant','retail'])");
+if(/pos_profile\|\|rc\?\.profile\)!=='retail'/.test(safety))fail('historical Retail-only takeover preflight returned');
+for(const unsupported of ['pharmacy','service','warehouse','membership','logistics']){
+  if(safety.includes(`ALLOWED_OFFLINE_COMMERCE_PROFILES=new Set(['restaurant','retail','${unsupported}']`))fail(`unsupported takeover profile broadened: ${unsupported}`);
+}
