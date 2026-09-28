@@ -79,6 +79,7 @@ async function proveRouterLocalSuccess(){
   const calls=[];
   const window={navigator:{onLine:false},crypto:{randomUUID:()=>`00000000-0000-4000-8000-${String(calls.length+1).padStart(12,'0')}`}};
   window.window=window;
+  window.SharawlaOfflineV2Takeover={resolveOperationOwner:async type=>({operation_type:type,owner:'v2',v2_ready:true,legacy_ready:false,exclusive:true})};
   window.SharawlaOfflineV2Transport={
     isActive:async()=>true,
     commitRpcLocal:async(name,payload)=>{calls.push({name,payload});const tx=payload.p_client_tx_id;let result=true;if(name==='offline_customer_create_v1')result=`offline-customer-${tx}`;else if(name==='offline_customer_update_v1')result=payload.p_customer_id??`offline-customer-${payload.p_customer_create_tx}`;else if(name==='offline_customer_address_save_v1')result=`offline-customer_address_save-${tx}`;else if(name==='offline_delivery_assign_driver_v1')result={ok:true,order_id:payload.p_order_id};return {durable:true,synced:false,status:'pending',result}}
