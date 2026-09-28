@@ -191,7 +191,7 @@ async function testExpenseImmediateRefresh(){
   rest:(...args)=>env.ctx.rest(...args),money:value=>Number(value||0).toFixed(2),fmtDate:value=>String(value),esc:value=>String(value??''),toast:value=>toasts.push(String(value)),uiPrompt:async()=>null,
   getOpenShift:async()=>({id:'offline-shift-expense',opening_cash:0}),isServerShiftId:value=>/^\d+$/.test(String(value??''))&&Number(value)>0,rpc:async()=>{throw new Error('RPC must not receive a local shift')},
   uuid:()=> 'expense-runtime-tx',audit:async()=>{},isNetError:error=>/fetch|network/i.test(String(error?.message||error)),
-  saveOfflineExpense:async(shift,description,amount)=>{events.push(nativeEvent('expense','expense-runtime-tx',{p_shift_id:shift.id,p_description:description,p_amount:amount},{localId:'offline-expense-runtime',created:'2026-09-27T14:00:00.000Z'}));return {id:'offline-expense-runtime'}},globalThis:null};
+  saveOfflineExpense:async()=>{throw new Error('legacy expense creator must not run')},SharawlaOfflineV2Transport:{commitRpcLocal:async(name,payload)=>{assert.strictEqual(name,'create_pos_expense_idempotent');events.push(nativeEvent('expense',payload.p_client_tx_id,payload,{localId:'offline-expense-runtime',created:'2026-09-27T14:00:00.000Z'}));return {result:'offline-expense-runtime',synced:false}}},globalThis:null};
  ctx.globalThis=ctx;vm.createContext(ctx);
  const source=appBlock('async function renderExpenses(){','\nfunction catalogOrderValue');
  vm.runInContext(`${source}\nthis.__renderExpenses=renderExpenses;`,ctx,{filename:'app.js#renderExpenses'});
