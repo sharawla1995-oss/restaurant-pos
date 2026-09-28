@@ -162,7 +162,8 @@ const commands = [
   "node scripts/check-offline-food-ingredient-master-runtime.js",
   "node scripts/check-offline-food-recipe-master-runtime.js",
   "node scripts/check-offline-food-prep-master-runtime.js",
-  "node scripts/check-offline-delivery-settlement-runtime.js"
+  "node scripts/check-offline-delivery-settlement-runtime.js",
+  "node scripts/check-offline-central-warehouse-create-runtime.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
