@@ -86,6 +86,8 @@ function resolveOperation(type,payload){
   if(type==='supplier_save')return {rpc_name:'offline_food_supplier_save_v1',rpc_payload:clone(payload)};
   if(type==='driver_save')return {rpc_name:'offline_delivery_driver_save_v1',rpc_payload:clone(payload)};
   if(type==='zone_save')return {rpc_name:'offline_delivery_zone_save_v1',rpc_payload:clone(payload)};
+  if(type==='floor_save')return {rpc_name:'offline_restaurant_floor_save_v1',rpc_payload:clone(payload)};
+  if(type==='table_save')return {rpc_name:'offline_restaurant_table_save_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
@@ -156,6 +158,8 @@ function registerTransportAdapters(){
   registerOne('supplier_save',adapter('supplier_save','supplier',['food_supplier_save_v1']));
   registerOne('driver_save',adapter('driver_save','delivery_driver',['delivery_driver_save_v2']));
   registerOne('zone_save',adapter('zone_save','delivery_zone',['delivery_zone_save_v2']));
+  registerOne('floor_save',adapter('floor_save','restaurant_floor',['restaurant_floor_save_v1']));
+  registerOne('table_save',adapter('table_save','restaurant_table',['restaurant_table_save_v1']));
   return true;
 }
 
@@ -219,6 +223,14 @@ async function projectDirectOperation(type,payload,tx,row){
     const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     const next=[zone,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
     await global.odbSet('offlineV2Zones',next.slice(0,5000));
+  }else if(type==='floor_save'){
+    const localId=`offline-floor-${tx}`,serverId=num(serverResult.floor_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantFloors'))||[];
+    const item={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),sort_order:num(payload?.p_sort_order,100),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2RestaurantFloors',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_floor_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
+  }else if(type==='table_save'){
+    const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
+    const item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2RestaurantTables',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
   }
   try{global.dispatchEvent(new CustomEvent('sharawla:offline-v2-projection-changed',{detail:{type,client_tx_id:tx,status:row?.status||'pending'}}))}catch{}
 }
@@ -231,13 +243,17 @@ async function reconcileCompatibilityProjections(){
   const hasSuppliers=rows.some(r=>text(r?.operation_type)==='supplier_save');
   const hasDrivers=rows.some(r=>text(r?.operation_type)==='driver_save');
   const hasZones=rows.some(r=>text(r?.operation_type)==='zone_save');
+  const hasFloors=rows.some(r=>text(r?.operation_type)==='floor_save');
+  const hasTables=rows.some(r=>text(r?.operation_type)==='table_save');
   let customers=hasCustomers?(clone(await global.odbGet('customersCache'))||[]):null;
   let addresses=hasAddresses?(clone(await global.odbGet('customerAddressesCache'))||[]):null;
   let bundles=hasOrders?(clone(await global.odbGet('cachedOrders'))||[]):null;
   let suppliers=hasSuppliers?(clone(await global.odbGet('offlineV2Suppliers'))||[]):null;
   let drivers=hasDrivers?(clone(await global.odbGet('offlineV2Drivers'))||[]):null;
   let zones=hasZones?(clone(await global.odbGet('offlineV2Zones'))||[]):null;
-  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false;
+  let floors=hasFloors?(clone(await global.odbGet('offlineV2RestaurantFloors'))||[]):null;
+  let tables=hasTables?(clone(await global.odbGet('offlineV2RestaurantTables'))||[]):null;
+  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false;
   for(const row of rows){
     const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{},created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{},pending=row?.status!=='synced';
     if(type==='customer_create'&&customers){
@@ -277,6 +293,12 @@ async function reconcileCompatibilityProjections(){
       const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||localId;
       const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
       zones=[zone,...zones.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);zonesChanged=true;
+    }else if(type==='floor_save'&&floors){
+      const localId=`offline-floor-${tx}`,serverId=num(serverResult.floor_id,0),id=serverId||localId,item={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),sort_order:num(payload?.p_sort_order,100),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      floors=[item,...floors.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_floor_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);floorsChanged=true;
+    }else if(type==='table_save'&&tables){
+      const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      tables=[item,...tables.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);tablesChanged=true;
     }else if(type==='sale'&&row?.status==='synced'&&bundles){
       const result=serverResult||{},serverOrder=result.order||null,serverId=text(serverOrder?.id||row?.server_ack?.server_entity_id);if(!serverId)continue;
       const localId=`offline-${tx}`;const before=bundles.length;
@@ -292,6 +314,8 @@ async function reconcileCompatibilityProjections(){
   if(suppliersChanged)writes.push(global.odbSet('offlineV2Suppliers',suppliers));
   if(driversChanged)writes.push(global.odbSet('offlineV2Drivers',drivers));
   if(zonesChanged)writes.push(global.odbSet('offlineV2Zones',zones));
+  if(floorsChanged)writes.push(global.odbSet('offlineV2RestaurantFloors',floors));
+  if(tablesChanged)writes.push(global.odbSet('offlineV2RestaurantTables',tables));
   if(writes.length)await Promise.all(writes);
 }
 async function reconcileOrderStatusProjection(){
@@ -344,7 +368,7 @@ function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='customer_address_delete')return !numericServerId(payload?.p_address_id)&&!text(payload?.p_address_save_tx);
   return false;
 }
-function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
+function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='floor_save'){const n=Number(result?.floor_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 floor ACK missing floor_id');return n}if(type==='table_save'){const n=Number(result?.table_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table ACK missing table_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
 
 async function ensureEvent(type,payload,tx){
   const api=global.topBurgerDesktop?.offlineV2;if(!api?.event||!api?.commitOperation)throw new Error('Offline V2 event bridge unavailable');
@@ -400,6 +424,8 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='supplier_save')result=`offline-supplier-${tx}`;
   else if(type==='driver_save')result=`offline-driver-${tx}`;
   else if(type==='zone_save')result=`offline-zone-${tx}`;
+  else if(type==='floor_save')result=`offline-floor-${tx}`;
+  else if(type==='table_save')result=`offline-table-${tx}`;
   else result={ok:true,client_tx_id:tx,_offline:true};
   return {ok:true,durable:true,synced:row?.status==='synced',status:text(row?.status)||'pending',client_tx_id:tx,local_entity_id:text(row?.local_entity_id)||null,result,row};
 }
