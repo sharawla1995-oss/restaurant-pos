@@ -200,5 +200,31 @@ revoke all on function public.offline_food_ingredient_conversion_save_v1(bigint,
 grant execute on function public.offline_food_ingredient_save_v1(bigint,text,text,text,text,text,numeric,numeric,boolean,numeric,integer,boolean,text,text) to authenticated;
 grant execute on function public.offline_food_ingredient_conversion_save_v1(bigint,text,text,text,numeric,boolean,text,text) to authenticated;
 
+create or replace function public.offline_food_recipe_save_draft_v1(
+ p_product_id bigint,p_variant_id bigint,p_name text,p_output_quantity numeric,p_output_unit_code text,
+ p_lines jsonb,p_modifier_impacts jsonb,p_removal_mappings jsonb,p_notes text,p_client_tx_id text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $
+declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;v_id bigint;v_result jsonb;v_ref record;
+begin
+ if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_tx is null or v_d is null then raise exception 'OFFLINE_RECIPE_DRAFT_IDENTITY_REQUIRED';end if;
+ perform pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0));select * into r from public.offline_restaurant_reference_receipts_v1 where client_tx_id=v_tx;
+ if found then if r.operation_type<>'recipe_draft_save' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
+ if jsonb_typeof(coalesce(p_lines,'[]'::jsonb))<>'array' then raise exception 'OFFLINE_RECIPE_LINES_INVALID';end if;
+ for v_ref in
+   select nullif(x->>'ingredient_id','')::bigint ingredient_id from jsonb_array_elements(coalesce(p_lines,'[]'::jsonb)) x
+   union all select nullif(x->>'ingredient_id','')::bigint from jsonb_array_elements(coalesce(p_modifier_impacts,'[]'::jsonb)) x
+   union all select nullif(x->>'ingredient_id','')::bigint from jsonb_array_elements(coalesce(p_removal_mappings,'[]'::jsonb)) x
+ loop
+   if v_ref.ingredient_id is null or not exists(select 1 from public.ingredients i where i.id=v_ref.ingredient_id) then raise exception 'OFFLINE_RECIPE_INGREDIENT_DEPENDENCY_UNRESOLVED';end if;
+ end loop;
+ v_id:=public.food_recipe_save_draft_v1(p_product_id,p_variant_id,p_name,p_output_quantity,p_output_unit_code,p_lines,p_modifier_impacts,p_removal_mappings,p_notes);
+ if v_id is null then raise exception 'OFFLINE_RECIPE_DRAFT_RESULT_MISSING';end if;
+ v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+ insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'recipe_draft_save',v_d,v_id,v_result);return v_result;
+end;$;
+
+revoke all on function public.offline_food_recipe_save_draft_v1(bigint,bigint,text,numeric,text,jsonb,jsonb,jsonb,text,text,text) from public,anon;
+grant execute on function public.offline_food_recipe_save_draft_v1(bigint,bigint,text,numeric,text,jsonb,jsonb,jsonb,text,text,text) to authenticated;
+
 notify pgrst,'reload schema';
 commit;
