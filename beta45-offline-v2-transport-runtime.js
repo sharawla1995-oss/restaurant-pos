@@ -404,6 +404,9 @@ function mustUseOriginalEntityFallback(type,payload={}){
   }
   if(type==='customer_address_delete')return !numericServerId(payload?.p_address_id)&&!text(payload?.p_address_save_tx);
   if(type==='floor_save')return payload?.p_floor_id!=null&&!numericServerId(payload?.p_floor_id);
+  if(type==='supplier_save'&&payload?.p_supplier_id!=null)return !numericServerId(payload.p_supplier_id);
+  if(type==='driver_save'&&payload?.p_driver_id!=null)return !numericServerId(payload.p_driver_id);
+  if(type==='zone_save'&&payload?.p_zone_id!=null)return !numericServerId(payload.p_zone_id);
   if(type==='table_session_open')return !numericServerId(payload?.p_table_id);
   if(type==='table_session_attach'){
     const sessionMissing=!numericServerId(payload?.p_session_id)&&!text(payload?.p_session_open_tx);
