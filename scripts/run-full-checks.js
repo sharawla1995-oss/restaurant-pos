@@ -160,7 +160,8 @@ const commands = [
   "node scripts/check-offline-food-production-runtime.js",
   "node scripts/check-offline-food-waste-runtime.js",
   "node scripts/check-offline-food-ingredient-master-runtime.js",
-  "node scripts/check-offline-food-recipe-master-runtime.js"
+  "node scripts/check-offline-food-recipe-master-runtime.js",
+  "node scripts/check-offline-food-prep-master-runtime.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
