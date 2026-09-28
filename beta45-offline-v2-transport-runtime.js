@@ -484,7 +484,7 @@ async function authoritativeRpc(name,payload={}){
 }
 
 async function commitOptionalTxRpc(name,payload={},options={}){
-  const canonical={...clone(payload)};delete canonical.p_client_tx_id;
+  const canonical={...clone(payload)};delete canonical.p_client_tx_id;for(const k of Array.isArray(options?.stripKeys)?options.stripKeys:[])delete canonical[k];
   const t=typeByRpc.get(text(name)),active=await activeState(),offline=global.navigator?.onLine===false;
   if(!t){if(offline)throw onlineOnlyError(name);return bridge.rpc(name,canonical)}
   if(active){const withTx={...canonical,p_client_tx_id:text(payload?.p_client_tx_id)||text(global.crypto?.randomUUID?.())};if(!withTx.p_client_tx_id){const e=new Error('Offline V2 operational RPC requires client_tx_id');e.code='OFFLINE_V2_CLIENT_TX_REQUIRED';throw e}return offline?commitRpcLocal(name,withTx):authoritativeRpc(name,withTx)}
