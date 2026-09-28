@@ -41,7 +41,7 @@ function makeRuntime({online,business='biz-a',branch=1}){
   document:{querySelector:()=>null},
   setTimeout:()=>0,
   clearTimeout:()=>{},
-  setInterval:fn=>{fn();return 1},
+  setInterval:()=>1,
   clearInterval:()=>{},
   addEventListener:(n,fn)=>{(listeners[n]||(listeners[n]=[])).push(fn)},
   dispatchEvent:()=>true
