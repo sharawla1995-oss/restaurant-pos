@@ -68,7 +68,10 @@ begin
      or (v_operation='zone_save' and v_rpc<>'offline_delivery_zone_save_v1')
      or (v_operation='floor_save' and v_rpc<>'offline_restaurant_floor_save_v1')
      or (v_operation='table_save' and v_rpc<>'offline_restaurant_table_save_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save') then
+     or (v_operation='table_session_open' and v_rpc<>'restaurant_table_session_open_v1')
+     or (v_operation='table_session_attach' and v_rpc<>'offline_restaurant_table_session_attach_v1')
+     or (v_operation='table_session_close' and v_rpc<>'offline_restaurant_table_session_close_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -204,6 +207,15 @@ begin
     when 'offline_delivery_assign_driver_v1' then
       v_result := public.offline_delivery_assign_driver_v1((v_payload->>'p_order_id')::bigint,(v_payload->>'p_driver_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := (v_payload->>'p_order_id');
+    when 'restaurant_table_session_open_v1' then
+      v_return_id := public.restaurant_table_session_open_v1((v_payload->>'p_table_id')::bigint,(v_payload->>'p_guest_count')::integer,v_payload->>'p_notes',v_payload->>'p_client_tx_id');
+      v_entity_id := v_return_id::text; v_result := jsonb_build_object('ok',true,'session_id',v_return_id,'client_tx_id',v_payload->>'p_client_tx_id');
+    when 'offline_restaurant_table_session_attach_v1' then
+      v_result := public.offline_restaurant_table_session_attach_v1(nullif(v_payload->>'p_session_id','')::bigint,v_payload->>'p_session_open_tx',(v_payload->>'p_order_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'session_id','');
+    when 'offline_restaurant_table_session_close_v1' then
+      v_result := public.offline_restaurant_table_session_close_v1(nullif(v_payload->>'p_session_id','')::bigint,v_payload->>'p_session_open_tx',v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'session_id','');
     when 'offline_food_supplier_save_v1' then
       v_result := public.offline_food_supplier_save_v1(nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_email',v_payload->>'p_tax_no',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'supplier_id','');
