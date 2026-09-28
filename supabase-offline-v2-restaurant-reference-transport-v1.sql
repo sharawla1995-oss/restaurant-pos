@@ -71,7 +71,9 @@ begin
      or (v_operation='table_session_open' and v_rpc<>'restaurant_table_session_open_v1')
      or (v_operation='table_session_attach' and v_rpc<>'offline_restaurant_table_session_attach_v1')
      or (v_operation='table_session_close' and v_rpc<>'offline_restaurant_table_session_close_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close') then
+     or (v_operation='ingredient_save' and v_rpc<>'offline_food_ingredient_save_v1')
+     or (v_operation='ingredient_conversion_save' and v_rpc<>'offline_food_ingredient_conversion_save_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -113,6 +115,8 @@ begin
       v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
     elsif v_operation='customer_address_delete' then
       v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='ingredient_conversion_save' then
+      v_payload := jsonb_set(v_payload,'{p_ingredient_id}',to_jsonb(v_dep_server_id::bigint),true);
     end if;
   end if;
 
@@ -219,6 +223,12 @@ begin
     when 'offline_food_supplier_save_v1' then
       v_result := public.offline_food_supplier_save_v1(nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_email',v_payload->>'p_tax_no',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'supplier_id','');
+    when 'offline_food_ingredient_save_v1' then
+      v_result := public.offline_food_ingredient_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_name',v_payload->>'p_base_unit_code',v_payload->>'p_purchase_unit_code',v_payload->>'p_sku',v_payload->>'p_barcode',coalesce((v_payload->>'p_cost_per_base_unit')::numeric,0),coalesce((v_payload->>'p_minimum_quantity')::numeric,0),coalesce((v_payload->>'p_track_inventory')::boolean,true),coalesce((v_payload->>'p_usable_yield_percent')::numeric,100),nullif(v_payload->>'p_shelf_life_minutes','')::integer,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'ingredient_id','');
+    when 'offline_food_ingredient_conversion_save_v1' then
+      v_result := public.offline_food_ingredient_conversion_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_ingredient_create_tx',v_payload->>'p_from_unit_code',v_payload->>'p_to_unit_code',(v_payload->>'p_factor')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'conversion_id','');
     else
       raise exception using errcode='22023', message='Offline V2 RPC غير مدعومة: '||coalesce(v_rpc,'');
   end case;
