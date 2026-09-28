@@ -254,7 +254,12 @@ async function syncContext(){
 async function projectDirectOperation(type,payload,tx,row){
   if(typeof global.odbGet!=='function'||typeof global.odbSet!=='function')return;
   const pending=row?.status!=='synced',created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{};
-  if(type==='shift_open'){
+  if(type==='sale'){
+    const localId='offline-'+tx,serverOrder=serverResult?.order||null,serverId=text(serverOrder?.id||row?.server_ack?.server_entity_id),id=serverId||localId,all=clone(await global.odbGet('cachedOrders'))||[];
+    const localOrder=serverOrder?{...serverOrder,_offline:false,_official_number_pending:false}:{...clone(payload?.p_order||{}),id:localId,client_tx_id:tx,invoice_number:null,bon_number:null,offline_reference:'OFF-'+text(tx).replace(/-/g,'').slice(0,10).toUpperCase(),_official_number_pending:true,created_at:created,payment_status:'confirmed',_offline:true,_offline_sync_status:text(row?.status)||'pending'};
+    const localItems=serverOrder?clone(serverResult?.items||[]):(clone(payload?.p_items)||[]).map((x,i)=>({...x,id:x.line_uid?localId+'-line-'+x.line_uid:localId+'-legacy-i'+(i+1),order_id:id}));
+    await global.odbSet('cachedOrders',[{order:{...localOrder,id},items:localItems},...all.filter(b=>String(b?.order?.id)!==localId&&String(b?.order?.id)!==String(id)&&String(b?.order?.client_tx_id||'')!==tx)].slice(0,250));
+  }else if(type==='shift_open'){
     const localId=`offline-shift-${tx}`,serverId=num(serverResult?.id??serverResult?.shift_id,0),id=serverId||localId,local={id,branch_id:payload?.p_branch_id,employee_id:runtimeEmployee(),opening_cash:Number(payload?.p_opening_cash||0),status:'open',opened_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(`openShift:${runtimeEmployee()}:${payload?.p_branch_id}`,local);const hist=clone(await global.odbGet(`shiftHistory:${payload?.p_branch_id}`))||[];await global.odbSet(`shiftHistory:${payload?.p_branch_id}`,[local,...hist.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,100));
   }else if(type==='expense'){
     const localId=`offline-exp-${tx}`,serverId=num(serverResult?.id??serverResult?.expense_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Expenses'))||[],item={id,branch_id:runtimeBranch(),employee_id:runtimeEmployee(),shift_id:payload?.p_shift_id,description:payload?.p_description,amount:Number(payload?.p_amount||0),created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet('offlineV2Expenses',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
@@ -425,7 +430,7 @@ async function reconcileCompatibilityProjections(){
   const rows=await api.outbox();if(!Array.isArray(rows)||!rows.length)return;
   const hasCustomers=rows.some(r=>['customer_create','customer_update'].includes(text(r?.operation_type)));
   const hasAddresses=rows.some(r=>['customer_address_save','customer_address_delete'].includes(text(r?.operation_type)));
-  const hasOrders=rows.some(r=>text(r?.operation_type)==='delivery_assign_driver'||(text(r?.operation_type)==='sale'&&r?.status==='synced'));
+  const hasOrders=rows.some(r=>text(r?.operation_type)==='delivery_assign_driver'||text(r?.operation_type)==='sale');
   const hasSuppliers=rows.some(r=>text(r?.operation_type)==='supplier_save');
   const hasDrivers=rows.some(r=>text(r?.operation_type)==='driver_save');
   const hasZones=rows.some(r=>text(r?.operation_type)==='zone_save');
@@ -541,7 +546,9 @@ async function reconcileCompatibilityProjections(){
     }else if(type==='ingredient_conversion_save'&&ingredientConversions){
       const localId=`offline-ingredient-conversion-${tx}`,serverId=num(serverResult.conversion_id,0),id=serverId||localId,ingredientId=num(serverResult.ingredient_id,0)||payload?.p_ingredient_id||(payload?.p_ingredient_create_tx?`offline-ingredient-${payload.p_ingredient_create_tx}`:null),item={id,ingredient_id:ingredientId,from_unit_code:payload?.p_from_unit_code,to_unit_code:payload?.p_to_unit_code,factor:num(payload?.p_factor),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
       ingredientConversions=[item,...ingredientConversions.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,20000);ingredientConversionsChanged=true;
-    }else if(type==='sale'&&row?.status==='synced'&&bundles){
+    }else if(type==='sale'&&bundles){
+      if(row?.status!=='synced'){const localId='offline-'+tx,order={...clone(payload?.p_order||{}),id:localId,client_tx_id:tx,invoice_number:null,bon_number:null,offline_reference:'OFF-'+text(tx).replace(/-/g,'').slice(0,10).toUpperCase(),_official_number_pending:true,created_at:created,payment_status:'confirmed',_offline:true,_offline_sync_status:text(row?.status)||'pending'},items=(clone(payload?.p_items)||[]).map((x,i)=>({...x,id:x.line_uid?localId+'-line-'+x.line_uid:localId+'-legacy-i'+(i+1),order_id:localId}));bundles=[{order,items},...bundles.filter(b=>String(b?.order?.id)!==localId&&String(b?.order?.client_tx_id||'')!==tx)].slice(0,250);ordersChanged=true;continue}
+
       const result=serverResult||{},serverOrder=result.order||null,serverId=text(serverOrder?.id||row?.server_ack?.server_entity_id);if(!serverId)continue;
       const localId=`offline-${tx}`;const before=bundles.length;
       bundles=bundles.filter(b=>String(b?.order?.id)!==localId&&String(b?.order?.client_tx_id||'')!==tx&&String(b?.order?.id)!==serverId);
@@ -721,6 +728,7 @@ async function commitRpcLocal(name,payload={}){
   await projectDirectOperation(type,payload,tx,row);
   let result;
   if(row?.status==='synced')result=unwrapResult(type,row);
+  else if(type==='sale'){const localId='offline-'+tx,all=clone(await global.odbGet('cachedOrders'))||[],b=all.find(x=>String(x?.order?.id)===localId||String(x?.order?.client_tx_id||'')===tx);result=b||{order:{...clone(payload?.p_order||{}),id:localId,client_tx_id:tx,_offline:true,_official_number_pending:true,created_at:nowIso()},items:clone(payload?.p_items||[])}}
   else if(type==='shift_open')result=`offline-shift-${tx}`;
    else if(type==='expense')result=`offline-exp-${tx}`;
    else if(type==='shift_close')result={...clone(payload?.p_metrics||{}),id:payload?.p_shift_id,status:'closed',closing_cash:Number(payload?.p_closing_cash||0),closed_at:nowIso(),client_tx_id:tx,_offline:true};
