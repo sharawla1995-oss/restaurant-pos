@@ -19,6 +19,8 @@ async function boot(state){
   let err=null;try{await a.api.saveOrderStatus(55,'preparing','status-tx-1')}catch(e){err=e}
   assert(err?.code==='OFFLINE_OPERATION_NO_SAFE_OWNER','order_status must expose fail-closed owner error');
   assert(a.calls.commits===0,'fail-closed order_status must perform zero durable writes');
+  let deliveredErr=null;try{await a.api.saveOrderStatus(55,'delivered','delivered-tx-1')}catch(e){deliveredErr=e}
+  assert(deliveredErr?.code==='OFFLINE_OPERATION_NO_SAFE_OWNER'&&a.calls.commits===0,'inactive delivery completion must fail closed with zero durable writes');
   const deliveryOwner=await a.api.resolveOperationOwner('delivery_assign_driver');
   assert(deliveryOwner.owner===null&&deliveryOwner.reason==='NO_SAFE_OWNER','inactive delivery assignment must fail closed with no invented legacy owner');
   const b=await boot({active:true,migration_verified:true,transport_ready:true});
@@ -30,6 +32,8 @@ async function boot(state){
   assert(b.calls.commits===1&&b.calls.legacySales===0,'ready sale must V2-write only, never dual-write');
   await b.api.saveOrderStatus(55,'ready','status-tx-2');
   assert(b.calls.commits===2,'ready order_status must create one durable V2 commit');
+  await b.api.saveOrderStatus(56,'delivered','delivered-tx-2');
+  assert(b.calls.commits===3,'ready delivery completion must create exactly one durable order_status V2 commit');
   assert(b.calls.legacySales===0&&b.calls.legacyExpenses===0,'V2 ownership must not invoke legacy mutation owners');
   console.log('Universal Offline operation ownership runtime acceptance PASS — legacy/v2/fail-closed + zero-write + no-dual-write');
 })().catch(e=>{console.error(e);process.exit(1)});
