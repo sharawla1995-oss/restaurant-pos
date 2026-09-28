@@ -12,7 +12,7 @@ const checks=[
  ['Wrapper cache key uses resolved employee',js.includes("openShift:${open.employee_id}:${bid}")],
  ['UI custody guard remains present',js.includes('if(unsettled>0.005)')&&js.includes('سوّي العهدة قبل قفل الوردية')],
  ['Close handler catches runtime failures',/closeBtn\.disabled=false;\s*toastLocal\(err\?\.message\|\|String\(err\)\);/.test(js)],
- ['Legacy close surfaces backend rejection',app.includes("if(!isNetError(err)){toast(err?.message||String(err));return}")],
+ ['Native close surfaces transport/backend rejection',app.includes("catch(err){toast(err?.message||String(err));return}")&&app.includes("SharawlaOfflineV2Transport.commitRpcLocal('close_pos_shift_v2'")],
  ['V2 backend custody guard remains present',sqlV2.includes('if v_unsettled>0.005 then')],
  ['Legacy backend custody guard remains present',sqlLegacy.includes('if v_unsettled>0.005 then')]
 ];
