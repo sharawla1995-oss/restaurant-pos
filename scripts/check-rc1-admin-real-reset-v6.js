@@ -21,6 +21,7 @@ must(app.includes("backup.create('pre-reset-full')"),'full local pre-reset backu
 must(app.includes("createDesktopFullBackup('pre-reset-full')"),'full cloud pre-reset backup missing');
 must(app.indexOf("backup.create('pre-reset-full')")<app.indexOf("req('/rest/v1/rpc/reset_pos_data'"),'destructive cloud reset happens before backup');
 must(native.includes("Offline V2 scoped reset verification failed"),'Offline V2 zero verification missing');
-must(!native.slice(native.indexOf('async function resetTestGroups'),native.indexOf('async function resetTestAll')).includes('device_sequence NOT IN'),'explicit group reset still excludes protected sequences');
+must(native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'protected reset sequences contract missing');
+must(native.slice(native.indexOf('async function resetTestGroups'),native.indexOf('async function resetTestAll')).includes('device_sequence NOT IN'),'explicit group reset must preserve protected sequences');
 must(main.includes('Sandbox scoped reset verification failed'),'legacy/cache zero verification missing');
 console.log('RC1 admin real reset V6 source gate PASS');
