@@ -25,6 +25,8 @@ for(const token of [
 ])if(!owner.includes(token))throw new Error(`Owner diagnostics invariant missing: ${token}`);
 for(const forbidden of ['OWNER_CODE=','OWNER_PASSWORD=','ownerDiagnosticCode=','localStorage.setItem(\'owner','sessionStorage.setItem(\'owner'])if(owner.includes(forbidden))throw new Error(`Owner diagnostic secret/persistence risk: ${forbidden}`);
 if(!index.includes(`owner-diagnostics.js?v=${pkg.version}`))throw new Error('Owner diagnostics is not versioned/loaded from index.html');
+if(!index.includes(`owner-diagnostics-universal-v2.js?v=${pkg.version}`))throw new Error('Universal owner diagnostics is not versioned/loaded from index.html');
+if(!sw.includes(`./owner-diagnostics-universal-v2.js?v=${pkg.version}`)||!sw.includes("url.pathname.endsWith('/owner-diagnostics-universal-v2.js')"))throw new Error('Universal owner diagnostics missing from service worker runtime policy');
 const betaNumber=Number(String(pkg.version).split('-beta.')[1]||0);
 if(betaNumber>=45){
   if(!index.includes(`beta-self-test.js?v=${pkg.version}`))throw new Error('Beta45+ must load the safe read-only Self-Test center');
