@@ -12,9 +12,11 @@ must(main.includes("delete from sync_log where type in"),'legacy sync log must b
 must(!main.includes("run(\`delete from local_operations\`)"),'scoped reset must not delete all legacy operations');
 must(!main.includes("run(\`delete from sync_log\`)"),'scoped reset must not delete all sync log rows');
 must(native.includes("async function resetTestGroups(input={})"),'Offline V2 scoped reset missing');
-must(native.includes("RESET_PROTECTED_DEVICE_SEQUENCES=Object.freeze([293,304,316])"),'protected acceptance sequences missing');
+must(!native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'removed acceptance sequence protection must not return');
 const scoped=native.slice(native.indexOf('async function resetTestGroups'),native.indexOf('async function resetTestAll'));
-must(!scoped.includes('DELETE FROM offline_v2_device_sequences'),'scoped reset must preserve device sequences');
+must(!scoped.includes('DELETE FROM offline_v2_device_sequences'),'scoped group reset must not rewrite device sequence allocator');
+must(scoped.includes('Historical acceptance sequences are not runtime-protected reset state'),'removed acceptance sequences must remain ordinary historical test state');
+must(scoped.includes('device_sequence_reset:false'),'scoped reset must report that sequence allocator was not reset');
 must(!scoped.includes("DELETE FROM offline_v2_meta"),'scoped reset must preserve store metadata');
 must(scoped.includes('DELETE FROM offline_v2_records WHERE client_tx_id IN'),'scoped records cleanup missing');
 must(scoped.includes('DELETE FROM offline_v2_mappings WHERE client_tx_id IN'),'scoped mappings cleanup missing');
