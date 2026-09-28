@@ -73,7 +73,8 @@ begin
      or (v_operation='table_session_close' and v_rpc<>'offline_restaurant_table_session_close_v1')
      or (v_operation='ingredient_save' and v_rpc<>'offline_food_ingredient_save_v1')
      or (v_operation='ingredient_conversion_save' and v_rpc<>'offline_food_ingredient_conversion_save_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save') then
+     or (v_operation='recipe_draft_save' and v_rpc<>'offline_food_recipe_save_draft_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save','recipe_draft_save') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -229,6 +230,9 @@ begin
     when 'offline_food_ingredient_conversion_save_v1' then
       v_result := public.offline_food_ingredient_conversion_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_ingredient_create_tx',v_payload->>'p_from_unit_code',v_payload->>'p_to_unit_code',(v_payload->>'p_factor')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'conversion_id','');
+    when 'offline_food_recipe_save_draft_v1' then
+      v_result := public.offline_food_recipe_save_draft_v1(nullif(v_payload->>'p_product_id','')::bigint,nullif(v_payload->>'p_variant_id','')::bigint,v_payload->>'p_name',(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),coalesce(v_payload->'p_modifier_impacts','[]'::jsonb),coalesce(v_payload->'p_removal_mappings','[]'::jsonb),v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'recipe_version_id','');
     else
       raise exception using errcode='22023', message='Offline V2 RPC غير مدعومة: '||coalesce(v_rpc,'');
   end case;
