@@ -303,6 +303,7 @@ async function reconcileCompatibilityProjections(){
   const hasIngredients=rows.some(r=>text(r?.operation_type)==='ingredient_save');
   const hasIngredientConversions=rows.some(r=>text(r?.operation_type)==='ingredient_conversion_save');
   const hasRecipeDrafts=rows.some(r=>text(r?.operation_type)==='recipe_draft_save'||text(r?.operation_type)==='recipe_version_activate');
+  const prepRows=rows.filter(r=>['prep_item_save','prep_recipe_draft_save'].includes(text(r?.operation_type)));
   let customers=hasCustomers?(clone(await global.odbGet('customersCache'))||[]):null;
   let addresses=hasAddresses?(clone(await global.odbGet('customerAddressesCache'))||[]):null;
   let bundles=hasOrders?(clone(await global.odbGet('cachedOrders'))||[]):null;
@@ -317,6 +318,7 @@ async function reconcileCompatibilityProjections(){
   let ingredientConversions=hasIngredientConversions?(clone(await global.odbGet('offlineV2IngredientConversions'))||[]):null;
   let recipeVersions=hasRecipeDrafts?(clone(await global.odbGet('offlineV2RecipeVersions'))||[]):null;
   let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false,sessionsChanged=false,sessionLinksChanged=false,ingredientsChanged=false,ingredientConversionsChanged=false,recipeVersionsChanged=false;
+  for(const row of prepRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of rows){
     const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{},created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{},pending=row?.status!=='synced';
     if(type==='customer_create'&&customers){
