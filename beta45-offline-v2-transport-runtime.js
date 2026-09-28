@@ -76,7 +76,9 @@ function resolveOperation(type,payload){
   if(type==='return')return resolveReturn(payload,profile);
   if(type==='expense')return {rpc_name:'create_pos_expense_idempotent',rpc_payload:clone(payload)};
   if(type==='shift_open')return {rpc_name:'open_pos_shift_idempotent',rpc_payload:clone(payload)};
-  if(type==='shift_close')return {rpc_name:'close_pos_shift_idempotent',rpc_payload:clone(payload)};
+  if(type==='shift_close')return {rpc_name:'close_pos_shift_v2',rpc_payload:clone(payload)};
+  if(type==='delivery_mark_delivered')return {rpc_name:'delivery_mark_delivered_v2',rpc_payload:clone(payload)};
+  if(type==='delivery_driver_settle')return {rpc_name:'offline_delivery_driver_settle_v1',rpc_payload:clone(payload)};
   if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)};
   if(type==='customer_create')return {rpc_name:'offline_customer_create_v1',rpc_payload:clone(payload)};
   if(type==='customer_update')return {rpc_name:'offline_customer_update_v1',rpc_payload:clone(payload)};
@@ -121,7 +123,7 @@ function resolveOperation(type,payload){
 function dependencyTx(type,payload={}){
   if(type==='sale')return localShiftTx(payload?.p_order?.shift_id);
   if(type==='expense'||type==='shift_close')return localShiftTx(payload?.p_shift_id);
-  if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return localOrderTx(payload?.p_order_id);
+  if(type==='return'||type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return localOrderTx(payload?.p_order_id);
   if(type==='customer_update'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
   if(type==='customer_address_save'&&text(payload?.p_address_save_tx))return text(payload.p_address_save_tx);
   if(type==='customer_address_save'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
@@ -178,7 +180,9 @@ function registerTransportAdapters(){
   ]));
   registerOne('expense',adapter('expense','expense',['create_pos_expense_idempotent']));
   registerOne('shift_open',adapter('shift_open','shift',['open_pos_shift_idempotent']));
-  registerOne('shift_close',adapter('shift_close','shift_event',['close_pos_shift_idempotent']));
+  registerOne('shift_close',adapter('shift_close','shift_event',['close_pos_shift_idempotent','close_pos_shift_v2']));
+  registerOne('delivery_mark_delivered',adapter('delivery_mark_delivered','order_event',['delivery_mark_delivered_v2']));
+  registerOne('delivery_driver_settle',adapter('delivery_driver_settle','delivery_settlement',['delivery_driver_settle_v2']));
   registerOne('order_status',adapter('order_status','order_event',['order_status_apply_offline_v2']));
   registerOne('customer_create',adapter('customer_create','customer',['offline_customer_create_v1']));
   registerOne('customer_update',adapter('customer_update','customer',['offline_customer_update_v1']));
@@ -574,7 +578,8 @@ function numericServerId(v){const n=Number(v);return Number.isFinite(n)&&n>0}
 function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
   if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id);
-  if(type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id);
+  if(type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return !numericServerId(payload?.p_order_id);
+  if(type==='delivery_driver_settle')return !numericServerId(payload?.p_driver_id)||!numericServerId(payload?.p_expected_receiving_shift_id)||(Array.isArray(payload?.p_order_ids)?payload.p_order_ids:[]).length===0||(payload.p_order_ids||[]).some(x=>!numericServerId(x));
   if(type==='customer_update')return !numericServerId(payload?.p_customer_id)&&!text(payload?.p_customer_create_tx);
   if(type==='customer_address_save'){
     const customerMissing=!numericServerId(payload?.p_customer_id)&&!text(payload?.p_customer_create_tx);
@@ -694,6 +699,8 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='customer_address_save')result=`offline-customer_address_save-${tx}`;
   else if(type==='customer_address_delete')result=true;
   else if(type==='delivery_assign_driver')result={ok:true,order_id:payload.p_order_id,driver_id:payload.p_driver_id,status:'out_for_delivery',client_tx_id:tx,_offline:true};
+  else if(type==='delivery_mark_delivered')result={ok:true,order:{id:payload.p_order_id,status:'delivered',payment_method:payload.p_payment_method},client_tx_id:tx,_offline:true};
+  else if(type==='delivery_driver_settle')result={ok:true,order_ids:clone(payload.p_order_ids)||[],receiving_shift_id:payload.p_expected_receiving_shift_id,client_tx_id:tx,_offline:true};
   else if(type==='supplier_save')result=`offline-supplier-${tx}`;
   else if(type==='driver_save')result=`offline-driver-${tx}`;
   else if(type==='zone_save')result=`offline-zone-${tx}`;

@@ -253,7 +253,7 @@ if(baseRenderShifts){
       if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
       if(!isOnline())return await legacyClose?.();
       closeBtn.disabled=true;
-      const closed=await global.rpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
+      const tr=global.SharawlaOfflineV2Transport;if(typeof tr?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');const closed=await tr.commitOptionalTxRpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
       try{await global.odbSet?.(`openShift:${open.employee_id}:${bid}`,null)}catch{}
       const diff=num(closed?.cash_difference);
       toastLocal(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${moneyLocal(Math.abs(diff))}`);
@@ -305,13 +305,13 @@ async function enhanceDeliveryOrdersSettlement(){
   e.preventDefault();e.stopPropagation();if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.deliverySettleOrderV2);const row=rows.find(x=>Number(x.order_id)===oid);if(!row)return;
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row.custody_amount)} من المندوب وتسوية عهدة هذا الطلب؟`)))return;
-  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal('تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.cachedOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal('تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  host.querySelectorAll('[data-delivery-settle-all-v2]').forEach(btn=>btn.onclick=async e=>{
   e.preventDefault();e.stopPropagation();if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.deliverySettleAllV2),items=byDriver.get(did)||[],amount=items.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام وتسوية كل عهدة المندوب: ${items.length} طلب بإجمالي ${moneyLocal(amount)}؟`)))return;
-  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:null,p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal('تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:items.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.cachedOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal('تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
 }
 const baseRenderDeliveryOrdersSettlement=typeof global.renderDeliveryOrders==='function'?global.renderDeliveryOrders:null;
@@ -348,13 +348,13 @@ async function enhanceDeliverySettings(){
   if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.settleOrderV2);const row=pending.find(x=>Number(x.order_id)===oid);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row?.custody_amount)} من المندوب وتسوية هذا الأوردر؟`)))return;
-  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_client_tx_id:tx('B55-SETTLE-ONE')});toastLocal('تمت تسوية الأوردر ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.cachedOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ONE')});toastLocal('تمت تسوية الأوردر ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  panel.querySelectorAll('[data-settle-all-v2]').forEach(btn=>btn.onclick=async()=>{
   if(model.offline||!isOnline())return toastLocal('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر');
   const did=Number(btn.dataset.settleAllV2),rows=byDriver.get(did)||[],amount=rows.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`تسوية كل عهدة المندوب: ${rows.length} أوردر بإجمالي ${moneyLocal(amount)}؟`)))return;
-  btn.disabled=true;try{await global.rpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:null,p_client_tx_id:tx('B55-SETTLE-ALL')});toastLocal('تمت تسوية كل العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:rows.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.cachedOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ALL')});toastLocal('تمت تسوية كل العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
 }
 
