@@ -211,7 +211,7 @@ begin
       v_return_id := public.restaurant_table_session_open_v1((v_payload->>'p_table_id')::bigint,(v_payload->>'p_guest_count')::integer,v_payload->>'p_notes',v_payload->>'p_client_tx_id');
       v_entity_id := v_return_id::text; v_result := jsonb_build_object('ok',true,'session_id',v_return_id,'client_tx_id',v_payload->>'p_client_tx_id');
     when 'offline_restaurant_table_session_attach_v1' then
-      v_result := public.offline_restaurant_table_session_attach_v1(nullif(v_payload->>'p_session_id','')::bigint,v_payload->>'p_session_open_tx',(v_payload->>'p_order_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
+      v_result := public.offline_restaurant_table_session_attach_v1(nullif(v_payload->>'p_session_id','')::bigint,v_payload->>'p_session_open_tx',nullif(v_payload->>'p_order_id','')::bigint,v_payload->>'p_order_sale_tx',v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'session_id','');
     when 'offline_restaurant_table_session_close_v1' then
       v_result := public.offline_restaurant_table_session_close_v1(nullif(v_payload->>'p_session_id','')::bigint,v_payload->>'p_session_open_tx',v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
