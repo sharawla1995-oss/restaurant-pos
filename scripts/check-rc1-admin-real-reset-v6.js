@@ -45,7 +45,7 @@ must(!app.includes("req('/rest/v1/rpc/reset_pos_data',{method:'POST'"),'unsafe l
 must(app.indexOf("backup.create('pre-reset-full')")<app.indexOf("req('/rest/v1/rpc/reset_pos_data_v7'"),'destructive cloud reset happens before backup');
 
 must(native.includes("Offline V2 scoped reset verification failed"),'Offline V2 selected-group verification missing');
-must(native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'protected reset sequences contract missing');
+must(!native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'obsolete protected reset sequence contract must be removed');
 must(main.includes('Sandbox scoped reset verification failed'),'legacy/cache selected-group verification missing');
 
 console.log('RC1 branch-scoped reset V7 source gate PASS');
