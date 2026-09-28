@@ -2368,7 +2368,7 @@ async function resetGroups(groups){
  if(!localBackup)throw new Error('تعذر إنشاء Backup محلي كامل — تم إلغاء إعادة الضبط');
  const cloudBackup=await createDesktopFullBackup('pre-reset-full');
  if(!cloudBackup)throw new Error('تعذر إنشاء Backup كامل لآخر بيانات Cloud — تم إلغاء إعادة الضبط');
- const cloud=await req('/rest/v1/rpc/reset_pos_data',{method:'POST',body:JSON.stringify({p_groups:groups})});
+ const branchId=Number(currentBranchId());\n if(!Number.isInteger(branchId)||branchId<=0)throw new Error('تعذر تحديد الفرع الحالي — تم إلغاء إعادة الضبط');\n // V7 is the only destructive Cloud reset path. Never fall back to the legacy global reset_pos_data.\n const cloud=await req('/rest/v1/rpc/reset_pos_data_v7',{method:'POST',body:JSON.stringify({p_branch_id:branchId,p_groups:groups})});\n if(!cloud?.ok||cloud?.contract!=='reset_pos_data_v7'||Number(cloud?.branch_id)!==branchId)throw new Error('فشل التحقق من نتيجة Reset الخاصة بالفرع — تم إيقاف الإكمال المحلي');
  if(window.topBurgerDesktop?.sandbox?.cleanRuntime){
   const st=await loadLicenseState(),supportCode=String(st?.support_code||'').trim(),testBranch=String(branchName(currentBranchId())||'').trim().toUpperCase();
   if(supportCode==='SH-0007'&&testBranch==='TEST'){
