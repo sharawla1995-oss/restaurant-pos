@@ -238,6 +238,19 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantTables',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
+}else if(type==='table_session_open'){
+    const localId=`offline-table-session-${tx}`,serverId=num(serverResult.session_id,0),id=serverId||localId,sessions=clone(await global.odbGet('offlineV2RestaurantTableSessions'))||[],tables=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
+    const item={id,branch_id:runtimeBranch(),table_id:payload?.p_table_id,guest_count:Math.max(1,num(payload?.p_guest_count,1)),notes:payload?.p_notes??null,status:'open',client_tx_id:tx,opened_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2RestaurantTableSessions',[item,...sessions.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+    await global.odbSet('offlineV2RestaurantTables',tables.map(x=>String(x.id)===String(payload?.p_table_id)?{...x,status:'occupied',_offline_session_tx:tx}:x));
+  }else if(type==='table_session_attach'){
+    const links=clone(await global.odbGet('offlineV2RestaurantTableSessionOrders'))||[],sessionId=payload?.p_session_id||`offline-table-session-${text(payload?.p_session_open_tx)}`,orderId=payload?.p_order_id||`offline-${text(payload?.p_order_sale_tx)}`;
+    const item={id:`offline-table-session-order-${tx}`,session_id:sessionId,order_id:orderId,client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2RestaurantTableSessionOrders',[item,...links.filter(x=>String(x.client_tx_id||'')!==tx&&String(x.order_id)!==String(orderId))].slice(0,20000));
+  }else if(type==='table_session_close'){
+    const sessions=clone(await global.odbGet('offlineV2RestaurantTableSessions'))||[],tables=clone(await global.odbGet('offlineV2RestaurantTables'))||[],sessionKey=payload?.p_session_id||`offline-table-session-${text(payload?.p_session_open_tx)}`;let tableId=null;
+    const next=sessions.map(x=>{if(String(x.id)!==String(sessionKey)&&String(x.client_tx_id||'')!==text(payload?.p_session_open_tx))return x;tableId=x.table_id;return {...x,status:'closed',closed_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'}});
+    await global.odbSet('offlineV2RestaurantTableSessions',next);if(tableId!=null)await global.odbSet('offlineV2RestaurantTables',tables.map(x=>String(x.id)===String(tableId)?{...x,status:'available',_offline_session_tx:null}:x));
   }
   try{global.dispatchEvent(new CustomEvent('sharawla:offline-v2-projection-changed',{detail:{type,client_tx_id:tx,status:row?.status||'pending'}}))}catch{}
 }
@@ -251,7 +264,9 @@ async function reconcileCompatibilityProjections(){
   const hasDrivers=rows.some(r=>text(r?.operation_type)==='driver_save');
   const hasZones=rows.some(r=>text(r?.operation_type)==='zone_save');
   const hasFloors=rows.some(r=>text(r?.operation_type)==='floor_save');
-  const hasTables=rows.some(r=>text(r?.operation_type)==='table_save');
+  const hasTables=rows.some(r=>text(r?.operation_type)==='table_save'||['table_session_open','table_session_close'].includes(text(r?.operation_type)));
+  const hasSessions=rows.some(r=>['table_session_open','table_session_close'].includes(text(r?.operation_type)));
+  const hasSessionLinks=rows.some(r=>text(r?.operation_type)==='table_session_attach');
   let customers=hasCustomers?(clone(await global.odbGet('customersCache'))||[]):null;
   let addresses=hasAddresses?(clone(await global.odbGet('customerAddressesCache'))||[]):null;
   let bundles=hasOrders?(clone(await global.odbGet('cachedOrders'))||[]):null;
@@ -260,7 +275,9 @@ async function reconcileCompatibilityProjections(){
   let zones=hasZones?(clone(await global.odbGet('offlineV2Zones'))||[]):null;
   let floors=hasFloors?(clone(await global.odbGet('offlineV2RestaurantFloors'))||[]):null;
   let tables=hasTables?(clone(await global.odbGet('offlineV2RestaurantTables'))||[]):null;
-  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false;
+  let sessions=hasSessions?(clone(await global.odbGet('offlineV2RestaurantTableSessions'))||[]):null;
+  let sessionLinks=hasSessionLinks?(clone(await global.odbGet('offlineV2RestaurantTableSessionOrders'))||[]):null;
+  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false,sessionsChanged=false,sessionLinksChanged=false;
   for(const row of rows){
     const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{},created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{},pending=row?.status!=='synced';
     if(type==='customer_create'&&customers){
@@ -306,6 +323,17 @@ async function reconcileCompatibilityProjections(){
     }else if(type==='table_save'&&tables){
       const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
       tables=[item,...tables.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);tablesChanged=true;
+    }else if(type==='table_session_open'&&sessions){
+      const localId=`offline-table-session-${tx}`,serverId=num(serverResult.session_id,0),id=serverId||localId,item={id,branch_id:num(row?.branch_id,runtimeBranch()),table_id:payload?.p_table_id,guest_count:Math.max(1,num(payload?.p_guest_count,1)),notes:payload?.p_notes??null,status:'open',client_tx_id:tx,opened_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      sessions=[item,...sessions.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000);sessionsChanged=true;
+      if(tables){tables=tables.map(x=>String(x.id)===String(payload?.p_table_id)?{...x,status:'occupied',_offline_session_tx:pending?tx:null}:x);tablesChanged=true}
+    }else if(type==='table_session_attach'&&sessionLinks){
+      const sessionId=num(serverResult.session_id,0)||payload?.p_session_id||`offline-table-session-${text(payload?.p_session_open_tx)}`,orderId=num(serverResult.order_id,0)||payload?.p_order_id||`offline-${text(payload?.p_order_sale_tx)}`,item={id:`offline-table-session-order-${tx}`,session_id:sessionId,order_id:orderId,client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      sessionLinks=[item,...sessionLinks.filter(x=>String(x.client_tx_id||'')!==tx&&String(x.order_id)!==String(orderId))].slice(0,20000);sessionLinksChanged=true;
+    }else if(type==='table_session_close'&&sessions){
+      const sessionId=num(serverResult.session_id,0)||payload?.p_session_id||`offline-table-session-${text(payload?.p_session_open_tx)}`;let tableId=null;
+      sessions=sessions.map(x=>{if(String(x.id)!==String(sessionId)&&String(x.client_tx_id||'')!==text(payload?.p_session_open_tx))return x;tableId=x.table_id;return {...x,id:num(serverResult.session_id,0)||x.id,status:'closed',closed_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'}});sessionsChanged=true;
+      if(tables&&tableId!=null){tables=tables.map(x=>String(x.id)===String(tableId)?{...x,status:'available',_offline_session_tx:null}:x);tablesChanged=true}
     }else if(type==='sale'&&row?.status==='synced'&&bundles){
       const result=serverResult||{},serverOrder=result.order||null,serverId=text(serverOrder?.id||row?.server_ack?.server_entity_id);if(!serverId)continue;
       const localId=`offline-${tx}`;const before=bundles.length;
@@ -323,6 +351,8 @@ async function reconcileCompatibilityProjections(){
   if(zonesChanged)writes.push(global.odbSet('offlineV2Zones',zones));
   if(floorsChanged)writes.push(global.odbSet('offlineV2RestaurantFloors',floors));
   if(tablesChanged)writes.push(global.odbSet('offlineV2RestaurantTables',tables));
+  if(sessionsChanged)writes.push(global.odbSet('offlineV2RestaurantTableSessions',sessions));
+  if(sessionLinksChanged)writes.push(global.odbSet('offlineV2RestaurantTableSessionOrders',sessionLinks));
   if(writes.length)await Promise.all(writes);
 }
 async function reconcileOrderStatusProjection(){
