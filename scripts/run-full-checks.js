@@ -151,7 +151,8 @@ const commands = [
   "node scripts/check-rc1-next-bon-authority-runtime.js",
   "node scripts/check-offline-prep-reference-runtime.js",
   "node scripts/check-offline-food-po-lifecycle-runtime.js",
-  "node scripts/check-offline-food-receiving-runtime.js"
+  "node scripts/check-offline-food-receiving-runtime.js",
+  "node scripts/check-offline-food-supplier-return-runtime.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
