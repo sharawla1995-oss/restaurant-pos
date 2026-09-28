@@ -24,7 +24,7 @@ function onlineAuthorized(){return navigator.onLine===true&&!!appSession()?.acce
 function netError(e){try{return typeof isNetError==='function'?isNetError(e):/failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}catch{return /failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}}
 function toast55(m){try{if(typeof toast==='function')return toast(m)}catch{}try{return global.toast?.(m)}catch{}}
 function hash(s){let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
-function readKey(table,query){return `${CACHE_PREFIX}${table}:${hash(query)}`}
+function cacheScope(){return `${runtimeBusiness()||'no-business'}:${branchId()||'no-branch'}`}\nfunction readKey(table,query){return `${CACHE_PREFIX}${cacheScope()}:${table}:${hash(query)}`}
 function publishFallback(table,reason){cacheFallbackState={active:true,table:text(table),reason:text(reason)||'offline',at:new Date().toISOString()};global.__SharawlaOfflineCacheFallback=clone(cacheFallbackState);try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:clone(cacheFallbackState)}))}catch{}}
 function clearFallback(){if(!cacheFallbackState)return;cacheFallbackState=null;global.__SharawlaOfflineCacheFallback=null;try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:{active:false,at:new Date().toISOString()}}))}catch{}}
 async function dbGet(k){try{if(typeof odbGet==='function')return await odbGet(k)}catch{}try{return await global.odbGet?.(k)}catch{return null}}
@@ -337,7 +337,37 @@ async function warmRuntimeCaches(){
   ['delivery_drivers',`select=*&branch_id=eq.${b}&order=active.desc,name`],
   ['delivery_zones',`select=*&branch_id=eq.${b}&order=active.desc,name`],
   ['driver_settlements',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=50`]
- ];
+,
+  // Restaurant Offline Read Foundation: deterministic screen snapshots.
+  ['ingredients','select=*&order=active.desc,name'],
+  ['ingredient_stock',`select=*&branch_id=eq.${b}`],
+  ['inventory_units','select=*&active=eq.true&order=sort_order,code'],
+  ['products','select=id,name,active&active=eq.true&order=name'],
+  ['product_variants','select=id,product_id,name,active&active=eq.true&order=product_id,id'],
+  ['food_recipe_headers','select=*&order=id'],
+  ['food_recipe_headers','select=*&recipe_kind=eq.prep'],
+  ['food_recipe_versions','select=*&order=recipe_id,version_no.desc'],
+  ['food_recipe_branch_cost_v1',`select=*&branch_id=eq.${b}`],
+  ['food_prep_items','select=*&order=active.desc,name'],
+  ['food_production_batches',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=100`],
+  ['food_production_consumptions','select=*'],
+  ['food_waste_reasons','select=*&active=eq.true&order=sort_order'],
+  ['food_waste_events',`select=*&branch_id=eq.${b}&order=occurred_at.desc&limit=100`],
+  ['food_menu_costing_v1',`select=*&branch_id=eq.${b}&order=food_cost_percent.desc`],
+  ['food_theoretical_consumption_net_v1',`select=*&branch_id=eq.${b}&order=business_date.desc`],
+  ['suppliers','select=*&order=active.desc,name'],
+  ['suppliers','select=*&active=is.true&order=name'],
+  ['purchases',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=100`],
+  ['purchase_items','select=*'],
+  ['food_purchase_receipts',`select=*&branch_id=eq.${b}&order=received_at.desc&limit=100`],
+  ['branches','select=id,name,active&active=eq.true&order=sort_order,id'],
+  ['stock_transfers',`select=*&or=(from_branch_id.eq.${b},to_branch_id.eq.${b})&order=created_at.desc&limit=100`],
+  ['stock_transfer_items','select=*'],
+  ['restaurant_floors',`select=*&branch_id=eq.${b}&order=sort_order,id`],
+  ['restaurant_tables',`select=*&branch_id=eq.${b}&order=floor_id,id`],
+  ['restaurant_table_sessions',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=200`],
+  ['restaurant_table_session_orders','select=*'],
+  ['orders',`select=id,invoice_number,bon_number,total,status,created_at,order_type&branch_id=eq.${b}&order_type=eq.dinein&order=created_at.desc&limit=100`] ];
  for(const [t,q] of calls){try{const rows=await baseRest(t,q);await dbSet(readKey(t,q),rows);if(t==='shifts')await dbSet(`shiftHistory:${b}`,rows);if(t==='orders'){const bundles=(await dbGet('cachedOrders'))||[],itemsByOrder=new Map();for(const x of ((await dbGet(readKey('order_items','select=*&order_id=not.is.null&order=id.desc&limit=5000')))||[])){const k=String(x.order_id);if(!itemsByOrder.has(k))itemsByOrder.set(k,[]);itemsByOrder.get(k).push(x)}await dbSet('cachedOrders',rows.map(o=>({order:o,items:itemsByOrder.get(String(o.id))||[]})).concat(bundles.filter(x=>!rows.some(o=>String(o.id)===String(x.order?.id)))).slice(0,500))}if(t==='customers')await dbSet('customersCache',rows);if(t==='customer_addresses')await dbSet('customerAddressesCache',rows)}catch{}}
  try{await getOpenShiftRecovery(employeeId(),b)}catch{}
  lastWarmCachesAt=Date.now();
