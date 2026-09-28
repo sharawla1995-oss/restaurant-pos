@@ -451,6 +451,14 @@ async function authoritativeRpc(name,payload={}){
   throw networkDeferred(type,tx,row);
 }
 
+async function commitOptionalTxRpc(name,payload={},options={}){
+  const canonical={...clone(payload)};delete canonical.p_client_tx_id;
+  const t=typeByRpc.get(text(name)),active=await activeState(),offline=global.navigator?.onLine===false;
+  if(!t){if(offline)throw onlineOnlyError(name);return bridge.rpc(name,canonical)}
+  if(active){const withTx={...canonical,p_client_tx_id:text(payload?.p_client_tx_id)||text(global.crypto?.randomUUID?.())};if(!withTx.p_client_tx_id){const e=new Error('Offline V2 operational RPC requires client_tx_id');e.code='OFFLINE_V2_CLIENT_TX_REQUIRED';throw e}return offline?commitRpcLocal(name,withTx):authoritativeRpc(name,withTx)}
+  if(offline){const e=new Error('Offline operation has no safe active mutation owner');e.code='OFFLINE_OPERATION_NO_SAFE_OWNER';throw e}
+  return bridge.rpc(name,canonical);
+}
 async function commitRpcLocal(name,payload={}){
   const type=typeByRpc.get(text(name));
   if(!type)throw Object.assign(new Error(`Offline V2 local result target is not registered: ${text(name)}`),{code:'OFFLINE_V2_OPERATION_UNREGISTERED'});
@@ -503,7 +511,7 @@ function start(){
   if(!installAuthority())return setTimeout(start,80);
   global.addEventListener('online',()=>{syncNow().catch(e=>console.warn('Offline V2 online sync',e))});
   timer=setInterval(()=>{if(navigator.onLine)syncNow().catch(()=>{})},60_000);
-  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,commitRpc:authoritativeRpc,commitRpcLocal,isActive:activeState,reconcileCompatibilityProjections,validatePoint4Identity:(type,payload)=>clone(assertPoint4Payload(type,clone(payload))),registerTransportAdapters,authoritativeRpc});
+  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,commitRpc:authoritativeRpc,commitRpcLocal,commitOptionalTxRpc,isActive:activeState,reconcileCompatibilityProjections,validatePoint4Identity:(type,payload)=>clone(assertPoint4Payload(type,clone(payload))),registerTransportAdapters,authoritativeRpc});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
