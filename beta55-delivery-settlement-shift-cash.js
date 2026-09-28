@@ -53,21 +53,13 @@ async function custodyRowsForView(bid){
 }
 
 async function paymentOptions(order){
- const bid=Number(order?.branch_id||branchId());
- // Delivery completion is Online-only. Resolve payment eligibility from the
- // server at the action boundary instead of trusting bootstrap-time caches.
- const [methods,links]=await Promise.all([
-  global.rest('payment_methods','select=id,code,name,active,sort_order&active=eq.true&order=sort_order,id'),
-  global.rest('branch_payment_methods',`select=branch_id,payment_method_id,active,is_default&branch_id=eq.${bid}&active=eq.true`)
- ]);
+ const bid=Number(order?.branch_id||branchId());let methods=[],links=[];
+ if(isOnline()){try{[methods,links]=await Promise.all([global.rest('payment_methods','select=id,code,name,active,sort_order&active=eq.true&order=sort_order,id'),global.rest('branch_payment_methods',`select=branch_id,payment_method_id,active,is_default&branch_id=eq.${bid}&active=eq.true`)])}catch(err){console.warn('delivery payment options live fallback',err)}}
+ if(!methods.length){methods=global.state?.paymentMethods||[];links=(global.state?.branchPaymentMethods||[]).filter(x=>Number(x.branch_id)===bid&&x.active!==false)}
  const activeIds=new Set((links||[]).map(x=>String(x.payment_method_id)));
- return (methods||[])
-  .filter(x=>x.active!==false&&String(x.code||'').toLowerCase()!=='mixed'&&activeIds.has(String(x.id)))
-  .sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
+ return (methods||[]).filter(x=>x.active!==false&&String(x.code||'').toLowerCase()!=='mixed'&&(!activeIds.size||activeIds.has(String(x.id)))).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
 }
-
 async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
- if(!isOnline()){toastLocal('تعديل طريقة الدفع متاح Online فقط');return false}
  const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
  const order=rows?.[0];
  if(!order){toastLocal('الأوردر غير موجود');return true}
@@ -87,7 +79,7 @@ async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
    if(String(method)===String(order.payment_method)){toastLocal('طريقة الدفع لم تتغير');wrap.remove();resolve(true);return}
    ok.disabled=true;
    try{
-    const out=await global.rpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-PAYMENT-CHANGE')});
+    const out=await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-PAYMENT-CHANGE')});
     wrap.remove();hostModal?.remove?.();
     const custody=num(out?.custody_amount);
     toastLocal(custody>0?`تم تغيير طريقة الدفع — ${moneyLocal(custody)} عهدة على المندوب`:'تم تغيير طريقة الدفع — لا توجد عهدة كاش على المندوب');
@@ -99,7 +91,6 @@ async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
 }
 
 async function markDeliveredInteractive(orderId,hostModal=null){
- if(!isOnline())return false;
  const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
  const order=rows?.[0];
  if(!order){toastLocal('الأوردر غير موجود');return true}
@@ -115,7 +106,7 @@ async function markDeliveredInteractive(orderId,hostModal=null){
    const method=wrap.querySelector('[data-final-payment]')?.value||order.payment_method;
    ok.disabled=true;
    try{
-    const out=await global.rpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-DELIVER')});
+    const out=await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-DELIVER')});
     wrap.remove();hostModal?.remove?.();
     const custody=num(out?.custody_amount);
     toastLocal(custody>0?`تم التسليم — ${moneyLocal(custody)} عهدة على المندوب`:'تم التسليم — لا توجد عهدة كاش على المندوب');
@@ -128,7 +119,6 @@ async function markDeliveredInteractive(orderId,hostModal=null){
 
 document.addEventListener('click',e=>{
  const btn=e.target.closest?.('[data-change-delivery-payment]');if(!btn)return;
- if(!isOnline())return;
  const id=Number(btn.dataset.changeDeliveryPayment||lastDeliveryDetailId||0);if(!id)return;
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
  changeDeliveryPaymentInteractive(id,btn.closest('.modal')).catch(err=>toastLocal(err?.message||String(err)));
@@ -144,18 +134,6 @@ document.addEventListener('click',e=>{
 document.addEventListener('click',e=>{
  const btn=e.target.closest?.('[data-delivered]');if(!btn)return;
  const raw=btn.dataset.delivered||lastDeliveryDetailId||'';
- if(!isOnline()){
-  if(!raw)return;
-  const ov2=global.SharawlaOfflineV2Takeover;
-  if(typeof ov2?.saveOrderStatus!=='function')return;
-  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
-  ov2.saveOrderStatus(raw,'delivered').then(()=>{
-   btn.closest('.modal')?.remove?.();
-   toastLocal('تم حفظ التسليم للمزامنة — طريقة الدفع الحالية ستُستخدم عند المزامنة');
-   if(typeof global.renderDeliveryOrders==='function')return global.renderDeliveryOrders();
-  }).catch(err=>toastLocal(err?.message||String(err)));
-  return;
- }
  const id=Number(raw);if(!id)return;
  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
  markDeliveredInteractive(id,btn.closest('.modal')).catch(err=>toastLocal(err?.message||String(err)));
