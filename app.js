@@ -2716,11 +2716,18 @@ async function renderOnlineOrders(opts={}){
 
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
-  const [orders,drivers]=await Promise.all([
-    rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,order_type.eq.pickup)&order=created_at.desc&limit=300`),
-    rest('delivery_drivers','select=*&active=eq.true&order=name')
-  ]);
-  state.drivers=drivers||[];
+  let orders=[],drivers=[];try{
+    [orders,drivers]=await Promise.all([
+      rest('orders',`select=*&branch_id=eq.${currentBranchId()}&or=(order_type.eq.delivery,order_type.eq.pickup)&order=created_at.desc&limit=300`),
+      rest('delivery_drivers','select=*&active=eq.true&order=name')
+    ]);
+    await cacheOrderRows(orders||[]);
+  }catch(e){
+    if(!isNetError(e))throw e;
+    orders=(await cachedOrderBundles()).map(x=>x.order).filter(o=>Number(o?.branch_id)===currentBranchId()&&['delivery','pickup'].includes(String(o?.order_type||'')));
+    drivers=state.drivers||[];
+  }
+  state.drivers=drivers||state.drivers||[];
   const all=(orders||[]).filter(o=>o.status!=='cancelled'&&['delivery','pickup'].includes(String(o.order_type||'')));
   const active=all.filter(o=>['new','preparing','ready','out_for_delivery'].includes(o.status));
   const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>['delivered','completed'].includes(o.status)).length};
