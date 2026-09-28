@@ -11,7 +11,7 @@ const checks=[
  ['empty pending custody keeps an explicit stable panel',!src.includes('if(!rows.length)return;')&&src.includes('لا توجد عهدة كاش غير مسواة')],
  ['legacy controls not copied into v2 UI',!src.includes('data-settle="')],
  ['rpc/DNS failure degrades to labelled cached custody',src.includes("return custodyReadModel(bid,true)")&&src.includes('cache+local')],
- ['degraded/offline settlement remains fail closed',src.includes('model.offline||!isOnline()')&&src.includes('تسوية عهدة المناديب تحتاج اتصال إنترنت مباشر')]
+ ['degraded/offline settlement uses durable owner with frozen receiving shift',src.includes("commitOptionalTxRpc('delivery_driver_settle_v2'")&&src.includes('p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0)')]
 ];
 let bad=0;for(const [n,ok] of checks){console.log((ok?'PASS':'FAIL')+' — '+n);if(!ok)bad++}
 if(bad)process.exit(1);
