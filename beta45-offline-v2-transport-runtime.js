@@ -91,6 +91,8 @@ function resolveOperation(type,payload){
   if(type==='table_session_open')return {rpc_name:'restaurant_table_session_open_v1',rpc_payload:clone(payload)};
   if(type==='table_session_attach')return {rpc_name:'offline_restaurant_table_session_attach_v1',rpc_payload:clone(payload)};
   if(type==='table_session_close')return {rpc_name:'offline_restaurant_table_session_close_v1',rpc_payload:clone(payload)};
+  if(type==='ingredient_save')return {rpc_name:'offline_food_ingredient_save_v1',rpc_payload:clone(payload)};
+  if(type==='ingredient_conversion_save')return {rpc_name:'offline_food_ingredient_conversion_save_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
@@ -102,6 +104,7 @@ function dependencyTx(type,payload={}){
   if(type==='customer_address_save'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
   if(type==='customer_address_delete'&&text(payload?.p_address_save_tx))return text(payload.p_address_save_tx);
   if((type==='table_session_attach'||type==='table_session_close')&&text(payload?.p_session_open_tx))return text(payload.p_session_open_tx);
+  if(type==='ingredient_conversion_save'&&text(payload?.p_ingredient_create_tx))return text(payload.p_ingredient_create_tx);
   return null;
 }
 function shiftId(type,payload={}){
@@ -167,6 +170,8 @@ function registerTransportAdapters(){
   registerOne('table_session_open',adapter('table_session_open','restaurant_table_session',['restaurant_table_session_open_v1']));
   registerOne('table_session_attach',adapter('table_session_attach','restaurant_table_session_order',['restaurant_table_session_attach_order_v1']));
   registerOne('table_session_close',adapter('table_session_close','restaurant_table_session',['restaurant_table_session_close_v1']));
+  registerOne('ingredient_save',adapter('ingredient_save','ingredient',['food_ingredient_save_v1']));
+  registerOne('ingredient_conversion_save',adapter('ingredient_conversion_save','ingredient_conversion',['food_ingredient_conversion_save_v1']));
   return true;
 }
 
@@ -238,7 +243,15 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantTables',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
-}else if(type==='table_session_open'){
+}else if(type==='ingredient_save'){
+    const localId=`offline-ingredient-${tx}`,serverId=num(serverResult.ingredient_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Ingredients'))||[];
+    const item={id,name:text(payload?.p_name),unit:payload?.p_base_unit_code,base_unit_code:payload?.p_base_unit_code,purchase_unit_code:payload?.p_purchase_unit_code||payload?.p_base_unit_code,sku:payload?.p_sku??null,barcode:payload?.p_barcode??null,cost_per_unit:num(payload?.p_cost_per_base_unit),minimum_quantity:num(payload?.p_minimum_quantity),track_inventory:payload?.p_track_inventory!==false,usable_yield_percent:num(payload?.p_usable_yield_percent,100),shelf_life_minutes:payload?.p_shelf_life_minutes??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2Ingredients',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_ingredient_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+  }else if(type==='ingredient_conversion_save'){
+    const localId=`offline-ingredient-conversion-${tx}`,serverId=num(serverResult.conversion_id,0),id=serverId||localId,ingredientId=serverResult.ingredient_id??payload?.p_ingredient_id??(payload?.p_ingredient_create_tx?`offline-ingredient-${payload.p_ingredient_create_tx}`:null),all=clone(await global.odbGet('offlineV2IngredientConversions'))||[];
+    const item={id,ingredient_id:ingredientId,from_unit_code:payload?.p_from_unit_code,to_unit_code:payload?.p_to_unit_code,factor:num(payload?.p_factor),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2IngredientConversions',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,20000));
+  }else if(type==='table_session_open'){
     const localId=`offline-table-session-${tx}`,serverId=num(serverResult.session_id,0),id=serverId||localId,sessions=clone(await global.odbGet('offlineV2RestaurantTableSessions'))||[],tables=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
     const item={id,branch_id:runtimeBranch(),table_id:payload?.p_table_id,guest_count:Math.max(1,num(payload?.p_guest_count,1)),notes:payload?.p_notes??null,status:'open',client_tx_id:tx,opened_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantTableSessions',[item,...sessions.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
