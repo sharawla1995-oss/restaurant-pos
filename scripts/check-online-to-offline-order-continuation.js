@@ -8,5 +8,5 @@ need(route,/const localId=String\(order\?\.id\?\?''\)\.trim\(\)[\s\S]*const serv
 need(off,/async function saveOrderStatusV2\(orderId,targetStatus/,'durable Offline order status API missing');
 need(off,/payload=\{p_order_id:orderId,p_target_status:target,p_client_tx_id:tx\}/,'Offline event must preserve existing server order id when numeric');
 need(off,/if\(type==='return'\|\|type==='order_status'\)return !numericServerId\(payload\?\.p_order_id\)/,'local-id dependency gate missing');
-need(delivery,/if\(!isOnline\(\)\)[\s\S]*saveOrderStatus\(raw,'delivered'\)/,'delivery Online->Offline continuation missing');
+need(delivery,/commitOptionalTxRpc\('delivery_mark_delivered_v2'[\s\S]*p_order_id:Number\(raw\)/,'delivery Online->Offline continuation must use unified durable transport');
 console.log('Online -> Offline order continuation SOURCE PROOF PASS: existing numeric server IDs continue offline; local IDs remain dependency-gated.');
