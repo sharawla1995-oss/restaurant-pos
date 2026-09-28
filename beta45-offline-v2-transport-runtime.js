@@ -119,6 +119,9 @@ function resolveOperation(type,payload){
   if(type==='food_prep_item_save')return {rpc_name:'offline_food_prep_item_save_action_v2',rpc_payload:clone(payload)};
   if(type==='food_prep_recipe_save_draft')return {rpc_name:'offline_food_prep_recipe_save_draft_action_v2',rpc_payload:clone(payload)};
    if(type==='inventory_supply_request_create')return {rpc_name:'inventory_supply_request_create_v1',rpc_payload:clone(payload)};
+   if(type==='inventory_supply_request_submit')return {rpc_name:'offline_inventory_supply_request_submit_v1',rpc_payload:clone(payload)};
+   if(type==='inventory_supply_request_decide')return {rpc_name:'offline_inventory_supply_request_decide_v1',rpc_payload:clone(payload)};
+   if(type==='inventory_supply_request_prepare')return {rpc_name:'offline_inventory_supply_request_prepare_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
@@ -224,6 +227,9 @@ function registerTransportAdapters(){
   registerOne('food_prep_item_save',adapter('food_prep_item_save','food_prep_item_master',['food_prep_item_save_action_v2']));
   registerOne('food_prep_recipe_save_draft',adapter('food_prep_recipe_save_draft','food_recipe_version_master',['food_prep_recipe_save_draft_action_v2']));
    registerOne('inventory_supply_request_create',adapter('inventory_supply_request_create','inventory_supply_request',['inventory_supply_request_create_v1']));
+   registerOne('inventory_supply_request_submit',adapter('inventory_supply_request_submit','inventory_supply_request',['inventory_supply_request_submit_v1']));
+   registerOne('inventory_supply_request_decide',adapter('inventory_supply_request_decide','inventory_supply_request',['inventory_supply_request_decide_v1']));
+   registerOne('inventory_supply_request_prepare',adapter('inventory_supply_request_prepare','inventory_supply_request',['inventory_supply_request_prepare_v1']));
   return true;
 }
 
@@ -291,11 +297,14 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId=`offline-floor-${tx}`,serverId=num(serverResult.floor_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantFloors'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),sort_order:num(payload?.p_sort_order,100),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantFloors',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_floor_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
-  }else if(type==='table_save'){
+  }else if(['inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare'].includes(type))return !numericServerId(payload?.p_request_id);
+   if(type==='table_save'){
     const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantTables',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_table_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
-}else if(type==='inventory_supply_request_create'){
+}else if(['inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare'].includes(type)){
+     const all=clone(await global.odbGet('offlineV2InventorySupplyRequests'))||[],id=String(payload?.p_request_id??''),i=all.findIndex(x=>String(x.id)===id);if(i>=0){const status=type==='inventory_supply_request_submit'?'submitted':type==='inventory_supply_request_prepare'?'preparing':(payload?.p_approve?'approved':'rejected');all[i]={...all[i],status,_offline:pending,_offline_sync_status:text(row?.status)||'pending',updated_at:created};await global.odbSet('offlineV2InventorySupplyRequests',all)}
+   }else if(type==='inventory_supply_request_create'){
      const localId=`offline-supply-request-${tx}`,serverId=num(serverResult?.request_id??serverResult,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2InventorySupplyRequests'))||[],itemsAll=clone(await global.odbGet('offlineV2InventorySupplyRequestItems'))||[];
      const req={id,route_id:payload?.p_route_id,request_type:payload?.p_request_type,notes:payload?.p_notes??null,status:'draft',client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
      const items=(clone(payload?.p_items)||[]).map((x,n)=>({id:`offline-supply-request-item-${tx}-${n+1}`,request_id:id,catalog_item_id:x.catalog_item_id,quantity_requested:Number(x.quantity||0),line_note:x.line_note??null,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'}));
@@ -738,6 +747,7 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='food_prep_item_save')result=payload?.p_prep_item_id||`offline-food-prep-item-${tx}`;
   else if(type==='food_prep_recipe_save_draft')result=`offline-food-recipe-version-${tx}`;
    else if(type==='inventory_supply_request_create')result=`offline-supply-request-${tx}`;
+   else if(['inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare'].includes(type))result=payload?.p_request_id;
   else result={ok:true,client_tx_id:tx,_offline:true};
   return {ok:true,durable:true,synced:row?.status==='synced',status:text(row?.status)||'pending',client_tx_id:tx,local_entity_id:text(row?.local_entity_id)||null,result,row};
 }

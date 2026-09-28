@@ -81,7 +81,10 @@ begin
      or (v_operation='food_po_approve' and v_rpc<>'offline_food_purchase_order_approve_v1')
      or (v_operation='food_po_cancel' and v_rpc<>'offline_food_purchase_order_cancel_v1')
      or (v_operation='food_purchase_receive' and v_rpc<>'offline_food_purchase_receive_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save','recipe_draft_save','recipe_version_activate','prep_item_save','prep_recipe_draft_save','food_po_create','food_po_approve','food_po_cancel','food_purchase_receive') then
+      or (v_operation='inventory_supply_request_submit' and v_rpc<>'offline_inventory_supply_request_submit_v1')
+      or (v_operation='inventory_supply_request_decide' and v_rpc<>'offline_inventory_supply_request_decide_v1')
+      or (v_operation='inventory_supply_request_prepare' and v_rpc<>'offline_inventory_supply_request_prepare_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save','recipe_draft_save','recipe_version_activate','prep_item_save','prep_recipe_draft_save','food_po_create','food_po_approve','food_po_cancel','food_purchase_receive','inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -258,7 +261,13 @@ begin
     when 'offline_food_purchase_order_cancel_v1' then
       v_result := public.offline_food_purchase_order_cancel_v1((v_payload->>'p_purchase_id')::bigint,v_payload->>'p_reason',v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'purchase_id','');
-    when 'offline_food_purchase_receive_v1' then
+    when 'offline_inventory_supply_request_submit_v1' then
+       v_result := public.offline_inventory_supply_request_submit_v1((v_payload->>'p_request_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
+     when 'offline_inventory_supply_request_decide_v1' then
+       v_result := public.offline_inventory_supply_request_decide_v1((v_payload->>'p_request_id')::bigint,coalesce((v_payload->>'p_approve')::boolean,false),coalesce(v_payload->'p_approved_items','[]'::jsonb),v_payload->>'p_note',v_payload->>'p_client_tx_id',v_digest);
+     when 'offline_inventory_supply_request_prepare_v1' then
+       v_result := public.offline_inventory_supply_request_prepare_v1((v_payload->>'p_request_id')::bigint,v_payload->>'p_note',v_payload->>'p_client_tx_id',v_digest);
+     when 'offline_food_purchase_receive_v1' then
       v_result := public.offline_food_purchase_receive_v1((v_payload->>'p_purchase_id')::bigint,coalesce(v_payload->'p_items','[]'::jsonb),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'receipt_id','');
     else
