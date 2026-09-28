@@ -13,8 +13,8 @@ need(v7,'create policy orders_branch_update on public.orders','historical Orders
 need(takeover,"registerOperation('order_status'","Offline takeover registry");
 need(transport,"if(type==='order_status')return {rpc_name:'order_status_apply_offline_v2',rpc_payload:clone(payload)}",'Offline order-status transport');
 need(transport,"if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id)",'dependency-identified local return allowance');
-need(transport,"if(type==='order_status'||type==='delivery_assign_driver')return !numericServerId(payload?.p_order_id)",'order status/driver local dependency defer');
-need(wrapper,"ov2.saveOrderStatus(raw,'delivered')",'Offline delivery durable route');
+need(transport,"if(type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return !numericServerId(payload?.p_order_id)",'order status/driver/delivery local dependency defer');
+need(wrapper,"commitOptionalTxRpc('delivery_mark_delivered_v2'",'Offline delivery durable owner route');
 need(payment,"has_action_permission_v2('orders.payment.review')",'website payment owner');
 need(fulfillment,"has_action_permission_v2('orders.fulfillment.manage')",'fulfillment owner');
 need(assignment,"has_action_permission_v2('orders.delivery.assign_driver')",'driver assignment owner');
