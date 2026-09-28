@@ -19,10 +19,13 @@ async function boot(state){
   let err=null;try{await a.api.saveOrderStatus(55,'preparing','status-tx-1')}catch(e){err=e}
   assert(err?.code==='OFFLINE_OPERATION_NO_SAFE_OWNER','order_status must expose fail-closed owner error');
   assert(a.calls.commits===0,'fail-closed order_status must perform zero durable writes');
+  const deliveryOwner=await a.api.resolveOperationOwner('delivery_assign_driver');
+  assert(deliveryOwner.owner===null&&deliveryOwner.reason==='NO_SAFE_OWNER','inactive delivery assignment must fail closed with no invented legacy owner');
   const b=await boot({active:true,migration_verified:true,transport_ready:true});
-  const v2Sale=await b.api.resolveOperationOwner('sale'),v2Status=await b.api.resolveOperationOwner('order_status');
+  const v2Sale=await b.api.resolveOperationOwner('sale'),v2Status=await b.api.resolveOperationOwner('order_status'),v2Delivery=await b.api.resolveOperationOwner('delivery_assign_driver');
   assert(v2Sale.owner==='v2'&&v2Sale.legacy_ready===true&&v2Sale.exclusive===true,'ready sale must select V2 exclusively even when legacy exists');
   assert(v2Status.owner==='v2'&&v2Status.legacy_ready===false&&v2Status.exclusive===true,'ready order_status must select V2 exclusively');
+  assert(v2Delivery.owner==='v2'&&v2Delivery.legacy_ready===false&&v2Delivery.exclusive===true,'ready delivery assignment must select V2 exclusively');
   await b.ctx.saveOfflineSale({branch_id:7},[],[],'sale-tx-2');
   assert(b.calls.commits===1&&b.calls.legacySales===0,'ready sale must V2-write only, never dual-write');
   await b.api.saveOrderStatus(55,'ready','status-tx-2');
