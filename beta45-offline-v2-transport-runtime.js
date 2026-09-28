@@ -84,6 +84,8 @@ function resolveOperation(type,payload){
   if(type==='customer_address_delete')return {rpc_name:'offline_customer_address_delete_v1',rpc_payload:clone(payload)};
   if(type==='delivery_assign_driver')return {rpc_name:'offline_delivery_assign_driver_v1',rpc_payload:clone(payload)};
   if(type==='supplier_save')return {rpc_name:'offline_food_supplier_save_v1',rpc_payload:clone(payload)};
+  if(type==='driver_save')return {rpc_name:'offline_delivery_driver_save_v1',rpc_payload:clone(payload)};
+  if(type==='zone_save')return {rpc_name:'offline_delivery_zone_save_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
@@ -152,6 +154,8 @@ function registerTransportAdapters(){
   registerOne('customer_address_delete',adapter('customer_address_delete','customer_address',['offline_customer_address_delete_v1']));
   registerOne('delivery_assign_driver',adapter('delivery_assign_driver','order_event',['offline_delivery_assign_driver_v1']));
   registerOne('supplier_save',adapter('supplier_save','supplier',['food_supplier_save_v1']));
+  registerOne('driver_save',adapter('driver_save','delivery_driver',['delivery_driver_save_v2']));
+  registerOne('zone_save',adapter('zone_save','delivery_zone',['delivery_zone_save_v2']));
   return true;
 }
 
@@ -205,6 +209,17 @@ async function projectDirectOperation(type,payload,tx,row){
     const next=[supplier,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_supplier_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
     await global.odbSet('offlineV2Suppliers',next.slice(0,5000));
   }
+  else if(type==='driver_save'){
+    const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Drivers'))||[];
+    const driver={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),phone:payload?.p_phone??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    const next=[driver,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_driver_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
+    await global.odbSet('offlineV2Drivers',next.slice(0,5000));
+  }else if(type==='zone_save'){
+    const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Zones'))||[];
+    const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    const next=[zone,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
+    await global.odbSet('offlineV2Zones',next.slice(0,5000));
+  }
   try{global.dispatchEvent(new CustomEvent('sharawla:offline-v2-projection-changed',{detail:{type,client_tx_id:tx,status:row?.status||'pending'}}))}catch{}
 }
 async function reconcileCompatibilityProjections(){
@@ -214,11 +229,15 @@ async function reconcileCompatibilityProjections(){
   const hasAddresses=rows.some(r=>['customer_address_save','customer_address_delete'].includes(text(r?.operation_type)));
   const hasOrders=rows.some(r=>text(r?.operation_type)==='delivery_assign_driver'||(text(r?.operation_type)==='sale'&&r?.status==='synced'));
   const hasSuppliers=rows.some(r=>text(r?.operation_type)==='supplier_save');
+  const hasDrivers=rows.some(r=>text(r?.operation_type)==='driver_save');
+  const hasZones=rows.some(r=>text(r?.operation_type)==='zone_save');
   let customers=hasCustomers?(clone(await global.odbGet('customersCache'))||[]):null;
   let addresses=hasAddresses?(clone(await global.odbGet('customerAddressesCache'))||[]):null;
   let bundles=hasOrders?(clone(await global.odbGet('cachedOrders'))||[]):null;
   let suppliers=hasSuppliers?(clone(await global.odbGet('offlineV2Suppliers'))||[]):null;
-  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false;
+  let drivers=hasDrivers?(clone(await global.odbGet('offlineV2Drivers'))||[]):null;
+  let zones=hasZones?(clone(await global.odbGet('offlineV2Zones'))||[]):null;
+  let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false;
   for(const row of rows){
     const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{},created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{},pending=row?.status!=='synced';
     if(type==='customer_create'&&customers){
@@ -250,6 +269,14 @@ async function reconcileCompatibilityProjections(){
       const localId=`offline-supplier-${tx}`,serverId=num(serverResult.supplier_id,0),id=serverId||localId;
       const supplier={id,name:text(payload?.p_name),phone:payload?.p_phone??null,email:payload?.p_email??null,tax_no:payload?.p_tax_no??null,address:payload?.p_address??null,notes:payload?.p_notes??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
       suppliers=[supplier,...suppliers.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_supplier_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);suppliersChanged=true;
+    }else if(type==='driver_save'&&drivers){
+      const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||localId;
+      const driver={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),phone:payload?.p_phone??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      drivers=[driver,...drivers.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_driver_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);driversChanged=true;
+    }else if(type==='zone_save'&&zones){
+      const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||localId;
+      const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+      zones=[zone,...zones.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);zonesChanged=true;
     }else if(type==='sale'&&row?.status==='synced'&&bundles){
       const result=serverResult||{},serverOrder=result.order||null,serverId=text(serverOrder?.id||row?.server_ack?.server_entity_id);if(!serverId)continue;
       const localId=`offline-${tx}`;const before=bundles.length;
@@ -263,6 +290,8 @@ async function reconcileCompatibilityProjections(){
   if(addressesChanged)writes.push(global.odbSet('customerAddressesCache',addresses));
   if(ordersChanged)writes.push(global.odbSet('cachedOrders',bundles));
   if(suppliersChanged)writes.push(global.odbSet('offlineV2Suppliers',suppliers));
+  if(driversChanged)writes.push(global.odbSet('offlineV2Drivers',drivers));
+  if(zonesChanged)writes.push(global.odbSet('offlineV2Zones',zones));
   if(writes.length)await Promise.all(writes);
 }
 async function reconcileOrderStatusProjection(){
@@ -315,7 +344,7 @@ function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='customer_address_delete')return !numericServerId(payload?.p_address_id)&&!text(payload?.p_address_save_tx);
   return false;
 }
-function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
+function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
 
 async function ensureEvent(type,payload,tx){
   const api=global.topBurgerDesktop?.offlineV2;if(!api?.event||!api?.commitOperation)throw new Error('Offline V2 event bridge unavailable');
@@ -369,6 +398,8 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='customer_address_delete')result=true;
   else if(type==='delivery_assign_driver')result={ok:true,order_id:payload.p_order_id,driver_id:payload.p_driver_id,status:'out_for_delivery',client_tx_id:tx,_offline:true};
   else if(type==='supplier_save')result=`offline-supplier-${tx}`;
+  else if(type==='driver_save')result=`offline-driver-${tx}`;
+  else if(type==='zone_save')result=`offline-zone-${tx}`;
   else result={ok:true,client_tx_id:tx,_offline:true};
   return {ok:true,durable:true,synced:row?.status==='synced',status:text(row?.status)||'pending',client_tx_id:tx,local_entity_id:text(row?.local_entity_id)||null,result,row};
 }
