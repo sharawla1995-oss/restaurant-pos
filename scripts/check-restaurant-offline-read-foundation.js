@@ -17,7 +17,7 @@ const remote={
 };
 
 function makeRuntime({online,business='biz-a',branch=1}){
- const listeners={};
+ const listeners={};let intervalCallback=null;
  const ctx={
   console,JSON,Date,Map,Set,Promise,URLSearchParams,
   navigator:{onLine:online},
@@ -41,14 +41,14 @@ function makeRuntime({online,business='biz-a',branch=1}){
   document:{querySelector:()=>null},
   setTimeout:()=>0,
   clearTimeout:()=>{},
-  setInterval:()=>1,
+  setInterval:fn=>{intervalCallback=fn;return 1},
   clearInterval:()=>{},
   addEventListener:(n,fn)=>{(listeners[n]||(listeners[n]=[])).push(fn)},
   dispatchEvent:()=>true
  };
  ctx.window=ctx;ctx.globalThis=ctx;
- vm.runInNewContext(source+';globalThis.__testInstallRuntimeRecovery=install;',ctx,{filename:'beta55-4-runtime-recovery.js'});
- ctx.__testInstallRuntimeRecovery();
+ vm.runInNewContext(source,ctx,{filename:'beta55-4-runtime-recovery.js'});
+ if(intervalCallback)intervalCallback();
  return ctx;
 }
 
