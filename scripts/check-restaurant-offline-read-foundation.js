@@ -47,7 +47,8 @@ function makeRuntime({online,business='biz-a',branch=1}){
   dispatchEvent:()=>true
  };
  ctx.window=ctx;ctx.globalThis=ctx;
- vm.runInNewContext(source,ctx,{filename:'beta55-4-runtime-recovery.js'});
+ vm.runInNewContext(source+';globalThis.__testInstallRuntimeRecovery=install;',ctx,{filename:'beta55-4-runtime-recovery.js'});
+ ctx.__testInstallRuntimeRecovery();
  return ctx;
 }
 
