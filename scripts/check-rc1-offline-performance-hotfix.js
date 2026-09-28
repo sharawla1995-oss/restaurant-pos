@@ -13,7 +13,10 @@ const recStart=transport.indexOf('async function reconcileCompatibilityProjectio
 const recEnd=transport.indexOf('async function reconcileOrderStatusProjection(){',recStart);
 must(recStart>=0&&recEnd>recStart,'reconciliation block missing');
 const rec=transport.slice(recStart,recEnd);
-must((rec.match(/odbGet\(/g)||[]).length<=3,'reconciliation must batch cache reads');
-must((rec.match(/odbSet\(/g)||[]).length<=3,'reconciliation must batch cache writes');
+const getKeys=[...rec.matchAll(/global\.odbGet\('([^']+)'\)/g)].map(x=>x[1]);
+const setKeys=[...rec.matchAll(/global\.odbSet\('([^']+)'/g)].map(x=>x[1]);
+must(new Set(getKeys).size===getKeys.length,'reconciliation must read each projection cache at most once');
+must(new Set(setKeys).size===setKeys.length,'reconciliation must write each projection cache at most once');
+must(!/for\s*\([^)]*\)\s*\{[^}]*odbGet\(/s.test(rec),'reconciliation must not perform cache reads inside row loop');
 must(rec.includes("Promise.all(writes)"),'reconciliation writes must be coalesced');
 console.log('RC1 offline performance hotfix gate PASS');
