@@ -301,7 +301,7 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId=`offline-floor-${tx}`,serverId=num(serverResult.floor_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantFloors'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),sort_order:num(payload?.p_sort_order,100),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('offlineV2RestaurantFloors',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_floor_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
-  }else if(['inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare','inventory_supply_request_dispatch','inventory_supply_request_receive'].includes(type))return !numericServerId(payload?.p_request_id);
+  }
    if(type==='table_save'){
     const localId=`offline-table-${tx}`,serverId=num(serverResult.table_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RestaurantTables'))||[];
     const item={id,branch_id:num(payload?.p_branch_id),floor_id:payload?.p_floor_id??null,name:text(payload?.p_name),code:payload?.p_code??null,capacity:Math.max(1,num(payload?.p_capacity,2)),status:payload?.p_active===false?'disabled':'available',active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
