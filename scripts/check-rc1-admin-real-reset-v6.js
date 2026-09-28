@@ -1,27 +1,51 @@
 'use strict';
 const fs=require('fs');
-const sql=fs.readFileSync('supabase-rc1-admin-real-reset-v6.sql','utf8');
+const sql=fs.readFileSync('supabase-rc1-branch-scoped-reset-v7.sql','utf8');
 const app=fs.readFileSync('app.js','utf8');
 const native=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
 const main=fs.readFileSync('main.js','utf8');
 const must=(x,m)=>{if(!x)throw new Error(m)};
+
+must(sql.includes('reset_pos_data_v7(p_branch_id bigint,p_groups text[])'),'V7 branch contract missing');
 must(sql.includes("v_role is distinct from 'admin'"),'admin-only cloud guard missing');
-must(sql.includes("80a007923fd6494a8767b8842d60d29d"),'deployed beta reset definition pin missing');
-must(sql.includes("v_auth_uid:=auth.uid()"),'original admin auth identity capture missing');
-must(sql.includes("set_config('request.jwt.claim.sub',v_auth_uid::text,true)"),'admin auth identity restore missing');
-must(sql.includes("delete from public.expenses where true"),'expenses are not a real reset');
-must(sql.includes("delete from public.shifts where true"),'shifts are not a real reset');
-must(sql.includes("RESET_VERIFY_EXPENSES_NOT_ZERO"),'expense zero verification missing');
-must(sql.includes("RESET_VERIFY_SHIFTS_NOT_ZERO"),'shift zero verification missing');
-must(sql.includes("update public.driver_settlement_items set source_shift_id=null"),'shift RESTRICT child detach missing');
-must(sql.includes("update public.driver_settlements set receiving_shift_id=null"),'settlement shift detach missing');
-must(sql.includes("update public.food_waste_events set shift_id=null"),'food waste shift detach missing');
-must(sql.includes("update public.treasury_movements set shift_id=null"),'treasury shift detach missing');
+must(sql.includes('eb.branch_id=p_branch_id'),'admin branch-access guard missing');
+must(sql.includes("RESET_V7_BRANCH_ACCESS_DENIED"),'branch access fail-closed missing');
+must(sql.includes("RESET_V7_UNSUPPORTED_GROUPS"),'unknown-group fail-closed missing');
+
+for(const [group,needle] of [
+ ['orders','select id from public.orders where branch_id=p_branch_id'],
+ ['expenses','delete from public.expenses where branch_id=p_branch_id'],
+ ['shifts','select id from public.shifts where branch_id=p_branch_id'],
+ ['delivery','delete from public.delivery_zones where branch_id=p_branch_id'],
+ ['catalog','delete from public.branch_products where branch_id=p_branch_id'],
+ ['promos','delete from public.promo_code_branches where branch_id=p_branch_id'],
+ ['audit','delete from public.audit_logs where branch_id=p_branch_id']
+]) must(sql.includes(needle),group+' is not branch-scoped');
+
+must(sql.includes("customers is intentionally business-global"),'customer global-scope contract missing');
+must(sql.includes("'scope','business_global'"),'customer result scope missing');
+must(!sql.includes('delete from public.products where true'),'catalog master must survive branch reset');
+must(!sql.includes('delete from public.categories where true'),'category master must survive branch reset');
+must(!sql.includes('delete from public.promo_codes where true'),'promo master must survive branch reset');
+must(!sql.includes('delete from public.payment_methods where true'),'payment master must survive branch reset');
+must(!sql.includes('delete from public.app_settings where true'),'global app settings must survive branch reset');
+must(!sql.includes('delete from public.employee_permissions'),'employee-global permissions must survive branch reset');
+
+must(sql.includes('order_id in(select id from _reset_v7_orders)'),'order child-ID scoping missing');
+must(sql.includes('return_id in(select id from _reset_v7_returns)'),'return child-ID scoping missing');
+must(sql.includes('update public.branch_invoice_counters set next_number=1 where branch_id=p_branch_id'),'invoice counter branch scope missing');
+must(sql.includes('update public.branch_return_counters set next_number=1 where branch_id=p_branch_id'),'return counter branch scope missing');
+must(sql.includes('delete from public.shift_bon_counters where branch_id=p_branch_id'),'BON counter branch scope missing');
+
 must(app.includes("backup.create('pre-reset-full')"),'full local pre-reset backup missing');
 must(app.includes("createDesktopFullBackup('pre-reset-full')"),'full cloud pre-reset backup missing');
-must(app.indexOf("backup.create('pre-reset-full')")<app.indexOf("req('/rest/v1/rpc/reset_pos_data'"),'destructive cloud reset happens before backup');
-must(native.includes("Offline V2 scoped reset verification failed"),'Offline V2 zero verification missing');
+must(app.includes("req('/rest/v1/rpc/reset_pos_data_v7'"),'renderer is not using V7');
+must(app.includes('p_branch_id:branchId,p_groups:groups'),'renderer does not pass current branch');
+must(!app.includes("req('/rest/v1/rpc/reset_pos_data',{method:'POST'"),'unsafe legacy reset fallback still reachable');
+must(app.indexOf("backup.create('pre-reset-full')")<app.indexOf("req('/rest/v1/rpc/reset_pos_data_v7'"),'destructive cloud reset happens before backup');
+
+must(native.includes("Offline V2 scoped reset verification failed"),'Offline V2 selected-group verification missing');
 must(native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'protected reset sequences contract missing');
-must(native.slice(native.indexOf('async function resetTestGroups'),native.indexOf('async function resetTestAll')).includes('device_sequence NOT IN'),'explicit group reset must preserve protected sequences');
-must(main.includes('Sandbox scoped reset verification failed'),'legacy/cache zero verification missing');
-console.log('RC1 admin real reset V6 source gate PASS');
+must(main.includes('Sandbox scoped reset verification failed'),'legacy/cache selected-group verification missing');
+
+console.log('RC1 branch-scoped reset V7 source gate PASS');
