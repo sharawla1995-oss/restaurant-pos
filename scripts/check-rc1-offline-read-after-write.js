@@ -132,6 +132,24 @@ async function testPersistentReloadAndNativeAuthority(){
  assert.strictEqual((await nativeOnly.ctx.rest('orders','select=*&id=eq.offline-native-authority')).length,1,'Native durable outbox must remain readable when compatibility cache projection fails');
 }
 
+async function testOrderStatusReloadAckNoResurrection(){
+ const db=new Map(),sale=saleEvent('status-reload-sale',{orderType:'pickup',statusValue:'new',created:'2026-09-27T12:30:00.000Z'});
+ const patch=nativeEvent('order_status','status-reload-patch',{p_order_id:sale.local_entity_id,p_target_status:'ready'},{localId:'offline-status-reload-patch',created:'2026-09-27T12:31:00.000Z'});
+ const events=[sale,patch];
+ let env=await makeRecovery({db,events,online:false}),rows=await env.ctx.rest('orders',`select=*&id=eq.${sale.local_entity_id}`);
+ assert.strictEqual(rows.length,1,'pending order status must remain one row before reload');assert.strictEqual(rows[0].status,'ready','pending order status projection missing before reload');
+ env=await makeRecovery({db,events,online:false});rows=await env.ctx.rest('orders',`select=*&id=eq.${sale.local_entity_id}`);
+ assert.strictEqual(rows.length,1,'pending order status duplicated after runtime reload');assert.strictEqual(rows[0].status,'ready','pending order status was lost after runtime reload');
+ sale.status='synced';sale.server_ack={server_entity_id:880,result:{order:{id:880,client_tx_id:'status-reload-sale',branch_id:1,order_type:'pickup',status:'new',created_at:sale.created_local_at}}};
+ patch.status='synced';patch.server_ack={server_entity_id:880,result:{order_id:880,status:'ready'}};
+ const remote={orders:[{id:880,client_tx_id:'status-reload-sale',branch_id:1,order_type:'pickup',status:'ready',created_at:sale.created_local_at}]};
+ env=await makeRecovery({db,events,online:true,remote});rows=await env.ctx.rest('orders','select=*&branch_id=eq.1&order_type=eq.pickup');
+ assert.strictEqual(rows.filter(x=>String(x.id)==='880'||x.client_tx_id==='status-reload-sale').length,1,'ACK reconciliation must collapse local/server status identity to one row');
+ env=await makeRecovery({db,events,online:false,remote});rows=await env.ctx.rest('orders','select=*&branch_id=eq.1&order_type=eq.pickup');
+ const canonical=rows.filter(x=>String(x.id)==='880'||x.client_tx_id==='status-reload-sale');
+ assert.strictEqual(canonical.length,1,'reconciled order resurrected or duplicated after second reload');assert.strictEqual(String(canonical[0].id),'880','canonical server identity was not retained after reload');assert.strictEqual(canonical[0].status,'ready','reconciled status regressed after reload');
+}
+
 async function testNativePatchesAndTombstones(){
  const shiftId='offline-shift-lifecycle',order=saleEvent('status-sale',{shiftId,orderType:'pickup',statusValue:'new'}),events=[
   nativeEvent('shift_open','shift-open',{p_branch_id:1,p_opening_cash:40},{localId:shiftId}),
@@ -211,6 +229,7 @@ async function run(){
  await testLegacyFallback();
  await testFilteringAndCustomerIsolation();
  await testPersistentReloadAndNativeAuthority();
+ await testOrderStatusReloadAckNoResurrection();
  await testNativePatchesAndTombstones();
  await testExpenseImmediateRefresh();
  await runShiftProjectionRegression();
