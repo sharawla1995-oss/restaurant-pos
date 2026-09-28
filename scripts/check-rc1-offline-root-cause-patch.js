@@ -21,8 +21,10 @@ must(fulfillment.includes('const id=Number(serverId||localId)'),'online fulfillm
 for(const status of ['preparing','ready','completed'])must(app.includes(`await router.transition(o,'${status}')`),`app must pass full order identity for ${status}`);
 must(app.includes("console.error('Delivery order action failed',error)"),'delivery modal action error boundary missing');
 must(!delivery.includes("ONLINE_ONLY_INTERNET_REQUIRED"),'delivery settings must no longer be hard online-only');
-must(delivery.includes("t?.commitRpcLocal"),'delivery settings must route offline mutations through durable V2 transport');
-must(delivery.includes("e.code='OFFLINE_OPERATION_NO_SAFE_OWNER'"),'delivery settings must fail closed when V2 owner is unavailable');
-must(delivery.includes("commitRpcLocal('delivery_driver_save_v2'"),'driver save durable offline owner missing');
-must(delivery.includes("commitRpcLocal('delivery_zone_save_v2'"),'zone save durable offline owner missing');
+must(delivery.includes("t?.commitOptionalTxRpc"),'delivery settings must route mutations through V2-aware durable transport');
+must(delivery.includes("commitOptionalTxRpc('delivery_driver_save_v2'"),'driver save V2-aware owner missing');
+must(delivery.includes("commitOptionalTxRpc('delivery_zone_save_v2'"),'zone save V2-aware owner missing');
+const runtime=read('beta45-offline-v2-transport-runtime.js');
+must(runtime.includes("e.code='OFFLINE_OPERATION_NO_SAFE_OWNER'"),'optional-TX transport must fail closed when V2 owner is unavailable');
+must(runtime.includes("offline?commitRpcLocal(name,withTx):authoritativeRpc(name,withTx)"),'optional-TX transport must preserve durable local and authoritative online V2 ownership');
 console.log('RC1 offline root-cause patch gate PASS');
