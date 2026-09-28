@@ -388,7 +388,6 @@ const RESET_GROUP_OPERATIONS=Object.freeze({
   customers:['customer_create','customer_update','customer_address_save','customer_address_delete'],
   delivery:[]
 });
-const RESET_PROTECTED_DEVICE_SEQUENCES=Object.freeze([293,304,316]);
 async function resetTestGroups(input={}){
   await ready();
   return serializeWrite(async()=>{
@@ -400,12 +399,11 @@ async function resetTestGroups(input={}){
     const opMarks=operations.map(()=>'?').join(',');
     await exec('BEGIN IMMEDIATE TRANSACTION');
     try{
-      // Preserve the historical acceptance sequences even during a selected Reset.
-      // They are durable recovery evidence and must never be destroyed by admin cleanup.
-      const protectedMarks=RESET_PROTECTED_DEVICE_SEQUENCES.map(()=>'?').join(',');
+      // Selected TEST reset removes every matching Offline V2 operation.
+      // Historical acceptance sequences are not runtime-protected reset state.
       const txRows=await all(
-        `SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks}) AND device_sequence NOT IN (${protectedMarks})`,
-        [...operations,...RESET_PROTECTED_DEVICE_SEQUENCES]
+        `SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks})`,
+        operations
       );
       const txs=txRows.map(r=>text(r.client_tx_id)).filter(Boolean);
       if(txs.length){
