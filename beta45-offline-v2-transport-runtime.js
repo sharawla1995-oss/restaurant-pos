@@ -102,6 +102,7 @@ function resolveOperation(type,payload){
   if(type==='food_po_cancel')return {rpc_name:'offline_food_purchase_order_cancel_v1',rpc_payload:clone(payload)};
   if(type==='food_purchase_receive')return {rpc_name:'offline_food_purchase_receive_v1',rpc_payload:clone(payload)};
   if(type==='food_supplier_return')return {rpc_name:'offline_food_supplier_return_create_v1',rpc_payload:clone(payload)};
+  if(type==='food_stock_count')return {rpc_name:'offline_food_stock_count_post_v1',rpc_payload:clone(payload)};
   throw new Error(`Offline V2 transport target is not registered: ${type}`);
 }
 function dependencyTx(type,payload={}){
@@ -190,6 +191,7 @@ function registerTransportAdapters(){
   registerOne('food_po_cancel',adapter('food_po_cancel','food_purchase_order',['food_purchase_order_cancel_v1']));
   registerOne('food_purchase_receive',adapter('food_purchase_receive','food_purchase_receipt',['food_purchase_receive_v1']));
   registerOne('food_supplier_return',adapter('food_supplier_return','food_supplier_return',['food_supplier_return_create_v1']));
+  registerOne('food_stock_count',adapter('food_stock_count','food_stock_count',['food_stock_count_post_v1']));
   return true;
 }
 
@@ -269,6 +271,10 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId=`offline-food-supplier-return-${tx}`,serverId=num(serverResult.supplier_return_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2FoodSupplierReturns'))||[];
     const item={id,branch_id:payload?.p_branch_id,supplier_id:payload?.p_supplier_id??null,notes:payload?.p_notes??null,items:clone(payload?.p_items||[]),client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending',stock_authority:'server_ack_only'};
     await global.odbSet('offlineV2FoodSupplierReturns',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+  }else if(type==='food_stock_count'){
+    const localId=`offline-food-stock-count-${tx}`,serverId=num(serverResult.stock_count_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2FoodStockCounts'))||[];
+    const item={id,branch_id:payload?.p_branch_id,notes:payload?.p_notes??null,items:clone(payload?.p_items||[]),client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending',stock_authority:'server_ack_only'};
+    await global.odbSet('offlineV2FoodStockCounts',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
   }else if(type==='food_po_create'){
     const localId=`offline-food-po-${tx}`,serverId=num(serverResult.purchase_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2FoodPurchaseOrders'))||[];
     const total=(Array.isArray(payload?.p_items)?payload.p_items:[]).reduce((a,x)=>a+num(x?.quantity,0)*num(x?.unit_cost,0),0);
@@ -333,6 +339,7 @@ async function reconcileCompatibilityProjections(){
   const foodPoRows=rows.filter(r=>['food_po_create','food_po_approve','food_po_cancel'].includes(text(r?.operation_type)));
   const foodReceiptRows=rows.filter(r=>text(r?.operation_type)==='food_purchase_receive');
   const foodSupplierReturnRows=rows.filter(r=>text(r?.operation_type)==='food_supplier_return');
+  const foodStockCountRows=rows.filter(r=>text(r?.operation_type)==='food_stock_count');
   let customers=hasCustomers?(clone(await global.odbGet('customersCache'))||[]):null;
   let addresses=hasAddresses?(clone(await global.odbGet('customerAddressesCache'))||[]):null;
   let bundles=hasOrders?(clone(await global.odbGet('cachedOrders'))||[]):null;
@@ -351,6 +358,7 @@ async function reconcileCompatibilityProjections(){
   for(const row of foodPoRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of foodReceiptRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of foodSupplierReturnRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+  for(const row of foodStockCountRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of rows){
     const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{},created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{},pending=row?.status!=='synced';
     if(type==='customer_create'&&customers){
@@ -518,6 +526,7 @@ function mustUseOriginalEntityFallback(type,payload={}){
   if(type==='food_po_approve'||type==='food_po_cancel')return !numericServerId(payload?.p_purchase_id);
   if(type==='food_purchase_receive')return !numericServerId(payload?.p_purchase_id)||(Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.purchase_item_id));
   if(type==='food_supplier_return')return (payload?.p_supplier_id!=null&&!numericServerId(payload.p_supplier_id))||(Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.ingredient_id));
+  if(type==='food_stock_count')return (Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.ingredient_id));
   if(type==='recipe_draft_save'){
     const refs=[...(Array.isArray(payload?.p_lines)?payload.p_lines:[]),...(Array.isArray(payload?.p_modifier_impacts)?payload.p_modifier_impacts:[]),...(Array.isArray(payload?.p_removal_mappings)?payload.p_removal_mappings:[])];
     return refs.some(x=>!numericServerId(x?.ingredient_id));
@@ -528,7 +537,7 @@ function mustUseOriginalEntityFallback(type,payload={}){
   }
   return false;
 }
-function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='floor_save'){const n=Number(result?.floor_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 floor ACK missing floor_id');return n}if(type==='table_save'){const n=Number(result?.table_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table ACK missing table_id');return n}if(type==='table_session_open'||type==='table_session_attach'||type==='table_session_close'){const n=Number(result?.session_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table session ACK missing session_id');return n}if(type==='ingredient_save'){const n=Number(result?.ingredient_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient ACK missing ingredient_id');return n}if(type==='ingredient_conversion_save'){const n=Number(result?.conversion_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient conversion ACK missing conversion_id');return n}if(type==='food_purchase_receive'){const n=Number(result?.receipt_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food receipt ACK missing receipt_id');return n}if(type==='food_supplier_return'){const n=Number(result?.supplier_return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food supplier return ACK missing supplier_return_id');return n}if(type==='food_po_create'||type==='food_po_approve'||type==='food_po_cancel'){const n=Number(result?.purchase_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food PO ACK missing purchase_id');return n}if(type==='prep_item_save'){const n=Number(result?.prep_item_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 prep item ACK missing prep_item_id');return n}if(type==='prep_recipe_draft_save'||type==='recipe_draft_save'||type==='recipe_version_activate'){const n=Number(result?.recipe_version_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 recipe ACK missing recipe_version_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
+function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='floor_save'){const n=Number(result?.floor_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 floor ACK missing floor_id');return n}if(type==='table_save'){const n=Number(result?.table_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table ACK missing table_id');return n}if(type==='table_session_open'||type==='table_session_attach'||type==='table_session_close'){const n=Number(result?.session_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table session ACK missing session_id');return n}if(type==='ingredient_save'){const n=Number(result?.ingredient_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient ACK missing ingredient_id');return n}if(type==='ingredient_conversion_save'){const n=Number(result?.conversion_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient conversion ACK missing conversion_id');return n}if(type==='food_purchase_receive'){const n=Number(result?.receipt_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food receipt ACK missing receipt_id');return n}if(type==='food_supplier_return'){const n=Number(result?.supplier_return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food supplier return ACK missing supplier_return_id');return n}if(type==='food_stock_count'){const n=Number(result?.stock_count_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food stock count ACK missing stock_count_id');return n}if(type==='food_po_create'||type==='food_po_approve'||type==='food_po_cancel'){const n=Number(result?.purchase_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food PO ACK missing purchase_id');return n}if(type==='prep_item_save'){const n=Number(result?.prep_item_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 prep item ACK missing prep_item_id');return n}if(type==='prep_recipe_draft_save'||type==='recipe_draft_save'||type==='recipe_version_activate'){const n=Number(result?.recipe_version_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 recipe ACK missing recipe_version_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
 
 async function ensureEvent(type,payload,tx){
   const api=global.topBurgerDesktop?.offlineV2;if(!api?.event||!api?.commitOperation)throw new Error('Offline V2 event bridge unavailable');
@@ -604,6 +613,7 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='food_po_approve'||type==='food_po_cancel')result=payload?.p_purchase_id;
   else if(type==='food_purchase_receive')result=`offline-food-receipt-${tx}`;
   else if(type==='food_supplier_return')result=`offline-food-supplier-return-${tx}`;
+  else if(type==='food_stock_count')result=`offline-food-stock-count-${tx}`;
   else result={ok:true,client_tx_id:tx,_offline:true};
   return {ok:true,durable:true,synced:row?.status==='synced',status:text(row?.status)||'pending',client_tx_id:tx,local_entity_id:text(row?.local_entity_id)||null,result,row};
 }
