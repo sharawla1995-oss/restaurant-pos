@@ -41,6 +41,52 @@ begin
  return v_result;
 end;$$;
 
+
+create or replace function public.offline_delivery_driver_save_v1(
+ p_driver_id bigint,p_branch_id bigint,p_name text,p_phone text,p_active boolean,
+ p_client_tx_id text,p_payload_digest text
+) returns jsonb
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;v_id bigint;v_result jsonb;
+begin
+ if auth.uid() is null then raise exception 'UNAUTHENTICATED'; end if;
+ if v_tx is null or v_d is null then raise exception 'OFFLINE_DRIVER_IDENTITY_REQUIRED'; end if;
+ perform pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0));
+ select * into r from public.offline_restaurant_reference_receipts_v1 where client_tx_id=v_tx;
+ if found then if r.operation_type<>'driver_save' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH'; end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
+ v_id:=public.delivery_driver_save_v2(p_driver_id,p_branch_id,p_name,p_phone,p_active);
+ if v_id is null then raise exception 'OFFLINE_DRIVER_RESULT_MISSING'; end if;
+ v_result:=jsonb_build_object('ok',true,'driver_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+ insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'driver_save',v_d,v_id,v_result);
+ return v_result;
+end;$;
+
+create or replace function public.offline_delivery_zone_save_v1(
+ p_zone_id bigint,p_branch_id bigint,p_name text,p_delivery_fee numeric,p_active boolean,
+ p_client_tx_id text,p_payload_digest text
+) returns jsonb
+language plpgsql security definer set search_path=pg_catalog,public
+as $
+declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;v_id bigint;v_result jsonb;
+begin
+ if auth.uid() is null then raise exception 'UNAUTHENTICATED'; end if;
+ if v_tx is null or v_d is null then raise exception 'OFFLINE_ZONE_IDENTITY_REQUIRED'; end if;
+ perform pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0));
+ select * into r from public.offline_restaurant_reference_receipts_v1 where client_tx_id=v_tx;
+ if found then if r.operation_type<>'zone_save' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH'; end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
+ v_id:=public.delivery_zone_save_v2(p_zone_id,p_branch_id,p_name,p_delivery_fee,p_active);
+ if v_id is null then raise exception 'OFFLINE_ZONE_RESULT_MISSING'; end if;
+ v_result:=jsonb_build_object('ok',true,'zone_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+ insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'zone_save',v_d,v_id,v_result);
+ return v_result;
+end;$;
+
+revoke all on function public.offline_delivery_driver_save_v1(bigint,bigint,text,text,boolean,text,text) from public,anon;
+revoke all on function public.offline_delivery_zone_save_v1(bigint,bigint,text,numeric,boolean,text,text) from public,anon;
+grant execute on function public.offline_delivery_driver_save_v1(bigint,bigint,text,text,boolean,text,text) to authenticated;
+grant execute on function public.offline_delivery_zone_save_v1(bigint,bigint,text,numeric,boolean,text,text) to authenticated;
+
 revoke all on function public.offline_food_supplier_save_v1(bigint,text,text,text,text,text,text,boolean,text,text) from public,anon;
 grant execute on function public.offline_food_supplier_save_v1(bigint,text,text,text,text,text,text,boolean,text,text) to authenticated;
 
