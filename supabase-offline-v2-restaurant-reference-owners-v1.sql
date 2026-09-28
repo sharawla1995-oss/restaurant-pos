@@ -226,5 +226,22 @@ end;$;
 revoke all on function public.offline_food_recipe_save_draft_v1(bigint,bigint,text,numeric,text,jsonb,jsonb,jsonb,text,text,text) from public,anon;
 grant execute on function public.offline_food_recipe_save_draft_v1(bigint,bigint,text,numeric,text,jsonb,jsonb,jsonb,text,text,text) to authenticated;
 
+create or replace function public.offline_food_recipe_activate_version_v1(
+ p_recipe_version_id bigint,p_client_tx_id text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $
+declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;v_id bigint;v_result jsonb;
+begin
+ if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_tx is null or v_d is null then raise exception 'OFFLINE_RECIPE_ACTIVATE_IDENTITY_REQUIRED';end if;
+ perform pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0));select * into r from public.offline_restaurant_reference_receipts_v1 where client_tx_id=v_tx;
+ if found then if r.operation_type<>'recipe_version_activate' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
+ if p_recipe_version_id is null or not exists(select 1 from public.food_recipe_versions where id=p_recipe_version_id) then raise exception 'OFFLINE_RECIPE_VERSION_DEPENDENCY_UNRESOLVED';end if;
+ v_id:=public.food_recipe_activate_version_v1(p_recipe_version_id);if v_id is null then raise exception 'OFFLINE_RECIPE_ACTIVATE_RESULT_MISSING';end if;
+ v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+ insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'recipe_version_activate',v_d,v_id,v_result);return v_result;
+end;$;
+
+revoke all on function public.offline_food_recipe_activate_version_v1(bigint,text,text) from public,anon;
+grant execute on function public.offline_food_recipe_activate_version_v1(bigint,text,text) to authenticated;
+
 notify pgrst,'reload schema';
 commit;
