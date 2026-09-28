@@ -254,7 +254,13 @@ async function syncContext(){
 async function projectDirectOperation(type,payload,tx,row){
   if(typeof global.odbGet!=='function'||typeof global.odbSet!=='function')return;
   const pending=row?.status!=='synced',created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{};
-  if(type==='customer_create'){
+  if(type==='shift_open'){
+    const localId=`offline-shift-${tx}`,serverId=num(serverResult?.id??serverResult?.shift_id,0),id=serverId||localId,local={id,branch_id:payload?.p_branch_id,employee_id:runtimeEmployee(),opening_cash:Number(payload?.p_opening_cash||0),status:'open',opened_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(`openShift:${runtimeEmployee()}:${payload?.p_branch_id}`,local);const hist=clone(await global.odbGet(`shiftHistory:${payload?.p_branch_id}`))||[];await global.odbSet(`shiftHistory:${payload?.p_branch_id}`,[local,...hist.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,100));
+  }else if(type==='expense'){
+    const localId=`offline-exp-${tx}`,serverId=num(serverResult?.id??serverResult?.expense_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Expenses'))||[],item={id,branch_id:runtimeBranch(),employee_id:runtimeEmployee(),shift_id:payload?.p_shift_id,description:payload?.p_description,amount:Number(payload?.p_amount||0),created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet('offlineV2Expenses',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+  }else if(type==='shift_close'){
+    const key=`openShift:${runtimeEmployee()}:${runtimeBranch()}`,open=clone(await global.odbGet(key));if(open&&String(open.id)===String(payload?.p_shift_id)){const closed={...open,status:'closed',closing_cash:Number(payload?.p_closing_cash||0),closed_at:created,...clone(payload?.p_metrics||{}),client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(key,null);const hist=clone(await global.odbGet(`shiftHistory:${runtimeBranch()}`))||[];await global.odbSet(`shiftHistory:${runtimeBranch()}`,[closed,...hist.filter(x=>String(x.id)!==String(open.id)&&String(x.client_tx_id||'')!==tx)].slice(0,100))}
+  }else if(type==='customer_create'){
     const localId=`offline-customer-${tx}`,serverId=num(serverResult.customer_id,0),id=serverId||localId;
     const customer={id,name:text(payload?.p_name)||text(payload?.p_phone),phone:text(payload?.p_phone),area:payload?.p_area??null,address:payload?.p_address??null,notes:payload?.p_notes??null,created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     const all=clone(await global.odbGet('customersCache'))||[];
@@ -715,7 +721,10 @@ async function commitRpcLocal(name,payload={}){
   await projectDirectOperation(type,payload,tx,row);
   let result;
   if(row?.status==='synced')result=unwrapResult(type,row);
-  else if(type==='customer_create')result=`offline-customer-${tx}`;
+  else if(type==='shift_open')result=`offline-shift-${tx}`;
+   else if(type==='expense')result=`offline-exp-${tx}`;
+   else if(type==='shift_close')result={...clone(payload?.p_metrics||{}),id:payload?.p_shift_id,status:'closed',closing_cash:Number(payload?.p_closing_cash||0),closed_at:nowIso(),client_tx_id:tx,_offline:true};
+   else if(type==='customer_create')result=`offline-customer-${tx}`;
   else if(type==='customer_update')result=payload.p_customer_id??`offline-customer-${text(payload.p_customer_create_tx)}`;
   else if(type==='customer_address_save')result=`offline-customer_address_save-${tx}`;
   else if(type==='customer_address_delete')result=true;
