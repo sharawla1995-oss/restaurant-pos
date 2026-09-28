@@ -1,0 +1,18 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=path.resolve(__dirname,'..');
+const base=fs.readFileSync(path.join(root,'supabase-beta45-offline-v2-transport-v1.sql'),'utf8');
+const ext=fs.readFileSync(path.join(root,'supabase-offline-v2-restaurant-reference-transport-v1.sql'),'utf8');
+const owner=fs.readFileSync(path.join(root,'supabase-offline-v2-restaurant-reference-owners-v1.sql'),'utf8');
+const ops=['sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver'];
+for(const op of ops)assert(ext.includes(`'${op}'`),`transport extension dropped legacy binding: ${op}`);
+const rpcs=['create_food_pos_order_atomic_v1','create_food_order_return_idempotent_v1','create_pos_expense_idempotent','open_pos_shift_idempotent','close_pos_shift_idempotent','order_status_apply_offline_v2','offline_customer_create_v1','offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1','offline_delivery_assign_driver_v1'];
+for(const rpc of rpcs)assert(ext.includes(rpc),`transport extension dropped RPC: ${rpc}`);
+assert(ext.includes("v_operation='supplier_save' and v_rpc<>'offline_food_supplier_save_v1'"),'supplier operation/RPC binding is not fail-closed');
+assert(ext.includes("when 'offline_food_supplier_save_v1' then"),'supplier replay dispatch missing');
+assert(ext.includes("v_payload->>'p_client_tx_id',v_digest"),'supplier wrapper does not receive envelope identity/digest');
+assert(owner.includes("pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0))"),'supplier owner missing transaction lock');
+assert(owner.includes("r.operation_type<>'supplier_save' or r.payload_digest<>v_d"),'supplier owner missing replay mismatch guard');
+assert(owner.includes("v_id:=public.food_supplier_save_v1"),'supplier owner does not delegate to permission-checked canonical RPC');
+assert(owner.includes("values(v_tx,'supplier_save',v_d,v_id,v_result)"),'supplier owner missing durable receipt');
+assert(!ext.includes('drop table')&&!ext.includes('truncate '),'transport extension contains destructive SQL');
+console.log('Restaurant supplier Offline V2 transport contract gate PASS');
