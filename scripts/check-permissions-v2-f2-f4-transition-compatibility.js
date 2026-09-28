@@ -4,7 +4,7 @@ const contracts={
  'permissions-v2-customers-create-routing.js':["rpc('customer_create_v2'"],
  'permissions-v2-customers-edit-address-routing.js':["rpc('customer_update_v2'","rpc('customer_address_save_v2'","rpc('customer_address_delete_v2'"],
  'permissions-v2-expense-edit-routing.js':["rpc('expense_update_v2'"],
- 'permissions-v2-delivery-settings-routing.js':["rpc('delivery_driver_save_v2'","rpc('delivery_zone_save_v2'"]
+ 'permissions-v2-delivery-settings-routing.js':["commitOptionalTxRpc('delivery_driver_save_v2'","commitOptionalTxRpc('delivery_zone_save_v2'"]
 };
 for(const [file,rpcs] of Object.entries(contracts)){
  const s=fs.readFileSync(file,'utf8');
