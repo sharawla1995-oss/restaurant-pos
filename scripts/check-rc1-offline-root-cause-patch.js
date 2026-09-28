@@ -20,6 +20,9 @@ must(fulfillment.includes("const serverId=String(order?._server_entity_id??'').t
 must(fulfillment.includes('const id=Number(serverId||localId)'),'online fulfillment must prefer server identity');
 for(const status of ['preparing','ready','completed'])must(app.includes(`await router.transition(o,'${status}')`),`app must pass full order identity for ${status}`);
 must(app.includes("console.error('Delivery order action failed',error)"),'delivery modal action error boundary missing');
-must(delivery.includes("e.code='ONLINE_ONLY_INTERNET_REQUIRED'"),'delivery settings online-only fail-closed code missing');
-must(delivery.includes('لم يتم حفظ أي تعديل'),'delivery settings offline message must state no mutation was saved');
+must(!delivery.includes("ONLINE_ONLY_INTERNET_REQUIRED"),'delivery settings must no longer be hard online-only');
+must(delivery.includes("t?.commitRpcLocal"),'delivery settings must route offline mutations through durable V2 transport');
+must(delivery.includes("e.code='OFFLINE_OPERATION_NO_SAFE_OWNER'"),'delivery settings must fail closed when V2 owner is unavailable');
+must(delivery.includes("commitRpcLocal('delivery_driver_save_v2'"),'driver save durable offline owner missing');
+must(delivery.includes("commitRpcLocal('delivery_zone_save_v2'"),'zone save durable offline owner missing');
 console.log('RC1 offline root-cause patch gate PASS');
