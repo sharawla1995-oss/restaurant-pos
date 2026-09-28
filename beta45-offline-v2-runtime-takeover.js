@@ -122,6 +122,7 @@ registerOperation('shift_close',standardAdapter('shift_close','shift_event',['cl
 registerOperation('customer_create',standardAdapter('customer_create','customer'));
 registerOperation('inventory_movement',standardAdapter('inventory_movement','inventory_movement'));
 registerOperation('order_status',standardAdapter('order_status','order_event'));
+registerOperation('delivery_assign_driver',standardAdapter('delivery_assign_driver','order_event'));
 
 async function ensureCommitted(type,payload,forcedTx=null){
   const adapter=registry.get(type);if(!adapter)throw new Error(`Offline V2 adapter missing: ${type}`);
