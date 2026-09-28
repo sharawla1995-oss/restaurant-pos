@@ -40,6 +40,7 @@ async function canonicalIdentity(){
 function desktopApi(){const api=global.topBurgerDesktop?.offlineV2;if(!api?.commitOperation||!api?.takeoverState)throw new Error('Offline V2 desktop bridge unavailable');return api}
 async function takeoverState(){return desktopApi().takeoverState()}
 async function isTakeoverActive(){const s=await takeoverState();return s?.active===true&&s?.migration_verified===true&&s?.transport_ready===true}
+async function resolveOperationOwner(type){type=text(type);const takeover=await takeoverState();const v2Ready=takeover?.active===true&&takeover?.migration_verified===true&&takeover?.transport_ready===true&&registry.has(type);const legacyReady=!!({sale:base?.saveOfflineSale,return:base?.saveOfflineReturn,expense:base?.saveOfflineExpense,shift_open:base?.saveOfflineShiftOpen,shift_close:base?.saveOfflineShiftClose}[type]);if(v2Ready)return Object.freeze({operation_type:type,owner:'v2',v2_ready:true,legacy_ready:legacyReady,exclusive:true,takeover});if(legacyReady)return Object.freeze({operation_type:type,owner:'legacy',v2_ready:false,legacy_ready:true,exclusive:true,takeover});return Object.freeze({operation_type:type,owner:null,v2_ready:false,legacy_ready:false,exclusive:true,takeover,reason:'NO_SAFE_OWNER'})}
 
 function registerOperation(type,adapter={}){
   type=text(type);
@@ -223,7 +224,8 @@ async function saveReturnV2(o,selected,reason,notes,method,total,available,provi
   return result;
 }
 async function saveOrderStatusV2(orderId,targetStatus,providedClientTx=null){
-  if(!(await isTakeoverActive()))throw Object.assign(new Error('Offline V2 order status requires active takeover'),{code:'OFFLINE_V2_ORDER_STATUS_TAKEOVER_REQUIRED'});
+  const ownership=await resolveOperationOwner('order_status');
+  if(ownership.owner!=='v2')throw Object.assign(new Error('Offline order status has no safe active mutation owner'),{code:'OFFLINE_OPERATION_NO_SAFE_OWNER',operation_type:'order_status',ownership});
   const target=text(targetStatus).toLowerCase();
   if(!['preparing','ready','completed','delivered'].includes(target))throw Object.assign(new Error('Offline V2 order status target invalid'),{code:'OFFLINE_V2_ORDER_STATUS_TARGET_INVALID'});
   const tx=text(providedClientTx)||uid();
@@ -307,7 +309,7 @@ function install(){
   // Expose explicit controls for later acceptance/takeover. Nothing below arms,
   // migrates or activates automatically.
   global.SharawlaOfflineV2Takeover=Object.freeze({
-    version:VERSION,registerOperation,registerRpc,operationTypes:()=>[...registry.keys()],rpcMappings:()=>Object.fromEntries(rpcToOperation),
+    version:VERSION,registerOperation,registerRpc,operationTypes:()=>[...registry.keys()],rpcMappings:()=>Object.fromEntries(rpcToOperation),resolveOperationOwner,
     state:takeoverState,arm:armTakeover,prepareMigration:prepareLegacyMigration,activate:activateTakeover,deactivate:deactivateTakeover,
     isMigrationLocked:()=>migrationLock,saveOrderStatus:saveOrderStatusV2,saveExpense:saveExpenseV2,saveReturn:saveReturnV2,saveShiftOpen:saveShiftOpenV2,saveShiftClose:saveShiftCloseV2
   });
