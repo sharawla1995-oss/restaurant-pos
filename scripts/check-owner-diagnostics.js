@@ -8,6 +8,8 @@ const index=read('index.html');
 const retail=read('retail-engine.js');
 const checkout=read('beta23-full-retail.js');
 const sw=read('sw.js');
+const universal=read('owner-diagnostics-universal-v2.js');
+const networkLab=read('owner-acceptance-network-lab.js');
 
 if(!/^10\.5\.4-beta\.\d+(?:\.\d+)*$/.test(pkg.version))throw new Error(`Unexpected Beta version: ${pkg.version}`);
 for(const token of [
@@ -33,4 +35,8 @@ for(const token of ["deliveryOrders:'delivery'","deliverySettings:'delivery'","'
 if(retail.includes("'kitchen'",retail.indexOf('ALL_PAGES'))||retail.includes("'tables'",retail.indexOf('ALL_PAGES')))throw new Error('Retail ALL_PAGES must not expose kitchen/tables');
 for(const token of ["rows('delivery_drivers'","rows('delivery_zones'",'function start(){observe()}','<option value="delivery">دليفري / توصيل</option>'])if(!checkout.includes(token))throw new Error(`Retail checkout delivery wiring missing: ${token}`);
 if(checkout.includes("rows('drivers'"))throw new Error('Retail checkout still queries legacy drivers table');
+
+for(const token of ['ownerNetworkLabDisable','disableAcceptanceNetworkFault',"lab.disable('owner-diagnostics-return-online')","after.enabled===true","String(after.mode||'online').toLowerCase()!=='online'"])if(!universal.includes(token))throw new Error(`Owner diagnostics return-online control missing: ${token}`);
+for(const token of ["async function disable(reason='manual')",'clearSaved()',"networkDisable?.(reason)"])if(!networkLab.includes(token))throw new Error(`Network Lab disable cleanup contract missing: ${token}`);
+if(universal.includes('localStorage.removeItem(\'sharawlaAcceptanceNetworkLabV1\')'))throw new Error('Owner diagnostics must delegate Network Lab cleanup instead of mutating its storage directly');
 console.log('Owner diagnostics + Retail delivery gate OK');
