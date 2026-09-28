@@ -27,8 +27,8 @@ assert(/has_action_permission_v2\('delivery\.mark_delivered'\)/.test(delivery),
   'delivery_mark_delivered_v2 must keep delivery.mark_delivered Action guard');
 assert(/has_action_permission_v2\('delivery\.payment\.change_at_delivery'\)/.test(delivery),
   'delivery_mark_delivered_v2 must keep payment-change Action guard');
-assert(/global\.rpc\('delivery_mark_delivered_v2'/.test(deliveryUi),
-  'live delivery completion runtime must route through delivery_mark_delivered_v2');
+assert(/commitOptionalTxRpc\('delivery_mark_delivered_v2'/.test(deliveryUi),
+  'live delivery completion runtime must route through unified Offline V2 transport to delivery_mark_delivered_v2');
 
 assert(count(/create or replace function public\.accept_website_order\s*\(/gi,website)===1,
   'accepted website owner definition drift');
