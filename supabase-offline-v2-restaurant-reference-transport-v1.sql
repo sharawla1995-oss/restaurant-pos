@@ -74,8 +74,13 @@ begin
      or (v_operation='ingredient_save' and v_rpc<>'offline_food_ingredient_save_v1')
      or (v_operation='ingredient_conversion_save' and v_rpc<>'offline_food_ingredient_conversion_save_v1')
      or (v_operation='recipe_draft_save' and v_rpc<>'offline_food_recipe_save_draft_v1')
-     or (v_operation='recipe_version_activate' and v_rpc<>'offline_food_recipe_activate_version_v1','offline_food_prep_item_save_v1','offline_food_prep_recipe_save_draft_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save','recipe_draft_save','recipe_version_activate') then
+     or (v_operation='recipe_version_activate' and v_rpc<>'offline_food_recipe_activate_version_v1')
+     or (v_operation='prep_item_save' and v_rpc<>'offline_food_prep_item_save_v1')
+     or (v_operation='prep_recipe_draft_save' and v_rpc<>'offline_food_prep_recipe_save_draft_v1')
+     or (v_operation='food_po_create' and v_rpc<>'offline_food_purchase_order_create_v1')
+     or (v_operation='food_po_approve' and v_rpc<>'offline_food_purchase_order_approve_v1')
+     or (v_operation='food_po_cancel' and v_rpc<>'offline_food_purchase_order_cancel_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save','table_session_open','table_session_attach','table_session_close','ingredient_save','ingredient_conversion_save','recipe_draft_save','recipe_version_activate','prep_item_save','prep_recipe_draft_save','food_po_create','food_po_approve','food_po_cancel') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
@@ -243,6 +248,15 @@ begin
     when 'offline_food_prep_recipe_save_draft_v1' then
       v_result := public.offline_food_prep_recipe_save_draft_v1((v_payload->>'p_prep_item_id')::bigint,(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),v_payload->>'p_notes',v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'recipe_version_id','');
+    when 'offline_food_purchase_order_create_v1' then
+      v_result := public.offline_food_purchase_order_create_v1((v_payload->>'p_branch_id')::bigint,(v_payload->>'p_supplier_id')::bigint,v_payload->>'p_invoice_number',v_payload->>'p_notes',coalesce(v_payload->'p_items','[]'::jsonb),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'purchase_id','');
+    when 'offline_food_purchase_order_approve_v1' then
+      v_result := public.offline_food_purchase_order_approve_v1((v_payload->>'p_purchase_id')::bigint,v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'purchase_id','');
+    when 'offline_food_purchase_order_cancel_v1' then
+      v_result := public.offline_food_purchase_order_cancel_v1((v_payload->>'p_purchase_id')::bigint,v_payload->>'p_reason',v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'purchase_id','');
     else
       raise exception using errcode='22023', message='Offline V2 RPC غير مدعومة: '||coalesce(v_rpc,'');
   end case;
