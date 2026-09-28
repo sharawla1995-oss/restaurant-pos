@@ -22,7 +22,9 @@ for(const token of [
   'async function commitRpcLocal(',
   'await projectDirectOperation(type,payload,tx,row)',
   'await reconcileCompatibilityProjections()',
-  'commitRpcLocal,isActive:activeState,reconcileCompatibilityProjections'
+  'commitRpcLocal',
+  'isActive:activeState',
+  'reconcileCompatibilityProjections'
 ])need(transport,token,'durable local-success transport');
 
 for(const token of [
