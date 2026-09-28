@@ -118,17 +118,19 @@ end;$;
 
 
 create or replace function public.offline_restaurant_table_session_attach_v1(
- p_session_id bigint,p_session_open_tx text,p_order_id bigint,p_client_tx_id text,p_payload_digest text
+ p_session_id bigint,p_session_open_tx text,p_order_id bigint,p_order_sale_tx text,p_client_tx_id text,p_payload_digest text
 ) returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $
-declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');v_session bigint:=p_session_id;r public.offline_restaurant_reference_receipts_v1%rowtype;v_result jsonb;
+declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif(trim(coalesce(p_payload_digest,'')),'');v_session bigint:=p_session_id;v_order bigint:=p_order_id;r public.offline_restaurant_reference_receipts_v1%rowtype;v_result jsonb;
 begin
  if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_tx is null or v_d is null then raise exception 'OFFLINE_TABLE_SESSION_IDENTITY_REQUIRED';end if;
  perform pg_advisory_xact_lock(hashtextextended('offline-restaurant-ref:'||v_tx,0));select * into r from public.offline_restaurant_reference_receipts_v1 where client_tx_id=v_tx;
  if found then if r.operation_type<>'table_session_attach' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
  if v_session is null and nullif(trim(coalesce(p_session_open_tx,'')),'') is not null then select id into v_session from public.restaurant_table_sessions where client_tx_id=trim(p_session_open_tx);end if;
  if v_session is null then raise exception 'OFFLINE_TABLE_SESSION_DEPENDENCY_UNRESOLVED';end if;
- perform public.restaurant_table_session_attach_order_v1(v_session,p_order_id);
- v_result:=jsonb_build_object('ok',true,'session_id',v_session,'order_id',p_order_id,'client_tx_id',v_tx,'idempotent_replay',false);
+ if v_order is null and nullif(trim(coalesce(p_order_sale_tx,'')),'') is not null then select nullif(server_entity_id,'')::bigint into v_order from public.offline_v2_server_receipts where client_tx_id=trim(p_order_sale_tx) and operation_type='sale';end if;
+ if v_order is null then raise exception 'OFFLINE_TABLE_ORDER_DEPENDENCY_UNRESOLVED';end if;
+ perform public.restaurant_table_session_attach_order_v1(v_session,v_order);
+ v_result:=jsonb_build_object('ok',true,'session_id',v_session,'order_id',v_order,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'table_session_attach',v_d,v_session,v_result);return v_result;
 end;$;
 
@@ -147,7 +149,7 @@ begin
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'table_session_close',v_d,v_session,v_result);return v_result;
 end;$;
 
-revoke all on function public.offline_restaurant_table_session_attach_v1(bigint,text,bigint,text,text) from public,anon;
+revoke all on function public.offline_restaurant_table_session_attach_v1(bigint,text,bigint,text,text,text) from public,anon;
 revoke all on function public.offline_restaurant_table_session_close_v1(bigint,text,text,text,text) from public,anon;
 grant execute on function public.offline_restaurant_table_session_attach_v1(bigint,text,bigint,text,text) to authenticated;
 grant execute on function public.offline_restaurant_table_session_close_v1(bigint,text,text,text,text) to authenticated;
