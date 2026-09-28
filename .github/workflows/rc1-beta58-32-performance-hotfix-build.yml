@@ -34,7 +34,7 @@ jobs:
       - name: Synchronize generated version references
         run: npm run sync-version
       - name: Run full source and regression gates
-        run: npm run check
+        run: npm run check:ci
       - name: Commit synchronized source
         shell: bash
         run: |
@@ -81,7 +81,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
       - name: Run full source and regression gates
-        run: npm run check
+        run: npm run check:ci
       - name: Build Windows x64 hotfix
         run: npm run dist -- --win --x64 --publish never
       - name: Save installer and SHA256
