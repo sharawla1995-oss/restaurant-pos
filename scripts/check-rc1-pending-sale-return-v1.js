@@ -16,7 +16,7 @@ must(!app.includes("if(String(o.id).startsWith('offline-'))throw new Error('مر
 must(app.includes("if(localPendingSale&&profile!=='restaurant')return toast('مرتجع فاتورة Retail أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا')"),'Retail must remain fail-closed until separately proved');
 
 must(rt.includes("if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id)"),'transport must accept dependency-identified local Restaurant return parent');
-must(rt.includes("if(type==='return'||type==='order_status'||type==='delivery_assign_driver')return localOrderTx(payload?.p_order_id)"),'return dependency TX extraction missing');
+must(rt.includes("if(type==='return'||type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return localOrderTx(payload?.p_order_id)"),'return dependency TX extraction missing');
 must(sync.includes('dependency_mapping:dependencyMapping?clone(dependencyMapping):null'),'parent ACK mapping must remain in outbound envelope');
 
 for(const [sig,md5] of [
