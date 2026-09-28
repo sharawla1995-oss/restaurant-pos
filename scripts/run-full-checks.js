@@ -168,7 +168,8 @@ const commands = [
   "node scripts/check-offline-central-warehouse-stock-runtime.js",
   "node scripts/check-central-warehouse-config-authority.js",
   "node scripts/check-offline-shift-expense-unified-runtime.js",
-  "node scripts/check-offline-shift-expense-native-owner.js"
+  "node scripts/check-offline-shift-expense-native-owner.js",
+  "node scripts/check-offline-pos-sale-native-owner.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
