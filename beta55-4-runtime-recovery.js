@@ -24,7 +24,8 @@ function onlineAuthorized(){return navigator.onLine===true&&!!appSession()?.acce
 function netError(e){try{return typeof isNetError==='function'?isNetError(e):/failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}catch{return /failed to fetch|networkerror|load failed/i.test(text(e?.message||e))}}
 function toast55(m){try{if(typeof toast==='function')return toast(m)}catch{}try{return global.toast?.(m)}catch{}}
 function hash(s){let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
-function cacheScope(){return `${runtimeBusiness()||'no-business'}:${branchId()||'no-branch'}`}\nfunction readKey(table,query){return `${CACHE_PREFIX}${cacheScope()}:${table}:${hash(query)}`}
+function cacheScope(){return `${runtimeBusiness()||'no-business'}:${branchId()||'no-branch'}`}
+function readKey(table,query){return `${CACHE_PREFIX}${cacheScope()}:${table}:${hash(query)}`}
 function publishFallback(table,reason){cacheFallbackState={active:true,table:text(table),reason:text(reason)||'offline',at:new Date().toISOString()};global.__SharawlaOfflineCacheFallback=clone(cacheFallbackState);try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:clone(cacheFallbackState)}))}catch{}}
 function clearFallback(){if(!cacheFallbackState)return;cacheFallbackState=null;global.__SharawlaOfflineCacheFallback=null;try{global.dispatchEvent(new CustomEvent('sharawla:offline-cache-fallback',{detail:{active:false,at:new Date().toISOString()}}))}catch{}}
 async function dbGet(k){try{if(typeof odbGet==='function')return await odbGet(k)}catch{}try{return await global.odbGet?.(k)}catch{return null}}
