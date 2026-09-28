@@ -165,7 +165,8 @@ const commands = [
   "node scripts/check-offline-delivery-settlement-runtime.js",
   "node scripts/check-offline-central-warehouse-create-runtime.js",
   "node scripts/check-offline-central-warehouse-state-runtime.js",
-  "node scripts/check-offline-central-warehouse-stock-runtime.js"
+  "node scripts/check-offline-central-warehouse-stock-runtime.js",
+  "node scripts/check-central-warehouse-config-authority.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
