@@ -400,10 +400,13 @@ async function resetTestGroups(input={}){
     const opMarks=operations.map(()=>'?').join(',');
     await exec('BEGIN IMMEDIATE TRANSACTION');
     try{
-      // A user-selected Reset must purge the selected operational group completely.
-      // Acceptance fixture sequences are protected from queue-only diagnostics, not from
-      // an explicit SH-0007/TEST group reset.
-      const txRows=await all(`SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks})`,operations);
+      // Preserve the historical acceptance sequences even during a selected Reset.
+      // They are durable recovery evidence and must never be destroyed by admin cleanup.
+      const protectedMarks=RESET_PROTECTED_DEVICE_SEQUENCES.map(()=>'?').join(',');
+      const txRows=await all(
+        `SELECT client_tx_id FROM offline_v2_outbox WHERE operation_type IN (${opMarks}) AND device_sequence NOT IN (${protectedMarks})`,
+        [...operations,...RESET_PROTECTED_DEVICE_SEQUENCES]
+      );
       const txs=txRows.map(r=>text(r.client_tx_id)).filter(Boolean);
       if(txs.length){
         const marks=txs.map(()=>'?').join(',');
