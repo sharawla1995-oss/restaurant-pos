@@ -66,7 +66,9 @@ begin
      or (v_operation='supplier_save' and v_rpc<>'offline_food_supplier_save_v1')
      or (v_operation='driver_save' and v_rpc<>'offline_delivery_driver_save_v1')
      or (v_operation='zone_save' and v_rpc<>'offline_delivery_zone_save_v1')
-     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save') then
+     or (v_operation='floor_save' and v_rpc<>'offline_restaurant_floor_save_v1')
+     or (v_operation='table_save' and v_rpc<>'offline_restaurant_table_save_v1')
+     or v_operation not in ('sale','return','expense','shift_open','shift_close','order_status','customer_create','customer_update','customer_address_save','customer_address_delete','delivery_assign_driver','supplier_save','driver_save','zone_save','floor_save','table_save') then
     raise exception using errcode='22023', message='Offline V2 operation/RPC binding غير مدعومة';
   end if;
 
