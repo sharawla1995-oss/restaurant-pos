@@ -158,7 +158,8 @@ const commands = [
   "node scripts/check-offline-food-transfer-actions-runtime.js",
   "node scripts/check-offline-food-ingredient-stock-adjust-runtime.js",
   "node scripts/check-offline-food-production-runtime.js",
-  "node scripts/check-offline-food-waste-runtime.js"
+  "node scripts/check-offline-food-waste-runtime.js",
+  "node scripts/check-offline-food-ingredient-master-runtime.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
