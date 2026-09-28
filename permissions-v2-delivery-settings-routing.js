@@ -18,7 +18,7 @@ async function saveDriver(input={}){
   const name=clean(input.name);
   if(!name)throw new Error('اسم المندوب مطلوب');
   const payload={p_driver_id:driverId,p_branch_id:branchId,p_name:name,p_phone:clean(input.phone),p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
-  const t=global.SharawlaOfflineV2Transport;if(typeof navigator!=='undefined'&&navigator.onLine===false){if(typeof t?.commitRpcLocal!=='function'){const e=new Error('Offline V2 غير جاهز لإدارة المناديب');e.code='OFFLINE_OPERATION_NO_SAFE_OWNER';throw e}return (await t.commitRpcLocal('delivery_driver_save_v2',payload)).result}return rpc('delivery_driver_save_v2',payload);
+  const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');return (await t.commitOptionalTxRpc('delivery_driver_save_v2',payload)).result;
 }
 
 async function saveZone(input={}){
@@ -31,7 +31,7 @@ async function saveZone(input={}){
   const name=clean(input.name);
   if(!name)throw new Error('اسم المنطقة مطلوب');
   const payload={p_zone_id:zoneId,p_branch_id:branchId,p_name:name,p_delivery_fee:fee,p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
-  const t=global.SharawlaOfflineV2Transport;if(typeof navigator!=='undefined'&&navigator.onLine===false){if(typeof t?.commitRpcLocal!=='function'){const e=new Error('Offline V2 غير جاهز لإدارة مناطق التوصيل');e.code='OFFLINE_OPERATION_NO_SAFE_OWNER';throw e}return (await t.commitRpcLocal('delivery_zone_save_v2',payload)).result}return rpc('delivery_zone_save_v2',payload);
+  const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');return (await t.commitOptionalTxRpc('delivery_zone_save_v2',payload)).result;
 }
 
 global.__SharawlaPV2DeliverySettings=Object.freeze({version:VERSION,saveDriver,saveZone});
