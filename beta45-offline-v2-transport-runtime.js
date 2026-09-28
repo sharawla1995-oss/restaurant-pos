@@ -259,6 +259,10 @@ async function projectDirectOperation(type,payload,tx,row){
     const localOrder=serverOrder?{...serverOrder,_offline:false,_official_number_pending:false}:{...clone(payload?.p_order||{}),id:localId,client_tx_id:tx,invoice_number:null,bon_number:null,offline_reference:'OFF-'+text(tx).replace(/-/g,'').slice(0,10).toUpperCase(),_official_number_pending:true,created_at:created,payment_status:'confirmed',_offline:true,_offline_sync_status:text(row?.status)||'pending'};
     const localItems=serverOrder?clone(serverResult?.items||[]):(clone(payload?.p_items)||[]).map((x,i)=>({...x,id:x.line_uid?localId+'-line-'+x.line_uid:localId+'-legacy-i'+(i+1),order_id:id}));
     await global.odbSet('cachedOrders',[{order:{...localOrder,id},items:localItems},...all.filter(b=>String(b?.order?.id)!==localId&&String(b?.order?.id)!==String(id)&&String(b?.order?.client_tx_id||'')!==tx)].slice(0,250));
+  }else if(type==='return'){
+    const localId='offline-ret-'+tx,serverId=num(serverResult?.return_id??serverResult?.id,0),id=serverId||localId,branchId=num(payload?.p_branch_id,runtimeBranch()),all=clone(await global.odbGet('cachedReturns:'+branchId))||[];
+    const item={id,return_number:serverResult?.return_number||(serverId?String(serverId):'OFF-'+tx.slice(0,6)),branch_id:branchId,order_id:payload?.p_order_id,reason:payload?.p_reason,notes:payload?.p_notes??null,total:Number(payload?.p_payments?.[0]?.amount||0),created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('cachedReturns:'+branchId,[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,500));
   }else if(type==='shift_open'){
     const localId=`offline-shift-${tx}`,serverId=num(serverResult?.id??serverResult?.shift_id,0),id=serverId||localId,local={id,branch_id:payload?.p_branch_id,employee_id:runtimeEmployee(),opening_cash:Number(payload?.p_opening_cash||0),status:'open',opened_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(`openShift:${runtimeEmployee()}:${payload?.p_branch_id}`,local);const hist=clone(await global.odbGet(`shiftHistory:${payload?.p_branch_id}`))||[];await global.odbSet(`shiftHistory:${payload?.p_branch_id}`,[local,...hist.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,100));
   }else if(type==='expense'){
@@ -729,7 +733,8 @@ async function commitRpcLocal(name,payload={}){
   let result;
   if(row?.status==='synced')result=unwrapResult(type,row);
   else if(type==='sale'){const localId='offline-'+tx,all=clone(await global.odbGet('cachedOrders'))||[],b=all.find(x=>String(x?.order?.id)===localId||String(x?.order?.client_tx_id||'')===tx);result=b||{order:{...clone(payload?.p_order||{}),id:localId,client_tx_id:tx,_offline:true,_official_number_pending:true,created_at:nowIso()},items:clone(payload?.p_items||[])}}
-  else if(type==='shift_open')result=`offline-shift-${tx}`;
+  else if(type==='return'){const localId='offline-ret-'+tx,all=clone(await global.odbGet('cachedReturns:'+runtimeBranch()))||[],r=all.find(x=>String(x.id)===localId||String(x.client_tx_id||'')===tx);result=r||{id:localId,return_number:'OFF-'+tx.slice(0,6),branch_id:runtimeBranch(),order_id:payload?.p_order_id,reason:payload?.p_reason,total:Number(payload?.p_payments?.[0]?.amount||0),created_at:nowIso(),client_tx_id:tx,_offline:true}}
+     else if(type==='shift_open')result=`offline-shift-${tx}`;
    else if(type==='expense')result=`offline-exp-${tx}`;
    else if(type==='shift_close')result={...clone(payload?.p_metrics||{}),id:payload?.p_shift_id,status:'closed',closing_cash:Number(payload?.p_closing_cash||0),closed_at:nowIso(),client_tx_id:tx,_offline:true};
    else if(type==='customer_create')result=`offline-customer-${tx}`;
