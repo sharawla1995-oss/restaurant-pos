@@ -4,6 +4,7 @@ const VERSION='10.5.4-beta.58.32';
 const EXPECTED_SUPPORT='SH-0007';
 const EXPECTED_BUSINESS='91826502-590e-4afa-8826-2c0f4b99c490';
 const EXPECTED_HOST='xihcxydjnzemflhedzor.supabase.co';
+const ALLOWED_OFFLINE_COMMERCE_PROFILES=new Set(['restaurant','retail']);
 const ARCHIVE_KEY='sharawlaBeta49AcceptanceResidueArchive';
 const text=v=>String(v??'').trim();
 const num=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
@@ -90,7 +91,8 @@ async function preflight(){
  if(business!==EXPECTED_BUSINESS)reasons.push(`business=${business||'missing'}`);
  if(host!==EXPECTED_HOST)reasons.push(`host=${host||'missing'}`);
  if(!canonical)reasons.push('canonical fingerprint missing');
- if(text(rc?.pos_profile||rc?.profile)!=='retail')reasons.push(`profile=${text(rc?.pos_profile||rc?.profile)||'missing'}`);
+ const profile=text(rc?.pos_profile||rc?.profile).toLowerCase();
+ if(!ALLOWED_OFFLINE_COMMERCE_PROFILES.has(profile))reasons.push(`profile=${profile||'missing'}`);
  if(employeeId<=0)reasons.push(`employee=${employeeId}`);if(branchId<=0)reasons.push(`branch=${branchId}`);
  if(!global.SharawlaOfflineV2?.migrateLegacyQueue||!global.SharawlaOfflineV2?.keys)reasons.push('foundation API unavailable');
  if(!global.SharawlaOfflineV2Takeover?.arm||!global.SharawlaOfflineV2Takeover?.prepareMigration||!global.SharawlaOfflineV2Takeover?.activate)reasons.push('takeover API unavailable');
