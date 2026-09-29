@@ -60,6 +60,7 @@ async function paymentOptions(order){
  return (methods||[]).filter(x=>x.active!==false&&String(x.code||'').toLowerCase()!=='mixed'&&(!activeIds.size||activeIds.has(String(x.id)))).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||Number(a.id)-Number(b.id));
 }
 async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
+  if(!isOnline()){toastLocal('تعديل طريقة الدفع متاح Online فقط');return false}
  const rows=await global.rest('orders',`select=*&id=eq.${Number(orderId)}&limit=1`);
  const order=rows?.[0];
  if(!order){toastLocal('الأوردر غير موجود');return true}
