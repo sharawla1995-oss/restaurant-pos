@@ -13,4 +13,4 @@ class Local{
 }
 const a=new Local('SHIFT',1,2);a.consume(a.next());a.closeShift();assert(a.closed===true,'SHIFT close invalidation failed');
 const b=new Local('BRANCH',10,11);b.consume(b.next());b.closeShift();assert(!b.closed&&b.next()===11,'BRANCH capacity must survive cashier shift close');
-console.log('BON NATIVE SCOPE GATE PASS — store=2.4 SHIFT=1 BRANCH=1 branch_survives_shift_close=1 business_date=FROZEN deployment=0');
+console.log('BON NATIVE SCOPE GATE PASS — store=2.5 SHIFT=1 BRANCH=1 branch_survives_shift_close=1 business_date=FROZEN deployment=0');

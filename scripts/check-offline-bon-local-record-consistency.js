@@ -9,6 +9,7 @@ const consume=n.indexOf('await consumeBonReservationUnsafe(input,tx)',hash);
 const write=n.indexOf('INSERT INTO offline_v2_records',consume);
 assert(commit>=0&&assign>commit&&record>assign&&hash>record&&consume>hash&&write>consume,'Bon evidence mirror ordering invalid');
 assert(n.includes("orderRecord.payload.bon_number=number(assignedBon.bon_number)"),'local Bon number mirror missing');
+assert(n.includes("orderRecord.payload.bon_business_date=text(assignedBon.business_date)||null"),'local Bon business date mirror missing');
 assert(n.includes("orderRecord.payload._official_number_pending=false"),'local official-number state mirror missing');
 assert(n.includes("e.code='OFFLINE_V2_BON_ORDER_RECORD_REQUIRED'"),'missing local order record must fail closed');
-console.log('OFFLINE BON LOCAL RECORD CONSISTENCY GATE PASS — outbox_record=ALIGNED bon_number=MIRRORED same_tx=1 deployment=0');
+console.log('OFFLINE BON LOCAL RECORD CONSISTENCY GATE PASS — outbox_record=ALIGNED bon_number=MIRRORED business_date=MIRRORED same_tx=1 deployment=0');
