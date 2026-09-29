@@ -16,7 +16,11 @@ assert(numbering.includes('create table if not exists public.shift_bon_counters'
 assert(policy.indexOf('create table if not exists public.branch_bon_counters_v1')<policy.indexOf('function public.pos_bon_numbering_mode_v1'),'policy creator ordering invalid');
 assert(v2.includes('public.pos_bon_numbering_mode_v1')&&v2.includes('public.branch_bon_counters_v1'),'V2 policy dependencies missing');
 assert(v3.includes('returns setof public.pos_bon_reservations_v2')&&v3.includes('public.pos_consume_reserved_bon_v2'),'V3->V2 dependency missing');
+assert(v3.includes('jsonb_populate_record('),'V3 must explicitly rehydrate V2 jsonb results into composite rows');
+assert(v3.includes('null::public.pos_bon_reservations_v2'),'V3 reserve jsonb->row conversion missing');
+assert(v3.includes('null::public.pos_bon_consumptions_v2'),'V3 consume jsonb->row conversion missing');
+assert(!/return query select \* from public\.pos_(?:reserve|consume)_reserved?_?bon_range?_?v2\(/.test(v3),'V3 must not treat V2 jsonb as a composite SETOF row');
 assert(helper.includes('public.pos_consume_reserved_bon_v3'),'sale helper->V3 dependency missing');
 assert(owner.includes('public.pos_consume_sale_bon_v3'),'sale owner->helper dependency missing');
 for(const x of ["to_regprocedure('public.has_branch_access(bigint)')","to_regprocedure('public.create_pos_order_atomic(jsonb,jsonb,jsonb)')","to_regprocedure('gen_random_uuid()')","shifts.client_open_tx_id text","orders.bon_number integer"])assert(pre.includes(x),'preflight invariant missing '+x);
-console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');
+console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS jsonb_row_bridge=PASS uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');

@@ -76,8 +76,15 @@ begin
   if not found then raise exception 'trusted device context missing or expired'; end if;
   -- Restaurant database is business-isolated; employee branch authorization remains
   -- enforced by pos_reserve_bon_range_v2/current_employee_id/has_branch_access.
-  return query select * from public.pos_reserve_bon_range_v2(
-    p_branch_id,p_shift_id,p_shift_open_tx_id,v.device_fingerprint,p_request_uid,p_count
+  -- V2 returns jsonb. Rehydrate that JSON into the declared V2 table row type
+  -- instead of treating a scalar jsonb value as a SETOF composite row.
+  return query
+  select *
+  from jsonb_populate_record(
+    null::public.pos_bon_reservations_v2,
+    public.pos_reserve_bon_range_v2(
+      p_branch_id,p_shift_id,p_shift_open_tx_id,v.device_fingerprint,p_request_uid,p_count
+    )
   );
 end $$;
 
@@ -95,8 +102,15 @@ declare v record;
 begin
   select * into v from public.pos_verified_device_context_v1(p_verified_device_context_id);
   if not found then raise exception 'trusted device context missing or expired'; end if;
-  return query select * from public.pos_consume_reserved_bon_v2(
-    p_reservation_uid,p_bon_number,p_sale_client_tx_id,p_branch_id,p_shift_id,p_shift_open_tx_id,v.device_fingerprint
+  -- V2 returns jsonb; preserve the V3 SETOF contract by explicitly
+  -- converting the returned JSON into the consumption table row type.
+  return query
+  select *
+  from jsonb_populate_record(
+    null::public.pos_bon_consumptions_v2,
+    public.pos_consume_reserved_bon_v2(
+      p_reservation_uid,p_bon_number,p_sale_client_tx_id,p_branch_id,p_shift_id,p_shift_open_tx_id,v.device_fingerprint
+    )
   );
 end $$;
 
