@@ -28,6 +28,10 @@ ok(/v_operation='retail_supplier_save'[\s\S]*offline_retail_supplier_create_v1/.
 ok(/retail_po_create'[\s\S]*p_supplier_create_tx/.test(transport),'retail PO dependency must fail closed or wait for supplier ACK');
 ok(/retail_po_approve'\|\|type==='retail_purchase_receive'[\s\S]*p_purchase_order_create_tx/.test(transport),'PO child operations must require server PO or dependency tx');
 if(!/variant_id/.test(app.slice(app.indexOf('async function renderRetailPurchasing'),app.indexOf('async function renderRetailMarketSettings'))))gaps.push('Retail purchasing UI variant identity');
+ok(/type==='retail_supplier_save'[\s\S]*retail supplier ACK missing supplier_id/.test(transport),'Retail Supplier ACK unwrap missing');
+ok(/type==='retail_po_create'\|\|type==='retail_po_approve'[\s\S]*purchase_order_id/.test(transport),'Retail PO ACK unwrap missing');
+ok(/type==='retail_purchase_receive'[\s\S]*goods_receipt_id/.test(transport),'Retail GRN ACK unwrap missing');
+ok(/type==='retail_supplier_return'[\s\S]*supplier_return_id/.test(transport),'Retail Supplier Return ACK unwrap missing');
 ok(transport.includes("offlineV2RetailSuppliers"),'Retail Supplier local projection missing');
 ok(transport.includes("offlineV2RetailPurchaseOrders")&&transport.includes("offlineV2RetailPurchaseOrderItems"),'Retail PO local projection/items missing');
 ok(transport.includes("offlineV2RetailGoodsReceipts")&&transport.includes("offlineV2RetailSupplierReturns"),'Retail GRN/Return local projection missing');
