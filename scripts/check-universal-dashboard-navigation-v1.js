@@ -1,0 +1,10 @@
+const fs=require('fs'),path=require('path'),assert=require('assert'),root=path.resolve(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const summary=html.indexOf('data-page="businessSummary"'),home=html.indexOf('data-page="home"');
+assert(summary>=0&&home>summary,'Business Summary must be above Home');
+assert(app.includes('businessSummary:renderBusinessSummary'),'Business Summary route is not registered');
+assert(app.includes("if(page==='businessSummary')return canAccessPage('home')"),'Business Summary must inherit Home access without granting operational permissions');
+const start=app.indexOf('async function renderHome()'),end=app.indexOf('\n}',start);
+assert(start>=0&&!app.slice(start,end).includes('__SharawlaUniversalDashboardV1'),'Home still hijacked by Dashboard');
+assert(app.includes("p==='businessSummary'?'ملخص الأعمال':runtimePageTitle(p)"),'Business Summary title missing');
+console.log('Universal Dashboard independent navigation gate PASS');

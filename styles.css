@@ -382,7 +382,9 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .login-support-code>span:last-child{display:grid;gap:1px}.login-support-code small{font-size:10px;color:#64748b}.login-support-code b{font-size:14px;letter-spacing:.35px}.login-support-code-icon{width:32px;height:32px;border-radius:9px;background:#eef2f7;color:#111827;display:grid;place-items:center;flex:0 0 auto}
 .sidebar{height:100vh;height:100dvh;overflow:hidden}
 .sidebar .brand{flex:0 0 auto}
-.sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:8px;scrollbar-width:thin}
+.sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-bottom:8px;scrollbar-width:thin}
+@media (pointer:coarse){.sidebar nav{touch-action:pan-y}}
+.sidebar nav button{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .sidebar nav::-webkit-scrollbar{width:7px}.sidebar nav::-webkit-scrollbar-thumb{background:#ffffff2b;border-radius:999px}.sidebar nav::-webkit-scrollbar-track{background:transparent}
 .sidebar-foot{flex:0 0 auto;margin-top:0}
 

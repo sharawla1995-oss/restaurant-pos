@@ -521,7 +521,12 @@ async function refreshSessionIfNeeded(force=false){
   session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));return d
 }
 async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc(job.engine==='retail'?'create_retail_pos_order_atomic':'create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc(job.engine==='retail'?'create_retail_order_return_idempotent':'create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();if($('#nextBonBadge'))await updateNextBonBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
-window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
+function refreshActiveDashboardForConnectivity(){
+  if(activePageRoute!=='businessSummary')return;
+  const dashboard=window.__SharawlaUniversalDashboardV1;
+  if(dashboard&&typeof dashboard.render==='function')dashboard.render().catch(e=>console.warn('[Dashboard connectivity refresh]',e));
+}
+window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue();refreshActiveDashboardForConnectivity()});window.addEventListener('offline',()=>{showOfflineStatus();refreshActiveDashboardForConnectivity()});setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
@@ -579,6 +584,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
+  if(page==='businessSummary')return canAccessPage('home');
   if(page==='onlineOrders'){if(!runtimeAllowsPage(page)||!runtimeOperationalAllowsPage(page))return false;return canAccessPage('deliveryOrders')}
   if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;
   if(!runtimeAllowsPage(page))return false;
@@ -928,7 +934,20 @@ function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
 if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false);
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
-$('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
+let sidebarPointerActivationAt=0;
+function activateSidebarRoute(target,source='click'){
+  const b=target?.closest?.('button[data-page]');
+  if(!b)return false;
+  if(source==='click'&&Date.now()-sidebarPointerActivationAt<500)return true;
+  if(source==='pointer')sidebarPointerActivationAt=Date.now();
+  showPage(b.dataset.page);
+  return true;
+}
+$('#nav').onclick=e=>activateSidebarRoute(e.target,'click');
+$('#nav').addEventListener('pointerup',e=>{
+  if(e.pointerType!=='mouse'||e.button!==0)return;
+  activateSidebarRoute(e.target,'pointer');
+},{passive:true});
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
 
@@ -960,7 +979,13 @@ async function renderSharedInventoryPurchasingRoute(route){
   }
   return sharedInventoryPurchasingFailClosed(key,profile,'PROFILE_ADAPTER_MISSING');
 }
+async function renderBusinessSummary(){
+  const dashboard=window.__SharawlaUniversalDashboardV1;
+  if(!dashboard||typeof dashboard.render!=='function')throw new Error('ملخص الأعمال غير متاح في هذا الإصدار.');
+  return dashboard.render();
+}
 const PAGE_RENDERERS=Object.freeze({
+  businessSummary:renderBusinessSummary,
   home:renderHome,
   pos:renderPOS,
   orders:renderOrders,
@@ -1012,22 +1037,22 @@ window.__SharawlaNavigationFailClosedV1=Object.freeze({
   mode:'FAIL_CLOSED',
   events:()=>navigationFailClosedEvents.map(x=>({...x}))
 });
+let activePageRoute='home';
 async function showPage(p){
   try{
     const renderer=PAGE_RENDERERS[p];
     if(typeof renderer!=='function'){blockUnknownRoute(p);return;}
     if(!state.activeBranchId){renderBranchPicker();return;}
     if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}
+    activePageRoute=p;
     navActive(p);
-    $('#pageTitle').textContent=runtimePageTitle(p);
+    $('#pageTitle').textContent=p==='businessSummary'?'ملخص الأعمال':runtimePageTitle(p);
     await renderer();
   }catch(e){toast(e.message)}
 }
 
 
 async function renderHome(){
-  const dashboard=window.__SharawlaUniversalDashboardV1;
-  if(dashboard&&typeof dashboard.render==='function')return dashboard.render();
   const ids=[currentBranchId()];
   let activeDelivery=[], openShift=null;
   try{activeDelivery=await rest('orders','select=id,status,branch_id&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200')}catch(e){}

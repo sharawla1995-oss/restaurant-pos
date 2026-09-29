@@ -32,6 +32,7 @@ function localShiftTx(v){const s=text(v);return s.startsWith('offline-shift-')?s
 function localOrderTx(v){const s=text(v);if(!s.startsWith('offline-')||s.startsWith('offline-shift-')||s.startsWith('offline-ret-')||s.startsWith('offline-exp-')||s.startsWith('offline-movement-'))return null;return s.slice('offline-'.length)||null}
 function localCustomerTx(v){const s=text(v),p='offline-customer-';return s.startsWith(p)?s.slice(p.length)||null:null}
 function localAddressTx(v){const s=text(v),p='offline-customer_address_save-';return s.startsWith(p)?s.slice(p.length)||null:null}
+function localEntityTx(v,prefix){const s=text(v);return s.startsWith(prefix)?s.slice(prefix.length)||null:null}
 function deterministicLocalId(type,tx){
   if(type==='sale')return `offline-${tx}`;
   if(type==='return')return `offline-ret-${tx}`;
@@ -141,6 +142,9 @@ function dependencyTx(type,payload={}){
   if(type==='retail_resume_sale'&&text(payload?.p_suspend_create_tx))return text(payload.p_suspend_create_tx);
   if((type==='table_session_attach'||type==='table_session_close')&&text(payload?.p_session_open_tx))return text(payload.p_session_open_tx);
   if(type==='ingredient_conversion_save'&&text(payload?.p_ingredient_create_tx))return text(payload.p_ingredient_create_tx);
+  if((type==='food_transfer_receive'||type==='food_transfer_cancel')&&localEntityTx(payload?.p_transfer_id,'offline-food-transfer-'))return localEntityTx(payload.p_transfer_id,'offline-food-transfer-');
+  if(type==='food_production_complete'&&localEntityTx(payload?.p_production_batch_id,'offline-food-production-batch-'))return localEntityTx(payload.p_production_batch_id,'offline-food-production-batch-');
+  if(type==='food_recipe_activate'&&localEntityTx(payload?.p_recipe_version_id,'offline-food-recipe-version-'))return localEntityTx(payload.p_recipe_version_id,'offline-food-recipe-version-');
   return null;
 }
 function shiftId(type,payload={}){
@@ -251,8 +255,18 @@ async function canonicalIdentity(){
   if(!identity.device_id||!identity.business_id||!identity.device_fingerprint){const e=new Error('Offline V2 canonical device identity is required');e.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED';throw e}
   return identity;
 }
+async function refreshSessionForSync(){
+  if(typeof refreshSessionIfNeeded!=='function')return null;
+  let timer=null;
+  try{
+    return await Promise.race([
+      Promise.resolve().then(()=>refreshSessionIfNeeded()),
+      new Promise((_,reject)=>{timer=setTimeout(()=>{const e=new Error('Offline V2 session refresh timed out');e.code='OFFLINE_V2_SESSION_REFRESH_TIMEOUT';reject(e)},15_000)})
+    ]);
+  }finally{if(timer!=null)clearTimeout(timer)}
+}
 async function syncContext(){
-  if(typeof refreshSessionIfNeeded==='function')try{await refreshSessionIfNeeded()}catch{}
+  try{await refreshSessionForSync()}catch(e){try{console.warn('Offline V2 session refresh before sync',e?.code||e)}catch{}}
   const st=await canonicalIdentity(),c=connection();
   const token=typeof session!=='undefined'?text(session?.access_token):'';
   if(!c?.url||!c?.key||!token||runtimeEmployee()<=0)throw new Error('Offline V2 authenticated sync context is unavailable');
