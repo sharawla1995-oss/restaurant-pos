@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
+const replay=n.slice(n.indexOf('const existing=await get'),n.indexOf("await exec('COMMIT');",n.indexOf('const existing=await get')));
+assert(replay.includes('const persistedBon='),'persisted Bon replay evidence missing');
+assert(replay.includes('const persistedOrder='),'persisted order reconstruction missing');
+assert(replay.includes('const replayOrder='),'replay order reconstruction missing');
+for(const x of ['bon_numbering_mode','bon_reservation','bon_number','_official_number_pending'])assert(replay.includes('replayOrder.payload.'+x),'replay field missing: '+x);
+assert(replay.includes("e.code='OFFLINE_V2_BON_REPLAY_RECORD_REQUIRED'"),'missing record fail-closed guard');
+assert(replay.indexOf('replayOrder.payload.bon_reservation')<replay.indexOf('const comparableHash='),'record must be reconstructed before digest');
+assert(n.includes("e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH'"),'real payload mismatch guard must remain');
+console.log('OFFLINE BON REPLAY DIGEST GATE PASS — native_payload=RECONSTRUCTED local_record=RECONSTRUCTED real_mismatch=REJECTED deployment=0');

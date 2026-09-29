@@ -373,8 +373,19 @@ async function commitOperationUnsafe(input){
     if(existing){
       const replayHash=digest({payload:input.payload??null,records:input.records||[],identity:{device_id:input.device_id,business_id:input.business_id,branch_id:input.branch_id,employee_id:input.employee_id},operation_type:input.operation_type,entity_type:input.entity_type,local_entity_id:input.local_entity_id??null,local_shift_id:input.local_shift_id??null,depends_on_tx_id:input.depends_on_tx_id??null});
       const persisted=hydrate(existing).envelope;
-      const persistedPayload=persisted?.payload?.rpc_payload?.p_order?.bon_reservation&&input?.payload?.rpc_payload?.p_order&&!input.payload.rpc_payload.p_order.bon_reservation?clone(input):null;
-      if(persistedPayload)persistedPayload.payload.rpc_payload.p_order.bon_reservation=clone(persisted.payload.rpc_payload.p_order.bon_reservation);
+      const persistedBon=persisted?.payload?.rpc_payload?.p_order?.bon_reservation;
+      const replayWithoutBon=persistedBon&&input?.payload?.rpc_payload?.p_order&&!input.payload.rpc_payload.p_order.bon_reservation;
+      const persistedPayload=replayWithoutBon?clone(input):null;
+      if(persistedPayload){
+        persistedPayload.payload.rpc_payload.p_order.bon_reservation=clone(persistedBon);
+        const persistedOrder=(persisted.records||[]).find(r=>text(r?.record_type)==='order'&&r?.payload&&typeof r.payload==='object');
+        const replayOrder=(persistedPayload.records||[]).find(r=>text(r?.record_type)==='order'&&r?.payload&&typeof r.payload==='object');
+        if(!persistedOrder||!replayOrder){const e=new Error('Reserved Bon replay requires matching durable order record');e.code='OFFLINE_V2_BON_REPLAY_RECORD_REQUIRED';throw e}
+        replayOrder.payload.bon_numbering_mode=persistedOrder.payload.bon_numbering_mode;
+        replayOrder.payload.bon_reservation=clone(persistedOrder.payload.bon_reservation);
+        replayOrder.payload.bon_number=persistedOrder.payload.bon_number;
+        replayOrder.payload._official_number_pending=persistedOrder.payload._official_number_pending;
+      }
       const comparableHash=persistedPayload?digest({payload:persistedPayload.payload??null,records:persistedPayload.records||[],identity:{device_id:persistedPayload.device_id,business_id:persistedPayload.business_id,branch_id:persistedPayload.branch_id,employee_id:persistedPayload.employee_id},operation_type:persistedPayload.operation_type,entity_type:persistedPayload.entity_type,local_entity_id:persistedPayload.local_entity_id??null,local_shift_id:persistedPayload.local_shift_id??null,depends_on_tx_id:persistedPayload.depends_on_tx_id??null}):replayHash;
       if(existing.payload_digest!==comparableHash){const e=new Error('Same client_tx_id was reused with different payload');e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw e}
       await exec('COMMIT');
