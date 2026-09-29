@@ -30,6 +30,11 @@ function validateAck(event,ack){
   if(!text(ack.server_event_id))throw err('OFFLINE_V2_ACK_EVENT_ID_MISSING','Server ACK requires server_event_id');
   if(text(event?.payload_digest)&&text(ack.payload_digest)!==text(event.payload_digest))throw err('OFFLINE_V2_ACK_PAYLOAD_MISMATCH','Server ACK payload_digest mismatch');
   if(text(event?.local_entity_id)&&!(ack.server_entity_id!==undefined&&ack.server_entity_id!==null&&text(ack.server_entity_id)))throw err('OFFLINE_V2_ACK_MAPPING_MISSING','Server ACK requires server_entity_id for a local entity');
+  const reservedBon=num(event?.envelope?.payload?.rpc_payload?.p_order?.bon_reservation?.bon_number,0);
+  if(text(event?.operation_type)==='sale'&&reservedBon>0){
+    const ackBon=num(ack?.result?.order?.bon_number,0);
+    if(ackBon!==reservedBon)throw err('OFFLINE_V2_ACK_BON_MISMATCH','Server ACK Bon does not match the locally consumed reservation');
+  }
   return clone(ack);
 }
 
