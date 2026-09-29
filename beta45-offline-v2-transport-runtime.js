@@ -680,6 +680,20 @@ function mustUseOriginalEntityFallback(type,payload={}){
 }
 function unwrapResult(type,row){const result=row?.server_ack?.result;if(type==='customer_create'||type==='customer_update'){const n=Number(result?.customer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer ACK missing customer_id');return n}if(type==='customer_address_save'){const n=Number(result?.address_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 customer address ACK missing address_id');return n}if(type==='customer_address_delete')return result?.ok===true;if(type==='supplier_save'){const n=Number(result?.supplier_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supplier ACK missing supplier_id');return n}if(type==='driver_save'){const n=Number(result?.driver_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 driver ACK missing driver_id');return n}if(type==='zone_save'){const n=Number(result?.zone_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 zone ACK missing zone_id');return n}if(type==='floor_save'){const n=Number(result?.floor_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 floor ACK missing floor_id');return n}if(type==='table_save'){const n=Number(result?.table_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table ACK missing table_id');return n}if(type==='table_session_open'||type==='table_session_attach'||type==='table_session_close'){const n=Number(result?.session_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 table session ACK missing session_id');return n}if(type==='ingredient_save'){const n=Number(result?.ingredient_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient ACK missing ingredient_id');return n}if(type==='ingredient_conversion_save'){const n=Number(result?.conversion_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 ingredient conversion ACK missing conversion_id');return n}if(type==='food_purchase_receive'){const n=Number(result?.receipt_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food receipt ACK missing receipt_id');return n}if(type==='food_supplier_return'){const n=Number(result?.supplier_return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food supplier return ACK missing supplier_return_id');return n}if(type==='food_stock_count'){const n=Number(result?.stock_count_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food stock count ACK missing stock_count_id');return n}if(type==='food_transfer_create'||type==='food_transfer_receive'||type==='food_transfer_cancel'){const n=Number(result?.transfer_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food transfer ACK missing transfer_id');return n}if(type==='food_ingredient_stock_adjust'){const n=Number(result?.adjustment_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food ingredient adjustment ACK missing adjustment_id');return n}if(type==='food_production_start'||type==='food_production_complete'){const n=Number(result?.production_batch_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food production ACK missing production_batch_id');return n}if(type==='food_waste_post'){const n=Number(result?.waste_event_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food waste ACK missing waste_event_id');return n}if(type==='food_ingredient_save'){const n=Number(result?.ingredient_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food ingredient ACK missing ingredient_id');return n}if(type==='food_ingredient_conversion_save'){const n=Number(result?.conversion_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food ingredient conversion ACK missing conversion_id');return n}if(type==='food_recipe_save_draft'||type==='food_recipe_activate'||type==='food_prep_recipe_save_draft'){const n=Number(result?.recipe_version_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food recipe ACK missing recipe_version_id');return n}if(type==='food_prep_item_save'){const n=Number(result?.prep_item_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food prep item ACK missing prep_item_id');return n}if(type==='inventory_supply_request_create'){const n=Number(result?.request_id??result);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 supply request ACK missing request_id');return n}if(type==='food_po_create'||type==='food_po_approve'||type==='food_po_cancel'){const n=Number(result?.purchase_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 food PO ACK missing purchase_id');return n}if(type==='prep_item_save'){const n=Number(result?.prep_item_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 prep item ACK missing prep_item_id');return n}if(type==='prep_recipe_draft_save'||type==='recipe_draft_save'||type==='recipe_version_activate'){const n=Number(result?.recipe_version_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 recipe ACK missing recipe_version_id');return n}if(type==='return'){const n=Number(result?.return_id);if(!Number.isFinite(n)||n<=0)throw new Error('Offline V2 return ACK missing return_id');return n}if(result===undefined||result===null)throw new Error('Offline V2 ACK missing operational result');return clone(result)}
 
+// Trusted Device V1 source integration boundary.
+// Native acquisition is intentionally dormant until main-process bootstrap can obtain
+// a Cloud assertion without changing Activation/Business Connection contracts.
+async function trustedBonContext(){
+  const api=global.topBurgerDesktop?.trustedDevice;
+  if(!api?.bonContext)return null;
+  try{
+    const r=await api.bonContext();
+    const id=text(r?.verified_device_context_id);
+    const exp=Date.parse(String(r?.expires_at||''));
+    return id&&Number.isFinite(exp)&&exp>Date.now()?{verified_device_context_id:id,expires_at:new Date(exp).toISOString()}:null;
+  }catch{return null}
+}
+
 async function salePayloadWithReservedBon(payload,identity){
   const out=clone(payload||{}),order=out?.p_order;
   if(!order||order.bon_reservation)return out;
@@ -702,7 +716,13 @@ async function salePayloadWithReservedBon(payload,identity){
     shift_open_tx_id:mode==='SHIFT'?shiftOpenTx:null,
     device_fingerprint:identity.device_fingerprint
   });
-  if(evidence)out.p_order={...order,bon_numbering_mode:mode,bon_reservation:clone(evidence)};
+  if(evidence){
+    const trusted=await trustedBonContext();
+    out.p_order={...order,bon_numbering_mode:mode,bon_reservation:clone(evidence)};
+    // Context is opaque proof for future Bon V3 server transport. Absence never guesses
+    // authority and does not block the existing OFF/local-first sale path.
+    if(trusted)out.p_order.bon_trusted_device_context=trusted;
+  }
   return out;
 }
 async function ensureEvent(type,payload,tx){
