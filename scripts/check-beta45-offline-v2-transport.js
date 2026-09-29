@@ -68,7 +68,9 @@ function engine(store,send){return createSyncEngine({store,transport:{send},iden
 
 function rendererHarness(options={}){
   let active=true,legacyCalls=0,syncCalls=0;const rows=new Map();
-  const ctx={console,Date,JSON,Number,String,Math,Map,Set,Error,TypeError,Promise,URL,crypto:{randomUUID:()=>`tx-${Date.now()}`},setTimeout:(fn)=>{fn();return 1},setInterval:()=>1,clearInterval:()=>{},navigator:{onLine:true},document:{readyState:'complete',addEventListener:()=>{}},addEventListener:()=>{},localStorage:{getItem:k=>k==='sharawlaBusinessConnectionV1'?JSON.stringify({url:'https://tenant.supabase.co',key:'pub'}):null},session:{access_token:'jwt'},state:{activeBranchId:1,employee:{id:3}},currentBranchId:()=>1,refreshSessionIfNeeded:async()=>{},loadLicenseState:async()=>({device_id:'dev7',business_id:'biz',device_fingerprint:'fp'}),saveOfflineExpense:async(...args)=>({fallback:'expense',args}),saveOfflineShiftOpen:async(...args)=>({fallback:'shift',args}),saveOfflineReturn:async(...args)=>({fallback:'return',args}),saveOfflineShiftClose:async(...args)=>({fallback:'close',args})};
+  let refreshMode=options.refreshMode||'ok';
+  const runtimeSetTimeout=(fn,ms)=>options.fastContextTimeout&&Number(ms)===15000?setTimeout(fn,0):setTimeout(fn,ms);
+  const ctx={console,Date,JSON,Number,String,Math,Map,Set,Error,TypeError,Promise,URL,crypto:{randomUUID:()=>`tx-${Date.now()}`},setTimeout:runtimeSetTimeout,clearTimeout,setInterval:()=>1,clearInterval:()=>{},navigator:{onLine:true},document:{readyState:'complete',addEventListener:()=>{}},addEventListener:()=>{},localStorage:{getItem:k=>k==='sharawlaBusinessConnectionV1'?JSON.stringify({url:'https://tenant.supabase.co',key:'pub'}):null},session:{access_token:'jwt'},state:{activeBranchId:1,employee:{id:3}},currentBranchId:()=>1,refreshSessionIfNeeded:async()=>refreshMode==='hang'?new Promise(()=>{}):{},loadLicenseState:async()=>({device_id:'dev7',business_id:'biz',device_fingerprint:'fp'}),saveOfflineExpense:async(...args)=>({fallback:'expense',args}),saveOfflineShiftOpen:async(...args)=>({fallback:'shift',args}),saveOfflineReturn:async(...args)=>({fallback:'return',args}),saveOfflineShiftClose:async(...args)=>({fallback:'close',args})};
   if(options.runtimeConfigInterface)ctx.SharawlaRuntimeConfig=options.runtimeConfigInterface;
   else if(Object.prototype.hasOwnProperty.call(options,'posProfile'))ctx.SharawlaRuntimeConfig=Object.freeze({current:()=>Object.freeze({pos_profile:options.posProfile})});
   if(Object.prototype.hasOwnProperty.call(options,'legacyRetail'))ctx.isRetailProfile=()=>options.legacyRetail;
@@ -83,7 +85,7 @@ function rendererHarness(options={}){
     syncNow:async()=>{syncCalls++;return {ok:true}},manualRetry:async()=>({ok:true}),transportAttest:async()=>({ok:true})
   }};
   ctx.window=ctx;vm.runInNewContext(runtimeSource,ctx,{filename:'beta45-offline-v2-transport-runtime.js'});
-  return {ctx,rows,setActive:v=>{active=v},legacyCalls:()=>legacyCalls,syncCalls:()=>syncCalls};
+  return {ctx,rows,setActive:v=>{active=v},setRefreshMode:v=>{refreshMode=v},legacyCalls:()=>legacyCalls,syncCalls:()=>syncCalls};
 }
 function appRuntimeConfigInterface(posProfile){
   const stop=appSource.indexOf('function clearLegacyBusinessConfig');assert(stop>0);
@@ -121,6 +123,13 @@ function appRuntimeConfigInterface(posProfile){
   {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-return';h.rows.set(tx,{client_tx_id:tx,status:'synced',server_ack:{result:{return_id:91}}});const out=await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_order_return_idempotent',{p_order_id:39,p_client_tx_id:tx});assert.equal(out,91);assert.equal(h.legacyCalls(),0)}
   // Legacy-preserved migration shadows can never be stolen by V2 transport.
   {const h=rendererHarness({posProfile:'restaurant'}),tx='tx-legacy';h.rows.set(tx,{client_tx_id:tx,status:'blocked',last_error_code:'OFFLINE_V2_LEGACY_PRESERVED',last_error_message:'legacy authority'});let e=null;try{await h.ctx.SharawlaOfflineV2Transport.authoritativeRpc('create_pos_order_atomic',{p_order:{client_tx_id:tx,branch_id:1,employee_id:3}})}catch(x){e=x}assert(e);assert.equal(e.code,'OFFLINE_V2_LEGACY_AUTHORITY_ACTIVE');assert.equal(h.legacyCalls(),0);assert.equal(h.syncCalls(),0)}
+
+  // A hung auth refresh must be bounded before native claim. The renderer sync
+  // lock must settle so a later wake-up can run without restarting the app.
+  {const h=rendererHarness({posProfile:'restaurant',refreshMode:'hang',fastContextTimeout:true});
+   const first=await h.ctx.SharawlaOfflineV2Transport.syncNow();assert.equal(first.ok,true);assert.equal(h.syncCalls(),1);
+   h.setRefreshMode('ok');const second=await h.ctx.SharawlaOfflineV2Transport.syncNow();assert.equal(second.ok,true);assert.equal(h.syncCalls(),2);
+  }
 
   // Diagnostics must use the transport-owned read-only sqlite query helper; this
   // prevents Sync Now diagnostics from failing before the sync engine can claim work.
