@@ -934,17 +934,19 @@ function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
 if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false);
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
-function activateSidebarRoute(target){
+let sidebarPointerActivationAt=0;
+function activateSidebarRoute(target,source='click'){
   const b=target?.closest?.('button[data-page]');
   if(!b)return false;
+  if(source==='click'&&Date.now()-sidebarPointerActivationAt<500)return true;
+  if(source==='pointer')sidebarPointerActivationAt=Date.now();
   showPage(b.dataset.page);
   return true;
 }
-$('#nav').onclick=e=>activateSidebarRoute(e.target);
+$('#nav').onclick=e=>activateSidebarRoute(e.target,'click');
 $('#nav').addEventListener('pointerup',e=>{
-  if(e.pointerType!=='mouse')return;
-  if(e.button!==0)return;
-  activateSidebarRoute(e.target);
+  if(e.pointerType!=='mouse'||e.button!==0)return;
+  activateSidebarRoute(e.target,'pointer');
 },{passive:true});
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
