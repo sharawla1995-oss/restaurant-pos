@@ -339,6 +339,27 @@ async function projectDirectOperation(type,payload,tx,row){
     const orderId=text(payload?.p_order_id),bundles=clone(await global.odbGet('cachedOrders'))||[];
     for(const bundle of bundles){if(String(bundle?.order?.id)!==orderId)continue;bundle.order={...bundle.order,driver_id:num(payload?.p_driver_id),status:'out_for_delivery',assigned_at:created,_offline_status_pending:pending,_offline_status_tx:tx,_offline_status_at:created}}
     await global.odbSet('cachedOrders',bundles);
+  }else if(type==='retail_supplier_save'){
+    const localId=`offline-retail-supplier-${tx}`,serverId=num(serverResult.supplier_id??row?.server_ack?.server_entity_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RetailSuppliers'))||[];
+    const item={id,name:text(payload?.p_name),phone:payload?.p_phone??null,tax_no:payload?.p_tax_no??null,active:true,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('offlineV2RetailSuppliers',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
+  }else if(type==='retail_po_create'){
+    const localId=`offline-retail-po-${tx}`,serverId=num(serverResult.purchase_order_id??row?.server_ack?.server_entity_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RetailPurchaseOrders'))||[],allItems=clone(await global.odbGet('offlineV2RetailPurchaseOrderItems'))||[];
+    const po={id,branch_id:payload?.p_branch_id,supplier_id:payload?.p_supplier_id,notes:payload?.p_notes??null,status:'draft',client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    const lines=(clone(payload?.p_items)||[]).map((x,n)=>({id:`offline-retail-po-item-${tx}-${n+1}`,purchase_order_id:id,product_id:x.product_id,variant_id:x.variant_id??null,quantity_ordered:Number(x.quantity||0),quantity_received:0,unit_cost:Number(x.unit_cost||0),client_tx_id:tx,_offline:true}));
+    await global.odbSet('offlineV2RetailPurchaseOrders',[po,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000));
+    await global.odbSet('offlineV2RetailPurchaseOrderItems',[...lines,...allItems.filter(x=>String(x.client_tx_id||'')!==tx)].slice(0,20000));
+  }else if(type==='retail_po_approve'){
+    const all=clone(await global.odbGet('offlineV2RetailPurchaseOrders'))||[],createTx=text(payload?.p_purchase_order_create_tx),target=text(payload?.p_purchase_order_id)||`offline-retail-po-${createTx}`;
+    const i=all.findIndex(x=>String(x.id)===target||(createTx&&String(x.client_tx_id||'')===createTx));if(i>=0){all[i]={...all[i],status:'approved',updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet('offlineV2RetailPurchaseOrders',all.slice(0,5000))}
+  }else if(type==='retail_purchase_receive'){
+    const localId=`offline-retail-grn-${tx}`,serverId=num(serverResult.goods_receipt_id??row?.server_ack?.server_entity_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RetailGoodsReceipts'))||[];
+    const item={id,purchase_order_id:payload?.p_purchase_order_id,items:clone(payload?.p_items)||[],client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending',stock_authority:'server_ack_only'};
+    await global.odbSet('offlineV2RetailGoodsReceipts',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+  }else if(type==='retail_supplier_return'){
+    const localId=`offline-retail-supplier-return-${tx}`,serverId=num(serverResult.supplier_return_id??row?.server_ack?.server_entity_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2RetailSupplierReturns'))||[];
+    const item={id,branch_id:payload?.p_branch_id,supplier_id:payload?.p_supplier_id,notes:payload?.p_notes??null,items:clone(payload?.p_items)||[],client_tx_id:tx,created_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending',stock_authority:'server_ack_only'};
+    await global.odbSet('offlineV2RetailSupplierReturns',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
   }else if(type==='supplier_save'){
     const localId=`offline-supplier-${tx}`,serverId=num(serverResult.supplier_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Suppliers'))||[];
     const supplier={id,name:text(payload?.p_name),phone:payload?.p_phone??null,email:payload?.p_email??null,tax_no:payload?.p_tax_no??null,address:payload?.p_address??null,notes:payload?.p_notes??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
@@ -489,6 +510,7 @@ async function reconcileCompatibilityProjections(){
   const hasIngredientConversions=rows.some(r=>text(r?.operation_type)==='ingredient_conversion_save');
   const hasRecipeDrafts=rows.some(r=>text(r?.operation_type)==='recipe_draft_save'||text(r?.operation_type)==='recipe_version_activate');
   const prepRows=rows.filter(r=>['prep_item_save','prep_recipe_draft_save'].includes(text(r?.operation_type)));
+  const retailPurchasingRows=rows.filter(r=>['retail_supplier_save','retail_po_create','retail_po_approve','retail_purchase_receive','retail_supplier_return'].includes(text(r?.operation_type)));
   const foodPoRows=rows.filter(r=>['food_po_create','food_po_approve','food_po_cancel'].includes(text(r?.operation_type)));
   const foodReceiptRows=rows.filter(r=>text(r?.operation_type)==='food_purchase_receive');
   const foodSupplierReturnRows=rows.filter(r=>text(r?.operation_type)==='food_supplier_return');
@@ -514,6 +536,7 @@ async function reconcileCompatibilityProjections(){
   let ingredientConversions=hasIngredientConversions?(clone(await global.odbGet('offlineV2IngredientConversions'))||[]):null;
   let recipeVersions=hasRecipeDrafts?(clone(await global.odbGet('offlineV2RecipeVersions'))||[]):null;
   let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false,sessionsChanged=false,sessionLinksChanged=false,ingredientsChanged=false,ingredientConversionsChanged=false,recipeVersionsChanged=false;
+  for(const row of retailPurchasingRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of prepRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of foodPoRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
   for(const row of foodReceiptRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
@@ -826,6 +849,11 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='delivery_driver_settle')result={ok:true,order_ids:clone(payload.p_order_ids)||[],receiving_shift_id:payload.p_expected_receiving_shift_id,client_tx_id:tx,_offline:true};
   else if(type==='retail_suspend_sale')result={id:`offline-retail-hold-${tx}`,suspended_sale_id:`offline-retail-hold-${tx}`,client_tx_id:tx,_offline:true};
   else if(type==='retail_resume_sale')result={ok:true,suspended_sale_id:payload.p_suspend_id||`offline-retail-hold-${text(payload.p_suspend_create_tx)}`,client_tx_id:tx,_offline:true};
+  else if(type==='retail_supplier_save')result=`offline-retail-supplier-${tx}`;
+  else if(type==='retail_po_create')result=`offline-retail-po-${tx}`;
+  else if(type==='retail_po_approve')result=payload?.p_purchase_order_id||`offline-retail-po-${text(payload?.p_purchase_order_create_tx)}`;
+  else if(type==='retail_purchase_receive')result=`offline-retail-grn-${tx}`;
+  else if(type==='retail_supplier_return')result=`offline-retail-supplier-return-${tx}`;
   else if(type==='supplier_save')result=`offline-supplier-${tx}`;
   else if(type==='driver_save')result=`offline-driver-${tx}`;
   else if(type==='zone_save')result=`offline-zone-${tx}`;
