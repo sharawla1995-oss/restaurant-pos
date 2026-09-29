@@ -579,6 +579,7 @@ function hasFeaturePermission(key){
   return false;
 }
 function canAccessPage(page){
+  if(page==='businessSummary')return canAccessPage('home');
   if(page==='onlineOrders'){if(!runtimeAllowsPage(page)||!runtimeOperationalAllowsPage(page))return false;return canAccessPage('deliveryOrders')}
   if((page==='marketSettings'||page==='retailOffers')&&!isRetailProfile())return false;
   if(!runtimeAllowsPage(page))return false;
@@ -960,7 +961,13 @@ async function renderSharedInventoryPurchasingRoute(route){
   }
   return sharedInventoryPurchasingFailClosed(key,profile,'PROFILE_ADAPTER_MISSING');
 }
+async function renderBusinessSummary(){
+  const dashboard=window.__SharawlaUniversalDashboardV1;
+  if(!dashboard||typeof dashboard.render!=='function')throw new Error('ملخص الأعمال غير متاح في هذا الإصدار.');
+  return dashboard.render();
+}
 const PAGE_RENDERERS=Object.freeze({
+  businessSummary:renderBusinessSummary,
   home:renderHome,
   pos:renderPOS,
   orders:renderOrders,
@@ -1019,15 +1026,13 @@ async function showPage(p){
     if(!state.activeBranchId){renderBranchPicker();return;}
     if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}
     navActive(p);
-    $('#pageTitle').textContent=runtimePageTitle(p);
+    $('#pageTitle').textContent=p==='businessSummary'?'ملخص الأعمال':runtimePageTitle(p);
     await renderer();
   }catch(e){toast(e.message)}
 }
 
 
 async function renderHome(){
-  const dashboard=window.__SharawlaUniversalDashboardV1;
-  if(dashboard&&typeof dashboard.render==='function')return dashboard.render();
   const ids=[currentBranchId()];
   let activeDelivery=[], openShift=null;
   try{activeDelivery=await rest('orders','select=id,status,branch_id&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200')}catch(e){}
