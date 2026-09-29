@@ -2583,7 +2583,9 @@ async function renderSettings(){
  const canFinancial=isAdmin()||hasFeaturePermission('financialSettings');
  if(!canBusiness&&!canSystem&&!canPrinting&&!canFinancial){ $('#page').innerHTML='<div class="empty">ليس لديك صلاحية لفتح الإعدادات</div>'; return; }
  const b=state.business||{};
- const businessPanel=canBusiness?`<div class="panel business-settings-panel" data-settings-section="business"><h2>🎨 هوية وإعدادات النشاط</h2><p>البيانات دي تظهر تلقائيًا في الـPOS والموقع والفواتير.</p><div class="form-grid business-settings-grid">
+  const bonMode=branchBonNumberingMode(currentBranchId());
+ const bonPanel=canSystem?`<div class="panel" data-settings-section="bon"><h2>🧾 ترقيم البونات — ${esc(branchName(currentBranchId()))}</h2><p>اختر نطاق الترقيم الرسمي للفرع. تغيير السياسة إجراء إداري آمن وليس مفتاحًا لحظيًا.</p><div class="settings-list"><label class="setting-switch"><span><b>لكل وردية ترقيم مستقل</b><small>SHIFT — كل وردية تبدأ تسلسلها الخاص.</small></span><input type="radio" name="bonNumberingMode" value="SHIFT" ${bonMode==='SHIFT'?'checked':''}></label><label class="setting-switch"><span><b>ترقيم موحد للفرع</b><small>BRANCH — كل مصادر البيع في الفرع تشترك في تسلسل يوم التشغيل.</small></span><input type="radio" name="bonNumberingMode" value="BRANCH" ${bonMode==='BRANCH'?'checked':''}></label></div><div class="toolbar"><button id="saveBonNumberingMode" class="primary" type="button">حفظ سياسة ترقيم البونات</button></div><small>لن يسمح النظام بالتغيير أثناء وردية مفتوحة أو حجز Offline نشط. تفعيل BRANCH كسلطة ترقيم فعلية يظل مرتبطًا بترحيل السيرفر المعتمد.</small></div>`:'';
+const businessPanel=canBusiness?`<div class="panel business-settings-panel" data-settings-section="business"><h2>🎨 هوية وإعدادات النشاط</h2><p>البيانات دي تظهر تلقائيًا في الـPOS والموقع والفواتير.</p><div class="form-grid business-settings-grid">
  <label>اسم النشاط<input id="bizName" value="${esc(b.business_name||'')}"></label>
  <label>الشعار النصي / الجملة<input id="bizTagline" value="${esc(b.tagline||'')}"></label>
  <label>رقم الهاتف<input id="bizPhone" value="${esc(b.phone||'')}"></label>
@@ -2611,6 +2613,7 @@ async function renderSettings(){
    canPrinting&&['printing','🖨️ الطباعة'],
    canFinancial&&['financial','💳 المالية'],
    canSystem&&['features','⚙️ المميزات'],
+   canSystem&&['bon','🧾 ترقيم البونات'],
    canSystem&&['bon','🧾 ترقيم البونات'],
    canSystem&&['bon','🧾 ترقيم البونات'],
    canSystem&&['backup','💾 النسخ الاحتياطي'],
@@ -2661,7 +2664,8 @@ async function renderSettings(){
      renderSettings();
    }catch(e){toast(e.message||String(e));renderSettings()}
  };
-  if($('#saveSettings'))$('#saveSettings').onclick=async()=>{const rows=[...document.querySelectorAll('[data-setting]')].map(x=>({key:x.dataset.setting,value:String(x.checked)}));for(const r of rows)await rest('app_settings',`key=eq.${encodeURIComponent(r.key)}`,{method:'PATCH',body:JSON.stringify({value:r.value})});Object.assign(state.settings,Object.fromEntries(rows.map(r=>[r.key,r.value==='true'])));toast('تم حفظ الإعدادات')};
+  if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{const selected=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT';if(selected===branchBonNumberingMode())return toast('سياسة ترقيم البونات محفوظة بالفعل');if(navigator.onLine===false)return toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالسيرفر');try{const result=await rpc('pos_set_bon_numbering_mode_v1',{p_branch_id:currentBranchId(),p_mode:selected});state.branchBonNumberingPolicy=state.branchBonNumberingPolicy.filter(x=>Number(x.branch_id)!==currentBranchId()).concat([{branch_id:currentBranchId(),bon_numbering_mode:result?.mode||selected}]);await saveOfflineBootstrap();toast(selected==='BRANCH'?'تم حفظ سياسة BRANCH — تفعيل سلطة الفرع يتطلب ترحيل السيرفر المعتمد':'تم حفظ سياسة SHIFT');renderSettings()}catch(e){toast(e.message||String(e))}};
+ if($('#saveSettings'))$('#saveSettings').onclick=async()=>{const rows=[...document.querySelectorAll('[data-setting]')].map(x=>({key:x.dataset.setting,value:String(x.checked)}));for(const r of rows)await rest('app_settings',`key=eq.${encodeURIComponent(r.key)}`,{method:'PATCH',body:JSON.stringify({value:r.value})});Object.assign(state.settings,Object.fromEntries(rows.map(r=>[r.key,r.value==='true'])));toast('تم حفظ الإعدادات')};
  if($('#backupAll'))$('#backupAll').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=true);
  if($('#backupNone'))$('#backupNone').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=false);
  if($('#createBackup'))$('#createBackup').onclick=async()=>{const g=selectedBackupGroups($('#page'));if(!g.length)return toast('حدد بيانات للنسخ');try{await exportBackup(g);toast('تم إنشاء النسخة الاحتياطية')}catch(e){toast(e.message)}};
