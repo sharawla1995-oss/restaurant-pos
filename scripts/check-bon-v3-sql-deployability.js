@@ -24,6 +24,10 @@ assert(v3.includes('null::public.pos_bon_reservations_v2'),'V3 reserve jsonb->ro
 assert(v3.includes('null::public.pos_bon_consumptions_v2'),'V3 consume jsonb->row conversion missing');
 assert(!/return query select \* from public\.pos_(?:reserve|consume)_reserved?_?bon_range?_?v2\(/.test(v3),'V3 must not treat V2 jsonb as a composite SETOF row');
 assert(helper.includes('public.pos_consume_reserved_bon_v3'),'sale helper->V3 dependency missing');
+assert(v3.includes('revoke all on function public.pos_consume_reserved_bon_v3(uuid,integer,text,bigint,bigint,text,uuid) from public,anon,authenticated'),'V3 consume must be sale-owner internal');
+assert(!/grant execute on function public\.pos_consume_reserved_bon_v3[\s\S]{0,180}authenticated/i.test(v3),'authenticated client must not consume a reserved Bon outside the sale transaction');
+assert(helper.includes('revoke all on function public.pos_consume_sale_bon_v3(jsonb,text) from public,anon,authenticated'),'sale Bon helper must be internal-only');
+assert(!/grant execute on function public\.pos_consume_sale_bon_v3[\s\S]{0,180}authenticated/i.test(helper),'authenticated client must not call sale Bon helper directly');
 assert(owner.includes('public.pos_consume_sale_bon_v3'),'sale owner->helper dependency missing');
 for(const x of ["to_regprocedure('public.has_branch_access(bigint)')","to_regprocedure('public.create_pos_order_atomic(jsonb,jsonb,jsonb)')","to_regprocedure('gen_random_uuid()')","shifts.client_open_tx_id text","orders.bon_number integer"])assert(pre.includes(x),'preflight invariant missing '+x);
-console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');
+console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED consume_outside_sale=DENIED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');

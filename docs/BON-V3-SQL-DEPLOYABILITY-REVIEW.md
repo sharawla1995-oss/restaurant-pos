@@ -19,6 +19,8 @@ The preflight explicitly checks `gen_random_uuid()` rather than assuming extensi
 
 Source review also found and closed a V2/V3 return-shape mismatch: the V2 reserve/consume functions intentionally return `jsonb`, while the V3 public wrappers expose `SETOF` typed V2 rows. V3 now explicitly rehydrates each V2 JSON result with `jsonb_populate_record(null::<table-row-type>, ...)` before returning it. The deployability gate rejects a direct scalar-JSON-as-composite bridge.
 
-The V2 reserve/consume RPCs are also internal-only in the V3 design. Direct `authenticated` execution is revoked because V2 accepts a fingerprint parameter and exposing it would let a client bypass the V3 trusted-device context. Authenticated POS callers enter through V3; the SECURITY DEFINER V3 wrappers invoke V2 under the server-owned function boundary.
+The V2 reserve/consume RPCs are also internal-only in the V3 design. Direct `authenticated` execution is revoked because V2 accepts a fingerprint parameter and exposing it would let a client bypass the V3 trusted-device context. Authenticated POS callers reserve through V3; the SECURITY DEFINER V3 wrapper invokes V2 under the server-owned function boundary.
+
+Bon consumption is stricter: both `pos_consume_reserved_bon_v3` and `pos_consume_sale_bon_v3` are internal-only. An authenticated client must not be able to burn a reserved number independently of the sale. The public sale entry remains `create_pos_order_atomic`, which invokes the internal helper before the first durable order write in the same database transaction.
 
 This is static/source validation only. It does not prove live Beta database state and performs no database write.

@@ -116,5 +116,6 @@ end $$;
 
 revoke all on function public.pos_reserve_bon_range_v3(bigint,bigint,text,uuid,uuid,integer) from public;
 grant execute on function public.pos_reserve_bon_range_v3(bigint,bigint,text,uuid,uuid,integer) to authenticated;
-revoke all on function public.pos_consume_reserved_bon_v3(uuid,integer,text,bigint,bigint,text,uuid) from public;
-grant execute on function public.pos_consume_reserved_bon_v3(uuid,integer,text,bigint,bigint,text,uuid) to authenticated;
+-- Consumption is sale-owner internal. Direct client execution could burn a Bon
+-- without atomically persisting its sale.
+revoke all on function public.pos_consume_reserved_bon_v3(uuid,integer,text,bigint,bigint,text,uuid) from public,anon,authenticated;

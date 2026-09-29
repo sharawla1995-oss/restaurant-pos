@@ -44,8 +44,10 @@ begin
   return v_bon;
 end $$;
 
-revoke all on function public.pos_consume_sale_bon_v3(jsonb,text) from public;
-grant execute on function public.pos_consume_sale_bon_v3(jsonb,text) to authenticated;
+-- Internal sale-owner helper only. The authenticated client enters through
+-- create_pos_order_atomic so Bon consumption and the first durable sale write share
+-- one database transaction.
+revoke all on function public.pos_consume_sale_bon_v3(jsonb,text) from public,anon,authenticated;
 
 -- INTEGRATION REQUIREMENT:
 -- Every final sale-owner RPC that persists an order with p_order.bon_reservation MUST,
