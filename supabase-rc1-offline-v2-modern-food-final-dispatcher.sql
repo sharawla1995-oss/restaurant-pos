@@ -36,7 +36,7 @@ begin
     'food_ingredient_stock_adjust','food_production_start','food_production_complete','food_waste_post',
     'food_ingredient_save','food_ingredient_conversion_save','food_recipe_save_draft','food_recipe_activate',
     'food_prep_item_save','food_prep_recipe_save_draft',
-    'retail_supplier_create','retail_po_create','retail_po_approve','retail_purchase_receive','retail_supplier_return'
+    'retail_supplier_save','retail_po_create','retail_po_approve','retail_purchase_receive','retail_supplier_return'
   ) then
     return public.sharawla_offline_v2_apply_event_core_v1(p_event);
   end if;
@@ -65,9 +65,9 @@ begin
      or (v_operation='food_recipe_activate' and v_rpc<>'offline_food_recipe_activate_version_action_v2')
      or (v_operation='food_prep_item_save' and v_rpc<>'offline_food_prep_item_save_action_v2')
      or (v_operation='food_prep_recipe_save_draft' and v_rpc<>'offline_food_prep_recipe_save_draft_action_v2')
-     or (v_operation='retail_supplier_create' and v_rpc<>'retail_supplier_create')
+     or (v_operation='retail_supplier_save' and v_rpc<>'offline_retail_supplier_create_v1')
      or (v_operation='retail_po_create' and v_rpc<>'retail_purchase_order_create_v2')
-     or (v_operation='retail_po_approve' and v_rpc<>'retail_purchase_order_approve')
+     or (v_operation='retail_po_approve' and v_rpc<>'offline_retail_purchase_order_approve_v1')
      or (v_operation='retail_purchase_receive' and v_rpc<>'retail_purchase_receive_v2')
      or (v_operation='retail_supplier_return' and v_rpc<>'retail_supplier_return_create_v2') then
     raise exception using errcode='22023', message='Offline V2 Phase 7 operation/RPC binding غير مدعومة';
@@ -152,15 +152,14 @@ begin
     v_result:=public.offline_food_prep_item_save_action_v2(nullif(v_payload->>'p_prep_item_id','')::bigint,v_payload->>'p_name',nullif(v_payload->>'p_output_ingredient_id','')::bigint,v_payload->>'p_base_unit_code',(v_payload->>'p_default_batch_quantity')::numeric,nullif(v_payload->>'p_shelf_life_minutes','')::integer,v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest); v_entity_id:=nullif(v_result->>'prep_item_id','');
   elsif v_operation='food_prep_recipe_save_draft' then
     v_result:=public.offline_food_prep_recipe_save_draft_action_v2((v_payload->>'p_prep_item_id')::bigint,(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'recipe_version_id','');
-  elsif v_operation='retail_supplier_create' then
-    v_entity_id:=public.retail_supplier_create(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_tax_no')::text;
+  elsif v_operation='retail_supplier_save' then
+    v_entity_id:=public.retail_supplier_save(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_tax_no')::text;
     v_result:=jsonb_build_object('ok',true,'supplier_id',v_entity_id::bigint,'client_tx_id',v_tx);
   elsif v_operation='retail_po_create' then
     v_entity_id:=public.retail_purchase_order_create_v2(v_branch,(v_payload->>'p_supplier_id')::bigint,v_payload->>'p_notes',coalesce(v_payload->'p_items','[]'::jsonb),v_tx,v_payload->>'p_po_number',nullif(v_payload->>'p_expected_at','')::timestamptz)::text;
     v_result:=jsonb_build_object('ok',true,'purchase_order_id',v_entity_id::bigint,'client_tx_id',v_tx);
   elsif v_operation='retail_po_approve' then
-    v_entity_id:=public.retail_purchase_order_approve((v_payload->>'p_purchase_order_id')::bigint)::text;
-    v_result:=jsonb_build_object('ok',true,'purchase_order_id',v_entity_id::bigint,'client_tx_id',v_tx);
+    v_result:=public.offline_retail_purchase_order_approve_v1((v_payload->>'p_purchase_order_id')::bigint,v_tx); v_entity_id:=nullif(v_result->>'purchase_order_id','');
   elsif v_operation='retail_purchase_receive' then
     v_entity_id:=public.retail_purchase_receive_v2((v_payload->>'p_purchase_order_id')::bigint,coalesce(v_payload->'p_items','[]'::jsonb),v_tx)::text;
     v_result:=jsonb_build_object('ok',true,'goods_receipt_id',v_entity_id::bigint,'client_tx_id',v_tx);
