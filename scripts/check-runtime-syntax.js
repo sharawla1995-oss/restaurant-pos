@@ -5,7 +5,7 @@ require('./check-beta58-30-offline-practical-rc1.js');
 const root=path.resolve(__dirname,'..');
 const files=[
  'main-beta23.js','main-beta44.js','sharawla-runtime-core.js','sharawla-capabilities.js','sharawla-capabilities-beta33.js','sharawla-capabilities-v3.js','sharawla-capability-runtime-bridge.js','sharawla-feature-consumption.js','sharawla-cloud-runtime-v2.js',
- 'restaurant-engine.js','retail-engine.js','pharmacy-engine.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js',
+ 'restaurant-engine.js','retail-engine.js','pharmacy-engine.js','universal-dashboard-engine-v1.js','universal-dashboard-v1.js','service-engine.js','warehouse-engine.js','membership-engine.js','logistics-engine.js',
  'retail-website-pos.js','profile-parity-ui.js','beta22-runtime-fixes.js','beta23-full-retail.js','retail-finalization-ui.js','beta28-runtime-fixes.js','owner-diagnostics.js','beta29-retail-functional-finalization.js','pharmacy-ui.js',
  'retail-variants-runtime-bridge.js','retail-variants-ui.js','retail-variants-startup-hotfix.js','advanced-purchasing-v1.js',
  'food-recipe-runtime-bridge.js','beta55-restaurant-closure-ui.js','beta55-navigation-parity.js',

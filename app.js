@@ -612,6 +612,46 @@ function allowedBranches(){const ids=new Set(allowedBranchIds().map(String));ret
 function canSeeAllBranches(){return isAdmin()||allowedBranchIds().length>1}
 function currentBranchId(){return Number(state.activeBranchId||state.homeBranchId||state.employee?.branch_id||0)}
 function currentBranch(){return state.branches.find(b=>Number(b.id)===currentBranchId())||null}
+const universalDashboardActionPermissionCache=new Map();
+window.__SharawlaUniversalDashboardHostV1=Object.freeze({
+ version:'1.0.0',
+ getContext(){
+  const runtime=window.SharawlaCapabilities?.resolveRuntime?.(sharawlaRuntimeConfig||{})||{profile:currentPosProfile?.()||'',features:[]};
+  const permissionKeys=['reports','orders','returns','customers','inventory','purchasing','expenses','shifts','pos','deliveryOrders','kitchen'];
+  return Object.freeze({
+   profile:String(runtime.profile||'').trim().toLowerCase(),capabilities:[...(runtime.features||[])],
+   permissions:permissionKeys.filter(key=>canAccessPage(key)),online:navigator.onLine!==false,
+   branchId:currentBranchId(),allowedBranchIds:allowedBranchIds(),canAllBranches:canSeeAllBranches()&&canAccessPage('reports'),
+   branches:allowedBranches().map(branch=>({id:branch.id,name:branch.name,active:branch.active})),
+   employee:{id:state.employee?.id||null,name:state.employee?.name||'',role:state.employee?.role||''},
+   business:{name:businessName(),currencySymbol:state.business?.currency_symbol||'ج.م'},
+   paymentMethods:branchPaymentList(currentBranchId()).map(method=>({code:method.code,name:method.name,kind:method.kind}))
+  });
+ },
+ async readAll(table,query='',options={}){
+  const maxRows=Math.max(1,Math.min(5000,Number(options.maxRows||4000))),pageSize=Math.max(1,Math.min(1000,Number(options.pageSize||1000)));
+  const rows=[];let offset=0;
+  while(offset<maxRows){
+   const limit=Math.min(pageSize,maxRows-offset),join=query?`${query}&`:'';
+   const page=await rest(table,`${join}limit=${limit}&offset=${offset}`,options.signal?{signal:options.signal}:{});
+   rows.push(...(page||[]));if(!page||page.length<limit)return rows;offset+=limit;
+  }
+  const error=new Error('الفترة تحتوي بيانات أكثر من حد Dashboard V1 الآمن. استخدم فترة أقصر أو Read Model مجمّع.');error.code='DASHBOARD_ROW_LIMIT';throw error;
+ },
+ async readLocal(table,query=''){
+  const reader=window.__SharawlaBeta554RuntimeRecovery?.readOperationalRows;
+  if(typeof reader!=='function'){const error=new Error('القراءة التشغيلية المحلية غير متاحة');error.code='LOCAL_DASHBOARD_UNAVAILABLE';throw error}
+  const rows=await reader(table,query,null,false);if(rows===null){const error=new Error('هذا المؤشر غير متاح محليًا');error.code='LOCAL_DASHBOARD_UNAVAILABLE';throw error}return rows;
+ },
+ async hasActionPermission(code){
+  const action=String(code||'').trim();if(!action)return false;if(isAdmin())return true;
+  const key=`${String(state.employee?.id||'anonymous')}:${action}`;
+  if(navigator.onLine===false)return false;if(universalDashboardActionPermissionCache.has(key))return universalDashboardActionPermissionCache.get(key);
+  try{const allowed=(await rpc('has_action_permission_v2',{p_action_code:action}))===true;universalDashboardActionPermissionCache.set(key,allowed);return allowed}catch{return false}
+ },
+ readOpenShift:()=>getOpenShift(),navigate:page=>showPage(page),formatMoney:money,formatDate:fmtDate,
+ escape:esc,branchName,employeeName:(id,rows)=>employeeName(id,rows)
+});
 function refreshBranchChrome(){
   const id=currentBranchId();
   if($('#branchName')) $('#branchName').textContent=id?`فرع ${branchName(id)}`:'اختر الفرع';
@@ -986,6 +1026,8 @@ async function showPage(p){
 
 
 async function renderHome(){
+  const dashboard=window.__SharawlaUniversalDashboardV1;
+  if(dashboard&&typeof dashboard.render==='function')return dashboard.render();
   const ids=[currentBranchId()];
   let activeDelivery=[], openShift=null;
   try{activeDelivery=await rest('orders','select=id,status,branch_id&order_type=eq.delivery&status=in.(new,ready,out_for_delivery)&order=created_at.desc&limit=200')}catch(e){}
