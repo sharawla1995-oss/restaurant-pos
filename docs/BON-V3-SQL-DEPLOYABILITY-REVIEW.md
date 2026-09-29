@@ -26,4 +26,6 @@ The V2 reserve/consume RPCs are also internal-only in the V3 design. Direct `aut
 
 Bon consumption is stricter: both `pos_consume_reserved_bon_v3` and `pos_consume_sale_bon_v3` are internal-only. An authenticated client must not be able to burn a reserved number independently of the sale. The public sale entry remains `create_pos_order_atomic`, which invokes the internal helper before the first durable order write in the same database transaction.
 
+A reserved sale now persists both the exact `bon_number` and its frozen `bon_numbering_mode` into the order row. This is required so the online numbering trigger can verify the caller's frozen scope against the current branch policy and so the correct policy-scoped unique index applies to the persisted reserved Bon.
+
 This is static/source validation only. It does not prove live Beta database state and performs no database write.

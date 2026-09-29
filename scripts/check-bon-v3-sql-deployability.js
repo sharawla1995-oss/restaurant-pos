@@ -32,5 +32,7 @@ assert(!/grant execute on function public\.pos_consume_reserved_bon_v3[\s\S]{0,1
 assert(helper.includes('revoke all on function public.pos_consume_sale_bon_v3(jsonb,text) from public,anon,authenticated'),'sale Bon helper must be internal-only');
 assert(!/grant execute on function public\.pos_consume_sale_bon_v3[\s\S]{0,180}authenticated/i.test(helper),'authenticated client must not call sale Bon helper directly');
 assert(owner.includes('public.pos_consume_sale_bon_v3'),'sale owner->helper dependency missing');
+assert(owner.includes('bon_number,bon_numbering_mode,notes'),'reserved sale must persist frozen Bon numbering mode with the Bon');
+assert(owner.includes('case when v_bon_evidence is null then null else v_bon_numbering_mode end'),'reserved sale numbering mode value missing');
 for(const x of ["to_regprocedure('public.has_branch_access(bigint)')","to_regprocedure('public.create_pos_order_atomic(jsonb,jsonb,jsonb)')","to_regprocedure('gen_random_uuid()')","shifts.client_open_tx_id text","orders.bon_number integer"])assert(pre.includes(x),'preflight invariant missing '+x);
-console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS migration_v2_optional=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED consume_outside_sale=DENIED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');
+console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS migration_v2_optional=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED consume_outside_sale=DENIED frozen_scope=PERSISTED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');
