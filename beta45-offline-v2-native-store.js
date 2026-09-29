@@ -8,7 +8,7 @@ const path=require('path');
 const crypto=require('crypto');
 const sqlite3=require('sqlite3');
 
-const STORE_VERSION='2.4';
+const STORE_VERSION='2.5';
 const PROTOCOL_VERSION=2;
 const SCHEMA_VERSION=2;
 const VALID_STATUS=new Set(['pending','syncing','retryable','blocked','conflict','dead_letter','synced']);
@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS offline_v2_bon_consumptions(
   let bonColumns=await all('PRAGMA table_info(offline_v2_bon_reservations)');
   if(!bonColumns.some(x=>text(x.name)==='business_id'))await run('ALTER TABLE offline_v2_bon_reservations ADD COLUMN business_id TEXT');
   if(!bonColumns.some(x=>text(x.name)==='numbering_mode'))await run("ALTER TABLE offline_v2_bon_reservations ADD COLUMN numbering_mode TEXT NOT NULL DEFAULT 'SHIFT'");
+  if(!bonColumns.some(x=>text(x.name)==='business_date'))await run("ALTER TABLE offline_v2_bon_reservations ADD COLUMN business_date TEXT");
   await run("UPDATE offline_v2_bon_reservations SET numbering_mode='SHIFT' WHERE numbering_mode IS NULL OR trim(numbering_mode)=''");
   bonColumns=await all('PRAGMA table_info(offline_v2_bon_reservations)');
   const legacyShiftNotNull=bonColumns.some(x=>text(x.name)==='server_shift_id'&&number(x.notnull)===1)||bonColumns.some(x=>text(x.name)==='shift_open_tx_id'&&number(x.notnull)===1);
@@ -174,10 +175,11 @@ CREATE TABLE IF NOT EXISTS offline_v2_bon_consumptions(
         issued_at TEXT NOT NULL,
         imported_at TEXT NOT NULL,
         numbering_mode TEXT NOT NULL DEFAULT 'SHIFT' CHECK(numbering_mode IN ('SHIFT','BRANCH')),
+        business_date TEXT,
         CHECK(numbering_mode='BRANCH' OR (server_shift_id IS NOT NULL AND server_shift_id>=1 AND shift_open_tx_id IS NOT NULL AND trim(shift_open_tx_id)<>'')))
       );
-      INSERT INTO offline_v2_bon_reservations_scope_v24(reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,numbering_mode)
-      SELECT reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,COALESCE(NULLIF(trim(numbering_mode),''),'SHIFT')
+      INSERT INTO offline_v2_bon_reservations_scope_v24(reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,numbering_mode,business_date)
+      SELECT reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,COALESCE(NULLIF(trim(numbering_mode),''),'SHIFT'),business_date
       FROM offline_v2_bon_reservations;
       CREATE TABLE offline_v2_bon_consumptions_scope_v24(
         reservation_uid TEXT NOT NULL,
@@ -276,9 +278,10 @@ function envelopeFrom(input,sequence){
 function bonEvidence(input){
   if(text(input?.operation_type)!=='sale')return null;
   const e=input?.payload?.rpc_payload?.p_order?.bon_reservation;if(e==null)return null;
-  const out={reservation_uid:text(e.reservation_uid),bon_number:number(e.bon_number),business_id:text(e.business_id),branch_id:number(e.branch_id),numbering_mode:(text(e.numbering_mode)||'SHIFT').toUpperCase(),server_shift_id:number(e.server_shift_id),shift_open_tx_id:text(e.shift_open_tx_id),device_fingerprint:text(e.device_fingerprint)};
+  const out={reservation_uid:text(e.reservation_uid),bon_number:number(e.bon_number),business_id:text(e.business_id),branch_id:number(e.branch_id),numbering_mode:(text(e.numbering_mode)||'SHIFT').toUpperCase(),business_date:text(e.business_date),server_shift_id:number(e.server_shift_id),shift_open_tx_id:text(e.shift_open_tx_id),device_fingerprint:text(e.device_fingerprint)};
   const shiftInvalid=out.numbering_mode==='SHIFT'&&(out.server_shift_id<1||!out.shift_open_tx_id);
-  if(!out.reservation_uid||out.bon_number<1||!out.business_id||out.branch_id<1||!['SHIFT','BRANCH'].includes(out.numbering_mode)||shiftInvalid||!out.device_fingerprint){const err=new Error('Invalid scope-aware Bon reservation evidence');err.code='OFFLINE_V2_BON_EVIDENCE_INVALID';throw err}
+  const branchDayInvalid=out.numbering_mode==='BRANCH'&&!/^\d{4}-\d{2}-\d{2}$/.test(out.business_date);
+  if(!out.reservation_uid||out.bon_number<1||!out.business_id||out.branch_id<1||!['SHIFT','BRANCH'].includes(out.numbering_mode)||shiftInvalid||branchDayInvalid||!out.device_fingerprint){const err=new Error('Invalid scope-aware Bon reservation evidence');err.code='OFFLINE_V2_BON_EVIDENCE_INVALID';throw err}
   if(out.business_id!==text(input.business_id)||out.branch_id!==number(input.branch_id)){const err=new Error('Bon reservation branch mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
   return out;
 }
@@ -290,43 +293,46 @@ async function consumeBonReservationUnsafe(input,tx){
   if(!r||text(r.status)!=='active'){const err=new Error('Bon reservation unavailable');err.code='OFFLINE_V2_BON_RESERVATION_UNAVAILABLE';throw err}
   const rMode=(text(r.numbering_mode)||'SHIFT').toUpperCase();
   const shiftMismatch=rMode==='SHIFT'&&(number(r.server_shift_id)!==e.server_shift_id||text(r.shift_open_tx_id)!==e.shift_open_tx_id);
-  if(text(r.business_id)!==e.business_id||number(r.branch_id)!==e.branch_id||rMode!==e.numbering_mode||shiftMismatch||text(r.device_fingerprint)!==e.device_fingerprint){const err=new Error('Bon reservation owner/scope mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
+  const dayMismatch=rMode==='BRANCH'&&text(r.business_date)!==e.business_date;
+  if(text(r.business_id)!==e.business_id||number(r.branch_id)!==e.branch_id||rMode!==e.numbering_mode||shiftMismatch||dayMismatch||text(r.device_fingerprint)!==e.device_fingerprint){const err=new Error('Bon reservation owner/scope mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
   if(e.bon_number<number(r.start_bon)||e.bon_number>number(r.end_bon)){const err=new Error('Bon outside reserved range');err.code='OFFLINE_V2_BON_OUT_OF_RANGE';throw err}
   await run('INSERT INTO offline_v2_bon_consumptions(reservation_uid,bon_number,sale_client_tx_id,consumed_at) VALUES(?,?,?,?)',[e.reservation_uid,e.bon_number,tx,nowIso()]);
   return {reservation_uid:e.reservation_uid,bon_number:e.bon_number,sale_client_tx_id:tx};
 }
 async function importBonReservationUnsafe(input){
-  const r={reservation_uid:text(input?.reservation_uid),business_id:text(input?.business_id),branch_id:number(input?.branch_id),numbering_mode:(text(input?.numbering_mode)||'SHIFT').toUpperCase(),server_shift_id:number(input?.server_shift_id),shift_open_tx_id:text(input?.shift_open_tx_id),device_fingerprint:text(input?.device_fingerprint),start_bon:number(input?.start_bon),end_bon:number(input?.end_bon),status:text(input?.status)||'active',issued_at:text(input?.issued_at)||nowIso()};
+  const r={reservation_uid:text(input?.reservation_uid),business_id:text(input?.business_id),branch_id:number(input?.branch_id),numbering_mode:(text(input?.numbering_mode)||'SHIFT').toUpperCase(),business_date:text(input?.business_date),server_shift_id:number(input?.server_shift_id),shift_open_tx_id:text(input?.shift_open_tx_id),device_fingerprint:text(input?.device_fingerprint),start_bon:number(input?.start_bon),end_bon:number(input?.end_bon),status:text(input?.status)||'active',issued_at:text(input?.issued_at)||nowIso()};
   const shiftInvalid=r.numbering_mode==='SHIFT'&&(r.server_shift_id<1||!r.shift_open_tx_id);
+  const branchDayInvalid=r.numbering_mode==='BRANCH'&&!/^\d{4}-\d{2}-\d{2}$/.test(r.business_date);
   if(!r.reservation_uid||!r.business_id||r.branch_id<1||!['SHIFT','BRANCH'].includes(r.numbering_mode)||shiftInvalid||!r.device_fingerprint||r.start_bon<1||r.end_bon<r.start_bon||!['active','closed'].includes(r.status)){const e=new Error('Invalid scope-aware server Bon reservation');e.code='OFFLINE_V2_BON_RESERVATION_INVALID';throw e}
   await exec('BEGIN IMMEDIATE TRANSACTION');
   try{
     const old=await get('SELECT * FROM offline_v2_bon_reservations WHERE reservation_uid=?',[r.reservation_uid]);
     if(old){
       const oldMode=(text(old.numbering_mode)||'SHIFT').toUpperCase();
-      const same=text(old.business_id)===r.business_id&&number(old.branch_id)===r.branch_id&&oldMode===r.numbering_mode&&(r.numbering_mode!=='SHIFT'||(number(old.server_shift_id)===r.server_shift_id&&text(old.shift_open_tx_id)===r.shift_open_tx_id))&&text(old.device_fingerprint)===r.device_fingerprint&&number(old.start_bon)===r.start_bon&&number(old.end_bon)===r.end_bon;
+      const same=text(old.business_id)===r.business_id&&number(old.branch_id)===r.branch_id&&oldMode===r.numbering_mode&&(r.numbering_mode!=='BRANCH'||text(old.business_date)===r.business_date)&&(r.numbering_mode!=='SHIFT'||(number(old.server_shift_id)===r.server_shift_id&&text(old.shift_open_tx_id)===r.shift_open_tx_id))&&text(old.device_fingerprint)===r.device_fingerprint&&number(old.start_bon)===r.start_bon&&number(old.end_bon)===r.end_bon;
       if(!same){const e=new Error('Bon reservation immutable fields changed');e.code='OFFLINE_V2_BON_RESERVATION_MISMATCH';throw e}
       if(text(old.status)==='closed'&&r.status==='active'){const e=new Error('Closed Bon reservation cannot reactivate');e.code='OFFLINE_V2_BON_RESERVATION_CLOSED';throw e}
       if(r.status==='closed'&&text(old.status)!=='closed')await run("UPDATE offline_v2_bon_reservations SET status='closed' WHERE reservation_uid=?",[r.reservation_uid]);
       await exec('COMMIT');return {ok:true,duplicate:true,reservation:r};
     }
-    await run('INSERT INTO offline_v2_bon_reservations(reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,numbering_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[r.reservation_uid,r.business_id,r.branch_id,r.numbering_mode==='SHIFT'?r.server_shift_id:null,r.numbering_mode==='SHIFT'?r.shift_open_tx_id:null,r.device_fingerprint,r.start_bon,r.end_bon,r.status,r.issued_at,nowIso(),r.numbering_mode]);
+    await run('INSERT INTO offline_v2_bon_reservations(reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,numbering_mode,business_date) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',[r.reservation_uid,r.business_id,r.branch_id,r.numbering_mode==='SHIFT'?r.server_shift_id:null,r.numbering_mode==='SHIFT'?r.shift_open_tx_id:null,r.device_fingerprint,r.start_bon,r.end_bon,r.status,r.issued_at,nowIso(),r.numbering_mode,r.numbering_mode==='BRANCH'?r.business_date:null]);
     await exec('COMMIT');return {ok:true,duplicate:false,reservation:r};
   }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
 }
 async function importBonReservation(input){await ready();return serializeWrite(()=>importBonReservationUnsafe(clone(input||{})))}
 async function nextReservedBon(input){
   await ready();
-  const businessId=text(input?.business_id),branchId=number(input?.branch_id),mode=(text(input?.numbering_mode)||'SHIFT').toUpperCase(),shiftId=number(input?.server_shift_id),shiftTx=text(input?.shift_open_tx_id),fingerprint=text(input?.device_fingerprint);
+  const businessId=text(input?.business_id),branchId=number(input?.branch_id),mode=(text(input?.numbering_mode)||'SHIFT').toUpperCase(),businessDate=text(input?.business_date),shiftId=number(input?.server_shift_id),shiftTx=text(input?.shift_open_tx_id),fingerprint=text(input?.device_fingerprint);
   const shiftInvalid=mode==='SHIFT'&&(shiftId<1||!shiftTx);
-  if(!businessId||branchId<1||!['SHIFT','BRANCH'].includes(mode)||shiftInvalid||!fingerprint){const e=new Error('Bon reservation lookup identity incomplete');e.code='OFFLINE_V2_BON_LOOKUP_INVALID';throw e}
+  const branchDayInvalid=mode==='BRANCH'&&!/^\d{4}-\d{2}-\d{2}$/.test(businessDate);
+  if(!businessId||branchId<1||!['SHIFT','BRANCH'].includes(mode)||shiftInvalid||branchDayInvalid||!fingerprint){const e=new Error('Bon reservation lookup identity incomplete');e.code='OFFLINE_V2_BON_LOOKUP_INVALID';throw e}
   const reservations=mode==='SHIFT'
     ?await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='SHIFT' AND server_shift_id=? AND shift_open_tx_id=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,shiftId,shiftTx,fingerprint])
-    :await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='BRANCH' AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,fingerprint]);
+    :await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='BRANCH' AND business_date=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,businessDate,fingerprint]);
   for(const r of reservations){
     const used=await all('SELECT bon_number FROM offline_v2_bon_consumptions WHERE reservation_uid=? ORDER BY bon_number ASC',[r.reservation_uid]);
     const taken=new Set(used.map(x=>number(x.bon_number)));
-    for(let bon=number(r.start_bon);bon<=number(r.end_bon);bon++)if(!taken.has(bon))return {reservation_uid:text(r.reservation_uid),bon_number:bon,business_id:businessId,branch_id:branchId,numbering_mode:mode,server_shift_id:mode==='SHIFT'?shiftId:null,shift_open_tx_id:mode==='SHIFT'?shiftTx:null,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
+    for(let bon=number(r.start_bon);bon<=number(r.end_bon);bon++)if(!taken.has(bon))return {reservation_uid:text(r.reservation_uid),bon_number:bon,business_id:businessId,branch_id:branchId,numbering_mode:mode,business_date:mode==='BRANCH'?businessDate:null,server_shift_id:mode==='SHIFT'?shiftId:null,shift_open_tx_id:mode==='SHIFT'?shiftTx:null,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
   }
   return null;
 }
@@ -337,17 +343,18 @@ async function assignBonReservationForSaleUnsafe(input){
   if(!order||order.bon_reservation)return order?.bon_reservation||null;
   const mode=(text(order.bon_numbering_mode)||'SHIFT').toUpperCase();
   const businessId=text(input.business_id),branchId=number(input.branch_id),fingerprint=text(order.device_fingerprint||input.device_fingerprint);
-  const shiftId=number(order.shift_id),shiftTx=text(order.shift_open_tx_id);
+  const shiftId=number(order.shift_id),shiftTx=text(order.shift_open_tx_id),businessDate=text(order.bon_business_date);
   if(!businessId||branchId<1||!['SHIFT','BRANCH'].includes(mode)||!fingerprint)return null;
   if(mode==='SHIFT'&&(shiftId<1||!shiftTx))return null;
+  if(mode==='BRANCH'&&!/^\d{4}-\d{2}-\d{2}$/.test(businessDate))return null;
   const reservations=mode==='SHIFT'
     ?await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='SHIFT' AND server_shift_id=? AND shift_open_tx_id=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,shiftId,shiftTx,fingerprint])
-    :await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='BRANCH' AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,fingerprint]);
+    :await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='BRANCH' AND business_date=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,businessDate,fingerprint]);
   for(const r of reservations){
     const used=await all('SELECT bon_number FROM offline_v2_bon_consumptions WHERE reservation_uid=? ORDER BY bon_number ASC',[r.reservation_uid]);
     const taken=new Set(used.map(x=>number(x.bon_number)));
     for(let bon=number(r.start_bon);bon<=number(r.end_bon);bon++)if(!taken.has(bon)){
-      const evidence={reservation_uid:text(r.reservation_uid),bon_number:bon,business_id:businessId,branch_id:branchId,numbering_mode:mode,server_shift_id:mode==='SHIFT'?shiftId:null,shift_open_tx_id:mode==='SHIFT'?shiftTx:null,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
+      const evidence={reservation_uid:text(r.reservation_uid),bon_number:bon,business_id:businessId,branch_id:branchId,numbering_mode:mode,business_date:mode==='BRANCH'?businessDate:null,server_shift_id:mode==='SHIFT'?shiftId:null,shift_open_tx_id:mode==='SHIFT'?shiftTx:null,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
       order.bon_reservation=evidence;
       return evidence;
     }
@@ -382,6 +389,7 @@ async function commitOperationUnsafe(input){
         const replayOrder=(persistedPayload.records||[]).find(r=>text(r?.record_type)==='order'&&r?.payload&&typeof r.payload==='object');
         if(!persistedOrder||!replayOrder){const e=new Error('Reserved Bon replay requires matching durable order record');e.code='OFFLINE_V2_BON_REPLAY_RECORD_REQUIRED';throw e}
         replayOrder.payload.bon_numbering_mode=persistedOrder.payload.bon_numbering_mode;
+        replayOrder.payload.bon_business_date=persistedOrder.payload.bon_business_date;
         replayOrder.payload.bon_reservation=clone(persistedOrder.payload.bon_reservation);
         replayOrder.payload.bon_number=persistedOrder.payload.bon_number;
         replayOrder.payload._official_number_pending=persistedOrder.payload._official_number_pending;
@@ -400,6 +408,7 @@ async function commitOperationUnsafe(input){
       const orderRecord=(input.records||[]).find(r=>text(r?.record_type)==='order'&&r?.payload&&typeof r.payload==='object');
       if(!orderRecord){const e=new Error('Native Bon assignment requires a durable local order record');e.code='OFFLINE_V2_BON_ORDER_RECORD_REQUIRED';throw e}
       orderRecord.payload.bon_numbering_mode=text(input?.payload?.rpc_payload?.p_order?.bon_numbering_mode)||text(assignedBon.numbering_mode)||'SHIFT';
+      orderRecord.payload.bon_business_date=text(assignedBon.business_date)||null;
       orderRecord.payload.bon_reservation=clone(assignedBon);
       orderRecord.payload.bon_number=number(assignedBon.bon_number);
       orderRecord.payload._official_number_pending=false;

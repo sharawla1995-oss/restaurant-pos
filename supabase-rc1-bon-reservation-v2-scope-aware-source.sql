@@ -151,6 +151,10 @@ begin
   end if;
   if p_bon_number<v_res.start_bon or p_bon_number>v_res.end_bon then raise exception 'رقم البون خارج النطاق المحجوز'; end if;
 
+  if v_res.numbering_mode='BRANCH' and v_res.business_date is distinct from public.pos_bon_business_date_v1(p_branch_id) then
+    raise exception 'حجز البون يخص يوم تشغيل سابق';
+  end if;
+
   if v_res.numbering_mode='SHIFT' then
     if v_res.shift_id is distinct from p_shift_id or v_res.shift_open_tx_id is distinct from trim(coalesce(p_shift_open_tx_id,'')) then raise exception 'حجز البون لا يطابق الوردية'; end if;
     select * into v_shift from public.shifts where id=p_shift_id and branch_id=p_branch_id for update;
