@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const p='supabase-rc1-bon-reservation-v1-sale-integration.sql',s=fs.readFileSync(p,'utf8');
+for(const x of ["create or replace function public.create_pos_order_atomic(","v_bon_evidence jsonb := p_order->'bon_reservation'","perform public.pos_consume_reserved_bon_v1(","driver_id,assigned_at,client_tx_id,bon_number,notes","case when v_bon_evidence is null then null else v_reserved_bon end","Bon Reservation replay mismatch","grant execute on function public.create_pos_order_atomic(jsonb,jsonb,jsonb) to authenticated"])assert(s.includes(x),'sale integration missing '+x);
+const consume=s.indexOf('perform public.pos_consume_reserved_bon_v1('),insert=s.indexOf('insert into public.orders(',consume);
+assert(consume>=0&&insert>consume,'reservation consumption must precede order insert in same function transaction');
+assert(s.includes("case when v_bon_evidence is null then null else v_reserved_bon end"),'legacy NULL Bon path must remain for trigger allocation');
+assert(!s.includes('create trigger'),'sale integration must not replace numbering trigger');
+const retail=fs.readFileSync('supabase-v10-5-4-beta15-retail-inventory-foundation.sql','utf8');
+assert(retail.includes('public.create_pos_order_atomic(p_order,p_items,p_payments)'),'Retail wrapper must still use base sale root');
+const food=fs.readFileSync('supabase-point4-transitive-food-context-plumbing-v1.sql','utf8');
+assert(food.includes('v_result:=public.create_pos_order_atomic(p_order,p_items,p_payments);'),'Food wrapper must still use base sale root');
+console.log('BON RESERVATION V1 SALE INTEGRATION SOURCE GATE PASS — deployment=0 transport_binding=0');
