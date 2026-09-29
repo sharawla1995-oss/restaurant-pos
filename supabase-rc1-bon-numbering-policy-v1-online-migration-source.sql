@@ -3,7 +3,8 @@
 -- Historical orders remain legacy SHIFT-scoped; no historical Bon is renumbered.
 
 alter table public.orders
-  add column if not exists bon_numbering_mode text;
+  add column if not exists bon_numbering_mode text,
+  add column if not exists bon_business_date date;
 
 alter table public.orders
   drop constraint if exists orders_bon_numbering_mode_ck;
@@ -14,8 +15,8 @@ alter table public.orders
 -- Existing rows deliberately stay NULL: NULL means historical legacy SHIFT semantics.
 -- New BRANCH rows get branch uniqueness without colliding with historical repeated Bons.
 create unique index if not exists orders_branch_bon_policy_unique
-on public.orders(branch_id,bon_number)
-where bon_numbering_mode='BRANCH' and bon_number is not null;
+on public.orders(branch_id,bon_business_date,bon_number)
+where bon_numbering_mode='BRANCH' and bon_business_date is not null and bon_number is not null;
 
 -- Preserve the historical SHIFT unique index. Add an explicit policy-scoped index for
 -- new SHIFT-stamped rows; the old index remains the compatibility authority.
@@ -28,6 +29,7 @@ returns trigger language plpgsql security definer set search_path=public as $$
 declare
   v bigint;
   v_bon_mode text;
+  v_bon_date date;
 begin
   -- Preserve existing shift attachment behavior.
   if new.shift_id is null and new.employee_id is not null then
@@ -59,6 +61,15 @@ begin
     raise exception 'سياسة البون المرسلة لا تطابق سياسة الفرع';
   end if;
   new.bon_numbering_mode:=v_bon_mode;
+  if v_bon_mode='BRANCH' then
+    v_bon_date:=public.pos_bon_business_date_v1(new.branch_id);
+    if new.bon_business_date is not null and new.bon_business_date<>v_bon_date then
+      raise exception 'يوم البون المرسل لا يطابق يوم تشغيل الفرع';
+    end if;
+    new.bon_business_date:=v_bon_date;
+  else
+    new.bon_business_date:=null;
+  end if;
 
   if new.bon_number is null then
     if v_bon_mode='SHIFT' then
@@ -71,9 +82,9 @@ begin
         new.bon_number:=v::integer;
       end if;
     else
-      insert into public.branch_bon_counters_v1(branch_id,next_number)
-      values(new.branch_id,2)
-      on conflict(branch_id) do update
+      insert into public.branch_bon_counters_v1(branch_id,business_date,next_number)
+      values(new.branch_id,v_bon_date,2)
+      on conflict(branch_id,business_date) do update
         set next_number=public.branch_bon_counters_v1.next_number+1
       returning next_number-1 into v;
       new.bon_number:=v::integer;

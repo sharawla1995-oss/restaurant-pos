@@ -187,7 +187,7 @@ begin
     subtotal,discount,discount_type,discount_value,tax_amount,service_amount,
     delivery_fee,total,promo_code_id,promo_code,promo_discount,status,source,payment_status,
     customer_phone,customer_name,delivery_address,delivery_area,delivery_zone_id,
-    driver_id,assigned_at,client_tx_id,bon_number,bon_numbering_mode,notes
+    driver_id,assigned_at,client_tx_id,bon_number,bon_numbering_mode,bon_business_date,notes
   ) values (
     v_branch,
     v_emp,
@@ -219,6 +219,7 @@ begin
     v_client_tx_id,
     case when v_bon_evidence is null then null else v_reserved_bon end,
     case when v_bon_evidence is null then null else v_bon_numbering_mode end,
+    case when v_bon_numbering_mode='BRANCH' then v_bon_business_date else null end,
     nullif(trim(coalesce(p_order->>'notes','')),'')
   ) returning * into v_order;
 

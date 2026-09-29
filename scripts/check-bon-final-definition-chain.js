@@ -8,6 +8,11 @@ const order=[
   'supabase-rc1-bon-v3-sale-integration-source.sql',
   'supabase-rc1-bon-v3-base-sale-owner-source.sql'
 ];
+const policy=bodies.find(x=>x.p==='supabase-rc1-bon-numbering-policy-v1-source.sql').s;
+if(!policy.includes('primary key(branch_id,business_date)')) fail('BRANCH Bon counter must reset by business date');
+if(!policy.includes('pos_bon_business_date_v1')) fail('business-date resolver missing');
+const online=bodies.find(x=>x.p.includes('online-migration')).s;
+if(!online.includes('branch_id,bon_business_date,bon_number')) fail('BRANCH uniqueness must include business date');
 const expected=[
   'pos_bon_numbering_mode_v1',
   'assign_order_numbers',
@@ -45,4 +50,4 @@ const v3=bodies.find(x=>x.p.includes('trusted-device-context')).s;
 if(/grant execute on function public\.pos_consume_reserved_bon_v3[\s\S]{0,180}authenticated/i.test(v3)) fail('direct V3 consume reopened');
 const helper=bodies.find(x=>x.p.includes('sale-integration')).s;
 if(/grant execute on function public\.pos_consume_sale_bon_v3[\s\S]{0,180}authenticated/i.test(helper)) fail('sale helper client bypass reopened');
-console.log('BON FINAL DEFINITION CHAIN GATE PASS — definitions=11 duplicates=0 order=PASS internal_bypasses=DENIED deployment=0');
+console.log('BON FINAL DEFINITION CHAIN GATE PASS — definitions=12 daily_branch_reset=PASS duplicates=0 order=PASS internal_bypasses=DENIED deployment=0');

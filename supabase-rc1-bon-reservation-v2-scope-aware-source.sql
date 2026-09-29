@@ -7,6 +7,7 @@ create table if not exists public.pos_bon_reservations_v2(
   reservation_uid uuid primary key,
   branch_id bigint not null references public.branches(id) on delete restrict,
   numbering_mode text not null check(numbering_mode in ('SHIFT','BRANCH')),
+  business_date date,
   shift_id bigint references public.shifts(id) on delete restrict,
   shift_open_tx_id text,
   device_fingerprint text not null,
@@ -52,6 +53,7 @@ declare
   v_existing public.pos_bon_reservations_v2%rowtype;
   v_start integer;
   v_end integer;
+  v_business_date date;
 begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   v_emp:=public.current_employee_id();
@@ -91,19 +93,21 @@ begin
     v_end:=v_start+p_size-1;
     update public.shift_bon_counters set next_number=v_end+1 where shift_id=p_shift_id;
   else
+    v_business_date:=public.pos_bon_business_date_v1(p_branch_id);
     -- BRANCH is source-ready only. Activation remains blocked until the branch
     -- uniqueness/online trigger migration and trusted-device gate are deployed.
-    insert into public.branch_bon_counters_v1(branch_id,next_number) values(p_branch_id,1) on conflict(branch_id) do nothing;
-    select next_number into v_start from public.branch_bon_counters_v1 where branch_id=p_branch_id for update;
+    insert into public.branch_bon_counters_v1(branch_id,business_date,next_number) values(p_branch_id,v_business_date,1) on conflict(branch_id,business_date) do nothing;
+    select next_number into v_start from public.branch_bon_counters_v1 where branch_id=p_branch_id and business_date=v_business_date for update;
     v_end:=v_start+p_size-1;
-    update public.branch_bon_counters_v1 set next_number=v_end+1 where branch_id=p_branch_id;
+    update public.branch_bon_counters_v1 set next_number=v_end+1 where branch_id=p_branch_id and business_date=v_business_date;
   end if;
 
   insert into public.pos_bon_reservations_v2(
-    reservation_uid,branch_id,numbering_mode,shift_id,shift_open_tx_id,
+    reservation_uid,branch_id,numbering_mode,business_date,shift_id,shift_open_tx_id,
     device_fingerprint,request_uid,start_bon,end_bon,status
   ) values(
     gen_random_uuid(),p_branch_id,v_mode,
+    case when v_mode='BRANCH' then v_business_date else null end,
     case when v_mode='SHIFT' then p_shift_id else null end,
     case when v_mode='SHIFT' then trim(p_shift_open_tx_id) else null end,
     trim(p_device_fingerprint),p_request_uid,v_start,v_end,'active'
