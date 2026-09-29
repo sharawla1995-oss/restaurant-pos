@@ -28,5 +28,11 @@ ok(/v_operation='retail_supplier_save'[\s\S]*offline_retail_supplier_create_v1/.
 ok(/retail_po_create'[\s\S]*p_supplier_create_tx/.test(transport),'retail PO dependency must fail closed or wait for supplier ACK');
 ok(/retail_po_approve'\|\|type==='retail_purchase_receive'[\s\S]*p_purchase_order_create_tx/.test(transport),'PO child operations must require server PO or dependency tx');
 if(!/variant_id/.test(app.slice(app.indexOf('async function renderRetailPurchasing'),app.indexOf('async function renderRetailMarketSettings'))))gaps.push('Retail purchasing UI variant identity');
+ok(transport.includes("offlineV2RetailSuppliers"),'Retail Supplier local projection missing');
+ok(transport.includes("offlineV2RetailPurchaseOrders")&&transport.includes("offlineV2RetailPurchaseOrderItems"),'Retail PO local projection/items missing');
+ok(transport.includes("offlineV2RetailGoodsReceipts")&&transport.includes("offlineV2RetailSupplierReturns"),'Retail GRN/Return local projection missing');
+ok(app.includes("retailSuppliersCloudCache")&&app.includes("retailPurchaseOrdersCloudCache:")&&app.includes("retailPurchaseOrderItemsCloudCache"),'Retail purchasing Cloud baseline cache missing');
+ok(app.includes("mergeOperational(suppliers,localSuppliers)")&&app.includes("mergeOperational(orders,localOrders)")&&app.includes("mergeOperational(items,localItems)"),'Retail purchasing operational merge missing');
+ok(app.includes("!o._offline&&oi.every(x=>!x._offline)"),'GRN must fail closed until authoritative PO line IDs exist');
 if(gaps.length){console.error('RC1 retail offline sync coverage: OPEN\n- '+gaps.join('\n- '));process.exit(2)}
 console.log('RC1 retail offline sync coverage: PASS');
