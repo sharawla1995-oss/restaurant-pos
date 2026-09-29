@@ -2,6 +2,7 @@
 const fs=require('fs');
 const assert=(v,m)=>{if(!v)throw new Error(m)};
 const s=fs.readFileSync('supabase-rc1-bon-reservation-v1-source.sql','utf8');
+assert(!s.includes('b.business_id')&&!s.includes('public.branches.business_id'),'Restaurant source must not assume branches.business_id');
 for(const x of [
  'pos_bon_reservations','pos_bon_consumptions','pos_reserve_bon_range_v1',
  'pos_consume_reserved_bon_v1','pg_advisory_xact_lock',

@@ -1,10 +1,10 @@
 -- Sharawla RC1 — Bon Reservation V1 server source artifact
 -- SOURCE ONLY. Do not deploy until the Bon Reservation runtime/acceptance gate is authorized.
 -- Additive foundation: does not replace create_pos_order_atomic or numbering triggers.
+-- Restaurant databases are business-isolated; do not assume public.branches has a business_id column.
 
 create table if not exists public.pos_bon_reservations(
   reservation_uid uuid primary key,
-  business_id uuid not null,
   branch_id bigint not null references public.branches(id) on delete restrict,
   shift_id bigint not null references public.shifts(id) on delete cascade,
   shift_open_tx_id text not null,
@@ -47,7 +47,6 @@ declare
   v_existing public.pos_bon_reservations%rowtype;
   v_start integer;
   v_end integer;
-  v_business uuid;
 begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   v_emp:=public.current_employee_id();
@@ -82,10 +81,6 @@ begin
     raise exception 'هوية فتح الوردية غير مطابقة';
   end if;
 
-  -- business identity is derived from the branch; caller cannot choose another business.
-  select b.business_id into v_business from public.branches b where b.id=p_branch_id;
-  if v_business is null then raise exception 'تعذر تحديد النشاط'; end if;
-
   insert into public.shift_bon_counters(shift_id,branch_id,next_number)
   values(p_shift_id,p_branch_id,1)
   on conflict(shift_id) do nothing;
@@ -94,10 +89,10 @@ begin
   update public.shift_bon_counters set next_number=v_end+1 where shift_id=p_shift_id;
 
   insert into public.pos_bon_reservations(
-    reservation_uid,business_id,branch_id,shift_id,shift_open_tx_id,
+    reservation_uid,branch_id,shift_id,shift_open_tx_id,
     device_fingerprint,request_uid,start_bon,end_bon,status
   ) values(
-    gen_random_uuid(),v_business,p_branch_id,p_shift_id,trim(p_shift_open_tx_id),
+    gen_random_uuid(),p_branch_id,p_shift_id,trim(p_shift_open_tx_id),
     trim(p_device_fingerprint),p_request_uid,v_start,v_end,'active'
   ) returning * into v_existing;
   return to_jsonb(v_existing);
