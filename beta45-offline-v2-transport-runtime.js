@@ -91,9 +91,9 @@ function resolveOperation(type,payload){
   if(type==='retail_suspend_sale')return {rpc_name:'offline_retail_suspend_sale_v1',rpc_payload:clone(payload)};
   if(type==='retail_resume_sale')return {rpc_name:'offline_retail_resume_sale_v1',rpc_payload:clone(payload)};
   if(type==='supplier_save')return {rpc_name:'offline_food_supplier_save_v1',rpc_payload:clone(payload)};
-  if(type==='retail_supplier_create')return {rpc_name:'retail_supplier_create',rpc_payload:clone(payload)};
+  if(type==='retail_supplier_save')return {rpc_name:'retail_supplier_save',rpc_payload:clone(payload)};
   if(type==='retail_po_create')return {rpc_name:'retail_purchase_order_create_v2',rpc_payload:clone(payload)};
-  if(type==='retail_po_approve')return {rpc_name:'retail_purchase_order_approve',rpc_payload:clone(payload)};
+  if(type==='retail_po_approve')return {rpc_name:'offline_retail_purchase_order_approve_v1',rpc_payload:clone(payload)};
   if(type==='retail_purchase_receive')return {rpc_name:'retail_purchase_receive_v2',rpc_payload:clone(payload)};
   if(type==='retail_supplier_return')return {rpc_name:'retail_supplier_return_create_v2',rpc_payload:clone(payload)};
   if(type==='driver_save')return {rpc_name:'offline_delivery_driver_save_v1',rpc_payload:clone(payload)};
@@ -216,9 +216,9 @@ function registerTransportAdapters(){
   registerOne('retail_suspend_sale',adapter('retail_suspend_sale','retail_suspended_sale',['offline_retail_suspend_sale_v1']));
   registerOne('retail_resume_sale',adapter('retail_resume_sale','retail_suspended_sale_resume',['offline_retail_resume_sale_v1']));
   registerOne('supplier_save',adapter('supplier_save','supplier',['food_supplier_save_v1']));
-  registerOne('retail_supplier_create',adapter('retail_supplier_create','retail_supplier',['retail_supplier_create']));
+  registerOne('retail_supplier_save',adapter('retail_supplier_save','retail_supplier',['retail_supplier_save']));
   registerOne('retail_po_create',adapter('retail_po_create','retail_purchase_order',['retail_purchase_order_create_v2']));
-  registerOne('retail_po_approve',adapter('retail_po_approve','retail_purchase_order',['retail_purchase_order_approve']));
+  registerOne('retail_po_approve',adapter('retail_po_approve','retail_purchase_order',['offline_retail_purchase_order_approve_v1']));
   registerOne('retail_purchase_receive',adapter('retail_purchase_receive','retail_goods_receipt',['retail_purchase_receive_v2']));
   registerOne('retail_supplier_return',adapter('retail_supplier_return','retail_supplier_return',['retail_supplier_return_create_v2']));
   registerOne('driver_save',adapter('driver_save','delivery_driver',['delivery_driver_save_v2']));
