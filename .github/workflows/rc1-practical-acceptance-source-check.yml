@@ -1,0 +1,30 @@
+name: RC1 Practical Acceptance Source Check
+on:
+  push:
+    branches:
+      - fix/rc1-practical-acceptance-runtime
+  pull_request:
+    branches:
+      - rc1-beta58-32-performance-hotfix
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Verify source-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.32"
+          test -f scripts/check-offline-modern-food-final-dispatcher.js
+          test -f scripts/check-universal-dashboard-navigation-v1.js
+          test -f scripts/check-universal-dashboard-connectivity-runtime.js
+          test -f scripts/check-sidebar-input-runtime.js
+      - name: Run full source and regression gates
+        run: npm run check:ci
