@@ -1054,7 +1054,28 @@ function drawRetailProducts(){
  grid.innerHTML=rows.map(p=>`<button class="product retail-product" data-retail-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">📦</div>`}<b>${esc(p.name)}</b><span>${money(effectiveProductPrice(p))}</span>${p.barcode?`<small>${esc(p.barcode)}</small>`:''}</button>`).join('')||'<div class="empty">لا توجد أصناف مطابقة</div>';
  grid.onclick=e=>{const b=e.target.closest('[data-retail-id]');if(!b)return;const p=state.products.find(x=>String(x.id)===String(b.dataset.retailId));if(p)addRetailProductToCart(p)};
 }
-async function renderRetailPOS(){
+async async function retailSuspendedSalesReadModel(){
+ const branchId=Number(currentBranchId()),byId=new Map(),byTx=new Map();
+ if(navigator.onLine)try{for(const row of await rest('retail_suspended_sales',`select=*&branch_id=eq.${branchId}&order=created_at.desc&limit=100`)){byId.set(String(row.id),row);if(row.client_tx_id)byTx.set(String(row.client_tx_id),row)}}catch(e){if(!isNetError(e))throw e}
+ try{
+  const events=await window.topBurgerDesktop?.offlineV2?.outbox?.();
+  const relevant=(events||[]).filter(x=>['retail_suspend_sale','retail_resume_sale'].includes(String(x.operation_type||''))&&Number(x.branch_id)===branchId).sort((a,b)=>Number(a.device_sequence||0)-Number(b.device_sequence||0));
+  for(const row of relevant){
+   const p=row?.envelope?.payload?.rpc_payload||{},tx=String(row.client_tx_id||''),result=row?.server_ack?.result||{};
+   if(row.operation_type==='retail_suspend_sale'){
+    const serverId=result.suspended_sale_id||row?.server_ack?.server_entity_id||null,localId='offline-retail-hold-'+tx,id=serverId||localId;
+    const item={id,branch_id:branchId,employee_id:row.employee_id,label:p.p_label||null,cart:Array.isArray(p.p_cart)?p.p_cart:[],customer:p.p_customer||{},financial:p.p_financial||{},created_at:row.created_local_at||row.created_at,client_tx_id:tx,_offline:row.status!=='synced',_offline_sync_status:row.status||'pending'};
+    const prior=byTx.get(tx);if(prior)byId.delete(String(prior.id));byId.delete(localId);byId.set(String(id),item);byTx.set(tx,item);
+   }else{
+    const createTx=String(p.p_suspend_create_tx||''),target=String(p.p_suspend_id||'');
+    if(createTx){const prior=byTx.get(createTx);if(prior)byId.delete(String(prior.id));byTx.delete(createTx);byId.delete('offline-retail-hold-'+createTx)}
+    if(target)byId.delete(target);
+   }
+  }
+ }catch(e){console.warn('retail suspended local read model',e)}
+ return [...byId.values()].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+}
+function renderRetailPOS(){
  await loadRetailMarketData();
  const barcodeOn=moduleEnabled('barcode');
  $('#page').innerHTML=`<div class="retail-checkout-shell">
@@ -1092,8 +1113,8 @@ async function renderRetailPOS(){
  if($('#discount'))$('#discount').oninput=drawCart;if($('#discountType'))$('#discountType').onchange=drawCart;
  let customerLookupTimer;$('#customerPhone').addEventListener('input',()=>{clearTimeout(customerLookupTimer);customerLookupTimer=setTimeout(lookupCustomerByPhone,350)});$('#customerPhone').addEventListener('blur',lookupCustomerByPhone);
  $('.pay-actions').onclick=e=>{const b=e.target.closest('[data-pay]');if(b)return checkout(b.dataset.pay);if(e.target.closest('[data-mixed-pay]'))return openMixedPayment()};
- $('#holdRetailSale').onclick=async()=>{if(!state.cart.length)return toast('السلة فارغة');const label=await uiPrompt('اسم/رقم تعليق الفاتورة','',{title:'تعليق البيع'});if(label===null)return;try{await rpc('retail_suspend_sale',{p_branch_id:Number(currentBranchId()),p_label:String(label||'').trim()||null,p_cart:state.cart,p_customer:{phone:$('#customerPhone')?.value||'',name:$('#customerName')?.value||''},p_financial:{discount:Number($('#discount')?.value||0),discount_type:$('#discountType')?.value||'amount'}});state.cart=[];drawCart();toast('تم تعليق الفاتورة')}catch(e){toast(e.message)}};
- $('#resumeRetailSale').onclick=async()=>{try{const rows=await rest('retail_suspended_sales',`select=*&branch_id=eq.${Number(currentBranchId())}&order=created_at.desc&limit=30`);if(!rows.length)return toast('لا توجد فواتير معلقة');const promptText='اختر رقم الفاتورة المعلقة:\n'+rows.map(x=>`${x.id} - ${x.label||'بدون اسم'} - ${fmtDate(x.created_at)}`).join('\n');const id=await uiPrompt(promptText,String(rows[0].id),{title:'استرجاع بيع معلق',type:'number'});if(id===null)return;const row=rows.find(x=>String(x.id)===String(id));if(!row)return toast('رقم غير صحيح');if(state.cart.length&&!await uiConfirm('سيتم استبدال السلة الحالية بالفاتورة المعلقة. متابعة؟'))return;state.cart=Array.isArray(row.cart)?row.cart:[];if($('#customerPhone'))$('#customerPhone').value=row.customer?.phone||'';if($('#customerName'))$('#customerName').value=row.customer?.name||'';if($('#discount'))$('#discount').value=Number(row.financial?.discount||0);if($('#discountType')&&row.financial?.discount_type)$('#discountType').value=row.financial.discount_type;await rpc('retail_delete_suspended_sale',{p_id:Number(row.id)});drawCart();toast('تم استرجاع الفاتورة')}catch(e){toast(e.message)}};
+ $('#holdRetailSale').onclick=async()=>{if(!state.cart.length)return toast('السلة فارغة');const label=await uiPrompt('اسم/رقم تعليق الفاتورة','',{title:'تعليق البيع'});if(label===null)return;try{const tx=point4UuidV4(),committed=await window.SharawlaOfflineV2Transport.commitRpcLocal('offline_retail_suspend_sale_v1',{p_branch_id:Number(currentBranchId()),p_label:String(label||'').trim()||null,p_cart:state.cart,p_customer:{phone:$('#customerPhone')?.value||'',name:$('#customerName')?.value||''},p_financial:{discount:Number($('#discount')?.value||0),discount_type:$('#discountType')?.value||'amount'},p_client_tx_id:tx});state.cart=[];drawCart();toast(committed.synced?'تم تعليق الفاتورة':'تم تعليق الفاتورة محليًا وستتزامن عند رجوع النت')}catch(e){toast(e.message)}};
+ $('#resumeRetailSale').onclick=async()=>{try{const rows=(await retailSuspendedSalesReadModel()).slice(0,30);if(!rows.length)return toast('لا توجد فواتير معلقة');const promptText='اختر رقم الفاتورة المعلقة:\n'+rows.map((x,i)=>`${i+1} - ${x.label||'بدون اسم'} - ${fmtDate(x.created_at)}`).join('\n');const choice=await uiPrompt(promptText,'1',{title:'استرجاع بيع معلق',type:'number'});if(choice===null)return;const row=rows[Number(choice)-1];if(!row)return toast('رقم غير صحيح');if(state.cart.length&&!await uiConfirm('سيتم استبدال السلة الحالية بالفاتورة المعلقة. متابعة؟'))return;const tx=point4UuidV4(),createTx=String(row.client_tx_id||''),local=String(row.id||'').startsWith('offline-retail-hold-');await window.SharawlaOfflineV2Transport.commitRpcLocal('offline_retail_resume_sale_v1',{p_branch_id:Number(currentBranchId()),p_suspend_id:local?null:Number(row.id),p_suspend_create_tx:local?createTx:null,p_client_tx_id:tx});state.cart=Array.isArray(row.cart)?row.cart:[];if($('#customerPhone'))$('#customerPhone').value=row.customer?.phone||'';if($('#customerName'))$('#customerName').value=row.customer?.name||'';if($('#discount'))$('#discount').value=Number(row.financial?.discount||0);if($('#discountType')&&row.financial?.discount_type)$('#discountType').value=row.financial.discount_type;drawCart();toast('تم استرجاع الفاتورة')}catch(e){toast(e.message)}};
  drawRetailProducts();drawCart();updateNextBonBadge();setTimeout(()=>scan?.focus(),0);
 }
 function renderRestaurantPOS(){

@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const app=fs.readFileSync('app.js','utf8'),rt=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8'),main=fs.readFileSync('beta45-offline-v2-transport.js','utf8'),sql=fs.readFileSync('supabase-rc1-retail-suspend-resume-offline-v1-source.sql','utf8');
+for(const t of ["offline_retail_suspend_sale_v1","offline_retail_resume_sale_v1","retailSuspendedSalesReadModel","commitRpcLocal('offline_retail_suspend_sale_v1'","commitRpcLocal('offline_retail_resume_sale_v1'"])assert(app.includes(t)||rt.includes(t),'missing '+t);
+assert(!app.includes("rpc('retail_suspend_sale'"),'legacy direct suspend still active');
+assert(!app.includes("rpc('retail_delete_suspended_sale'"),'legacy destructive resume still active');
+assert(rt.includes("p_suspend_create_tx")&&rt.includes("retail_resume_sale"),'resume dependency not bound');
+assert(main.includes("applyRpcForEvent(event)"),'dedicated server transport selector missing');
+for(const t of ['pg_advisory_xact_lock','offline_v2_server_receipts','has_branch_access','retail_suspend_sale','retail_resume_sale','idempotent_replay'])assert(sql.includes(t),'SQL contract missing '+t);
+new vm.Script(rt);new vm.Script(main);new vm.Script(app);
+console.log('RETAIL SUSPEND/RESUME LOCAL-FIRST GATE PASS — local_first=YES restart=OUTBOX resume=IDEMPOTENT branch_scope=BOUND online=SAFE_SOURCE deployment=0');

@@ -12,6 +12,9 @@ const {createSyncEngine}=require('./beta45-offline-v2-sync.js');
 const TRANSPORT_VERSION='1.0';
 const STATE_KEY='takeover_state_v1';
 const APPLY_RPC='sharawla_offline_v2_apply_event';
+const RETAIL_SUSPEND_APPLY_RPC='sharawla_offline_v2_apply_retail_suspend_event_v1';
+const RETAIL_RESUME_APPLY_RPC='sharawla_offline_v2_apply_retail_resume_event_v1';
+function applyRpcForEvent(event){const op=text(event?.operation_type);return op==='retail_suspend_sale'?RETAIL_SUSPEND_APPLY_RPC:op==='retail_resume_sale'?RETAIL_RESUME_APPLY_RPC:APPLY_RPC}
 const INFO_RPC='sharawla_offline_v2_transport_info';
 let db=null,readyPromise=null,writeChain=Promise.resolve(),installed=false;
 
@@ -183,7 +186,7 @@ async function syncNow(input={}){
   };
   const engine=createSyncEngine({
     store:adapter,
-    transport:{send:event=>postRpc(ctx,APPLY_RPC,{p_event:event})},
+    transport:{send:event=>postRpc(ctx,applyRpcForEvent(event),{p_event:event})},
     identityProvider:async()=>({device_fingerprint:ctx.identity.device_fingerprint})
   });
   const beforeScope=await pendingScopeDiagnostics(ctx);

@@ -40,7 +40,8 @@
     "check:ci": "node scripts/run-full-checks.js",
     "check:bon-final-definition-chain": "node scripts/check-bon-final-definition-chain.js",
     "check:bon-source-closure": "node scripts/check-bon-source-closure.js",
-    "check:retail-suspend-resume-ownership": "node scripts/check-retail-suspend-resume-ownership.js"
+    "check:retail-suspend-resume-ownership": "node scripts/check-retail-suspend-resume-ownership.js",
+    "check:retail-suspend-resume-local-first": "node scripts/check-retail-suspend-resume-local-first.js"
   },
   "dependencies": {
     "sql.js": "1.8.0",

@@ -38,6 +38,8 @@ function deterministicLocalId(type,tx){
   if(type==='expense')return `offline-exp-${tx}`;
   if(type==='shift_open')return `offline-shift-${tx}`;
   if(type==='shift_close')return `offline-shift-close-${tx}`;
+  if(type==='retail_suspend_sale')return `offline-retail-hold-${tx}`;
+  if(type==='retail_resume_sale')return `offline-retail-resume-${tx}`;
   return `offline-${type}-${tx}`;
 }
 function foodApi(){return global.__SharawlaFoodRecipeRuntimeV1||null}
@@ -85,6 +87,8 @@ function resolveOperation(type,payload){
   if(type==='customer_address_save')return {rpc_name:'offline_customer_address_save_v1',rpc_payload:clone(payload)};
   if(type==='customer_address_delete')return {rpc_name:'offline_customer_address_delete_v1',rpc_payload:clone(payload)};
   if(type==='delivery_assign_driver')return {rpc_name:'offline_delivery_assign_driver_v1',rpc_payload:clone(payload)};
+  if(type==='retail_suspend_sale')return {rpc_name:'offline_retail_suspend_sale_v1',rpc_payload:clone(payload)};
+  if(type==='retail_resume_sale')return {rpc_name:'offline_retail_resume_sale_v1',rpc_payload:clone(payload)};
   if(type==='supplier_save')return {rpc_name:'offline_food_supplier_save_v1',rpc_payload:clone(payload)};
   if(type==='driver_save')return {rpc_name:'offline_delivery_driver_save_v1',rpc_payload:clone(payload)};
   if(type==='zone_save')return {rpc_name:'offline_delivery_zone_save_v1',rpc_payload:clone(payload)};
@@ -134,6 +138,7 @@ function dependencyTx(type,payload={}){
   if(type==='customer_address_save'&&text(payload?.p_address_save_tx))return text(payload.p_address_save_tx);
   if(type==='customer_address_save'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
   if(type==='customer_address_delete'&&text(payload?.p_address_save_tx))return text(payload.p_address_save_tx);
+  if(type==='retail_resume_sale'&&text(payload?.p_suspend_create_tx))return text(payload.p_suspend_create_tx);
   if((type==='table_session_attach'||type==='table_session_close')&&text(payload?.p_session_open_tx))return text(payload.p_session_open_tx);
   if(type==='ingredient_conversion_save'&&text(payload?.p_ingredient_create_tx))return text(payload.p_ingredient_create_tx);
   return null;
@@ -195,6 +200,8 @@ function registerTransportAdapters(){
   registerOne('customer_address_save',adapter('customer_address_save','customer_address',['offline_customer_address_save_v1']));
   registerOne('customer_address_delete',adapter('customer_address_delete','customer_address',['offline_customer_address_delete_v1']));
   registerOne('delivery_assign_driver',adapter('delivery_assign_driver','order_event',['offline_delivery_assign_driver_v1']));
+  registerOne('retail_suspend_sale',adapter('retail_suspend_sale','retail_suspended_sale',['offline_retail_suspend_sale_v1']));
+  registerOne('retail_resume_sale',adapter('retail_resume_sale','retail_suspended_sale_resume',['offline_retail_resume_sale_v1']));
   registerOne('supplier_save',adapter('supplier_save','supplier',['food_supplier_save_v1']));
   registerOne('driver_save',adapter('driver_save','delivery_driver',['delivery_driver_save_v2']));
   registerOne('zone_save',adapter('zone_save','delivery_zone',['delivery_zone_save_v2']));
@@ -264,6 +271,13 @@ async function projectDirectOperation(type,payload,tx,row){
     const localId='offline-ret-'+tx,serverId=num(serverResult?.return_id??serverResult?.id,0),id=serverId||localId,branchId=num(payload?.p_branch_id,runtimeBranch()),all=clone(await global.odbGet('cachedReturns:'+branchId))||[];
     const item={id,return_number:serverResult?.return_number||(serverId?String(serverId):'OFF-'+tx.slice(0,6)),branch_id:branchId,order_id:payload?.p_order_id,reason:payload?.p_reason,notes:payload?.p_notes??null,total:Number(payload?.p_payments?.[0]?.amount||0),created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
     await global.odbSet('cachedReturns:'+branchId,[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,500));
+  }else if(type==='retail_suspend_sale'){
+    const branchId=num(payload?.p_branch_id,runtimeBranch()),localId=`offline-retail-hold-${tx}`,serverId=num(serverResult?.suspended_sale_id??row?.server_ack?.server_entity_id,0),id=serverId||localId,all=clone(await global.odbGet('retailSuspendedSales:'+branchId))||[];
+    const item={id,branch_id:branchId,employee_id:runtimeEmployee(),label:payload?.p_label??null,cart:clone(payload?.p_cart)||[],customer:clone(payload?.p_customer)||{},financial:clone(payload?.p_financial)||{},created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+    await global.odbSet('retailSuspendedSales:'+branchId,[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,1000));
+  }else if(type==='retail_resume_sale'){
+    const branchId=num(payload?.p_branch_id,runtimeBranch()),all=clone(await global.odbGet('retailSuspendedSales:'+branchId))||[],target=text(payload?.p_suspend_id)||`offline-retail-hold-${text(payload?.p_suspend_create_tx)}`;
+    await global.odbSet('retailSuspendedSales:'+branchId,all.filter(x=>String(x.id)!==target&&String(x.client_tx_id||'')!==text(payload?.p_suspend_create_tx)));
   }else if(type==='shift_open'){
     const localId=`offline-shift-${tx}`,serverId=num(serverResult?.id??serverResult?.shift_id,0),id=serverId||localId,local={id,branch_id:payload?.p_branch_id,employee_id:runtimeEmployee(),opening_cash:Number(payload?.p_opening_cash||0),status:'open',opened_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(`openShift:${runtimeEmployee()}:${payload?.p_branch_id}`,local);const hist=clone(await global.odbGet(`shiftHistory:${payload?.p_branch_id}`))||[];await global.odbSet(`shiftHistory:${payload?.p_branch_id}`,[local,...hist.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,100));
   }else if(type==='expense'){
@@ -779,6 +793,8 @@ async function commitRpcLocal(name,payload={}){
   else if(type==='delivery_assign_driver')result={ok:true,order_id:payload.p_order_id,driver_id:payload.p_driver_id,status:'out_for_delivery',client_tx_id:tx,_offline:true};
   else if(type==='delivery_mark_delivered')result={ok:true,order:{id:payload.p_order_id,status:'delivered',payment_method:payload.p_payment_method},client_tx_id:tx,_offline:true};
   else if(type==='delivery_driver_settle')result={ok:true,order_ids:clone(payload.p_order_ids)||[],receiving_shift_id:payload.p_expected_receiving_shift_id,client_tx_id:tx,_offline:true};
+  else if(type==='retail_suspend_sale')result={id:`offline-retail-hold-${tx}`,suspended_sale_id:`offline-retail-hold-${tx}`,client_tx_id:tx,_offline:true};
+  else if(type==='retail_resume_sale')result={ok:true,suspended_sale_id:payload.p_suspend_id||`offline-retail-hold-${text(payload.p_suspend_create_tx)}`,client_tx_id:tx,_offline:true};
   else if(type==='supplier_save')result=`offline-supplier-${tx}`;
   else if(type==='driver_save')result=`offline-driver-${tx}`;
   else if(type==='zone_save')result=`offline-zone-${tx}`;
