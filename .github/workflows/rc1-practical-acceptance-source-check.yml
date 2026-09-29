@@ -26,5 +26,7 @@ jobs:
           test -f scripts/check-universal-dashboard-navigation-v1.js
           test -f scripts/check-universal-dashboard-connectivity-runtime.js
           test -f scripts/check-sidebar-input-runtime.js
+      - name: Run practical acceptance prechecks
+        run: npm run precheck
       - name: Run full source and regression gates
         run: npm run check:ci
