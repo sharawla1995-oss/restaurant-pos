@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve(__dirname,'..'),read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const d=require('../staff/hr-staff-domain.js');
+if(typeof global.structuredClone!=='function')global.structuredClone=value=>{if(value===undefined||value===null)return value;if(Buffer.isBuffer(value))return Buffer.from(value);if(Array.isArray(value))return value.map(global.structuredClone);if(typeof value==='object'){const out={};for(const [k,v] of Object.entries(value))out[k]=global.structuredClone(v);return out}return value};
 const TestBlob=global.Blob||class Blob{constructor(parts=[],options={}){this.parts=parts;this.type=options.type||'';this.size=parts.reduce((n,p)=>n+(typeof p==='string'?Buffer.byteLength(p):Buffer.isBuffer(p)?p.length:Number(p?.byteLength||p?.length||0)),0)}};
 const tests=[];function test(name,fn){tests.push([name,fn])}
 const schedule={startAt:'2026-09-18T07:00:00.000Z',endAt:'2026-09-18T15:00:00.000Z',graceMinutes:10,breakMinutes:0,overtimeAfterMinutes:0,earlyLeaveGraceMinutes:0};
