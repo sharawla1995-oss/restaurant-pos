@@ -258,6 +258,18 @@ async function importBonReservationUnsafe(input){
   }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
 }
 async function importBonReservation(input){await ready();return serializeWrite(()=>importBonReservationUnsafe(clone(input||{})))}
+async function nextReservedBon(input){
+  await ready();
+  const branchId=number(input?.branch_id),shiftId=number(input?.server_shift_id),shiftTx=text(input?.shift_open_tx_id),fingerprint=text(input?.device_fingerprint);
+  if(branchId<1||shiftId<1||!shiftTx||!fingerprint){const e=new Error('Bon reservation lookup identity incomplete');e.code='OFFLINE_V2_BON_LOOKUP_INVALID';throw e}
+  const reservations=await all("SELECT * FROM offline_v2_bon_reservations WHERE branch_id=? AND server_shift_id=? AND shift_open_tx_id=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[branchId,shiftId,shiftTx,fingerprint]);
+  for(const r of reservations){
+    const used=await all('SELECT bon_number FROM offline_v2_bon_consumptions WHERE reservation_uid=? ORDER BY bon_number ASC',[r.reservation_uid]);
+    const taken=new Set(used.map(x=>number(x.bon_number)));
+    for(let bon=number(r.start_bon);bon<=number(r.end_bon);bon++)if(!taken.has(bon))return {reservation_uid:text(r.reservation_uid),bon_number:bon,branch_id:branchId,server_shift_id:shiftId,shift_open_tx_id:shiftTx,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
+  }
+  return null;
+}
 
 async function commitOperationUnsafe(input){
   validateCommit(input);
@@ -521,6 +533,7 @@ function installOfflineV2NativeStore(){
   // protected Beta43/Beta44 queue cannot be consumed by this protocol engine.
   ipcMain.handle('offline-v2:commit-operation',(_e,input)=>commitOperation(input));
   ipcMain.handle('offline-v2:import-bon-reservation',(_e,input)=>importBonReservation(input));
+  ipcMain.handle('offline-v2:next-reserved-bon',(_e,input)=>nextReservedBon(input));
   ipcMain.handle('offline-v2:import-shadow',(_e,snapshot)=>importShadow(snapshot));
   ipcMain.handle('offline-v2:outbox',(_e,status=null)=>listOutbox(status));
   ipcMain.handle('offline-v2:record',(_e,type,id)=>getRecord(type,id));
@@ -530,7 +543,7 @@ function installOfflineV2NativeStore(){
   ipcMain.handle('offline-v2:reset-test-groups',(_e,input={})=>resetTestGroups(input));
   ipcMain.handle('offline-v2:reset-test-all',(_e,input={})=>resetTestAll(input));
   ready().catch(e=>console.error('Offline V2 native store init failed',e));
-  return {ready,commitOperation,importBonReservation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestGroups,resetTestAll};
+  return {ready,commitOperation,importBonReservation,nextReservedBon,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestGroups,resetTestAll};
 }
 
 module.exports={installOfflineV2NativeStore,PROTOCOL_VERSION,SCHEMA_VERSION,STORE_VERSION};

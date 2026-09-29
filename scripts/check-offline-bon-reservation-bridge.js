@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8'),p=fs.readFileSync('preload.js','utf8');
+for(const x of ['async function nextReservedBon(input)','offline-v2:next-reserved-bon','offline-v2:import-bon-reservation',"status='active'",'offline_v2_bon_consumptions'])assert(n.includes(x),'native bridge missing '+x);
+for(const x of ['importBonReservation:x=>','nextReservedBon:x=>'])assert(p.includes(x),'preload bridge missing '+x);
+const fn=n.slice(n.indexOf('async function nextReservedBon(input)'),n.indexOf('async function commitOperationUnsafe'));
+assert(!fn.includes('INSERT INTO offline_v2_bon_consumptions'),'preview must never consume a Bon');
+assert(!fn.includes('UPDATE offline_v2_bon_reservations'),'preview must be read-only');
+assert(fn.includes('return null'),'exhausted reservation must fail to no-official-Bon state');
+console.log('OFFLINE BON RESERVATION BRIDGE GATE PASS — preview_read_only=1 transport_binding=0 deployment=0');
