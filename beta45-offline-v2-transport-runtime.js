@@ -697,10 +697,8 @@ async function trustedBonContext(){
 async function salePayloadWithReservedBon(payload,identity){
   const out=clone(payload||{}),order=out?.p_order;
   if(!order||order.bon_reservation)return out;
-  const api=global.topBurgerDesktop?.offlineV2;
-  const branchId=num(order.branch_id,runtimeBranch()),shiftId=num(order.shift_id,0);
-  const mode=(text(order.bon_numbering_mode)||'SHIFT').toUpperCase();
-  if(!api?.nextReservedBon||branchId<1||!['SHIFT','BRANCH'].includes(mode))return out;
+  const branchId=num(order.branch_id,runtimeBranch()),shiftId=num(order.shift_id,0),mode=(text(order.bon_numbering_mode)||'SHIFT').toUpperCase();
+  if(branchId<1||!['SHIFT','BRANCH'].includes(mode))return out;
   let shiftOpenTx='';
   if(mode==='SHIFT'){
     if(typeof global.odbGet!=='function'||shiftId<1)return out;
@@ -708,21 +706,10 @@ async function salePayloadWithReservedBon(payload,identity){
     shiftOpenTx=text(open?.client_tx_id);
     if(!open||num(open.id,0)!==shiftId||text(open.status)!=='open'||!shiftOpenTx)return out;
   }
-  const evidence=await api.nextReservedBon({
-    business_id:identity.business_id,
-    branch_id:branchId,
-    numbering_mode:mode,
-    server_shift_id:mode==='SHIFT'?shiftId:null,
-    shift_open_tx_id:mode==='SHIFT'?shiftOpenTx:null,
-    device_fingerprint:identity.device_fingerprint
-  });
-  if(evidence){
-    const trusted=await trustedBonContext();
-    out.p_order={...order,bon_numbering_mode:mode,bon_reservation:clone(evidence)};
-    // Context is opaque proof for future Bon V3 server transport. Absence never guesses
-    // authority and does not block the existing OFF/local-first sale path.
-    if(trusted)out.p_order.bon_trusted_device_context=trusted;
-  }
+  // Native commit owns Bon selection+consumption atomically. Renderer supplies scope only.
+  out.p_order={...order,bon_numbering_mode:mode,shift_open_tx_id:mode==='SHIFT'?shiftOpenTx:null,device_fingerprint:identity.device_fingerprint};
+  const trusted=await trustedBonContext();
+  if(trusted)out.p_order.bon_trusted_device_context=trusted;
   return out;
 }
 async function ensureEvent(type,payload,tx){

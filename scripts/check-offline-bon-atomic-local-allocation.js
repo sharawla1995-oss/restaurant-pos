@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8'),t=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
+assert(n.includes('async function assignBonReservationForSaleUnsafe(input)'),'native allocator missing');
+const begin=n.indexOf("await exec('BEGIN IMMEDIATE TRANSACTION')",n.indexOf('async function commitOperationUnsafe'));
+const assign=n.indexOf('await assignBonReservationForSaleUnsafe(input)',begin),consume=n.indexOf('await consumeBonReservationUnsafe(input,tx)',assign),outbox=n.indexOf('INSERT INTO offline_v2_outbox',consume);
+assert(begin>0&&assign>begin&&consume>assign&&outbox>consume,'selection/consume/outbox transaction ordering invalid');
+assert(!t.slice(t.indexOf('async function salePayloadWithReservedBon'),t.indexOf('async function ensureEvent')).includes('nextReservedBon'),'renderer must not preview Bon');
+assert(t.includes('Native commit owns Bon selection+consumption atomically'),'transport ownership marker missing');
+assert(n.includes("return null;\n}\n\nasync function closeBonReservationsForShiftUnsafe"),'capacity exhaustion fallback missing');
+console.log('OFFLINE BON ATOMIC LOCAL ALLOCATION GATE PASS — preview_race=CLOSED native_select_consume_outbox=SAME_TX exhausted=OFF deployment=0');

@@ -285,6 +285,30 @@ async function nextReservedBon(input){
   return null;
 }
 
+async function assignBonReservationForSaleUnsafe(input){
+  if(text(input?.operation_type)!=='sale')return null;
+  const order=input?.payload?.rpc_payload?.p_order;
+  if(!order||order.bon_reservation)return order?.bon_reservation||null;
+  const mode=(text(order.bon_numbering_mode)||'SHIFT').toUpperCase();
+  const businessId=text(input.business_id),branchId=number(input.branch_id),fingerprint=text(order.device_fingerprint||input.device_fingerprint);
+  const shiftId=number(order.shift_id),shiftTx=text(order.shift_open_tx_id);
+  if(!businessId||branchId<1||!['SHIFT','BRANCH'].includes(mode)||!fingerprint)return null;
+  if(mode==='SHIFT'&&(shiftId<1||!shiftTx))return null;
+  const reservations=mode==='SHIFT'
+    ?await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='SHIFT' AND server_shift_id=? AND shift_open_tx_id=? AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,shiftId,shiftTx,fingerprint])
+    :await all("SELECT * FROM offline_v2_bon_reservations WHERE business_id=? AND branch_id=? AND numbering_mode='BRANCH' AND device_fingerprint=? AND status='active' ORDER BY start_bon ASC",[businessId,branchId,fingerprint]);
+  for(const r of reservations){
+    const used=await all('SELECT bon_number FROM offline_v2_bon_consumptions WHERE reservation_uid=? ORDER BY bon_number ASC',[r.reservation_uid]);
+    const taken=new Set(used.map(x=>number(x.bon_number)));
+    for(let bon=number(r.start_bon);bon<=number(r.end_bon);bon++)if(!taken.has(bon)){
+      const evidence={reservation_uid:text(r.reservation_uid),bon_number:bon,business_id:businessId,branch_id:branchId,numbering_mode:mode,server_shift_id:mode==='SHIFT'?shiftId:null,shift_open_tx_id:mode==='SHIFT'?shiftTx:null,device_fingerprint:fingerprint,start_bon:number(r.start_bon),end_bon:number(r.end_bon),issued_at:r.issued_at};
+      order.bon_reservation=evidence;
+      return evidence;
+    }
+  }
+  return null;
+}
+
 async function closeBonReservationsForShiftUnsafe(input){
   if(text(input?.operation_type)!=='shift_close')return 0;
   const p=input?.payload?.rpc_payload||{},businessId=text(input?.business_id),branchId=number(input?.branch_id),shiftId=number(p?.p_shift_id);
@@ -296,16 +320,24 @@ async function closeBonReservationsForShiftUnsafe(input){
 async function commitOperationUnsafe(input){
   validateCommit(input);
   const tx=text(input.client_tx_id);
-  const payloadHash=digest({payload:input.payload??null,records:input.records||[],identity:{device_id:input.device_id,business_id:input.business_id,branch_id:input.branch_id,employee_id:input.employee_id},operation_type:input.operation_type,entity_type:input.entity_type,local_entity_id:input.local_entity_id??null,local_shift_id:input.local_shift_id??null,depends_on_tx_id:input.depends_on_tx_id??null});
+  let payloadHash=null;
   await exec('BEGIN IMMEDIATE TRANSACTION');
   try{
     const existing=await get(`SELECT * FROM offline_v2_outbox WHERE client_tx_id=?`,[tx]);
     if(existing){
-      if(existing.payload_digest!==payloadHash){const e=new Error('Same client_tx_id was reused with different payload');e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw e}
+      const replayHash=digest({payload:input.payload??null,records:input.records||[],identity:{device_id:input.device_id,business_id:input.business_id,branch_id:input.branch_id,employee_id:input.employee_id},operation_type:input.operation_type,entity_type:input.entity_type,local_entity_id:input.local_entity_id??null,local_shift_id:input.local_shift_id??null,depends_on_tx_id:input.depends_on_tx_id??null});
+      const persisted=hydrate(existing).envelope;
+      const persistedPayload=persisted?.payload?.rpc_payload?.p_order?.bon_reservation&&input?.payload?.rpc_payload?.p_order&&!input.payload.rpc_payload.p_order.bon_reservation?clone(input):null;
+      if(persistedPayload)persistedPayload.payload.rpc_payload.p_order.bon_reservation=clone(persisted.payload.rpc_payload.p_order.bon_reservation);
+      const comparableHash=persistedPayload?digest({payload:persistedPayload.payload??null,records:persistedPayload.records||[],identity:{device_id:persistedPayload.device_id,business_id:persistedPayload.business_id,branch_id:persistedPayload.branch_id,employee_id:persistedPayload.employee_id},operation_type:persistedPayload.operation_type,entity_type:persistedPayload.entity_type,local_entity_id:persistedPayload.local_entity_id??null,local_shift_id:persistedPayload.local_shift_id??null,depends_on_tx_id:persistedPayload.depends_on_tx_id??null}):replayHash;
+      if(existing.payload_digest!==comparableHash){const e=new Error('Same client_tx_id was reused with different payload');e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw e}
       await exec('COMMIT');
       return {ok:true,duplicate:true,durable:true,event:hydrate(existing).envelope};
     }
-    // Bon consumption / shift-close invalidation and the operational outbox event share one SQLite transaction.
+    // Bon selection, consumption and the operational outbox event share one serialized SQLite transaction.
+    // No previewed number is trusted here; capacity exhaustion leaves the sale unreserved (OFF-*).
+    await assignBonReservationForSaleUnsafe(input);
+    payloadHash=digest({payload:input.payload??null,records:input.records||[],identity:{device_id:input.device_id,business_id:input.business_id,branch_id:input.branch_id,employee_id:input.employee_id},operation_type:input.operation_type,entity_type:input.entity_type,local_entity_id:input.local_entity_id??null,local_shift_id:input.local_shift_id??null,depends_on_tx_id:input.depends_on_tx_id??null});
     await consumeBonReservationUnsafe(input,tx);
     await closeBonReservationsForShiftUnsafe(input);
     const sequence=await allocateSequence(text(input.device_id));
