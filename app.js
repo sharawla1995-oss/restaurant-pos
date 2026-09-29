@@ -2612,6 +2612,7 @@ async function renderSettings(){
    canFinancial&&['financial','💳 المالية'],
    canSystem&&['features','⚙️ المميزات'],
    canSystem&&['bon','🧾 ترقيم البونات'],
+   canSystem&&['bon','🧾 ترقيم البونات'],
    canSystem&&['backup','💾 النسخ الاحتياطي'],
    canSystem&&['returns','↩️ المرتجعات']
  ].filter(Boolean);
@@ -2633,6 +2634,20 @@ async function renderSettings(){
  if($('#settingsHubTabs'))$('#settingsHubTabs').onclick=e=>{const b=e.target.closest('[data-settings-tab]');if(b)settingsActivate(b.dataset.settingsTab)};
  if($('#addPaymentMethod'))$('#addPaymentMethod').onclick=async()=>{const name=await uiPrompt('اسم طريقة الدفع مثل: Vodafone Cash');if(name===null||!name.trim())return;const code='pay_'+Date.now();try{const r=await rest('payment_methods','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{code,name:name.trim(),kind:'other',active:true,sort_order:100}])});if(r?.[0]){await rest('branch_payment_methods','',{method:'POST',body:JSON.stringify([{branch_id:currentBranchId(),payment_method_id:r[0].id,active:true,is_default:false}])});state.paymentMethods.push(r[0]);state.branchPaymentMethods=await rest('branch_payment_methods','select=*');toast('تمت إضافة طريقة الدفع');renderSettings()}}catch(e){toast(e.message)}};
  if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{
+   const next=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT',current=branchBonNumberingMode(currentBranchId());
+   if(next===current){toast('سياسة ترقيم البونات محفوظة بالفعل');return}
+   if(!navigator.onLine){toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالإنترنت');renderSettings();return}
+   if(!await uiConfirm(`تغيير ترقيم البونات في هذا الفرع من ${current} إلى ${next}؟ يجب ألا توجد وردية مفتوحة أو حجوزات أوفلاين نشطة.`)){renderSettings();return}
+   try{
+     const result=await rpc('pos_set_bon_numbering_mode_v1',{p_branch_id:currentBranchId(),p_mode:next});
+     const mode=String(result?.mode||next).toUpperCase()==='BRANCH'?'BRANCH':'SHIFT';
+     state.branchBonNumberingPolicy=(state.branchBonNumberingPolicy||[]).filter(x=>Number(x.branch_id)!==currentBranchId()).concat([{branch_id:currentBranchId(),bon_numbering_mode:mode}]);
+     await saveOfflineBootstrap();
+     toast(mode==='BRANCH'?'تم حفظ سياسة BRANCH. تفعيل تخصيص BRANCH الرسمي يظل مرتبطًا بمرحلة Migration الآمنة.':'تم حفظ سياسة SHIFT');
+     renderSettings();
+   }catch(e){toast(e.message||String(e));renderSettings()}
+ };
+  if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{
    const next=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT',current=branchBonNumberingMode(currentBranchId());
    if(next===current){toast('سياسة ترقيم البونات محفوظة بالفعل');return}
    if(!navigator.onLine){toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالإنترنت');renderSettings();return}
