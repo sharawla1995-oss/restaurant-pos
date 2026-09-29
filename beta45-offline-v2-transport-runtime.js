@@ -251,8 +251,18 @@ async function canonicalIdentity(){
   if(!identity.device_id||!identity.business_id||!identity.device_fingerprint){const e=new Error('Offline V2 canonical device identity is required');e.code='OFFLINE_V2_CANONICAL_IDENTITY_REQUIRED';throw e}
   return identity;
 }
+async function refreshSessionForSync(){
+  if(typeof refreshSessionIfNeeded!=='function')return null;
+  let timer=null;
+  try{
+    return await Promise.race([
+      Promise.resolve().then(()=>refreshSessionIfNeeded()),
+      new Promise((_,reject)=>{timer=setTimeout(()=>{const e=new Error('Offline V2 session refresh timed out');e.code='OFFLINE_V2_SESSION_REFRESH_TIMEOUT';reject(e)},15_000)})
+    ]);
+  }finally{if(timer!=null)clearTimeout(timer)}
+}
 async function syncContext(){
-  if(typeof refreshSessionIfNeeded==='function')try{await refreshSessionIfNeeded()}catch{}
+  try{await refreshSessionForSync()}catch(e){try{console.warn('Offline V2 session refresh before sync',e?.code||e)}catch{}}
   const st=await canonicalIdentity(),c=connection();
   const token=typeof session!=='undefined'?text(session?.access_token):'';
   if(!c?.url||!c?.key||!token||runtimeEmployee()<=0)throw new Error('Offline V2 authenticated sync context is unavailable');
