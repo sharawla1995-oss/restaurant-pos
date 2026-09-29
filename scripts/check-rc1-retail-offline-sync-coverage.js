@@ -18,11 +18,15 @@ ok(/sharawla_offline_v2_apply_event_core_v1\(p_event\)/.test(dispatcher),'final 
 for(const token of ["retail_supplier_save","retail_po_create","retail_po_approve","retail_purchase_receive","retail_supplier_return","offline_retail_supplier_create_v1","offline_retail_purchase_order_approve_v1","retail_purchase_order_create_v2","retail_purchase_receive_v2","retail_supplier_return_create_v2"]){ok(dispatcher.includes(token),'dispatcher missing '+token)}
 // Client/source gates.
 const gaps=[];
-if(!/registerOne\('retail_supplier_save'/.test(transport))gaps.push('retail_supplier_save transport');
+if(!/registerOne\('retail_supplier_save'[\s\S]*offline_retail_supplier_create_v1/.test(transport))gaps.push('retail_supplier_save replay-safe transport');
 if(!/registerOne\('retail_po_create'/.test(transport))gaps.push('retail_po_create transport');
 if(!/registerOne\('retail_po_approve'/.test(transport))gaps.push('retail_po_approve transport');
 if(!/registerOne\('retail_purchase_receive'/.test(transport))gaps.push('retail_purchase_receive transport');
 if(!/registerOne\('retail_supplier_return'/.test(transport))gaps.push('retail_supplier_return transport');
+ok(/retail_supplier_save'[\s\S]*rpc_name:'offline_retail_supplier_create_v1'/.test(transport),'supplier envelope must target replay-safe owner');
+ok(/v_operation='retail_supplier_save'[\s\S]*offline_retail_supplier_create_v1/.test(dispatcher),'dispatcher supplier path must invoke replay-safe owner');
+ok(/retail_po_create'[\s\S]*p_supplier_create_tx/.test(transport),'retail PO dependency must fail closed or wait for supplier ACK');
+ok(/retail_po_approve'\|\|type==='retail_purchase_receive'[\s\S]*p_purchase_order_create_tx/.test(transport),'PO child operations must require server PO or dependency tx');
 if(!/variant_id/.test(app.slice(app.indexOf('async function renderRetailPurchasing'),app.indexOf('async function renderRetailMarketSettings'))))gaps.push('Retail purchasing UI variant identity');
 if(gaps.length){console.error('RC1 retail offline sync coverage: OPEN\n- '+gaps.join('\n- '));process.exit(2)}
 console.log('RC1 retail offline sync coverage: PASS');
