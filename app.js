@@ -521,7 +521,12 @@ async function refreshSessionIfNeeded(force=false){
   session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));return d
 }
 async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc(job.engine==='retail'?'create_retail_pos_order_atomic':'create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc(job.engine==='retail'?'create_retail_order_return_idempotent':'create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();if($('#nextBonBadge'))await updateNextBonBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
-window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
+function refreshActiveDashboardForConnectivity(){
+  if(activePageRoute!=='businessSummary')return;
+  const dashboard=window.__SharawlaUniversalDashboardV1;
+  if(dashboard&&typeof dashboard.render==='function')dashboard.render().catch(e=>console.warn('[Dashboard connectivity refresh]',e));
+}
+window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue();refreshActiveDashboardForConnectivity()});window.addEventListener('offline',()=>{showOfflineStatus();refreshActiveDashboardForConnectivity()});setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
@@ -1019,12 +1024,14 @@ window.__SharawlaNavigationFailClosedV1=Object.freeze({
   mode:'FAIL_CLOSED',
   events:()=>navigationFailClosedEvents.map(x=>({...x}))
 });
+let activePageRoute='home';
 async function showPage(p){
   try{
     const renderer=PAGE_RENDERERS[p];
     if(typeof renderer!=='function'){blockUnknownRoute(p);return;}
     if(!state.activeBranchId){renderBranchPicker();return;}
     if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}
+    activePageRoute=p;
     navActive(p);
     $('#pageTitle').textContent=p==='businessSummary'?'ملخص الأعمال':runtimePageTitle(p);
     await renderer();
