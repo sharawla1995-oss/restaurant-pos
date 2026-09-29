@@ -91,6 +91,11 @@ function resolveOperation(type,payload){
   if(type==='retail_suspend_sale')return {rpc_name:'offline_retail_suspend_sale_v1',rpc_payload:clone(payload)};
   if(type==='retail_resume_sale')return {rpc_name:'offline_retail_resume_sale_v1',rpc_payload:clone(payload)};
   if(type==='supplier_save')return {rpc_name:'offline_food_supplier_save_v1',rpc_payload:clone(payload)};
+  if(type==='retail_supplier_create')return {rpc_name:'retail_supplier_create',rpc_payload:clone(payload)};
+  if(type==='retail_po_create')return {rpc_name:'retail_purchase_order_create_v2',rpc_payload:clone(payload)};
+  if(type==='retail_po_approve')return {rpc_name:'retail_purchase_order_approve',rpc_payload:clone(payload)};
+  if(type==='retail_purchase_receive')return {rpc_name:'retail_purchase_receive_v2',rpc_payload:clone(payload)};
+  if(type==='retail_supplier_return')return {rpc_name:'retail_supplier_return_create_v2',rpc_payload:clone(payload)};
   if(type==='driver_save')return {rpc_name:'offline_delivery_driver_save_v1',rpc_payload:clone(payload)};
   if(type==='zone_save')return {rpc_name:'offline_delivery_zone_save_v1',rpc_payload:clone(payload)};
   if(type==='floor_save')return {rpc_name:'offline_restaurant_floor_save_v1',rpc_payload:clone(payload)};
@@ -140,6 +145,10 @@ function dependencyTx(type,payload={}){
   if(type==='customer_address_save'&&text(payload?.p_customer_create_tx))return text(payload.p_customer_create_tx);
   if(type==='customer_address_delete'&&text(payload?.p_address_save_tx))return text(payload.p_address_save_tx);
   if(type==='retail_resume_sale'&&text(payload?.p_suspend_create_tx))return text(payload.p_suspend_create_tx);
+  if(type==='retail_po_create'&&text(payload?.p_supplier_create_tx))return text(payload.p_supplier_create_tx);
+  if(type==='retail_po_approve'&&text(payload?.p_purchase_order_create_tx))return text(payload.p_purchase_order_create_tx);
+  if(type==='retail_purchase_receive'&&text(payload?.p_purchase_order_create_tx))return text(payload.p_purchase_order_create_tx);
+  if(type==='retail_supplier_return'&&text(payload?.p_supplier_create_tx))return text(payload.p_supplier_create_tx);
   if((type==='table_session_attach'||type==='table_session_close')&&text(payload?.p_session_open_tx))return text(payload.p_session_open_tx);
   if(type==='ingredient_conversion_save'&&text(payload?.p_ingredient_create_tx))return text(payload.p_ingredient_create_tx);
   if((type==='food_transfer_receive'||type==='food_transfer_cancel')&&localEntityTx(payload?.p_transfer_id,'offline-food-transfer-'))return localEntityTx(payload.p_transfer_id,'offline-food-transfer-');
@@ -207,6 +216,11 @@ function registerTransportAdapters(){
   registerOne('retail_suspend_sale',adapter('retail_suspend_sale','retail_suspended_sale',['offline_retail_suspend_sale_v1']));
   registerOne('retail_resume_sale',adapter('retail_resume_sale','retail_suspended_sale_resume',['offline_retail_resume_sale_v1']));
   registerOne('supplier_save',adapter('supplier_save','supplier',['food_supplier_save_v1']));
+  registerOne('retail_supplier_create',adapter('retail_supplier_create','retail_supplier',['retail_supplier_create']));
+  registerOne('retail_po_create',adapter('retail_po_create','retail_purchase_order',['retail_purchase_order_create_v2']));
+  registerOne('retail_po_approve',adapter('retail_po_approve','retail_purchase_order',['retail_purchase_order_approve']));
+  registerOne('retail_purchase_receive',adapter('retail_purchase_receive','retail_goods_receipt',['retail_purchase_receive_v2']));
+  registerOne('retail_supplier_return',adapter('retail_supplier_return','retail_supplier_return',['retail_supplier_return_create_v2']));
   registerOne('driver_save',adapter('driver_save','delivery_driver',['delivery_driver_save_v2']));
   registerOne('zone_save',adapter('zone_save','delivery_zone',['delivery_zone_save_v2']));
   registerOne('floor_save',adapter('floor_save','restaurant_floor',['restaurant_floor_save_v1']));
