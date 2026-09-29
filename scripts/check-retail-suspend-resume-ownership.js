@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const app=fs.readFileSync('app.js','utf8');
+const native=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
+const sql=fs.readFileSync('supabase-v10-5-4-beta17-retail-market-core.sql','utf8');
+const hold=app.match(/\$\('#holdRetailSale'\)\.onclick=async\(\)=>\{[\s\S]*?\};\n \$\('#resumeRetailSale'/)?.[0]||'';
+const resume=app.match(/\$\('#resumeRetailSale'\)\.onclick=async\(\)=>\{[\s\S]*?\};\n drawRetailProducts/)?.[0]||'';
+assert(hold.includes("rpc('retail_suspend_sale'"),'expected legacy suspend RPC path not found');
+assert(hold.includes('state.cart=[]'),'expected suspend cart clear not found');
+assert(resume.includes("rest('retail_suspended_sales'"),'expected cloud-only resume read not found');
+assert(resume.includes("rpc('retail_delete_suspended_sale'"),'expected destructive cloud resume delete not found');
+assert(!native.includes("operation_type)==='retail_suspend_sale'")&&!native.includes("operation_type)==='retail_resume_sale'"),'Native retail hold owner unexpectedly exists; reassess before implementation');
+assert(sql.includes('create or replace function public.retail_suspend_sale'),'legacy suspend server owner missing');
+assert(sql.includes('create or replace function public.retail_delete_suspended_sale'),'legacy destructive resume owner missing');
+console.log('RETAIL SUSPEND/RESUME OWNERSHIP AUDIT PASS — suspend=CLOUD_DIRECT resume=CLOUD_READ_DELETE native_owner=ABSENT offline_safe=NO deployment=0');
