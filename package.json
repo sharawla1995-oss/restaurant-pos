@@ -37,7 +37,8 @@
     "check:restaurant-acceptance-stage": "node scripts/check-restaurant-acceptance-stage-v1.js",
     "check:point4-uuid": "node scripts/check-point4-secure-uuid-v4.js",
     "check:restaurant-point4-canonical-tx": "node scripts/check-beta58-26-restaurant-point4-canonical-tx.js",
-    "check:ci": "node scripts/run-full-checks.js"
+    "check:ci": "node scripts/run-full-checks.js",
+    "check:bon-final-definition-chain": "node scripts/check-bon-final-definition-chain.js"
   },
   "dependencies": {
     "sql.js": "1.8.0",
