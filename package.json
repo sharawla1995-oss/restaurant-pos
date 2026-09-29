@@ -38,7 +38,8 @@
     "check:point4-uuid": "node scripts/check-point4-secure-uuid-v4.js",
     "check:restaurant-point4-canonical-tx": "node scripts/check-beta58-26-restaurant-point4-canonical-tx.js",
     "check:ci": "node scripts/run-full-checks.js",
-    "check:bon-final-definition-chain": "node scripts/check-bon-final-definition-chain.js"
+    "check:bon-final-definition-chain": "node scripts/check-bon-final-definition-chain.js",
+    "check:bon-source-closure": "node scripts/check-bon-source-closure.js"
   },
   "dependencies": {
     "sql.js": "1.8.0",
