@@ -14,6 +14,13 @@ Current Offline V2 sale projection intentionally uses `OFF-*` with `bon_number=n
 - Canonical device owner is `device_fingerprint`; no alternate mutable identity may allocate or consume a reservation.
 - A reservation belongs to exactly one business, branch, shift identity and device.
 
+## Server-authenticated device binding — deployment blocker
+The Restaurant backend MUST NOT treat a request-supplied `device_fingerprint` as proof of caller device identity. Sharawla Cloud has the canonical `device_id + device_fingerprint -> business` registry, but the Restaurant RPC currently has no independently authenticated device binding to that registry.
+
+Before Bon Reservation runtime activation, allocation, consumption and close MUST derive or verify the canonical device identity from server-trusted context (for example a Restaurant-side verified device binding or a signed/verified claim issued from Sharawla Cloud). Comparing two client-supplied fingerprint strings is insufficient.
+
+Until that contract exists and has executable negative tests, Bon Reservation remains SOURCE/DORMANT only. Runtime acquisition/renewal MUST NOT be enabled.
+
 ## Shift identity
 A shift may be known locally before it has a server bigint ID.
 - `server_shift_id`: authoritative after shift-open ACK.

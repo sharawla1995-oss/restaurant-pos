@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const d=fs.readFileSync('docs/OFFLINE-BON-RESERVATION-V1.md','utf8');
+const s=fs.readFileSync('supabase-rc1-bon-reservation-v1-source.sql','utf8');
+const cloud=fs.readFileSync('SHARAWLA-CLOUD-V10.5.0-RUNTIME-CONFIG-SAFE.sql','utf8');
+for(const x of ['Server-authenticated device binding — deployment blocker','MUST NOT treat a request-supplied \x60device_fingerprint\x60 as proof','Runtime acquisition/renewal MUST NOT be enabled'])assert(d.includes(x),'device-auth blocker contract missing '+x);
+assert(cloud.includes('FROM public.devices d')&&cloud.includes('d.id=p_device_id')&&cloud.includes('d.device_fingerprint=v_fp'),'Sharawla Cloud canonical device registry evidence missing');
+assert(s.includes('p_device_fingerprint text'),'Restaurant Bon RPC still accepts request-supplied fingerprint; blocker must remain');
+assert(!s.includes('p_device_id uuid'),'Restaurant Bon source must not be misrepresented as independently device-bound');
+console.log('OFFLINE BON DEVICE AUTHORITY GATE PASS — cloud_registry=1 restaurant_binding=0 runtime_activation=BLOCKED deployment=0');
