@@ -159,7 +159,8 @@ begin
   return to_jsonb(v_existing);
 end $$;
 
-revoke all on function public.pos_reserve_bon_range_v2(bigint,bigint,text,text,uuid,integer) from public;
-grant execute on function public.pos_reserve_bon_range_v2(bigint,bigint,text,text,uuid,integer) to authenticated;
-revoke all on function public.pos_consume_reserved_bon_v2(uuid,integer,text,bigint,bigint,text,text) from public;
-grant execute on function public.pos_consume_reserved_bon_v2(uuid,integer,text,bigint,bigint,text,text) to authenticated;
+-- V2 is an internal implementation layer. POS clients must enter through V3 so
+-- device ownership is derived from a server-registered trusted context rather than
+-- a request-supplied fingerprint. SECURITY DEFINER V3 wrappers can invoke V2 as owner.
+revoke all on function public.pos_reserve_bon_range_v2(bigint,bigint,text,text,uuid,integer) from public,anon,authenticated;
+revoke all on function public.pos_consume_reserved_bon_v2(uuid,integer,text,bigint,bigint,text,text) from public,anon,authenticated;

@@ -19,4 +19,6 @@ The preflight explicitly checks `gen_random_uuid()` rather than assuming extensi
 
 Source review also found and closed a V2/V3 return-shape mismatch: the V2 reserve/consume functions intentionally return `jsonb`, while the V3 public wrappers expose `SETOF` typed V2 rows. V3 now explicitly rehydrates each V2 JSON result with `jsonb_populate_record(null::<table-row-type>, ...)` before returning it. The deployability gate rejects a direct scalar-JSON-as-composite bridge.
 
+The V2 reserve/consume RPCs are also internal-only in the V3 design. Direct `authenticated` execution is revoked because V2 accepts a fingerprint parameter and exposing it would let a client bypass the V3 trusted-device context. Authenticated POS callers enter through V3; the SECURITY DEFINER V3 wrappers invoke V2 under the server-owned function boundary.
+
 This is static/source validation only. It does not prove live Beta database state and performs no database write.
