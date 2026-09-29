@@ -651,6 +651,7 @@ function mustUseOriginalEntityFallback(type,payload={}){
   }
   if(type==='food_po_create')return !numericServerId(payload?.p_supplier_id)||(Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.ingredient_id));
   if(type==='food_po_approve'||type==='food_po_cancel')return !numericServerId(payload?.p_purchase_id);
+  if(['inventory_supply_request_submit','inventory_supply_request_decide','inventory_supply_request_prepare','inventory_supply_request_dispatch','inventory_supply_request_receive'].includes(type))return !numericServerId(payload?.p_request_id);
   if(type==='food_purchase_receive')return !numericServerId(payload?.p_purchase_id)||(Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.purchase_item_id));
   if(type==='food_supplier_return')return (payload?.p_supplier_id!=null&&!numericServerId(payload.p_supplier_id))||(Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.ingredient_id));
   if(type==='food_stock_count')return (Array.isArray(payload?.p_items)?payload.p_items:[]).some(x=>!numericServerId(x?.ingredient_id));
