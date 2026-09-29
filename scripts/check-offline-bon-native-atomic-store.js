@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('fs');
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const src=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
+for(const x of ['offline_v2_bon_reservations','offline_v2_bon_consumptions','consumeBonReservationUnsafe(input,tx)',"offline-v2:import-bon-reservation",'OFFLINE_V2_BON_REPLAY_MISMATCH','Closed Bon reservation cannot reactivate'])assert(src.includes(x),'missing native Bon invariant: '+x);
+const fn=src.indexOf('async function commitOperationUnsafe');
+const begin=src.indexOf("await exec('BEGIN IMMEDIATE TRANSACTION');",fn);
+const existing=src.indexOf('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',begin);
+const consume=src.indexOf('await consumeBonReservationUnsafe(input,tx);',existing);
+const outbox=src.indexOf('INSERT INTO offline_v2_outbox',consume);
+const commit=src.indexOf("await exec('COMMIT');",outbox);
+assert(fn>=0&&begin>fn&&existing>begin&&consume>existing&&outbox>consume&&commit>outbox,'Bon consumption must be inside same sale/outbox transaction after replay check');
+assert(src.includes('sale_client_tx_id TEXT NOT NULL UNIQUE'),'sale TX must consume at most one Bon');
+assert(src.includes('PRIMARY KEY(reservation_uid,bon_number)'),'reserved Bon must be consumed at most once');
+assert(src.includes("if(e==null)return null"),'ordinary sale path must remain unchanged without reservation evidence');
+assert(src.includes('device_fingerprint TEXT NOT NULL'),'canonical fingerprint must be persisted separately from device_id');
+console.log('OFFLINE BON NATIVE ATOMIC STORE GATE PASS — transport_binding=0 deployment=0');

@@ -8,7 +8,7 @@ const path=require('path');
 const crypto=require('crypto');
 const sqlite3=require('sqlite3');
 
-const STORE_VERSION='2.1';
+const STORE_VERSION='2.2';
 const PROTOCOL_VERSION=2;
 const SCHEMA_VERSION=2;
 const VALID_STATUS=new Set(['pending','syncing','retryable','blocked','conflict','dead_letter','synced']);
@@ -125,6 +125,28 @@ CREATE TABLE IF NOT EXISTS offline_v2_inbox(
  applied_at TEXT,
  last_error TEXT
 );
+CREATE TABLE IF NOT EXISTS offline_v2_bon_reservations(
+ reservation_uid TEXT PRIMARY KEY,
+ branch_id INTEGER NOT NULL,
+ server_shift_id INTEGER NOT NULL,
+ shift_open_tx_id TEXT NOT NULL,
+ device_fingerprint TEXT NOT NULL,
+ start_bon INTEGER NOT NULL CHECK(start_bon>=1),
+ end_bon INTEGER NOT NULL CHECK(end_bon>=start_bon),
+ status TEXT NOT NULL CHECK(status IN ('active','closed')),
+ issued_at TEXT NOT NULL,
+ imported_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS offline_v2_bon_reservation_owner_idx
+ ON offline_v2_bon_reservations(branch_id,server_shift_id,device_fingerprint,status);
+CREATE TABLE IF NOT EXISTS offline_v2_bon_consumptions(
+ reservation_uid TEXT NOT NULL,
+ bon_number INTEGER NOT NULL CHECK(bon_number>=1),
+ sale_client_tx_id TEXT NOT NULL UNIQUE,
+ consumed_at TEXT NOT NULL,
+ PRIMARY KEY(reservation_uid,bon_number),
+ FOREIGN KEY(reservation_uid) REFERENCES offline_v2_bon_reservations(reservation_uid) ON DELETE RESTRICT
+);
 `);
   await run(`INSERT INTO offline_v2_meta(key,value,updated_at) VALUES('store_version',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,[STORE_VERSION,nowIso()]);
   const integrity=await get('PRAGMA integrity_check');
@@ -199,6 +221,44 @@ function envelopeFrom(input,sequence){
   };
 }
 
+function bonEvidence(input){
+  if(text(input?.operation_type)!=='sale')return null;
+  const e=input?.payload?.bon_reservation;if(e==null)return null;
+  const out={reservation_uid:text(e.reservation_uid),bon_number:number(e.bon_number),branch_id:number(e.branch_id),server_shift_id:number(e.server_shift_id),shift_open_tx_id:text(e.shift_open_tx_id),device_fingerprint:text(e.device_fingerprint)};
+  if(!out.reservation_uid||out.bon_number<1||out.branch_id<1||out.server_shift_id<1||!out.shift_open_tx_id||!out.device_fingerprint){const err=new Error('Invalid Bon Reservation V1 evidence');err.code='OFFLINE_V2_BON_EVIDENCE_INVALID';throw err}
+  if(out.branch_id!==number(input.branch_id)){const err=new Error('Bon reservation branch mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
+  return out;
+}
+async function consumeBonReservationUnsafe(input,tx){
+  const e=bonEvidence(input);if(!e)return null;
+  const prior=await get('SELECT * FROM offline_v2_bon_consumptions WHERE sale_client_tx_id=?',[tx]);
+  if(prior){if(text(prior.reservation_uid)!==e.reservation_uid||number(prior.bon_number)!==e.bon_number){const err=new Error('Sale replay Bon mismatch');err.code='OFFLINE_V2_BON_REPLAY_MISMATCH';throw err}return prior}
+  const r=await get('SELECT * FROM offline_v2_bon_reservations WHERE reservation_uid=?',[e.reservation_uid]);
+  if(!r||text(r.status)!=='active'){const err=new Error('Bon reservation unavailable');err.code='OFFLINE_V2_BON_RESERVATION_UNAVAILABLE';throw err}
+  if(number(r.branch_id)!==e.branch_id||number(r.server_shift_id)!==e.server_shift_id||text(r.shift_open_tx_id)!==e.shift_open_tx_id||text(r.device_fingerprint)!==e.device_fingerprint){const err=new Error('Bon reservation owner mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
+  if(e.bon_number<number(r.start_bon)||e.bon_number>number(r.end_bon)){const err=new Error('Bon outside reserved range');err.code='OFFLINE_V2_BON_OUT_OF_RANGE';throw err}
+  await run('INSERT INTO offline_v2_bon_consumptions(reservation_uid,bon_number,sale_client_tx_id,consumed_at) VALUES(?,?,?,?)',[e.reservation_uid,e.bon_number,tx,nowIso()]);
+  return {reservation_uid:e.reservation_uid,bon_number:e.bon_number,sale_client_tx_id:tx};
+}
+async function importBonReservationUnsafe(input){
+  const r={reservation_uid:text(input?.reservation_uid),branch_id:number(input?.branch_id),server_shift_id:number(input?.server_shift_id),shift_open_tx_id:text(input?.shift_open_tx_id),device_fingerprint:text(input?.device_fingerprint),start_bon:number(input?.start_bon),end_bon:number(input?.end_bon),status:text(input?.status)||'active',issued_at:text(input?.issued_at)||nowIso()};
+  if(!r.reservation_uid||r.branch_id<1||r.server_shift_id<1||!r.shift_open_tx_id||!r.device_fingerprint||r.start_bon<1||r.end_bon<r.start_bon||!['active','closed'].includes(r.status)){const e=new Error('Invalid server Bon reservation');e.code='OFFLINE_V2_BON_RESERVATION_INVALID';throw e}
+  await exec('BEGIN IMMEDIATE TRANSACTION');
+  try{
+    const old=await get('SELECT * FROM offline_v2_bon_reservations WHERE reservation_uid=?',[r.reservation_uid]);
+    if(old){
+      const same=number(old.branch_id)===r.branch_id&&number(old.server_shift_id)===r.server_shift_id&&text(old.shift_open_tx_id)===r.shift_open_tx_id&&text(old.device_fingerprint)===r.device_fingerprint&&number(old.start_bon)===r.start_bon&&number(old.end_bon)===r.end_bon;
+      if(!same){const e=new Error('Bon reservation immutable fields changed');e.code='OFFLINE_V2_BON_RESERVATION_MISMATCH';throw e}
+      if(text(old.status)==='closed'&&r.status==='active'){const e=new Error('Closed Bon reservation cannot reactivate');e.code='OFFLINE_V2_BON_RESERVATION_CLOSED';throw e}
+      if(r.status==='closed'&&text(old.status)!=='closed')await run("UPDATE offline_v2_bon_reservations SET status='closed' WHERE reservation_uid=?",[r.reservation_uid]);
+      await exec('COMMIT');return {ok:true,duplicate:true,reservation:r};
+    }
+    await run('INSERT INTO offline_v2_bon_reservations(reservation_uid,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at) VALUES(?,?,?,?,?,?,?,?,?,?)',[r.reservation_uid,r.branch_id,r.server_shift_id,r.shift_open_tx_id,r.device_fingerprint,r.start_bon,r.end_bon,r.status,r.issued_at,nowIso()]);
+    await exec('COMMIT');return {ok:true,duplicate:false,reservation:r};
+  }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
+}
+async function importBonReservation(input){await ready();return serializeWrite(()=>importBonReservationUnsafe(clone(input||{})))}
+
 async function commitOperationUnsafe(input){
   validateCommit(input);
   const tx=text(input.client_tx_id);
@@ -211,6 +271,8 @@ async function commitOperationUnsafe(input){
       await exec('COMMIT');
       return {ok:true,duplicate:true,durable:true,event:hydrate(existing).envelope};
     }
+    // Bon consumption and sale/outbox are one SQLite transaction: both commit or both roll back.
+    await consumeBonReservationUnsafe(input,tx);
     const sequence=await allocateSequence(text(input.device_id));
     const envelope=envelopeFrom(input,sequence);const created=envelope.created_local_at;
     for(const r of (input.records||[])){
@@ -458,6 +520,7 @@ function installOfflineV2NativeStore(){
   // Shadow APIs only. No live transport is installed in Phase 3, therefore the
   // protected Beta43/Beta44 queue cannot be consumed by this protocol engine.
   ipcMain.handle('offline-v2:commit-operation',(_e,input)=>commitOperation(input));
+  ipcMain.handle('offline-v2:import-bon-reservation',(_e,input)=>importBonReservation(input));
   ipcMain.handle('offline-v2:import-shadow',(_e,snapshot)=>importShadow(snapshot));
   ipcMain.handle('offline-v2:outbox',(_e,status=null)=>listOutbox(status));
   ipcMain.handle('offline-v2:record',(_e,type,id)=>getRecord(type,id));
@@ -467,7 +530,7 @@ function installOfflineV2NativeStore(){
   ipcMain.handle('offline-v2:reset-test-groups',(_e,input={})=>resetTestGroups(input));
   ipcMain.handle('offline-v2:reset-test-all',(_e,input={})=>resetTestAll(input));
   ready().catch(e=>console.error('Offline V2 native store init failed',e));
-  return {ready,commitOperation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestGroups,resetTestAll};
+  return {ready,commitOperation,importBonReservation,importShadow,listOutbox,getOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,syncStats,health,resetTestQueue,resetTestGroups,resetTestAll};
 }
 
 module.exports={installOfflineV2NativeStore,PROTOCOL_VERSION,SCHEMA_VERSION,STORE_VERSION};
