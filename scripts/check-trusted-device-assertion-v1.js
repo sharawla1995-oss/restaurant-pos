@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const d=fs.readFileSync('docs/TRUSTED-DEVICE-ASSERTION-V1.md','utf8');
+const bon=fs.readFileSync('docs/OFFLINE-BON-RESERVATION-V1.md','utf8');
+const cloud=fs.readFileSync('SHARAWLA-CLOUD-V10.5.0-RUNTIME-CONFIG-SAFE.sql','utf8');
+for(const x of ['Status: DESIGN / SOURCE GATE ONLY','Runtime activation: BLOCKED','Cloud remains the canonical device registry','Do not copy the Cloud devices registry','Do not embed a new long-lived shared secret','short-lived opaque device assertion','business_id + device_id + canonical device_fingerprint','OFF-* sales','explicit trusted service bridge'])assert(d.includes(x),'trusted device assertion contract missing '+x);
+assert(cloud.includes('WHERE d.id=p_device_id')&&cloud.includes('AND d.device_fingerprint=v_fp'),'Cloud canonical tuple evidence missing');
+assert(cloud.includes('JOIN public.businesses b ON b.id=d.business_id'),'business must remain Cloud-derived');
+assert(bon.includes('Runtime acquisition/renewal MUST NOT be enabled'),'Bon activation blocker unexpectedly removed');
+console.log('TRUSTED DEVICE ASSERTION V1 DESIGN GATE PASS — implementation=0 runtime_activation=BLOCKED deployment=0');
