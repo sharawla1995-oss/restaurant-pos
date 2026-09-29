@@ -28,7 +28,13 @@ declare
   v_entity_id text;
   v_event_id text;
 begin
-  if v_operation not in ('customer_merge','order_status') then
+  if v_operation not in (
+    'customer_merge','order_status',
+    'food_supplier_return','food_stock_count','food_transfer_create','food_transfer_receive','food_transfer_cancel',
+    'food_ingredient_stock_adjust','food_production_start','food_production_complete','food_waste_post',
+    'food_ingredient_save','food_ingredient_conversion_save','food_recipe_save_draft','food_recipe_activate',
+    'food_prep_item_save','food_prep_recipe_save_draft'
+  ) then
     return public.sharawla_offline_v2_apply_event_core_v1(p_event);
   end if;
   if auth.uid() is null then raise exception using errcode='42501', message='غير مصرح'; end if;
@@ -40,18 +46,41 @@ begin
     raise exception using errcode='42501', message='بيانات الموظف غير مطابقة لجلسة المزامنة';
   end if;
   if (v_operation='customer_merge' and v_rpc<>'offline_v2_merge_customer_v1')
-     or (v_operation='order_status' and v_rpc<>'offline_v2_update_order_status_v1') then
+     or (v_operation='order_status' and v_rpc<>'offline_v2_update_order_status_v1')
+     or (v_operation='food_supplier_return' and v_rpc<>'offline_food_supplier_return_create_v1')
+     or (v_operation='food_stock_count' and v_rpc<>'offline_food_stock_count_post_v1')
+     or (v_operation='food_transfer_create' and v_rpc<>'offline_food_stock_transfer_create_v1')
+     or (v_operation='food_transfer_receive' and v_rpc<>'offline_food_stock_transfer_receive_v1')
+     or (v_operation='food_transfer_cancel' and v_rpc<>'offline_food_stock_transfer_cancel_v1')
+     or (v_operation='food_ingredient_stock_adjust' and v_rpc<>'offline_food_ingredient_stock_adjust_action_v2')
+     or (v_operation='food_production_start' and v_rpc<>'offline_food_production_batch_start_action_v2')
+     or (v_operation='food_production_complete' and v_rpc<>'offline_food_production_batch_complete_action_v2')
+     or (v_operation='food_waste_post' and v_rpc<>'offline_food_waste_post_action_v2')
+     or (v_operation='food_ingredient_save' and v_rpc<>'offline_food_ingredient_save_action_v2')
+     or (v_operation='food_ingredient_conversion_save' and v_rpc<>'offline_food_ingredient_conversion_save_action_v2')
+     or (v_operation='food_recipe_save_draft' and v_rpc<>'offline_food_recipe_save_draft_action_v2')
+     or (v_operation='food_recipe_activate' and v_rpc<>'offline_food_recipe_activate_version_action_v2')
+     or (v_operation='food_prep_item_save' and v_rpc<>'offline_food_prep_item_save_action_v2')
+     or (v_operation='food_prep_recipe_save_draft' and v_rpc<>'offline_food_prep_recipe_save_draft_action_v2') then
     raise exception using errcode='22023', message='Offline V2 Phase 7 operation/RPC binding غير مدعومة';
   end if;
   if nullif(trim(coalesce(v_payload->>'p_client_tx_id','')),'') is distinct from v_tx then
     raise exception using errcode='22023', message='Offline V2 Phase 7 client_tx_id mismatch';
   end if;
 
-  if v_operation='order_status' and v_dep_tx is not null then
+  if v_dep_tx is not null then
     if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
-      raise exception using errcode='22023', message='Offline V2 order status dependency mapping غير مكتملة';
+      raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
     end if;
-    v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+    if v_operation='order_status' then
+      v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation in ('food_transfer_receive','food_transfer_cancel') then
+      v_payload := jsonb_set(v_payload,'{p_transfer_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='food_production_complete' then
+      v_payload := jsonb_set(v_payload,'{p_production_batch_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='food_recipe_activate' then
+      v_payload := jsonb_set(v_payload,'{p_recipe_version_id}',to_jsonb(v_dep_server_id::bigint),true);
+    end if;
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended('offline-v2:'||v_tx,0));
@@ -73,15 +102,44 @@ begin
   if v_operation='customer_merge' then
     v_result := public.offline_v2_merge_customer_v1(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_area',v_payload->>'p_address',v_payload->>'p_notes',v_tx);
     v_entity_id := nullif(v_result->>'customer_id','');
-  else
+  elsif v_operation='order_status' then
     if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
       raise exception using errcode='22023', message='Offline V2 order status branch mismatch';
     end if;
     v_result := public.offline_v2_update_order_status_v1(
       (v_payload->>'p_order_id')::bigint,v_branch,v_payload->>'p_status',
       nullif(v_payload->>'p_driver_id','')::bigint,v_payload->>'p_cancelled_reason',v_tx
-    );
-    v_entity_id := nullif(v_result->>'order_id','');
+    ); v_entity_id := nullif(v_result->>'order_id','');
+  elsif v_operation='food_supplier_return' then
+    v_result:=public.offline_food_supplier_return_create_v1((v_payload->>'p_branch_id')::bigint,nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_notes',coalesce(v_payload->'p_items','[]'::jsonb),v_tx,v_digest); v_entity_id:=nullif(v_result->>'supplier_return_id','');
+  elsif v_operation='food_stock_count' then
+    v_result:=public.offline_food_stock_count_post_v1((v_payload->>'p_branch_id')::bigint,v_payload->>'p_notes',coalesce(v_payload->'p_items','[]'::jsonb),v_tx,v_digest); v_entity_id:=nullif(v_result->>'stock_count_id','');
+  elsif v_operation='food_transfer_create' then
+    v_result:=public.offline_food_stock_transfer_create_v1((v_payload->>'p_from_branch_id')::bigint,(v_payload->>'p_to_branch_id')::bigint,coalesce(v_payload->'p_items','[]'::jsonb),v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'transfer_id','');
+  elsif v_operation='food_transfer_receive' then
+    v_result:=public.offline_food_stock_transfer_receive_v1((v_payload->>'p_transfer_id')::bigint,v_tx,v_digest); v_entity_id:=nullif(v_result->>'transfer_id','');
+  elsif v_operation='food_transfer_cancel' then
+    v_result:=public.offline_food_stock_transfer_cancel_v1((v_payload->>'p_transfer_id')::bigint,v_payload->>'p_reason',v_tx,v_digest); v_entity_id:=nullif(v_result->>'transfer_id','');
+  elsif v_operation='food_ingredient_stock_adjust' then
+    v_result:=public.offline_food_ingredient_stock_adjust_action_v2((v_payload->>'p_branch_id')::bigint,(v_payload->>'p_ingredient_id')::bigint,(v_payload->>'p_quantity_delta')::numeric,coalesce((v_payload->>'p_unit_cost')::numeric,0),v_payload->>'p_reason',v_tx,v_digest); v_entity_id:=nullif(v_result->>'adjustment_id','');
+  elsif v_operation='food_production_start' then
+    v_result:=public.offline_food_production_batch_start_action_v2((v_payload->>'p_branch_id')::bigint,(v_payload->>'p_prep_item_id')::bigint,(v_payload->>'p_planned_output_quantity')::numeric,v_payload->>'p_batch_number',v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'production_batch_id','');
+  elsif v_operation='food_production_complete' then
+    v_result:=public.offline_food_production_batch_complete_action_v2((v_payload->>'p_production_batch_id')::bigint,(v_payload->>'p_actual_output_quantity')::numeric,coalesce(v_payload->'p_consumptions','[]'::jsonb),v_tx,v_payload->>'p_notes',v_digest); v_entity_id:=nullif(v_result->>'production_batch_id','');
+  elsif v_operation='food_waste_post' then
+    v_result:=public.offline_food_waste_post_action_v2((v_payload->>'p_branch_id')::bigint,(v_payload->>'p_ingredient_id')::bigint,nullif(v_payload->>'p_prep_item_id','')::bigint,nullif(v_payload->>'p_shift_id','')::bigint,v_payload->>'p_reason_code',(v_payload->>'p_quantity')::numeric,v_payload->>'p_unit_code',v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'waste_event_id','');
+  elsif v_operation='food_ingredient_save' then
+    v_result:=public.offline_food_ingredient_save_action_v2(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_name',v_payload->>'p_base_unit_code',v_payload->>'p_purchase_unit_code',v_payload->>'p_sku',v_payload->>'p_barcode',coalesce((v_payload->>'p_cost_per_base_unit')::numeric,0),coalesce((v_payload->>'p_minimum_quantity')::numeric,0),coalesce((v_payload->>'p_track_inventory')::boolean,true),coalesce((v_payload->>'p_usable_yield_percent')::numeric,100),nullif(v_payload->>'p_shelf_life_minutes','')::integer,coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest); v_entity_id:=nullif(v_result->>'ingredient_id','');
+  elsif v_operation='food_ingredient_conversion_save' then
+    v_result:=public.offline_food_ingredient_conversion_save_action_v2((v_payload->>'p_ingredient_id')::bigint,v_payload->>'p_from_unit_code',v_payload->>'p_to_unit_code',(v_payload->>'p_factor')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest); v_entity_id:=nullif(v_result->>'conversion_id','');
+  elsif v_operation='food_recipe_save_draft' then
+    v_result:=public.offline_food_recipe_save_draft_action_v2((v_payload->>'p_product_id')::bigint,nullif(v_payload->>'p_variant_id','')::bigint,v_payload->>'p_name',(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),coalesce(v_payload->'p_modifier_impacts','[]'::jsonb),coalesce(v_payload->'p_removal_mappings','[]'::jsonb),v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'recipe_version_id','');
+  elsif v_operation='food_recipe_activate' then
+    v_result:=public.offline_food_recipe_activate_version_action_v2((v_payload->>'p_recipe_version_id')::bigint,v_tx,v_digest); v_entity_id:=nullif(v_result->>'recipe_version_id','');
+  elsif v_operation='food_prep_item_save' then
+    v_result:=public.offline_food_prep_item_save_action_v2(nullif(v_payload->>'p_prep_item_id','')::bigint,v_payload->>'p_name',nullif(v_payload->>'p_output_ingredient_id','')::bigint,v_payload->>'p_base_unit_code',(v_payload->>'p_default_batch_quantity')::numeric,nullif(v_payload->>'p_shelf_life_minutes','')::integer,v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest); v_entity_id:=nullif(v_result->>'prep_item_id','');
+  else
+    v_result:=public.offline_food_prep_recipe_save_draft_action_v2((v_payload->>'p_prep_item_id')::bigint,(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'recipe_version_id','');
   end if;
   if v_entity_id is null then raise exception using errcode='22000', message='Offline V2 Phase 7 backend result missing entity id'; end if;
 
