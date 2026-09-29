@@ -82,15 +82,39 @@ function recurringPeriodKey(definition,dateValue){
  return dateValue;
 }
 
-function calculatePayroll({basis,rate,approvedSummaries=[],adjustments=[],advanceDeduction=0}){
+function validatePayrollAttendanceCoverage({basis,requiredAttendanceDates=[],approvedLeaveDates=[],summaries=[]}){
+ if(basis==='monthly')return {requiredDates:[],unresolvedDates:[]};
+ const leave=new Set(approvedLeaveDates),byDate=new Map(summaries.map(row=>[row.workDate||row.work_date,row]));
+ const required=[...new Set(requiredAttendanceDates)].filter(workDate=>!leave.has(workDate));
+ const unresolved=required.filter(workDate=>{const row=byDate.get(workDate);return !row||String(row.verificationStatus||row.verification_status)!=='approved'});
+ if(unresolved.length){const error=new Error(`ATTENDANCE_PERIOD_NOT_FINALIZED:${unresolved.join(',')}`);error.unresolvedDates=unresolved;throw error}
+ return {requiredDates:required,unresolvedDates:[]};
+}
+
+function calculatePayroll({basis,rate,approvedSummaries=[],requiredAttendanceDates=[],approvedLeaveDates=[],adjustments=[],advanceDeduction=0}){
+ validatePayrollAttendanceCoverage({basis,requiredAttendanceDates,approvedLeaveDates,summaries:approvedSummaries});
  const workedDays=approvedSummaries.filter(s=>s.verificationStatus==='approved'&&!s.absent&&Number(s.workedMinutes)>0).length;
  const workedMinutes=approvedSummaries.filter(s=>s.verificationStatus==='approved').reduce((n,s)=>n+Number(s.workedMinutes||0),0);
- if((basis==='daily'||basis==='hourly')&&!approvedSummaries.some(s=>s.verificationStatus==='approved'))throw new Error('APPROVED_ATTENDANCE_REQUIRED');
  const base=round2(basis==='monthly'?rate:basis==='daily'?rate*workedDays:rate*workedMinutes/60);
  const sum=type=>round2(adjustments.filter(a=>a.type===type).reduce((n,a)=>n+Number(a.amount||0),0));
  const bonus=sum('bonus'),overtime=sum('overtime'),deduction=Math.min(sum('deduction'),base+bonus+overtime);
  const advance=Math.min(Number(advanceDeduction||0),Math.max(0,base+bonus+overtime-deduction));
  return {basis,workedDays,workedMinutes,baseAmount:base,bonusAmount:bonus,overtimeAmount:overtime,deductionAmount:deduction,advanceDeduction:round2(advance),netAmount:round2(Math.max(0,base+bonus+overtime-deduction-advance))};
+}
+
+function payPayrollIdempotently(state,{clientTxId}){
+ if(state.period.status==='paid')return {replay:true,treasuryMovements:state.treasuryMovements.length};
+ if(state.period.status!=='approved')throw new Error('PAYROLL_NOT_APPROVED');
+ for(const item of state.items){
+  const movementKey=`${clientTxId}:employee:${item.employeeId}`;
+  if(Number(item.netAmount)>0&&!state.treasuryMovements.some(row=>row.clientTxId===movementKey))state.treasuryMovements.push({clientTxId:movementKey,employeeId:item.employeeId,amount:Number(item.netAmount)});
+  let remaining=Number(item.advanceDeduction||0);
+  for(const advance of state.advances.filter(row=>row.employeeId===item.employeeId&&row.status==='active')){
+   if(remaining<=0)break;const amount=Math.min(Number(advance.outstandingAmount),remaining);advance.outstandingAmount=round2(Number(advance.outstandingAmount)-amount);remaining=round2(remaining-amount);if(advance.outstandingAmount<=0)advance.status='settled';
+  }
+ }
+ state.period.status='paid';state.period.paymentClientTxId=clientTxId;
+ return {replay:false,treasuryMovements:state.treasuryMovements.length};
 }
 
 function buildPayslipLines(payroll,adjustments=[]){
@@ -157,5 +181,5 @@ class DurableAttendanceQueue{
  }
 }
 
-return {canonicalPayload,haversineMeters,verifyGeofence,calculateDailySummary,evaluateRule,recurringPeriodKey,calculatePayroll,buildPayslipLines,validateCheckout,authorizeStaffSelf,branchScoped,IdempotencyLedger,MemoryQueueStore,DurableAttendanceQueue};
+return {canonicalPayload,haversineMeters,verifyGeofence,calculateDailySummary,evaluateRule,recurringPeriodKey,validatePayrollAttendanceCoverage,calculatePayroll,payPayrollIdempotently,buildPayslipLines,validateCheckout,authorizeStaffSelf,branchScoped,IdempotencyLedger,MemoryQueueStore,DurableAttendanceQueue};
 });

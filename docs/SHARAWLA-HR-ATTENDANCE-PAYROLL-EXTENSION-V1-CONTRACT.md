@@ -1,7 +1,7 @@
 # Sharawla HR Attendance & Payroll Extension V1 Contract
 
-Status: SOURCE IMPLEMENTATION CANDIDATE  
-Starting branch: `rc1-beta58-32-performance-hotfix`  
+Status: SOURCE IMPLEMENTATION CANDIDATE
+Starting branch: `rc1-beta58-32-performance-hotfix`
 Starting HEAD: `825a56839d21d32884b94aa428401a74d4468633`
 
 ## 1. Safety boundary
@@ -121,6 +121,8 @@ Schedules define work days, start/end local times, timezone, grace, break,
 overtime, early-leave policy, overnight behavior, and effective dates.
 Assignments are employee-specific and date-effective; overlapping active
 assignments for one employee are rejected.
+In V1, an approved work schedule means the latest active, date-effective
+schedule assignment saved through the permission-gated HR schedule workflow.
 
 Daily summary is deterministic and recalculable from:
 
@@ -145,10 +147,18 @@ completed, out-of-range, or exhausted definitions do not generate entries.
 
 `hr_payroll_run_attendance_v1` extends the existing payroll data model:
 
-- monthly basis uses the existing base salary;
+- monthly basis uses the existing base salary. Attendance Summary never changes
+  the monthly base salary directly; attendance affects monthly Payroll only
+  through approved payroll adjustments/rules under this contract;
 - daily basis uses approved worked days multiplied by the daily rate;
 - hourly basis uses approved worked minutes divided by 60 multiplied by the
   hourly rate;
+- before daily/hourly Payroll is created, every scheduled work day in the
+  period must have an approved/finalized Attendance Summary. Missing, draft,
+  pending-review, or rejected required days fail closed;
+- a non-scheduled day is not a required attendance day. A scheduled shift fully
+  covered by an approved `leave`, `sick_leave`, or `unpaid_leave` request is
+  also excluded from required attendance coverage;
 - approved overtime/bonus/deduction adjustments and existing advances remain
   the financial sources;
 - `hr_payroll_item_lines` records every payslip component and reason;

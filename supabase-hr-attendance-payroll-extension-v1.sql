@@ -797,13 +797,41 @@ end;$$;
 
 create or replace function public.hr_payroll_run_attendance_v1(p_branch_id bigint,p_period_start date,p_period_end date,p_notes text,p_client_tx_id text)
 returns bigint language plpgsql security definer set search_path=public as $$
-declare pid bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');r record;basev numeric;daysv numeric;minutesv numeric;bonusv numeric;otv numeric;dedv numeric;advv numeric;grossv numeric;netv numeric;iid bigint;a record;begin
+declare pid bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');r record;basev numeric;daysv numeric;minutesv numeric;bonusv numeric;otv numeric;dedv numeric;advv numeric;grossv numeric;netv numeric;iid bigint;a record;unresolvedv bigint;unresolved_dates text;begin
  if auth.uid() is null or not public.has_action_permission_v2('hr.payroll.run') then raise exception 'ليس لديك صلاحية إعداد مسير المرتبات';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;if p_period_start is null or p_period_end<p_period_start or k is null then raise exception 'فترة أو معرف المرتب غير صحيح';end if;
  perform pg_advisory_xact_lock(hashtextextended('hr-payroll-run:'||k,0));select id into pid from public.hr_payroll_periods where client_tx_id=k;if found then return pid;end if;if exists(select 1 from public.hr_payroll_periods where branch_id=p_branch_id and status<>'cancelled' and daterange(period_start,period_end,'[]')&&daterange(p_period_start,p_period_end,'[]')) then raise exception 'يوجد مسير مرتبات متداخل لنفس الفرع';end if;e:=public.current_employee_id();
  insert into public.hr_payroll_periods(branch_id,period_start,period_end,notes,client_tx_id,created_by_employee_id) values(p_branch_id,p_period_start,p_period_end,nullif(trim(coalesce(p_notes,'')),''),k,e) returning id into pid;
  for r in select h.id,h.name,coalesce(c.salary_basis,'monthly') salary_basis,coalesce(c.base_salary,0) base_salary from public.hr_employees h left join public.hr_employee_compensation c on c.employee_id=h.id where h.home_branch_id=p_branch_id and h.active=true and h.employment_status='active' order by h.id loop
   select count(*) filter(where not absent and worked_minutes>0),coalesce(sum(worked_minutes),0) into daysv,minutesv from public.hr_attendance_daily_summary where employee_id=r.id and work_date between p_period_start and p_period_end and verification_status='approved';
-  if r.salary_basis in ('daily','hourly') and not exists(select 1 from public.hr_attendance_daily_summary where employee_id=r.id and work_date between p_period_start and p_period_end and verification_status='approved') then raise exception 'الحضور المعتمد مطلوب للموظف اليومي/بالساعة: %',r.name;end if;
+  if r.salary_basis in ('daily','hourly') then
+   with calendar as (
+    select gs::date work_date from generate_series(p_period_start::timestamp,p_period_end::timestamp,interval '1 day') gs
+   ),scheduled as (
+    select c.work_date,
+     (c.work_date+sch.scheduled_start) at time zone coalesce(nullif(sch.timezone,''),(select timezone from public.hr_settings where branch_id=p_branch_id),'Africa/Cairo') scheduled_start_at,
+     ((c.work_date+case when sch.overnight then 1 else 0 end)+sch.scheduled_end) at time zone coalesce(nullif(sch.timezone,''),(select timezone from public.hr_settings where branch_id=p_branch_id),'Africa/Cairo') scheduled_end_at
+    from calendar c
+    join lateral (
+     select ws.scheduled_start,ws.scheduled_end,ws.overnight,ws.timezone,ws.work_days
+     from public.hr_employee_schedule_assignments sa join public.hr_work_schedules ws on ws.id=sa.schedule_id
+     where sa.employee_id=r.id and sa.active=true and ws.active=true
+      and sa.effective_from<=c.work_date and (sa.effective_to is null or sa.effective_to>=c.work_date)
+      and ws.effective_from<=c.work_date and (ws.effective_to is null or ws.effective_to>=c.work_date)
+     order by sa.effective_from desc,sa.id desc limit 1
+    ) sch on extract(dow from c.work_date)::smallint=any(sch.work_days)
+   ),required as (
+    select s.work_date from scheduled s where not exists(
+     select 1 from public.hr_leave_requests l where l.employee_id=r.id and l.status='approved'
+      and l.request_type in ('leave','sick_leave','unpaid_leave')
+      and l.starts_at<=s.scheduled_start_at and l.ends_at>=s.scheduled_end_at
+    )
+   ),unresolved as (
+    select req.work_date from required req left join public.hr_attendance_daily_summary ds on ds.employee_id=r.id and ds.work_date=req.work_date
+    where ds.id is null or ds.verification_status<>'approved'
+   )
+   select count(*),string_agg(to_char(work_date,'YYYY-MM-DD'),', ' order by work_date) into unresolvedv,unresolved_dates from unresolved;
+   if unresolvedv>0 then raise exception 'فترة الحضور غير مكتملة للموظف اليومي/بالساعة %؛ أيام غير معتمدة: %',r.name,unresolved_dates;end if;
+  end if;
   basev:=case r.salary_basis when 'monthly' then r.base_salary when 'daily' then r.base_salary*daysv when 'hourly' then r.base_salary*(minutesv/60.0) else 0 end;
   select coalesce(sum(amount) filter(where adjustment_type='bonus'),0),coalesce(sum(amount) filter(where adjustment_type='overtime'),0),coalesce(sum(amount) filter(where adjustment_type='deduction'),0) into bonusv,otv,dedv from public.hr_employee_adjustments where employee_id=r.id and status='pending' and approval_status='approved' and effective_date between p_period_start and p_period_end;
   grossv:=round(basev+bonusv+otv,2);dedv:=least(round(dedv,2),grossv);select coalesce(sum(case when repayment_mode='installments' then least(outstanding_amount,coalesce(installment_amount,outstanding_amount)) else outstanding_amount end),0) into advv from public.hr_employee_advances where employee_id=r.id and status='active' and outstanding_amount>0;advv:=least(round(advv,2),greatest(grossv-dedv,0));netv:=greatest(round(grossv-dedv-advv,2),0);
