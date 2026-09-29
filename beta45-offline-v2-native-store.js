@@ -129,8 +129,8 @@ CREATE TABLE IF NOT EXISTS offline_v2_bon_reservations(
  reservation_uid TEXT PRIMARY KEY,
  business_id TEXT NOT NULL,
  branch_id INTEGER NOT NULL,
- server_shift_id INTEGER NOT NULL,
- shift_open_tx_id TEXT NOT NULL,
+ server_shift_id INTEGER,
+ shift_open_tx_id TEXT,
  device_fingerprint TEXT NOT NULL,
  start_bon INTEGER NOT NULL CHECK(start_bon>=1),
  end_bon INTEGER NOT NULL CHECK(end_bon>=start_bon),
@@ -149,11 +149,57 @@ CREATE TABLE IF NOT EXISTS offline_v2_bon_consumptions(
  FOREIGN KEY(reservation_uid) REFERENCES offline_v2_bon_reservations(reservation_uid) ON DELETE RESTRICT
 );
 `);
-  const bonColumns=await all('PRAGMA table_info(offline_v2_bon_reservations)');
+  let bonColumns=await all('PRAGMA table_info(offline_v2_bon_reservations)');
   if(!bonColumns.some(x=>text(x.name)==='business_id'))await run('ALTER TABLE offline_v2_bon_reservations ADD COLUMN business_id TEXT');
   if(!bonColumns.some(x=>text(x.name)==='numbering_mode'))await run("ALTER TABLE offline_v2_bon_reservations ADD COLUMN numbering_mode TEXT NOT NULL DEFAULT 'SHIFT'");
   await run("UPDATE offline_v2_bon_reservations SET numbering_mode='SHIFT' WHERE numbering_mode IS NULL OR trim(numbering_mode)=''");
-  await run("CREATE INDEX IF NOT EXISTS offline_v2_bon_reservation_scope_idx ON offline_v2_bon_reservations(business_id,branch_id,numbering_mode,server_shift_id,device_fingerprint,status)");
+  bonColumns=await all('PRAGMA table_info(offline_v2_bon_reservations)');
+  const legacyShiftNotNull=bonColumns.some(x=>text(x.name)==='server_shift_id'&&number(x.notnull)===1)||bonColumns.some(x=>text(x.name)==='shift_open_tx_id'&&number(x.notnull)===1);
+  if(legacyShiftNotNull){
+    // V2.4 scope migration: preserve every reservation/consumption while allowing
+    // BRANCH reservations to have no shift owner. Foreign-key children are copied
+    // back after the parent table is rebuilt; no operational row is discarded.
+    await exec('BEGIN IMMEDIATE TRANSACTION');
+    try{
+      await exec(`CREATE TABLE offline_v2_bon_reservations_scope_v24(
+        reservation_uid TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,
+        branch_id INTEGER NOT NULL,
+        server_shift_id INTEGER,
+        shift_open_tx_id TEXT,
+        device_fingerprint TEXT NOT NULL,
+        start_bon INTEGER NOT NULL CHECK(start_bon>=1),
+        end_bon INTEGER NOT NULL CHECK(end_bon>=start_bon),
+        status TEXT NOT NULL CHECK(status IN ('active','closed')),
+        issued_at TEXT NOT NULL,
+        imported_at TEXT NOT NULL,
+        numbering_mode TEXT NOT NULL DEFAULT 'SHIFT' CHECK(numbering_mode IN ('SHIFT','BRANCH')),
+        CHECK(numbering_mode='BRANCH' OR (server_shift_id IS NOT NULL AND server_shift_id>=1 AND shift_open_tx_id IS NOT NULL AND trim(shift_open_tx_id)<>'')))
+      );
+      INSERT INTO offline_v2_bon_reservations_scope_v24(reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,numbering_mode)
+      SELECT reservation_uid,business_id,branch_id,server_shift_id,shift_open_tx_id,device_fingerprint,start_bon,end_bon,status,issued_at,imported_at,COALESCE(NULLIF(trim(numbering_mode),''),'SHIFT')
+      FROM offline_v2_bon_reservations;
+      CREATE TABLE offline_v2_bon_consumptions_scope_v24(
+        reservation_uid TEXT NOT NULL,
+        bon_number INTEGER NOT NULL CHECK(bon_number>=1),
+        sale_client_tx_id TEXT NOT NULL UNIQUE,
+        consumed_at TEXT NOT NULL,
+        PRIMARY KEY(reservation_uid,bon_number),
+        FOREIGN KEY(reservation_uid) REFERENCES offline_v2_bon_reservations_scope_v24(reservation_uid) ON DELETE RESTRICT
+      );
+      INSERT INTO offline_v2_bon_consumptions_scope_v24(reservation_uid,bon_number,sale_client_tx_id,consumed_at)
+      SELECT reservation_uid,bon_number,sale_client_tx_id,consumed_at FROM offline_v2_bon_consumptions;
+      DROP TABLE offline_v2_bon_consumptions;
+      DROP TABLE offline_v2_bon_reservations;
+      ALTER TABLE offline_v2_bon_reservations_scope_v24 RENAME TO offline_v2_bon_reservations;
+      ALTER TABLE offline_v2_bon_consumptions_scope_v24 RENAME TO offline_v2_bon_consumptions;
+      CREATE INDEX offline_v2_bon_reservation_owner_idx ON offline_v2_bon_reservations(business_id,branch_id,server_shift_id,device_fingerprint,status);
+      CREATE INDEX offline_v2_bon_reservation_scope_idx ON offline_v2_bon_reservations(business_id,branch_id,numbering_mode,server_shift_id,device_fingerprint,status);`);
+      await exec('COMMIT');
+    }catch(e){try{await exec('ROLLBACK')}catch{}throw e}
+  }else{
+    await run("CREATE INDEX IF NOT EXISTS offline_v2_bon_reservation_scope_idx ON offline_v2_bon_reservations(business_id,branch_id,numbering_mode,server_shift_id,device_fingerprint,status)");
+  }
   await run(`INSERT INTO offline_v2_meta(key,value,updated_at) VALUES('store_version',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,[STORE_VERSION,nowIso()]);
   const integrity=await get('PRAGMA integrity_check');
   if(String(Object.values(integrity||{})[0]||'').toLowerCase()!=='ok')throw new Error('Offline V2 native database integrity check failed');
