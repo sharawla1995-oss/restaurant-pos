@@ -153,8 +153,7 @@ begin
   elsif v_operation='food_prep_recipe_save_draft' then
     v_result:=public.offline_food_prep_recipe_save_draft_action_v2((v_payload->>'p_prep_item_id')::bigint,(v_payload->>'p_output_quantity')::numeric,v_payload->>'p_output_unit_code',coalesce(v_payload->'p_lines','[]'::jsonb),v_payload->>'p_notes',v_tx,v_digest); v_entity_id:=nullif(v_result->>'recipe_version_id','');
   elsif v_operation='retail_supplier_save' then
-    v_entity_id:=public.retail_supplier_save(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_tax_no')::text;
-    v_result:=jsonb_build_object('ok',true,'supplier_id',v_entity_id::bigint,'client_tx_id',v_tx);
+    v_result:=public.offline_retail_supplier_create_v1(v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_tax_no',v_tx); v_entity_id:=nullif(v_result->>'supplier_id','');
   elsif v_operation='retail_po_create' then
     v_entity_id:=public.retail_purchase_order_create_v2(v_branch,(v_payload->>'p_supplier_id')::bigint,v_payload->>'p_notes',coalesce(v_payload->'p_items','[]'::jsonb),v_tx,v_payload->>'p_po_number',nullif(v_payload->>'p_expected_at','')::timestamptz)::text;
     v_result:=jsonb_build_object('ok',true,'purchase_order_id',v_entity_id::bigint,'client_tx_id',v_tx);
