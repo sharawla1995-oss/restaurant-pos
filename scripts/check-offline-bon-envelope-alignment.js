@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
+const t=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
+assert(t.includes("payload:{rpc_name:resolved.rpc_name,rpc_payload:clone(resolved.rpc_payload)"),'transport durable envelope shape changed');
+assert(t.includes("const order=resolved.rpc_payload?.p_order||{}"),'sale resolved payload shape missing');
+assert(n.includes("input?.payload?.rpc_payload?.p_order?.bon_reservation"),'Native Bon evidence must read the durable transport envelope path');
+assert(!n.includes("input?.payload?.bon_reservation"),'stale top-level Bon evidence path must not remain');
+const evidence=n.indexOf("input?.payload?.rpc_payload?.p_order?.bon_reservation");
+const consume=n.indexOf('await consumeBonReservationUnsafe(input,tx);');
+const outbox=n.indexOf('INSERT INTO offline_v2_outbox',consume);
+assert(evidence>=0&&consume>evidence&&outbox>consume,'cross-layer Bon evidence must reach atomic consumption before outbox');
+console.log('OFFLINE BON ENVELOPE ALIGNMENT GATE PASS — transport_binding=0 deployment=0');

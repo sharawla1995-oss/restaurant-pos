@@ -223,7 +223,7 @@ function envelopeFrom(input,sequence){
 
 function bonEvidence(input){
   if(text(input?.operation_type)!=='sale')return null;
-  const e=input?.payload?.bon_reservation;if(e==null)return null;
+  const e=input?.payload?.rpc_payload?.p_order?.bon_reservation;if(e==null)return null;
   const out={reservation_uid:text(e.reservation_uid),bon_number:number(e.bon_number),branch_id:number(e.branch_id),server_shift_id:number(e.server_shift_id),shift_open_tx_id:text(e.shift_open_tx_id),device_fingerprint:text(e.device_fingerprint)};
   if(!out.reservation_uid||out.bon_number<1||out.branch_id<1||out.server_shift_id<1||!out.shift_open_tx_id||!out.device_fingerprint){const err=new Error('Invalid Bon Reservation V1 evidence');err.code='OFFLINE_V2_BON_EVIDENCE_INVALID';throw err}
   if(out.branch_id!==number(input.branch_id)){const err=new Error('Bon reservation branch mismatch');err.code='OFFLINE_V2_BON_OWNER_MISMATCH';throw err}
