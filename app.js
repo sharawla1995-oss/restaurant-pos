@@ -1054,7 +1054,7 @@ function drawRetailProducts(){
  grid.innerHTML=rows.map(p=>`<button class="product retail-product" data-retail-id="${p.id}">${p.image_url?`<img class="product-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:`<div class="product-img product-placeholder">📦</div>`}<b>${esc(p.name)}</b><span>${money(effectiveProductPrice(p))}</span>${p.barcode?`<small>${esc(p.barcode)}</small>`:''}</button>`).join('')||'<div class="empty">لا توجد أصناف مطابقة</div>';
  grid.onclick=e=>{const b=e.target.closest('[data-retail-id]');if(!b)return;const p=state.products.find(x=>String(x.id)===String(b.dataset.retailId));if(p)addRetailProductToCart(p)};
 }
-async async function retailSuspendedSalesReadModel(){
+async function retailSuspendedSalesReadModel(){
  const branchId=Number(currentBranchId()),byId=new Map(),byTx=new Map();
  if(navigator.onLine)try{for(const row of await rest('retail_suspended_sales',`select=*&branch_id=eq.${branchId}&order=created_at.desc&limit=100`)){byId.set(String(row.id),row);if(row.client_tx_id)byTx.set(String(row.client_tx_id),row)}}catch(e){if(!isNetError(e))throw e}
  try{
