@@ -934,7 +934,18 @@ function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
 if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false);
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
-$('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
+function activateSidebarRoute(target){
+  const b=target?.closest?.('button[data-page]');
+  if(!b)return false;
+  showPage(b.dataset.page);
+  return true;
+}
+$('#nav').onclick=e=>activateSidebarRoute(e.target);
+$('#nav').addEventListener('pointerup',e=>{
+  if(e.pointerType!=='mouse')return;
+  if(e.button!==0)return;
+  activateSidebarRoute(e.target);
+},{passive:true});
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
 
