@@ -171,7 +171,8 @@ const commands = [
   "node scripts/check-offline-shift-expense-native-owner.js",
   "node scripts/check-offline-pos-sale-native-owner.js",
   "node scripts/check-offline-pos-return-native-owner.js",
-  "node scripts/check-retail-suspend-resume-local-first.js"
+  "node scripts/check-retail-suspend-resume-local-first.js",
+  "node scripts/check-rc1-retail-offline-sync-coverage.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
