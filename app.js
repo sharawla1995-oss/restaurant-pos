@@ -1075,7 +1075,7 @@ async function retailSuspendedSalesReadModel(){
  }catch(e){console.warn('retail suspended local read model',e)}
  return [...byId.values()].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
 }
-function renderRetailPOS(){
+async function renderRetailPOS(){
  await loadRetailMarketData();
  const barcodeOn=moduleEnabled('barcode');
  $('#page').innerHTML=`<div class="retail-checkout-shell">
