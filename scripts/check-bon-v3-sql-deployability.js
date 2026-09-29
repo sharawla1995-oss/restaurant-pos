@@ -8,6 +8,7 @@ const v2=fs.readFileSync('supabase-rc1-bon-reservation-v2-scope-aware-source.sql
 const v3=fs.readFileSync('supabase-rc1-trusted-device-context-bon-v3-source.sql','utf8');
 const helper=fs.readFileSync('supabase-rc1-bon-v3-sale-integration-source.sql','utf8');
 const owner=fs.readFileSync('supabase-rc1-bon-v3-base-sale-owner-source.sql','utf8');
+const migration=fs.readFileSync('supabase-rc1-bon-numbering-policy-v1-online-migration-source.sql','utf8');
 const pre=fs.readFileSync('supabase-rc1-bon-v3-deployability-preflight.sql','utf8');
 assert(base.includes('function public.has_branch_access(p_branch_id bigint)'),'has_branch_access(bigint) baseline missing');
 assert(base.includes('function public.current_employee_id()'),'current_employee_id baseline missing');
@@ -15,6 +16,8 @@ assert(shifts.includes('alter table public.shifts add column if not exists clien
 assert(numbering.includes('create table if not exists public.shift_bon_counters'),'shift Bon counter baseline missing');
 assert(policy.indexOf('create table if not exists public.branch_bon_counters_v1')<policy.indexOf('function public.pos_bon_numbering_mode_v1'),'policy creator ordering invalid');
 assert(v2.includes('public.pos_bon_numbering_mode_v1')&&v2.includes('public.branch_bon_counters_v1'),'V2 policy dependencies missing');
+assert(migration.includes("to_regclass('public.pos_bon_reservations_v2')"),'online migration preflight must tolerate V2 not existing yet');
+assert(migration.indexOf("to_regclass('public.pos_bon_reservations_v2')")<migration.indexOf('from public.pos_bon_reservations_v2'),'V2 existence guard must precede reservation-table read');
 assert(v2.includes('revoke all on function public.pos_reserve_bon_range_v2(bigint,bigint,text,text,uuid,integer) from public,anon,authenticated'),'V2 reserve must be internal-only behind V3');
 assert(v2.includes('revoke all on function public.pos_consume_reserved_bon_v2(uuid,integer,text,bigint,bigint,text,text) from public,anon,authenticated'),'V2 consume must be internal-only behind V3');
 assert(!/grant execute on function public\.pos_(?:reserve_bon_range|consume_reserved_bon)_v2[\s\S]{0,180}authenticated/i.test(v2),'authenticated client must not bypass V3 trusted-device boundary');
@@ -30,4 +33,4 @@ assert(helper.includes('revoke all on function public.pos_consume_sale_bon_v3(js
 assert(!/grant execute on function public\.pos_consume_sale_bon_v3[\s\S]{0,180}authenticated/i.test(helper),'authenticated client must not call sale Bon helper directly');
 assert(owner.includes('public.pos_consume_sale_bon_v3'),'sale owner->helper dependency missing');
 for(const x of ["to_regprocedure('public.has_branch_access(bigint)')","to_regprocedure('public.create_pos_order_atomic(jsonb,jsonb,jsonb)')","to_regprocedure('gen_random_uuid()')","shifts.client_open_tx_id text","orders.bon_number integer"])assert(pre.includes(x),'preflight invariant missing '+x);
-console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED consume_outside_sale=DENIED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');
+console.log('BON V3 SQL DEPLOYABILITY SOURCE GATE PASS — baseline_signatures=PASS dependency_order=PASS migration_v2_optional=PASS jsonb_row_bridge=PASS v2_client_bypass=DENIED consume_outside_sale=DENIED uuid=PRECHECK live_db=NOT_TOUCHED deployment=0');

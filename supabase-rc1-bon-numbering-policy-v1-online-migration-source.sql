@@ -102,8 +102,14 @@ language sql stable security definer set search_path=public as $$
       ) d
     ),
     'active_reservations_v2',(
-      select count(*) from public.pos_bon_reservations_v2
-      where branch_id=p_branch_id and status='active'
+      -- Keep this migration deployable before Bon Reservation V2 exists.
+      -- Transition authorization must still be rechecked after V2 deployment.
+      case when to_regclass('public.pos_bon_reservations_v2') is null then null
+      else (
+        select count(*)
+        from public.pos_bon_reservations_v2
+        where branch_id=p_branch_id and status='active'
+      ) end
     )
   )
 $$;

@@ -10,10 +10,13 @@ Required future application order is:
 
 1. baseline deployability preflight
 2. Bon Numbering Policy V1
-3. Bon Reservation V2 scope-aware source
-4. Trusted Device Context + Bon V3
-5. Bon V3 sale helper
-6. Bon V3 base sale owner
+3. Bon Numbering Policy V1 online migration (safe while V2 is still absent; reservation count reports null)
+4. Bon Reservation V2 scope-aware source
+5. Trusted Device Context + Bon V3
+6. Bon V3 sale helper
+7. Bon V3 base sale owner
+
+The online numbering migration no longer has a hard creation-time dependency on the V2 reservation table: its policy preflight uses `to_regclass` and reports `active_reservations_v2: null` until V2 exists. Any future policy transition must be rechecked after V2 is deployed, before activation.
 
 The preflight explicitly checks `gen_random_uuid()` rather than assuming extension/runtime availability.
 
