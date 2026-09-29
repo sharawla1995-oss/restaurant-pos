@@ -689,7 +689,7 @@ async function salePayloadWithReservedBon(payload,identity){
   const open=await global.odbGet(`openShift:${runtimeEmployee()}:${branchId}`);
   const shiftOpenTx=text(open?.client_tx_id);
   if(!open||num(open.id,0)!==shiftId||text(open.status)!=='open'||!shiftOpenTx)return out;
-  const evidence=await api.nextReservedBon({branch_id:branchId,server_shift_id:shiftId,shift_open_tx_id:shiftOpenTx,device_fingerprint:identity.device_fingerprint});
+  const evidence=await api.nextReservedBon({business_id:identity.business_id,branch_id:branchId,server_shift_id:shiftId,shift_open_tx_id:shiftOpenTx,device_fingerprint:identity.device_fingerprint});
   if(evidence)out.p_order={...order,bon_reservation:clone(evidence)};
   return out;
 }
