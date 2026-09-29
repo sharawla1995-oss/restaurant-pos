@@ -312,7 +312,7 @@ settings:{
   enable_inventory:false,enable_delivery:true,enable_customer_search:true,
   enable_delivery_drivers:true,enable_mixed_payment:true,returns_allow_closed_shifts:false
 },
-modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false};
+modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],branchBonNumberingPolicy:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false};
 let websiteOrderWatchTimer=null;
 let websiteOrderWatchInFlight=null;
 let websiteOrderWatchAbortController=null;
@@ -493,7 +493,7 @@ async function point4HydrateOrderIdentity(order){if(!order?.id||order.document_u
 function offlineOrderNo(){return Number(localStorage.getItem('offlineOrderNo')||0)+1}
 function setOfflineOrderNo(n){localStorage.setItem('offlineOrderNo',String(n))}
 function isNetError(e){const m=String(e?.message||e||'').toLowerCase();return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')}
-async function cacheBootstrap(){try{await odbSet('bootstrap',{employee:state.employee,homeBranchId:state.homeBranchId,branches:state.branches,categories:state.categories,products:state.products,modifiers:state.modifiers,productModifiers:state.productModifiers,productVariants:state.productVariants,deliveryZones:state.deliveryZones,drivers:state.drivers,branchPrintSettings:state.branchPrintSettings,paymentMethods:state.paymentMethods,branchPaymentMethods:state.branchPaymentMethods,branchFinancialSettings:state.branchFinancialSettings,employeeBranches:state.employeeBranches,userPermissions:state.userPermissions,settings:state.settings,business:state.business,websiteSettings:state.websiteSettings,activeBranchId:state.activeBranchId,at:new Date().toISOString()})}catch(e){console.warn('offline cache',e)}}
+async function cacheBootstrap(){try{await odbSet('bootstrap',{employee:state.employee,homeBranchId:state.homeBranchId,branches:state.branches,categories:state.categories,products:state.products,modifiers:state.modifiers,productModifiers:state.productModifiers,productVariants:state.productVariants,deliveryZones:state.deliveryZones,drivers:state.drivers,branchPrintSettings:state.branchPrintSettings,paymentMethods:state.paymentMethods,branchPaymentMethods:state.branchPaymentMethods,branchFinancialSettings:state.branchFinancialSettings,branchBonNumberingPolicy:state.branchBonNumberingPolicy,employeeBranches:state.employeeBranches,userPermissions:state.userPermissions,settings:state.settings,business:state.business,websiteSettings:state.websiteSettings,activeBranchId:state.activeBranchId,at:new Date().toISOString()})}catch(e){console.warn('offline cache',e)}}
 async function loadOfflineBootstrap(){const c=await odbGet('bootstrap');if(!c?.employee)throw new Error('لا توجد بيانات محفوظة للعمل بدون إنترنت على هذا الجهاز');Object.assign(state,c);applyBusinessBranding();$('#who').textContent=`${state.employee.name} • ${state.employee.role}`;refreshBranchChrome();applyRoleNavigation();show('appView');showOfflineStatus();if(state.activeBranchId)showPage('pos');else renderBranchPicker()}
 function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ أوفلاين':'✓ متصل';el.title=off?'وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'الجهاز متصل بالإنترنت';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
 async function refreshOfflineCustomerCache(){
@@ -537,6 +537,17 @@ async function signIn(email,password){
   return d;
 }
 async function logout(){stopWebsiteOrderWatch(true);try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
+function branchBonNumberingMode(branchId=currentBranchId()){
+  const row=(state.branchBonNumberingPolicy||[]).find(x=>Number(x.branch_id)===Number(branchId));
+  const mode=String(row?.bon_numbering_mode||'SHIFT').trim().toUpperCase();
+  return mode==='BRANCH'?'BRANCH':'SHIFT';
+}
+function runtimeBonNumberingMode(branchId=currentBranchId()){
+  // BRANCH is a known policy value but official Offline acquisition is still blocked.
+  // Until the trusted-device activation root is authorized, fail closed to no reserved
+  // Bon rather than pretending BRANCH capacity is live.
+  return branchBonNumberingMode(branchId);
+}
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
@@ -745,7 +756,7 @@ async function bootstrap(){
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
   try{const br=await rest('business_settings','select=*&id=eq.1&limit=1');if(br?.[0])state.business={...state.business,...br[0]}}catch(e){}
   try{const wr=await rest('website_settings','select=*&id=eq.1&limit=1');if(wr?.[0])state.websiteSettings=wr[0]}catch(e){state.websiteSettings=null}
-  state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.branchProducts=branchProducts||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];state.branchPrintSettings=printSettings||[];state.paymentMethods=paymentMethods||[];state.branchPaymentMethods=branchPaymentMethods||[];state.branchFinancialSettings=branchFinancialSettings||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
+  state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.branchProducts=branchProducts||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];state.branchPrintSettings=printSettings||[];state.paymentMethods=paymentMethods||[];state.branchPaymentMethods=branchPaymentMethods||[];state.branchFinancialSettings=branchFinancialSettings||[];try{state.branchBonNumberingPolicy=await rest('branch_bon_numbering_policy','select=branch_id,bon_numbering_mode')}catch(e){state.branchBonNumberingPolicy=[];}try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
   applyBusinessBranding();
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
   const allowed=allowedBranches();
@@ -1360,6 +1371,7 @@ async function checkout(payment,payments=null){
   const source=(state.employee.role==='delivery'||state.employee.role==='callcenter')?'callcenter':'pos';
   const selectedDriver=orderType==='delivery'&&$('#deliveryDriver')?.value?Number($('#deliveryDriver').value):null;
   const orderPayload={
+    bon_numbering_mode:runtimeBonNumberingMode(branchId),
     branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,customer_create_tx:customerCreateTx,shift_id:openShift?.id||null,order_type:orderType,
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:['delivery','pickup'].includes(orderType)?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,

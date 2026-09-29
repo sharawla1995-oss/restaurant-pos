@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const a=fs.readFileSync('app.js','utf8');
+assert(a.includes('branchBonNumberingPolicy:[]'),'runtime policy state missing');
+assert(a.includes("rest('branch_bon_numbering_policy','select=branch_id,bon_numbering_mode')"),'server policy read missing');
+assert(a.includes('branchBonNumberingPolicy:state.branchBonNumberingPolicy'),'offline bootstrap policy cache missing');
+assert(a.includes("const mode=String(row?.bon_numbering_mode||'SHIFT').trim().toUpperCase()"),'SHIFT fail-safe default missing');
+assert(a.includes("return mode==='BRANCH'?'BRANCH':'SHIFT'"),'policy normalization missing');
+assert(a.includes('bon_numbering_mode:runtimeBonNumberingMode(branchId)'),'sale payload policy stamp missing');
+assert(!a.includes('saveBonNumberingPolicy'),'policy write path must remain absent');
+console.log('BON RUNTIME POLICY READ GATE PASS — source=SERVER cached=OFFLINE missing=SHIFT payload=STAMPED branch_write=BLOCKED deployment=0');
