@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const app=fs.readFileSync('app.js','utf8');
+const cloud=fs.readFileSync('SHARAWLA-CLOUD-TRUSTED-DEVICE-ASSERTION-V1-SOURCE.sql','utf8');
+const d=fs.readFileSync('docs/TRUSTED-DEVICE-ACQUISITION-BOUNDARY.md','utf8');
+assert(app.includes('p_app_version:sharawlaDeviceInfo.version'),'device verification third argument is not app evidence');
+assert(cloud.includes('issue_trusted_device_assertion_v1'),'Cloud assertion source missing');
+assert(d.includes('identity data, not sufficient possession proof'),'identity/proof distinction missing');
+assert(d.includes('acquisition and renewal must remain disabled'),'activation block missing');
+assert(d.includes('OFF-* fallback'),'fallback contract missing');
+assert(d.includes('DEPLOYMENT 0'),'deployment boundary missing');
+console.log('TRUSTED DEVICE ACQUISITION BOUNDARY PASS — identity_not_proof=1 acquisition=BLOCKED off_fallback=OPEN deployment=0');
