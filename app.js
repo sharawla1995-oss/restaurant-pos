@@ -2583,7 +2583,7 @@ async function renderSettings(){
  const canFinancial=isAdmin()||hasFeaturePermission('financialSettings');
  if(!canBusiness&&!canSystem&&!canPrinting&&!canFinancial){ $('#page').innerHTML='<div class="empty">ليس لديك صلاحية لفتح الإعدادات</div>'; return; }
  const b=state.business||{};
- const businessPanel=canBusiness?`<div class="panel business-settings-panel" data-settings-section="business"><h2>🎨 هوية وإعدادات النشاط</h2><p>البيانات دي تظهر تلقائيًا في الـPOS والموقع والفواتير.</p><div class="form-grid business-settings-grid">
+const businessPanel=canBusiness?`<div class="panel business-settings-panel" data-settings-section="business"><h2>🎨 هوية وإعدادات النشاط</h2><p>البيانات دي تظهر تلقائيًا في الـPOS والموقع والفواتير.</p><div class="form-grid business-settings-grid">
  <label>اسم النشاط<input id="bizName" value="${esc(b.business_name||'')}"></label>
  <label>الشعار النصي / الجملة<input id="bizTagline" value="${esc(b.tagline||'')}"></label>
  <label>رقم الهاتف<input id="bizPhone" value="${esc(b.phone||'')}"></label>
@@ -2594,7 +2594,11 @@ async function renderSettings(){
  <label>اللون الأساسي<input id="bizPrimary" type="color" value="${esc(b.primary_color||'#b51f2b')}"></label>
  <label>اللون المساعد<input id="bizAccent" type="color" value="${esc(b.accent_color||'#f0643d')}"></label>
  </div><button id="saveBusinessSettings" class="primary">حفظ هوية النشاط</button></div>`:'';
- let systemPanel='',backupPanel='',printingPanel='',financialPanel='';
+ let systemPanel='',backupPanel='',printingPanel='',financialPanel='',bonPanel='';
+ if(canSystem){
+   const bonMode=branchBonNumberingMode(currentBranchId());
+   bonPanel=`<div class="panel" data-settings-section="bon"><h2>🧾 ترقيم البونات — ${esc(branchName(currentBranchId()))}</h2><p>اختيار نطاق ترقيم البون الرسمي. تغيير السياسة إداري ويُرفض تلقائيًا أثناء وجود وردية مفتوحة أو حجز أوفلاين نشط.</p><div class="settings-list"><label class="setting-switch"><span><b>لكل وردية ترقيم مستقل</b><small>SHIFT — كل وردية تبدأ تسلسلها الخاص.</small></span><input type="radio" name="bonNumberingMode" value="SHIFT" ${bonMode==='SHIFT'?'checked':''}></label><label class="setting-switch"><span><b>ترقيم موحد للفرع طوال يوم التشغيل</b><small>BRANCH — لا يصبح فعالًا في التخصيص إلا بعد اكتمال Migration الآمن.</small></span><input type="radio" name="bonNumberingMode" value="BRANCH" ${bonMode==='BRANCH'?'checked':''}></label></div><button id="saveBonNumberingMode" class="primary" type="button">حفظ سياسة ترقيم البونات</button><p class="hint">رقم الفاتورة منفصل ولا يتغير بهذا الإعداد.</p></div>`;
+ }
  if(canPrinting){const pc=printCfg(currentBranchId()),localAutoCustomer=localAutoPrint(currentBranchId(),'customer',pc.auto_print_customer),localAutoPrep=localAutoPrint(currentBranchId(),'prep',pc.auto_print_prep);printingPanel=`<div class="panel" data-settings-section="printing"><h2>🖨️ إعدادات الطباعة — ${esc(branchName(currentBranchId()))}</h2><p>الإعدادات دي خاصة بالفرع الحالي، وبيانات الهاتف والعنوان بتتسحب من بيانات الفرع.</p><div class="form-grid"><label>مقاس الورق<select id="prPaper"><option value="80" ${pc.paper_size==='80'?'selected':''}>80 مم</option><option value="58" ${pc.paper_size==='58'?'selected':''}>58 مم</option></select></label><label>عدد نسخ فاتورة العميل<input id="prCustomerCopies" type="number" min="1" max="5" value="${Number(pc.customer_copies||1)}"></label><label>عدد نسخ التحضير<input id="prPrepCopies" type="number" min="1" max="5" value="${Number(pc.prep_copies||1)}"></label>${window.topBurgerDesktop?.print?`<label>طابعة فاتورة العميل<select id="prCustomerPrinter"><option value="">الطابعة الافتراضية</option></select></label><label>طابعة ريسيت التحضير<select id="prPrepPrinter"><option value="">الطابعة الافتراضية</option></select></label>`:''}<label>نص أعلى الفاتورة<input id="prHeader" value="${esc(pc.receipt_header||'')}"></label><label class="wide">نص أسفل الفاتورة لهذا الفرع<input id="prFooter" value="${esc(pc.receipt_footer||'')}" placeholder="لو فاضي يستخدم النص العام للنشاط"></label></div><div class="settings-list">${[['prLogo','إظهار اللوجو',pc.show_logo],['prName','إظهار اسم النشاط',pc.show_business_name],['prPhone','إظهار هاتف الفرع',pc.show_branch_phone],['prAddress','إظهار عنوان الفرع',pc.show_branch_address]].map(([id,l,v])=>`<label class="setting-switch"><span>${l}</span><input id="${id}" type="checkbox" ${v?'checked':''}></label>`).join('')}${window.topBurgerDesktop?.isDesktop?[['prAutoCustomer','طباعة فاتورة العميل تلقائيًا على هذا الكمبيوتر',localAutoCustomer],['prAutoPrep','طباعة ريسيت التحضير تلقائيًا على هذا الكمبيوتر',localAutoPrep]].map(([id,l,v])=>`<label class="setting-switch"><span>${l}</span><input id="${id}" type="checkbox" ${v?'checked':''}></label>`).join(''):''}</div><button id="savePrintSettings" class="primary">حفظ إعدادات طباعة الفرع</button></div>`;}
  if(canFinancial){const fc=financialCfg(currentBranchId()),pays=state.paymentMethods.map(m=>{const r=state.branchPaymentMethods.find(x=>Number(x.branch_id)===currentBranchId()&&Number(x.payment_method_id)===Number(m.id));return `<div class="setting-switch"><span><b>${esc(m.name)}</b><small>${esc(m.code)}</small></span><span><label>متاح <input type="checkbox" data-pay-active="${m.id}" ${r?.active!==false?'checked':''}></label> <label>افتراضي <input type="radio" name="payDefault" data-pay-default="${m.id}" ${r?.is_default?'checked':''}></label></span></div>`}).join('');financialPanel=`<div class="panel" data-settings-section="financial"><h2>💳 الدفع والخصم والضريبة — ${esc(branchName(currentBranchId()))}</h2><p>الإعدادات دي خاصة بالفرع الحالي.</p><div class="form-grid"><label>نظام الخصم<select id="finDiscountMode"><option value="both" ${fc.discount_mode==='both'?'selected':''}>مبلغ أو نسبة</option><option value="amount" ${fc.discount_mode==='amount'?'selected':''}>مبلغ فقط</option><option value="percent" ${fc.discount_mode==='percent'?'selected':''}>نسبة فقط</option></select></label><label>أقصى خصم %<input id="finMaxDiscount" type="number" min="0" max="100" step="0.1" value="${Number(fc.max_discount_percent||100)}"></label><label>نسبة الضريبة %<input id="finTaxRate" type="number" min="0" max="100" step="0.1" value="${Number(fc.tax_rate||0)}"></label><label>نسبة الخدمة %<input id="finServiceRate" type="number" min="0" max="100" step="0.1" value="${Number(fc.service_rate||0)}"></label></div><div class="settings-list"><label class="setting-switch"><span>تفعيل الخصم</span><input id="finDiscountEnabled" type="checkbox" ${fc.discount_enabled?'checked':''}></label><label class="setting-switch"><span>تفعيل الضريبة</span><input id="finTaxEnabled" type="checkbox" ${fc.tax_enabled?'checked':''}></label><label class="setting-switch"><span>الأسعار شاملة الضريبة</span><input id="finTaxIncluded" type="checkbox" ${fc.prices_include_tax?'checked':''}></label><label class="setting-switch"><span>تفعيل الخدمة</span><input id="finServiceEnabled" type="checkbox" ${fc.service_enabled?'checked':''}></label></div><h3>طرق الدفع</h3><div class="settings-list">${pays}</div><div class="toolbar"><button id="addPaymentMethod" class="secondary">➕ إضافة طريقة دفع</button><button id="saveFinancialSettings" class="primary">💾 حفظ إعدادات الفرع</button></div></div>`;}
  if(canSystem){
@@ -2607,11 +2611,14 @@ async function renderSettings(){
    canPrinting&&['printing','🖨️ الطباعة'],
    canFinancial&&['financial','💳 المالية'],
    canSystem&&['features','⚙️ المميزات'],
+   canSystem&&['bon','🧾 ترقيم البونات'],
+   canSystem&&['bon','🧾 ترقيم البونات'],
+   canSystem&&['bon','🧾 ترقيم البونات'],
    canSystem&&['backup','💾 النسخ الاحتياطي'],
    canSystem&&['returns','↩️ المرتجعات']
  ].filter(Boolean);
  const tabsHtml=`<div class="settings-hub-v1" data-settings-hub-v1="1"><div class="settings-hub-head"><div><h2>⚙️ الإعدادات</h2><p class="muted">كل نوع إعداد في قسم مستقل لتسهيل الاستخدام بالماوس والتاتش.</p></div></div><div class="settings-hub-tabs" id="settingsHubTabs">${settingsTabs.map(([key,label],i)=>`<button type="button" class="${i===0?'active':''}" data-settings-tab="${key}">${label}</button>`).join('')}</div></div>`;
- $('#page').innerHTML=tabsHtml+`<div id="settingsSections">${businessPanel+printingPanel+financialPanel+systemPanel+backupPanel}</div>`;
+ $('#page').innerHTML=tabsHtml+`<div id="settingsSections">${businessPanel+printingPanel+financialPanel+systemPanel+bonPanel+backupPanel}</div>`;
  if(canPrinting&&window.topBurgerDesktop?.print?.list&&$('#prCustomerPrinter')){try{const printers=await window.topBurgerDesktop.print.list();const opts=(printers||[]).map(p=>`<option value="${esc(p.name)}">${esc(p.displayName||p.name)}${p.isDefault?' — الافتراضية':''}</option>`).join('');$('#prCustomerPrinter').insertAdjacentHTML('beforeend',opts);$('#prPrepPrinter').insertAdjacentHTML('beforeend',opts);$('#prCustomerPrinter').value=selectedDesktopPrinter(currentBranchId(),'customer');$('#prPrepPrinter').value=selectedDesktopPrinter(currentBranchId(),'prep')}catch(e){toast('تعذر تحميل قائمة الطابعات')}}
  if($('#saveBusinessSettings'))$('#saveBusinessSettings').onclick=async()=>{try{await rpc('update_business_settings',businessSettingsPayload());await refreshBusinessSettings();toast('تم حفظ هوية النشاط وربطها بالنظام والموقع')}catch(e){toast(e.message)}};
  if($('#uploadBusinessLogo'))$('#uploadBusinessLogo').onclick=async()=>{try{await uploadBusinessLogo($('#bizLogoFile')?.files?.[0])}catch(e){toast(e.message)}};
@@ -2627,6 +2634,35 @@ async function renderSettings(){
  if(firstSettingsTab)settingsActivate(firstSettingsTab);
  if($('#settingsHubTabs'))$('#settingsHubTabs').onclick=e=>{const b=e.target.closest('[data-settings-tab]');if(b)settingsActivate(b.dataset.settingsTab)};
  if($('#addPaymentMethod'))$('#addPaymentMethod').onclick=async()=>{const name=await uiPrompt('اسم طريقة الدفع مثل: Vodafone Cash');if(name===null||!name.trim())return;const code='pay_'+Date.now();try{const r=await rest('payment_methods','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{code,name:name.trim(),kind:'other',active:true,sort_order:100}])});if(r?.[0]){await rest('branch_payment_methods','',{method:'POST',body:JSON.stringify([{branch_id:currentBranchId(),payment_method_id:r[0].id,active:true,is_default:false}])});state.paymentMethods.push(r[0]);state.branchPaymentMethods=await rest('branch_payment_methods','select=*');toast('تمت إضافة طريقة الدفع');renderSettings()}}catch(e){toast(e.message)}};
+ if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{
+   const next=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT',current=branchBonNumberingMode(currentBranchId());
+   if(next===current){toast('سياسة ترقيم البونات محفوظة بالفعل');return}
+   if(!navigator.onLine){toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالإنترنت');renderSettings();return}
+   if(!await uiConfirm(`تغيير ترقيم البونات في هذا الفرع من ${current} إلى ${next}؟ يجب ألا توجد وردية مفتوحة أو حجوزات أوفلاين نشطة.`)){renderSettings();return}
+   try{
+     const result=await rpc('pos_set_bon_numbering_mode_v1',{p_branch_id:currentBranchId(),p_mode:next});
+     const mode=String(result?.mode||next).toUpperCase()==='BRANCH'?'BRANCH':'SHIFT';
+     state.branchBonNumberingPolicy=(state.branchBonNumberingPolicy||[]).filter(x=>Number(x.branch_id)!==currentBranchId()).concat([{branch_id:currentBranchId(),bon_numbering_mode:mode}]);
+     await saveOfflineBootstrap();
+     toast(mode==='BRANCH'?'تم حفظ سياسة BRANCH. تفعيل تخصيص BRANCH الرسمي يظل مرتبطًا بمرحلة Migration الآمنة.':'تم حفظ سياسة SHIFT');
+     renderSettings();
+   }catch(e){toast(e.message||String(e));renderSettings()}
+ };
+  if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{
+   const next=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT',current=branchBonNumberingMode(currentBranchId());
+   if(next===current){toast('سياسة ترقيم البونات محفوظة بالفعل');return}
+   if(!navigator.onLine){toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالإنترنت');renderSettings();return}
+   if(!await uiConfirm(`تغيير ترقيم البونات في هذا الفرع من ${current} إلى ${next}؟ يجب ألا توجد وردية مفتوحة أو حجوزات أوفلاين نشطة.`)){renderSettings();return}
+   try{
+     const result=await rpc('pos_set_bon_numbering_mode_v1',{p_branch_id:currentBranchId(),p_mode:next});
+     const mode=String(result?.mode||next).toUpperCase()==='BRANCH'?'BRANCH':'SHIFT';
+     state.branchBonNumberingPolicy=(state.branchBonNumberingPolicy||[]).filter(x=>Number(x.branch_id)!==currentBranchId()).concat([{branch_id:currentBranchId(),bon_numbering_mode:mode}]);
+     await saveOfflineBootstrap();
+     toast(mode==='BRANCH'?'تم حفظ سياسة BRANCH. تفعيل تخصيص BRANCH الرسمي يظل مرتبطًا بمرحلة Migration الآمنة.':'تم حفظ سياسة SHIFT');
+     renderSettings();
+   }catch(e){toast(e.message||String(e));renderSettings()}
+ };
+  if($('#saveBonNumberingMode'))$('#saveBonNumberingMode').onclick=async()=>{const selected=$('input[name="bonNumberingMode"]:checked')?.value||'SHIFT';if(selected===branchBonNumberingMode())return toast('سياسة ترقيم البونات محفوظة بالفعل');if(navigator.onLine===false)return toast('تغيير سياسة ترقيم البونات يحتاج اتصال بالسيرفر');try{const result=await rpc('pos_set_bon_numbering_mode_v1',{p_branch_id:currentBranchId(),p_mode:selected});state.branchBonNumberingPolicy=state.branchBonNumberingPolicy.filter(x=>Number(x.branch_id)!==currentBranchId()).concat([{branch_id:currentBranchId(),bon_numbering_mode:result?.mode||selected}]);await saveOfflineBootstrap();toast(selected==='BRANCH'?'تم حفظ سياسة BRANCH — تفعيل سلطة الفرع يتطلب ترحيل السيرفر المعتمد':'تم حفظ سياسة SHIFT');renderSettings()}catch(e){toast(e.message||String(e))}};
  if($('#saveSettings'))$('#saveSettings').onclick=async()=>{const rows=[...document.querySelectorAll('[data-setting]')].map(x=>({key:x.dataset.setting,value:String(x.checked)}));for(const r of rows)await rest('app_settings',`key=eq.${encodeURIComponent(r.key)}`,{method:'PATCH',body:JSON.stringify({value:r.value})});Object.assign(state.settings,Object.fromEntries(rows.map(r=>[r.key,r.value==='true'])));toast('تم حفظ الإعدادات')};
  if($('#backupAll'))$('#backupAll').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=true);
  if($('#backupNone'))$('#backupNone').onclick=()=>$$('[data-backup-group]').forEach(x=>x.checked=false);

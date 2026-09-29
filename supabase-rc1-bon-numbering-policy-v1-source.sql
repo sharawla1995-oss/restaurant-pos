@@ -46,3 +46,61 @@ $$;
 -- Existing orders_shift_bon_unique + shift_bon_counters + assign_order_numbers()
 -- remain the active online contract until migration validation proves the
 -- branch-scoped unique/counter transition safe.
+
+
+-- Administrative transition RPC. This remains dormant until the online scope
+-- migration is actually deployed. It fails closed around ambiguous live work.
+create or replace function public.pos_set_bon_numbering_mode_v1(
+  p_branch_id bigint,
+  p_mode text
+) returns jsonb
+language plpgsql security definer set search_path=public as $$
+declare
+  v_mode text:=upper(trim(coalesce(p_mode,'')));
+  v_current text;
+  v_active_shifts bigint;
+  v_active_reservations bigint:=0;
+begin
+  if auth.uid() is null or public.current_employee_id() is null then
+    raise exception using errcode='42501',message='غير مصرح';
+  end if;
+  if not public.has_branch_access(p_branch_id) then
+    raise exception using errcode='42501',message='لا توجد صلاحية على الفرع';
+  end if;
+  if v_mode not in ('SHIFT','BRANCH') then
+    raise exception 'سياسة ترقيم البونات غير صالحة';
+  end if;
+
+  v_current:=public.pos_bon_numbering_mode_v1(p_branch_id);
+  if v_current=v_mode then
+    return jsonb_build_object('branch_id',p_branch_id,'mode',v_mode,'changed',false);
+  end if;
+
+  select count(*) into v_active_shifts
+  from public.shifts
+  where branch_id=p_branch_id and status='open' and closed_at is null;
+  if v_active_shifts>0 then
+    raise exception 'لا يمكن تغيير ترقيم البونات أثناء وجود وردية مفتوحة';
+  end if;
+
+  -- Reservation V2 is optional at source/deployment ordering time. If present,
+  -- no active capacity may cross a policy transition.
+  if to_regclass('public.pos_bon_reservations_v2') is not null then
+    execute 'select count(*) from public.pos_bon_reservations_v2 where branch_id=$1 and status=''active'''
+      into v_active_reservations using p_branch_id;
+    if v_active_reservations>0 then
+      raise exception 'لا يمكن تغيير ترقيم البونات مع وجود حجز أوفلاين نشط';
+    end if;
+  end if;
+
+  insert into public.branch_bon_numbering_policy(branch_id,bon_numbering_mode,updated_at)
+  values(p_branch_id,v_mode,clock_timestamp())
+  on conflict(branch_id) do update
+    set bon_numbering_mode=excluded.bon_numbering_mode,updated_at=excluded.updated_at;
+
+  return jsonb_build_object('branch_id',p_branch_id,'mode',v_mode,'changed',true);
+end;
+$$;
+
+revoke all on function public.pos_set_bon_numbering_mode_v1(bigint,text) from public,anon;
+grant execute on function public.pos_set_bon_numbering_mode_v1(bigint,text) to authenticated;

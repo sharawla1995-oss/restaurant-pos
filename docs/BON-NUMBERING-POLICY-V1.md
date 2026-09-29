@@ -1,6 +1,6 @@
 # Sharawla — Bon Numbering Policy V1
 
-Status: DESIGN + SOURCE CONTRACT / DEPLOYMENT 0
+Status: DESIGN + SOURCE IMPLEMENTATION / DEPLOYMENT 0
 
 ## Product decision
 Invoice numbering is unchanged and is NOT configurable by this feature.
@@ -12,7 +12,7 @@ Bon numbering is configurable per branch:
 ## Compatibility
 SHIFT is the default. Existing online numbering, orders_shift_bon_unique and shift_bon_counters remain authoritative until an explicitly authorized migration is deployed.
 
-BRANCH mode MUST NOT be enabled merely by changing a setting while the legacy shift-scoped uniqueness/counter contract is still active.
+BRANCH mode MUST NOT become runtime-authoritative merely by changing metadata while the legacy shift-scoped uniqueness/counter contract is still active. The administrative transition RPC may record a requested policy only when its fail-closed safety preconditions pass; runtime BRANCH allocation still requires the explicitly authorized online scope migration.
 
 ## Branch mode authority
 When BRANCH mode is implemented/deployed:
@@ -35,7 +35,7 @@ A consumed official Bon is durable and never recycled after crash, print failure
 ## Policy changes
 Changing policy is an administrative transition, not a casual runtime toggle.
 A transition MUST be fail-closed while there are active shifts/reservations or pending Offline sales whose numbering scope could become ambiguous.
-The transition requires server-side validation of existing numbers/counters before the new scope becomes authoritative.
+The transition requires server-side validation of existing numbers/counters before the new scope becomes authoritative. The administrative write path MUST reject transitions while a shift is open or active Offline Bon capacity exists. Pending Offline sales remain a required deployment/acceptance gate before BRANCH allocation can be activated.
 
 ## Required acceptance
 Tests must cover SHIFT and BRANCH separately, multiple devices, waiter/POS sources, server-side sources, Offline exhaustion, restart, replay and policy-transition blocking.
