@@ -382,7 +382,17 @@ async function commitOperationUnsafe(input){
     }
     // Bon selection, consumption and the operational outbox event share one serialized SQLite transaction.
     // No previewed number is trusted here; capacity exhaustion leaves the sale unreserved (OFF-*).
-    await assignBonReservationForSaleUnsafe(input);
+    const assignedBon=await assignBonReservationForSaleUnsafe(input);
+    // recordsFor() is built before this Native transaction. Mirror the exact
+    // assigned Bon into the durable local order record before hashing/writing.
+    if(assignedBon){
+      const orderRecord=(input.records||[]).find(r=>text(r?.record_type)==='order'&&r?.payload&&typeof r.payload==='object');
+      if(!orderRecord){const e=new Error('Native Bon assignment requires a durable local order record');e.code='OFFLINE_V2_BON_ORDER_RECORD_REQUIRED';throw e}
+      orderRecord.payload.bon_numbering_mode=text(input?.payload?.rpc_payload?.p_order?.bon_numbering_mode)||text(assignedBon.numbering_mode)||'SHIFT';
+      orderRecord.payload.bon_reservation=clone(assignedBon);
+      orderRecord.payload.bon_number=number(assignedBon.bon_number);
+      orderRecord.payload._official_number_pending=false;
+    }
     payloadHash=digest({payload:input.payload??null,records:input.records||[],identity:{device_id:input.device_id,business_id:input.business_id,branch_id:input.branch_id,employee_id:input.employee_id},operation_type:input.operation_type,entity_type:input.entity_type,local_entity_id:input.local_entity_id??null,local_shift_id:input.local_shift_id??null,depends_on_tx_id:input.depends_on_tx_id??null});
     await consumeBonReservationUnsafe(input,tx);
     await closeBonReservationsForShiftUnsafe(input);

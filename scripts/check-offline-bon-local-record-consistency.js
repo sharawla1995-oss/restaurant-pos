@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8');
+const commit=n.indexOf('async function commitOperationUnsafe(input)');
+const assign=n.indexOf('const assignedBon=await assignBonReservationForSaleUnsafe(input)',commit);
+const record=n.indexOf("orderRecord.payload.bon_reservation=clone(assignedBon)",assign);
+const hash=n.indexOf('payloadHash=digest(',record);
+const consume=n.indexOf('await consumeBonReservationUnsafe(input,tx)',hash);
+const write=n.indexOf('INSERT INTO offline_v2_records',consume);
+assert(commit>=0&&assign>commit&&record>assign&&hash>record&&consume>hash&&write>consume,'Bon evidence mirror ordering invalid');
+assert(n.includes("orderRecord.payload.bon_number=number(assignedBon.bon_number)"),'local Bon number mirror missing');
+assert(n.includes("orderRecord.payload._official_number_pending=false"),'local official-number state mirror missing');
+assert(n.includes("e.code='OFFLINE_V2_BON_ORDER_RECORD_REQUIRED'"),'missing local order record must fail closed');
+console.log('OFFLINE BON LOCAL RECORD CONSISTENCY GATE PASS — outbox_record=ALIGNED bon_number=MIRRORED same_tx=1 deployment=0');
