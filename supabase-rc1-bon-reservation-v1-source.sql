@@ -153,9 +153,48 @@ begin
   return to_jsonb(v_existing);
 end $$;
 
+create or replace function public.pos_close_bon_reservations_v1(
+  p_branch_id bigint,
+  p_shift_id bigint,
+  p_shift_open_tx_id text,
+  p_device_fingerprint text
+) returns jsonb
+language plpgsql security definer set search_path=public as $
+declare
+  v_shift public.shifts%rowtype;
+  v_count integer:=0;
+begin
+  if auth.uid() is null then raise exception 'غير مصرح'; end if;
+  if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية على هذا الفرع'; end if;
+  if nullif(trim(coalesce(p_shift_open_tx_id,'')),'') is null then raise exception 'معرف فتح الوردية مطلوب'; end if;
+  if nullif(trim(coalesce(p_device_fingerprint,'')),'') is null then raise exception 'بصمة الجهاز مطلوبة'; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('bon-close:'||p_shift_id::text,0));
+  select * into v_shift from public.shifts where id=p_shift_id and branch_id=p_branch_id for update;
+  if not found then raise exception 'الوردية غير موجودة'; end if;
+  if nullif(trim(coalesce(v_shift.client_open_tx_id,'')),'') is distinct from trim(p_shift_open_tx_id) then
+    raise exception 'هوية فتح الوردية غير مطابقة';
+  end if;
+  if v_shift.status<>'closed' or v_shift.closed_at is null then
+    raise exception 'لا يمكن إغلاق حجز بونات لوردية ما زالت مفتوحة';
+  end if;
+
+  update public.pos_bon_reservations
+     set status='closed'
+   where branch_id=p_branch_id
+     and shift_id=p_shift_id
+     and shift_open_tx_id=trim(p_shift_open_tx_id)
+     and device_fingerprint=trim(p_device_fingerprint)
+     and status='active';
+  get diagnostics v_count=row_count;
+  return jsonb_build_object('ok',true,'closed_reservations',v_count,'shift_id',p_shift_id);
+end $;
+
 revoke all on function public.pos_reserve_bon_range_v1(bigint,bigint,text,text,uuid,integer) from public;
 grant execute on function public.pos_reserve_bon_range_v1(bigint,bigint,text,text,uuid,integer) to authenticated;
 revoke all on function public.pos_consume_reserved_bon_v1(uuid,integer,text,bigint,bigint,text,text) from public;
 grant execute on function public.pos_consume_reserved_bon_v1(uuid,integer,text,bigint,bigint,text,text) to authenticated;
+revoke all on function public.pos_close_bon_reservations_v1(bigint,bigint,text,text) from public;
+grant execute on function public.pos_close_bon_reservations_v1(bigint,bigint,text,text) to authenticated;
 
 notify pgrst,'reload schema';

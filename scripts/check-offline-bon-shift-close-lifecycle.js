@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),assert=(v,m)=>{if(!v)throw new Error(m)};
+const n=fs.readFileSync('beta45-offline-v2-native-store.js','utf8'),s=fs.readFileSync('supabase-rc1-bon-reservation-v1-source.sql','utf8');
+for(const x of ["async function closeBonReservationsForShiftUnsafe(input)","operation_type)!=='shift_close'","server_shift_id=? AND status='active'","await closeBonReservationsForShiftUnsafe(input);"])assert(n.includes(x),'local shift-close Bon lifecycle missing '+x);
+const begin=n.indexOf("await exec('BEGIN IMMEDIATE TRANSACTION');",n.indexOf('async function commitOperationUnsafe'));
+const close=n.indexOf('await closeBonReservationsForShiftUnsafe(input);',begin),commit=n.indexOf("await exec('COMMIT');",close);
+assert(begin>=0&&close>begin&&commit>close,'Bon invalidation must be inside the durable shift-close SQLite transaction');
+for(const x of ['create or replace function public.pos_close_bon_reservations_v1(','v_shift.status<>\'closed\' or v_shift.closed_at is null',"status='closed'","device_fingerprint=trim(p_device_fingerprint)",'grant execute on function public.pos_close_bon_reservations_v1'])assert(s.includes(x),'server close contract missing '+x);
+assert(s.includes("if not found or v_shift.status<>'open' or v_shift.closed_at is not null then"),'reservation allocation must remain open-shift only');
+assert(s.includes("if not found or v_shift.status<>'open' or v_shift.closed_at is not null then\n    raise exception 'لا يمكن استهلاك حجز وردية مغلقة';"),'server consumption must fail closed after shift close');
+console.log('OFFLINE BON SHIFT-CLOSE LIFECYCLE GATE PASS — local_atomic=1 server_cleanup_source=1 runtime_activation=0 deployment=0');

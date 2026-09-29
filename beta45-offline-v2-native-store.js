@@ -274,6 +274,14 @@ async function nextReservedBon(input){
   return null;
 }
 
+async function closeBonReservationsForShiftUnsafe(input){
+  if(text(input?.operation_type)!=='shift_close')return 0;
+  const p=input?.payload?.rpc_payload||{},businessId=text(input?.business_id),branchId=number(input?.branch_id),shiftId=number(p?.p_shift_id);
+  if(!businessId||branchId<1||shiftId<1)return 0;
+  const r=await run("UPDATE offline_v2_bon_reservations SET status='closed' WHERE business_id=? AND branch_id=? AND server_shift_id=? AND status='active'",[businessId,branchId,shiftId]);
+  return number(r?.changes);
+}
+
 async function commitOperationUnsafe(input){
   validateCommit(input);
   const tx=text(input.client_tx_id);
@@ -286,8 +294,9 @@ async function commitOperationUnsafe(input){
       await exec('COMMIT');
       return {ok:true,duplicate:true,durable:true,event:hydrate(existing).envelope};
     }
-    // Bon consumption and sale/outbox are one SQLite transaction: both commit or both roll back.
+    // Bon consumption / shift-close invalidation and the operational outbox event share one SQLite transaction.
     await consumeBonReservationUnsafe(input,tx);
+    await closeBonReservationsForShiftUnsafe(input);
     const sequence=await allocateSequence(text(input.device_id));
     const envelope=envelopeFrom(input,sequence);const created=envelope.created_local_at;
     for(const r of (input.records||[])){
