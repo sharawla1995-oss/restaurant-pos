@@ -685,12 +685,24 @@ async function salePayloadWithReservedBon(payload,identity){
   if(!order||order.bon_reservation)return out;
   const api=global.topBurgerDesktop?.offlineV2;
   const branchId=num(order.branch_id,runtimeBranch()),shiftId=num(order.shift_id,0);
-  if(!api?.nextReservedBon||typeof global.odbGet!=='function'||branchId<1||shiftId<1)return out;
-  const open=await global.odbGet(`openShift:${runtimeEmployee()}:${branchId}`);
-  const shiftOpenTx=text(open?.client_tx_id);
-  if(!open||num(open.id,0)!==shiftId||text(open.status)!=='open'||!shiftOpenTx)return out;
-  const evidence=await api.nextReservedBon({business_id:identity.business_id,branch_id:branchId,server_shift_id:shiftId,shift_open_tx_id:shiftOpenTx,device_fingerprint:identity.device_fingerprint});
-  if(evidence)out.p_order={...order,bon_reservation:clone(evidence)};
+  const mode=(text(order.bon_numbering_mode)||'SHIFT').toUpperCase();
+  if(!api?.nextReservedBon||branchId<1||!['SHIFT','BRANCH'].includes(mode))return out;
+  let shiftOpenTx='';
+  if(mode==='SHIFT'){
+    if(typeof global.odbGet!=='function'||shiftId<1)return out;
+    const open=await global.odbGet(`openShift:${runtimeEmployee()}:${branchId}`);
+    shiftOpenTx=text(open?.client_tx_id);
+    if(!open||num(open.id,0)!==shiftId||text(open.status)!=='open'||!shiftOpenTx)return out;
+  }
+  const evidence=await api.nextReservedBon({
+    business_id:identity.business_id,
+    branch_id:branchId,
+    numbering_mode:mode,
+    server_shift_id:mode==='SHIFT'?shiftId:null,
+    shift_open_tx_id:mode==='SHIFT'?shiftOpenTx:null,
+    device_fingerprint:identity.device_fingerprint
+  });
+  if(evidence)out.p_order={...order,bon_numbering_mode:mode,bon_reservation:clone(evidence)};
   return out;
 }
 async function ensureEvent(type,payload,tx){
