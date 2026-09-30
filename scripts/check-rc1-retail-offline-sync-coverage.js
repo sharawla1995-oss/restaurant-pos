@@ -32,6 +32,7 @@ ok(/type==='retail_supplier_save'[\s\S]*retail supplier ACK missing supplier_id/
 ok(/type==='retail_po_create'\|\|type==='retail_po_approve'[\s\S]*purchase_order_id/.test(transport),'Retail PO ACK unwrap missing');
 ok(/type==='retail_purchase_receive'[\s\S]*goods_receipt_id/.test(transport),'Retail GRN ACK unwrap missing');
 ok(/type==='retail_supplier_return'[\s\S]*supplier_return_id/.test(transport),'Retail Supplier Return ACK unwrap missing');
+ok(/const retailPurchasingRows=rows\.filter\([\s\S]*?\.sort\(\(a,b\)=>num\(a\?\.device_sequence,0\)-num\(b\?\.device_sequence,0\)\)/.test(transport),'Retail purchasing projections must replay in device sequence order');
 ok(transport.includes("offlineV2RetailSuppliers"),'Retail Supplier local projection missing');
 ok(transport.includes("offlineV2RetailPurchaseOrders")&&transport.includes("offlineV2RetailPurchaseOrderItems"),'Retail PO local projection/items missing');
 ok(transport.includes("offlineV2RetailGoodsReceipts")&&transport.includes("offlineV2RetailSupplierReturns"),'Retail GRN/Return local projection missing');
