@@ -122,7 +122,10 @@
       "offline_delivery_assign_driver_v1",
       "retail_purchase_order_create_v2",
       "retail_purchase_receive_v2",
-      "retail_supplier_return_create_v2"
+      "retail_supplier_return_create_v2",
+      "sharawla_offline_v2_prepare_stock_event_v1",
+      "sharawla_point4_assert_context_envelope_v1",
+      "inventory_stock_assert_legacy_write_allowed_v2"
     ],
     "tables": [
       "offline_v2_server_receipts",

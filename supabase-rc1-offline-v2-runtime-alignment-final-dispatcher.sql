@@ -641,6 +641,84 @@ begin
 end;
 $$;
 
+create or replace function public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_operation text:=nullif(trim(coalesce(p_event->>'operation_type','')),'');
+  v_rpc text:=nullif(trim(coalesce(p_event#>>'{payload,rpc_name}','')),'');
+  v_branch bigint:=coalesce(nullif(p_event->>'branch_id','')::bigint,0);
+  v_prepared jsonb;
+  v_envelope jsonb;
+  v_stock_identities jsonb;
+  v_context jsonb;
+  v_identity record;
+  v_forward jsonb;
+begin
+  if v_operation not in ('sale','return','expense','shift_open','shift_close') then
+    raise exception using errcode='22023',message='Offline V2 Point4 Outer operation غير مدعومة';
+  end if;
+  if v_operation='shift_close' and v_rpc<>'close_pos_shift_idempotent' then
+    raise exception using errcode='22023',message='Offline V2 Point4 Outer shift_close binding غير مدعومة';
+  end if;
+
+  v_prepared:=public.sharawla_offline_v2_prepare_stock_event_v1(p_event);
+  if v_prepared->>'classification'='FULL_REPLAY' then
+    return public.sharawla_offline_v2_apply_event_core_v1(p_event);
+  end if;
+  if v_prepared->>'classification'<>'EXECUTION_REQUIRED' then
+    raise exception 'Offline preparation classification غير صالحة';
+  end if;
+
+  v_envelope:=v_prepared->'context_envelope';
+  v_stock_identities:=coalesce(v_prepared->'stock_identities','[]'::jsonb);
+
+  if v_envelope is not null then
+    v_context:=public.sharawla_point4_assert_context_envelope_v1(
+      v_envelope,
+      v_prepared->>'client_tx_id',
+      (v_prepared->>'branch_id')::bigint
+    );
+  end if;
+
+  for v_identity in
+    select
+      (x->>'location_id')::bigint location_id,
+      x->>'item_kind' item_kind,
+      (x->>'item_id')::bigint item_id
+    from jsonb_array_elements(v_stock_identities) x
+  loop
+    if v_identity.location_id is distinct from v_branch
+       or v_identity.item_kind not in ('product','variant','ingredient')
+       or coalesce(v_identity.item_id,0)<=0 then
+      raise exception 'Point4 Offline stock identity غير صالحة';
+    end if;
+    perform public.inventory_stock_assert_legacy_write_allowed_v2(
+      v_identity.location_id,
+      v_identity.item_kind,
+      v_identity.item_id
+    );
+  end loop;
+
+  v_forward:=jsonb_set(
+    jsonb_set(
+      p_event,
+      '{point4_context_envelope}',
+      coalesce(v_envelope,'null'::jsonb),
+      true
+    ),
+    '{point4_stock_identities}',
+    v_stock_identities,
+    true
+  );
+
+  return public.sharawla_offline_v2_apply_event_core_v1(v_forward);
+end;
+$$;
+
 create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)
 returns jsonb
 language plpgsql
@@ -651,12 +729,12 @@ declare
   v_operation text:=nullif(trim(coalesce(p_event->>'operation_type','')),'');
   v_rpc text:=nullif(trim(coalesce(p_event#>>'{payload,rpc_name}','')),'');
 begin
-  -- Live Point-4 core remains authoritative for stock-sensitive sale/return and
-  -- the already-deployed base operations. Current shift-close V2 is routed
-  -- separately because the historical core binds close_pos_shift_idempotent.
+  -- Restore the accepted Point-4 Outer preparation before entering Core.
+  -- This prepares frozen Food context + stock identities for sale/return while
+  -- keeping the Core authoritative for the actual base operation execution.
   if v_operation in ('sale','return','expense','shift_open')
      or (v_operation='shift_close' and v_rpc='close_pos_shift_idempotent') then
-    return public.sharawla_offline_v2_apply_event_core_v1(p_event);
+    return public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event);
   end if;
 
   if v_operation in (
@@ -699,6 +777,7 @@ begin
 end;
 $$;
 
+revoke all on function public.sharawla_offline_v2_apply_event_point4_outer_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_reference_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_modern_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_alignment_special_v1(jsonb) from public,anon,authenticated;
