@@ -8,6 +8,32 @@ const PAGE_DEF={
 };
 const PERMISSIONS=[...new Set(Object.values(PAGE_DEF).map(x=>x[1]).concat(['hr.attendance.manage','hr.attendance.adjust','hr.schedules.manage','hr.geofence.manage','hr.staff_accounts.manage','hr.deduction_rules.manage','hr.leave.manage','hr.payroll.run']))];
 const perms=Object.create(null);let started=false,observer=null;
+function permissionIdentity(){
+ const cfg=global.SharawlaRuntimeConfig?.current?.()||{};
+ const business=String(cfg.business_id||global.state?.business?.business_id||global.state?.business?.id||'').trim();
+ const employeeId=Number(global.state?.employee?.id||0);
+ return business&&employeeId>0?{business,employeeId}:null;
+}
+function permissionCacheKey(){
+ const id=permissionIdentity();return id?`sharawlaHrActionPermissionsV1:${id.business}:${id.employeeId}`:null;
+}
+function loadPermissionCache(){
+ const key=permissionCacheKey();if(!key)return false;
+ try{
+  const row=JSON.parse(global.localStorage?.getItem(key)||'null');
+  if(!row||row.version!==1||!row.values||typeof row.values!=='object')return false;
+  for(const code of PERMISSIONS)if(typeof row.values[code]==='boolean')perms[code]=row.values[code];
+  return true;
+ }catch{return false}
+}
+function savePermissionCache(){
+ const key=permissionCacheKey();if(!key)return false;
+ try{
+  const values={};for(const code of PERMISSIONS)if(typeof perms[code]==='boolean')values[code]=perms[code];
+  global.localStorage?.setItem(key,JSON.stringify({version:1,saved_at:new Date().toISOString(),values}));
+  return true;
+ }catch{return false}
+}
 const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const fmt=value=>value?new Date(value).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'—';
 const date=value=>value?new Date(value).toLocaleDateString('ar-EG'):'—';
@@ -23,7 +49,14 @@ function setPage(title,html){document.querySelectorAll('#nav button').forEach(b=
 function modal(title,body,onSave,label='حفظ'){const el=document.createElement('div');el.className='modal';el.innerHTML=`<div class="modal-card" style="max-width:820px"><h2>${esc(title)}</h2>${body}<div class="modal-actions"><button type="button" data-close>إلغاء</button><button type="button" class="primary" data-save>${esc(label)}</button></div></div>`;document.body.appendChild(el);el.onclick=async event=>{if(event.target===el||event.target.closest('[data-close]'))return el.remove();const button=event.target.closest('[data-save]');if(!button)return;button.disabled=true;try{await onSave(el);el.remove()}catch(error){toast(error.message||String(error));button.disabled=false}};return el}
 function injectStyle(){if($('#hrAttendanceAdminStyle'))return;const s=document.createElement('style');s.id='hrAttendanceAdminStyle';s.textContent=`#nav button[data-beta54-page="employees"],#nav button[data-beta54-page="advances"],#nav button[data-beta54-page="adjustments"],#nav button[data-beta54-page="payroll"]{display:none!important}.hr-nav-group{margin:4px 0}.hr-nav-group summary{cursor:pointer;padding:10px 12px;border-radius:10px;font-weight:800;list-style:none}.hr-nav-group[open] summary{background:rgba(233,185,73,.16)}.hr-nav-group button{width:calc(100% - 12px)!important;margin-inline-start:12px!important;font-size:.91em}.hr-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.hr-filter input,.hr-filter select{max-width:220px}.hr-tabs{display:flex;gap:6px;overflow:auto;padding-bottom:8px}.hr-tabs button{white-space:nowrap}.hr-map-link{color:#e9b949}.hr-status-ok{color:#64d8a0}.hr-status-warn{color:#f3c85b}.hr-status-bad{color:#ff8a80}`;document.head.appendChild(s)}
 function $(selector){return document.querySelector(selector)}
-async function refreshPermissions(){const values=await Promise.all(PERMISSIONS.map(code=>rpc('has_action_permission_v2',{p_action_code:code}).catch(()=>false)));PERMISSIONS.forEach((code,index)=>perms[code]=values[index]===true);syncNav()}
+async function refreshPermissions(){
+ if(global.navigator?.onLine===false){loadPermissionCache();syncNav();return}
+ const results=await Promise.allSettled(PERMISSIONS.map(code=>rpc('has_action_permission_v2',{p_action_code:code})));
+ let updated=0;
+ results.forEach((result,index)=>{if(result.status==='fulfilled'){perms[PERMISSIONS[index]]=result.value===true;updated++}});
+ if(updated>0)savePermissionCache();else loadPermissionCache();
+ syncNav();
+}
 function syncNav(){
  const nav=$('#nav');if(!nav)return;let group=nav.querySelector('.hr-nav-group');if(!group){group=document.createElement('details');group.className='hr-nav-group';group.innerHTML='<summary>👥 Sharawla HR</summary><div data-hr-links></div>';const anchor=nav.querySelector('button[data-page="users"]')||nav.querySelector('button[data-page="settings"]');anchor?nav.insertBefore(group,anchor):nav.appendChild(group)}
  const links=group.querySelector('[data-hr-links]');for(const [key,[label,permission]] of Object.entries(PAGE_DEF)){let button=links.querySelector(`[data-hr-page="${key}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.hrPage=key;button.textContent=label;links.appendChild(button)}button.classList.toggle('hidden',!has(permission))}group.classList.toggle('hidden',!Object.values(PAGE_DEF).some(x=>has(x[1])));
@@ -81,6 +114,6 @@ function openHrPolicy(cfg){const body=`<div class="beta54-form-grid"><label>Time
 async function renderEmployeeProfile(employeeId){const [employee,summaries,schedules,leaves,advances,adjustments,payroll,accounts,devices]=await Promise.all([rest('hr_employees',`select=*&id=eq.${employeeId}`),rest('hr_attendance_daily_summary',`select=*&employee_id=eq.${employeeId}&order=work_date.desc&limit=60`),rest('hr_employee_schedule_assignments',`select=*&employee_id=eq.${employeeId}&order=effective_from.desc`),rest('hr_leave_requests',`select=*&employee_id=eq.${employeeId}&order=created_at.desc`),rest('hr_employee_advances',`select=*&employee_id=eq.${employeeId}&order=requested_on.desc`),rest('hr_employee_adjustments',`select=*&employee_id=eq.${employeeId}&order=effective_date.desc`),rest('hr_payroll_items',`select=*&employee_id=eq.${employeeId}&order=id.desc`),rest('hr_staff_accounts',`select=*&employee_id=eq.${employeeId}`),rest('hr_attendance_devices',`select=*&employee_id=eq.${employeeId}`)]),e=employee?.[0];setPage(`ملف الموظف — ${e?.name||employeeId}`,`<div class="hr-tabs"><button data-tab="data">البيانات</button><button data-tab="attendance">الحضور</button><button data-tab="schedule">الجدول</button><button data-tab="leaves">الإجازات</button><button data-tab="advances">السلف</button><button data-tab="adjustments">الخصومات والمكافآت</button><button data-tab="payroll">المرتبات</button><button data-tab="documents">المستندات</button><button data-tab="staff">Staff Account / Devices</button></div><div id="hrEmployeeTab" class="beta54-card"></div>`);const content={data:`<h3>${esc(e?.name)}</h3><div>${esc(e?.employee_code||'—')} • ${esc(e?.job_title||'—')} • ${esc(e?.department||'—')}</div><div>${esc(e?.phone||'—')} • ${date(e?.hire_date)}</div>`,attendance:summaries.map(x=>`<div class="row"><b>${date(x.work_date)}</b><span>${x.worked_minutes}د • تأخير ${x.late_minutes}د • ${esc(x.verification_status)}</span></div>`).join('')||'لا توجد بيانات',schedule:schedules.map(x=>`<div class="row"><b>#${x.schedule_id}</b><span>${date(x.effective_from)} → ${x.effective_to?date(x.effective_to):'مستمر'}</span></div>`).join('')||'لا يوجد جدول',leaves:leaves.map(x=>`<div class="row"><b>${esc(x.request_type)}</b><span>${esc(x.status)} • ${fmt(x.starts_at)}</span></div>`).join('')||'لا توجد طلبات',advances:advances.map(x=>`<div class="row"><b>${money(x.amount)}</b><span>${esc(x.status)} • متبقي ${money(x.outstanding_amount)}</span></div>`).join('')||'لا توجد سلف',adjustments:adjustments.map(x=>`<div class="row"><b>${esc(x.reason||x.adjustment_type)}</b><span>${money(x.amount)} • ${esc(x.status)}</span></div>`).join('')||'لا توجد حركات',payroll:payroll.map(x=>`<div class="row"><b>صافي ${money(x.net_amount)}</b><span>أساسي ${money(x.base_amount)} • خصم ${money(x.deduction_amount)}</span></div>`).join('')||'لا توجد مرتبات',documents:'المستندات تستخدم Attachment Service المشترك؛ لا توجد مستندات مرتبطة في V1 بعد.',staff:`${accounts.map(x=>`<div>الحساب: ${x.active?'فعال':'موقوف'} • ${x.must_change_pin?'PIN مؤقت':'PIN مغير'}</div>`).join('')||'لا يوجد Staff Account'}${devices.map(x=>`<div class="row"><b>${esc(x.device_name||x.device_uid)}</b><span>${x.active?'فعال':'موقوف'} • ${fmt(x.last_seen_at)}</span></div>`).join('')}`};const draw=key=>$('#hrEmployeeTab').innerHTML=content[key]||'';document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.tab));draw('data')}
 function enhanceEmployeeCards(){if($('#pageTitle')?.textContent!=='الموظفون')return;document.querySelectorAll('#page .beta54-card').forEach(card=>{const id=card.querySelector('[data-statement]')?.dataset.statement;if(!id||card.querySelector('[data-hr-profile]'))return;const button=document.createElement('button');button.type='button';button.dataset.hrProfile=id;button.textContent='👤 ملف HR الكامل';button.onclick=()=>renderEmployeeProfile(Number(id));card.querySelector('.beta54-actions')?.appendChild(button)})}
 async function render(key){const def=PAGE_DEF[key];if(!def||!has(def[1]))return toast('ليس لديك صلاحية لهذا القسم');if(def[2]==='legacy')return global.__SharawlaBeta54SharedCore?.render(key);if(key==='attendance')return renderAttendance();if(key==='schedules')return renderSchedules();if(key==='leaves')return renderLeaves();if(key==='rules')return renderRules();if(key==='reports')return renderReportsV1();if(key==='settings')return renderSettings()}
-function start(){if(started)return;started=true;injectStyle();$('#nav')?.addEventListener('click',event=>{const button=event.target.closest('[data-hr-page]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();render(button.dataset.hrPage)},true);observer=new MutationObserver(enhanceEmployeeCards);const page=$('#page');if(page)observer.observe(page,{childList:true,subtree:true});refreshPermissions();setInterval(refreshPermissions,8000);global.__SharawlaHrAttendanceAdminV1=Object.freeze({version:VERSION,render,refreshPermissions,permissionCodes:[...PERMISSIONS]})}
+function start(){if(started)return;started=true;injectStyle();loadPermissionCache();syncNav();$('#nav')?.addEventListener('click',event=>{const button=event.target.closest('[data-hr-page]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();render(button.dataset.hrPage)},true);observer=new MutationObserver(enhanceEmployeeCards);const page=$('#page');if(page)observer.observe(page,{childList:true,subtree:true});refreshPermissions();setInterval(refreshPermissions,8000);global.__SharawlaHrAttendanceAdminV1=Object.freeze({version:VERSION,render,refreshPermissions,permissionCodes:[...PERMISSIONS],permissionCacheKey})}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(window);
