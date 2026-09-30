@@ -6,6 +6,9 @@ on:
       - beta56-runtime-snapshot-consumer
       - beta56-offline-ownership-consolidation
       - rc1-beta58-32-performance-hotfix
+  pull_request:
+    branches:
+      - rc1-beta58-32-performance-hotfix
   workflow_dispatch:
 
 jobs:
@@ -30,7 +33,7 @@ jobs:
       - name: Verify installed sqlite3 N-API binary
         run: node -e "const s=require('sqlite3'); console.log('sqlite3 runtime OK', s.VERSION || 'loaded')"
       - name: Candidate validation
-        run: npm run check
+        run: npm run check:ci
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
@@ -93,7 +96,7 @@ jobs:
           if (!$indexText.Contains($productMapRef)) { throw "packaged index missing versioned Product Map reference: $productMapRef" }
           if (!$indexText.Contains($inventoryOverviewRef)) { throw "packaged index missing versioned Inventory Overview reference: $inventoryOverviewRef" }
           if ($indexText.IndexOf($registryRef) -gt $indexText.IndexOf($productMapRef)) { throw 'packaged Product Map loads before Navigation Registry metadata' }
-          if (!$inventoryOverviewText.Contains('1.0.0-core-profile-aware')) { throw 'packaged Inventory Overview marker missing' }
+          if (!$inventoryOverviewText.Contains('1.1.0-core-profile-aware-rc1-snapshot')) { throw 'packaged Inventory Overview marker missing' }
           if (!$inventoryOverviewText.Contains('CORE_PROFILE_AWARE_READ_ONLY')) { throw 'packaged Inventory Overview read-only marker missing' }
           if (!$inventoryOverviewText.Contains('PROFILE_ADAPTER_MISSING')) { throw 'packaged Inventory Overview fail-closed profile guard missing' }
           if (!$app.Contains('INVENTORY-OVERVIEW-V1-CORE-DELEGATE')) { throw 'packaged app.js missing Inventory Overview delegate' }
