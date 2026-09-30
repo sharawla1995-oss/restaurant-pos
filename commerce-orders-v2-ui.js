@@ -7,7 +7,8 @@ let observer=null,wrapped=false;
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const money=v=>Number(v||0).toFixed(2);
 const toast=m=>{try{return global.toast?.(m)}catch{};console.warn(m)};
-const rpc=(n,p)=>global.rpc(n,p);
+const cloudMutations=new Set(['commerce_order_document_create_v2','commerce_order_document_submit_v2','commerce_order_document_decide_v2','commerce_order_document_record_payment_v2','commerce_order_document_cancel_v2']);
+const rpc=async(n,p)=>{if(cloudMutations.has(n))await global.__SharawlaRC1OnlineOnlyGuard?.requireCloud?.('Commerce Orders');return global.rpc(n,p)};
 const rest=(t,q)=>global.rest(t,q);
 const uuid=()=>global.uuid?.()||crypto.randomUUID();
 function cfg(){try{return JSON.parse(localStorage.getItem(RUNTIME_KEY)||'{}')||{}}catch{return {}}}
