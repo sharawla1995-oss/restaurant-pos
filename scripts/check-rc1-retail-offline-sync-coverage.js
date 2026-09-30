@@ -45,5 +45,22 @@ ok(app.includes("retailSuppliersCloudCache")&&app.includes("retailPurchaseOrders
 ok(app.includes("mergeOperational(suppliers,localSuppliers)")&&app.includes("mergeOperational(orders,localOrders)")&&app.includes("mergeOperational(items,localItems)"),'Retail purchasing operational merge missing');
 ok(app.includes("cloudItemPoIds")&&app.includes("!cloudItemPoIds.has(String(x.purchase_order_id))"),'Authoritative Retail PO lines must replace local placeholders after sync');
 ok(app.includes("!o._offline&&oi.every(x=>!x._offline)"),'GRN must fail closed until authoritative PO line IDs exist');
+const onlineOnlyRetail=[
+ ['retail_inventory_set_policy','حفظ سياسة مخزون Retail'],
+ ['retail_inventory_adjust','تسوية مخزون Retail'],
+ ['retail_inventory_set_item_policy','تحديث سياسة صنف Retail'],
+ ['retail_set_product_settings','حفظ إعدادات صنف Retail'],
+ ['retail_offer_save','حفظ عرض Retail'],
+ ['retail_post_stock_count','ترحيل جرد Retail'],
+ ['retail_transfer_create','إنشاء تحويل مخزون Retail'],
+ ['retail_transfer_receive','استلام تحويل مخزون Retail']
+];
+for(const [rpcName,label] of onlineOnlyRetail){
+ const pos=app.indexOf("rpc('"+rpcName+"'");
+ ok(pos>=0,'Retail mutation missing from UI: '+rpcName);
+ const guardPos=app.lastIndexOf("rc1RequireCloudOnline('"+label+"')",pos);
+ ok(guardPos>=0&&pos-guardPos<500,'Unsupported Retail mutation must fail closed before RPC: '+rpcName);
+ ok(!transport.includes("rpc_name:'"+rpcName+"'"),'Online-only Retail mutation must not be falsely registered in Offline V2: '+rpcName);
+}
 if(gaps.length){console.error('RC1 retail offline sync coverage: OPEN\n- '+gaps.join('\n- '));process.exit(2)}
 console.log('RC1 retail offline sync coverage: PASS');
