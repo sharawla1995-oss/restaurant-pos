@@ -212,7 +212,7 @@ async function runShiftProjectionRegression(){
  const env=await makeRecovery({events,online:false});
  const ctx={console,Number,String,Promise,encodeURIComponent,globalThis:null,__SharawlaBeta554RuntimeRecovery:env.ctx.__SharawlaBeta554RuntimeRecovery,rest:(...args)=>env.ctx.rest(...args),isNetError:error=>/fetch|network/i.test(String(error?.message||error)),cachedOrderBundles:async()=>[],offlineQueue:async()=>[]};
  ctx.globalThis=ctx;vm.createContext(ctx);
- const source=appBlock('function isServerShiftId(value)','\nasync function shiftMetrics(shift){');
+ const source=appBlock('function isServerNumericId(value)','\nasync function shiftMetrics(shift){');
  vm.runInContext(`${source}\nthis.__localShiftMetrics=localShiftMetrics;`,ctx,{filename:'app.js#localShiftMetrics'});
  const metrics=await ctx.__localShiftMetrics({id:shiftId,opening_cash:50});
  assert.strictEqual(metrics.grossSales,100,'Native local sale missing from local shift metrics');
