@@ -1,0 +1,51 @@
+{
+  "version": "RC1_RUNTIME_ALIGNMENT_BETA_DEPLOYMENT_V1",
+  "generated_for": "SH-0007 / تجريبي / TEST only",
+  "authorized": false,
+  "production_forbidden": [
+    "SH-0005",
+    "SH-0006"
+  ],
+  "offline_alignment": [
+    "supabase-offline-v2-restaurant-reference-owners-v1.sql",
+    "supabase-offline-v2-restaurant-prep-reference-owners-v1.sql",
+    "supabase-offline-v2-restaurant-food-po-owners-v1.sql",
+    "supabase-offline-v2-restaurant-food-receive-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-supplier-return-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-stock-count-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-transfer-create-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-transfer-actions-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-ingredient-stock-adjust-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-production-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-waste-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-ingredient-master-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-recipe-master-owner-v1.sql",
+    "supabase-offline-v2-restaurant-food-prep-master-owner-v1.sql",
+    "supabase-rc1-offline-v2-retail-purchasing-owners-v1.sql",
+    "supabase-offline-v2-central-warehouse-state-owners-v1.sql",
+    "supabase-offline-v2-central-warehouse-stock-owners-v1.sql",
+    "supabase-offline-v2-delivery-settlement-owner-v1.sql",
+    "supabase-rc1-retail-suspend-resume-offline-v1-source.sql",
+    "supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql"
+  ],
+  "hr_alignment": [
+    "supabase-hr-attendance-payroll-extension-v1.sql"
+  ],
+  "forbidden_as_final_dispatcher": [
+    "supabase-offline-v2-restaurant-reference-transport-v1.sql",
+    "supabase-rc1-offline-v2-modern-food-final-dispatcher.sql",
+    "supabase-beta45-offline-v2-transport-v1.sql"
+  ],
+  "post_deploy_required": [
+    "final-definition and ACL verification",
+    "client operation/RPC live binding scan",
+    "new supplier create sync ACK",
+    "driver/zone RAW Reload Restart ACK",
+    "ingredients/recipe Offline open + RAW + Restart + ACK",
+    "delivery completion/settlement",
+    "central warehouse lifecycle",
+    "shift close V2",
+    "business summary placement",
+    "HR page live open"
+  ]
+}
