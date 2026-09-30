@@ -185,7 +185,8 @@ const commands = [
   "node scripts/check-rc1-website-helper-replay-boundary.js",
   "node scripts/check-rc1-offline-closure-matrix.js",
   "node scripts/check-rc1-practical-acceptance-sandbox-lock.js",
-  "node scripts/check-rc1-sh0007-readonly-preflight.js"
+  "node scripts/check-rc1-sh0007-readonly-preflight.js",
+  "node scripts/check-rc1-sh0007-zero-state-v1.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
