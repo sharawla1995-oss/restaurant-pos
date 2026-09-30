@@ -22,11 +22,13 @@ async function requireCloud(action){
 }
 function encodedPath(p){return String(p||'').split('/').map(encodeURIComponent).join('/')}
 async function uploadObject(bucket,path,file){
+ await requireMutationCloud('رفع مرفقات المشتريات');
  const c=conn();if(!c.url||!c.key||!c.token)throw new Error('جلسة الاتصال غير جاهزة');
  const r=await fetch(`${c.url}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath(path)}`,{method:'POST',headers:{apikey:c.key,Authorization:`Bearer ${c.token}`,'Content-Type':file.type,'x-upsert':'false'},body:file});
  let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error||`فشل رفع الملف (${r.status})`);return d;
 }
 async function removeObject(bucket,path){
+ await requireMutationCloud('تنظيف مرفقات المشتريات');
  const c=conn();if(!c.url||!c.key||!c.token)throw new Error('جلسة الاتصال غير جاهزة');
  const r=await fetch(`${c.url}/storage/v1/object/${encodeURIComponent(bucket)}`,{method:'DELETE',headers:{apikey:c.key,Authorization:`Bearer ${c.token}`,'Content-Type':'application/json'},body:JSON.stringify({prefixes:[String(path||'')]})});
  let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error||`فشل تنظيف الملف (${r.status})`);return d;
