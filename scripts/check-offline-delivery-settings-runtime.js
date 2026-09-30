@@ -21,6 +21,8 @@ function runtime(branch=1,online=false){
  // renderer contract must branch-filter local projections
  const app=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
  assert(app.includes("const scopedLocal=local.filter(x=>Number(x.branch_id)===branchId)"),'delivery local projection is not branch isolated');
+ assert(app.includes("deliverySettingsRowsLocalFirst('delivery_drivers','offlineV2Drivers')"),'Delivery Settings screen bypasses local-first driver projection');
+ assert(app.includes("deliverySettingsRowsLocalFirst('delivery_zones','offlineV2Zones')"),'Delivery Settings screen bypasses local-first zone projection');
  // ACK both, then reconcile twice = canonical IDs, no duplicate
  let e=events.get(dtx);e.status='synced';e.server_ack={result:{ok:true,driver_id:91,client_tx_id:dtx,idempotent_replay:true}};events.set(dtx,e);
  e=events.get(ztx);e.status='synced';e.server_ack={result:{ok:true,zone_id:92,client_tx_id:ztx,idempotent_replay:true}};events.set(ztx,e);
