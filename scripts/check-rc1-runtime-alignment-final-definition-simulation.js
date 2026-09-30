@@ -20,9 +20,19 @@ const unresolved=[];
 function defs(src){return [...src.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-zA-Z0-9_]+)\s*\(/gi)].map(m=>m[1])}
 function tables(src){return [...src.matchAll(/create\s+table\s+if\s+not\s+exists\s+public\.([a-zA-Z0-9_]+)/gi)].map(m=>m[1])}
 function refs(src){return [...src.matchAll(/\bpublic\.([a-zA-Z0-9_]+)\s*\(/g)].map(m=>m[1])}
+function assertDollarQuotes(file,src){
+ const bad=src.split('\n').map((line,i)=>({line:i+1,text:line})).filter(x=>{
+   const line=x.text;
+   return (line.includes('as $')&&!line.includes('as $$'))||line.includes('end;$;');
+ });
+ assert.deepStrictEqual(bad,[],file+' contains malformed single-dollar PL/pgSQL delimiters: '+JSON.stringify(bad));
+ const delimiters=(src.match(/\$\$/g)||[]).length;
+ assert.strictEqual(delimiters%2,0,file+' has unbalanced $$ delimiters');
+}
 
 for(const file of files){
  const src=fs.readFileSync(file,'utf8');
+ assertDollarQuotes(file,src);
  const fd=[...new Set(defs(src))],td=[...new Set(tables(src))],rr=[...new Set(refs(src))];
  const same=new Set([...fd,...td]);
  for(const name of rr){
@@ -61,6 +71,7 @@ assert(finalSrc.includes('revoke all on function public.sharawla_offline_v2_appl
 assert(finalSrc.includes('grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated'),'final public dispatcher grant missing');
 
 const hr=fs.readFileSync(manifest.hr_alignment[0],'utf8');
+assertDollarQuotes(manifest.hr_alignment[0],hr);
 const hrTables=[...new Set(tables(hr))];
 const firstHrFunction=hr.search(/create\s+or\s+replace\s+function\s+public\./i);
 assert(hrTables.length===16,'HR extension table count drifted');
