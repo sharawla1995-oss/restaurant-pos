@@ -94,7 +94,7 @@ function registryRoutes(){
 
 function routeFromUnit(node){
   if(!node)return '';
-  if(node.matches?.('[data-beta55-hr-group],.hr-nav-group'))return '__hr_group__';
+  if(node.matches?.('[data-beta55-hr-group]'))return '__hr_group__';
   if(node.tagName!=='BUTTON')return '';
   if(node.dataset?.page)return String(node.dataset.page);
   if(node.dataset?.beta54Page)return String(node.dataset.beta54Page);
