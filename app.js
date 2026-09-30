@@ -652,7 +652,7 @@ window.__SharawlaUniversalDashboardHostV1=Object.freeze({
  async hasActionPermission(code){
   const action=String(code||'').trim();if(!action)return false;if(isAdmin())return true;
   const key=`${String(state.employee?.id||'anonymous')}:${action}`;
-  if(navigator.onLine===false)return false;if(universalDashboardActionPermissionCache.has(key))return universalDashboardActionPermissionCache.get(key);
+  if(universalDashboardActionPermissionCache.has(key))return universalDashboardActionPermissionCache.get(key);if(navigator.onLine===false)return false;
   try{const allowed=(await rpc('has_action_permission_v2',{p_action_code:action}))===true;universalDashboardActionPermissionCache.set(key,allowed);return allowed}catch{return false}
  },
  readOpenShift:()=>getOpenShift(),navigate:page=>showPage(page),formatMoney:money,formatDate:fmtDate,
@@ -1684,7 +1684,8 @@ async function renderKitchen(){
  $('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;const router=globalThis.__SharawlaPV2OrderFulfillment;if(typeof router?.transition!=='function')return toast('مسار تحديث حالة الطلب غير جاهز');await router.transition(b.dataset.id,b.dataset.status);toast(navigator.onLine===false?'تم حفظ تحديث الحالة للمزامنة':'تم تحديث حالة الطلب');renderKitchen()}
 }
 
-function isServerShiftId(value){const s=String(value??'').trim();return /^\d+$/.test(s)&&Number(s)>0}
+function isServerNumericId(value){const s=String(value??'').trim();return /^\d+$/.test(s)&&Number(s)>0}
+function isServerShiftId(value){return isServerNumericId(value)}
 async function localOperationalProjectionRows(table,query='select=*'){
  const reader=globalThis.__SharawlaBeta554RuntimeRecovery?.readOperationalRows;
  if(typeof reader==='function')return (await reader(table,query,[]))||[];
@@ -1733,13 +1734,14 @@ async function localShiftMetrics(shift){
 }
 async function shiftMetrics(shift){
  if(!isServerShiftId(shift?.id))return localShiftMetrics(shift);
- const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id);
+ const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id).filter(isServerNumericId);
+ const returnIdsForPayments=(await rest('returns',`select=id&shift_id=eq.${shift.id}`).catch(()=>[])).map(x=>x.id).filter(isServerNumericId);
  const [orders,payments,expenses,returns,returnPays]=await Promise.all([
   rest('orders',`select=id,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status&shift_id=eq.${shift.id}`),
   rest('order_payments',`select=order_id,method,amount&order_id=in.(${orderIds.join(',')||0})`),
   rest('expenses',`select=amount&shift_id=eq.${shift.id}`),
   rest('returns',`select=id,total&shift_id=eq.${shift.id}`).catch(()=>[]),
-  rest('return_payments',`select=return_id,method,amount&return_id=in.(${(await rest('returns',`select=id&shift_id=eq.${shift.id}`).catch(()=>[])).map(x=>x.id).join(',')||0})`).catch(()=>[])
+  rest('return_payments',`select=return_id,method,amount&return_id=in.(${returnIdsForPayments.join(',')||0})`).catch(()=>[])
  ]);
  const operational=orders.filter(o=>o.status!=='cancelled');const valid=operational.filter(o=>String(o.source||'')!=='website'||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase())));const ids=new Set(valid.map(o=>String(o.id)));const paymentTotals={};
  const addPay=(method,amount)=>{const k=String(method||'unknown');paymentTotals[k]=(paymentTotals[k]||0)+Number(amount||0)};
@@ -1763,7 +1765,7 @@ async function shiftReportData(shift){
   return {orders:m.orders||[],valid:m.valid||[],items:[],expenses:await localShiftProjectionRows('expenses',shift.id),returnItems:[],products:[],deliveryCount:(m.valid||[]).filter(o=>o.order_type==='delivery').length,deliveryFees:(m.valid||[]).reduce((a,o)=>a+Number(o.delivery_fee||0),0),cancelled:(m.orders||[]).filter(o=>o.status==='cancelled'),cancelledValue:(m.orders||[]).filter(o=>o.status==='cancelled').reduce((a,o)=>a+Number(o.total||0),0),returns:m.returns||[],returnTotal:Number(m.returnTotal||0),_local_shift:true};
  }
  const orders=await rest('orders',`select=id,order_number,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status,created_at&shift_id=eq.${shift.id}&order=created_at.asc`);
- const ids=(orders||[]).map(o=>o.id);
+ const ids=(orders||[]).map(o=>o.id).filter(isServerNumericId);
  const [items,expenses,returnRows]=await Promise.all([
    ids.length?rest('order_items',`select=order_id,product_name,quantity,unit_price,total&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
    rest('expenses',`select=id,description,amount,created_at,employee_id&shift_id=eq.${shift.id}&order=created_at.asc`),
@@ -1777,7 +1779,7 @@ async function shiftReportData(shift){
    const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
    x.qty+=Number(i.quantity||0);x.total+=Number(i.total||0);products.set(k,x);
  }
- const returnIds=(returnRows||[]).map(r=>r.id);
+ const returnIds=(returnRows||[]).map(r=>r.id).filter(isServerNumericId);
  const returnItems=returnIds.length?await rest('return_items',`select=return_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):[];
  for(const i of returnItems){
    const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
