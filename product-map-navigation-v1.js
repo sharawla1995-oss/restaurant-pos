@@ -54,7 +54,7 @@ const ROUTE_GROUP_OVERRIDES=Object.freeze({
 });
 
 const ROUTE_ORDER=Object.freeze([
-  'home','summary',
+  'businessSummary','home',
   'pos','orders','returns','customers','promoCodes','retailOffers',
   'onlineOrders','deliveryOrders','delivery','kitchen','tables',
   'inventory','foodIngredients','foodRecipes','foodOperations','suppliers','purchasing','stockCount','transfers','internalSupply','pharmacyBatches','pharmacyExpiry',
