@@ -5,5 +5,9 @@ assert(s.includes("commitOptionalTxRpc('inventory_supply_request_create_v1'"),'s
 assert(!s.includes("rpc('inventory_supply_shortage_request_create_v1'"),'direct shortage create bypass remains');
 const pr=s.indexOf("rpc('retail_purchase_request_create_v1'"),prGuard=s.lastIndexOf('requireConfigOnline();',pr);assert(pr>=0&&prGuard>=0&&pr-prGuard<1500,'purchase request shortcut must fail closed Offline');
 const cancel=s.indexOf("rpc('inventory_supply_request_cancel_v1'"),cancelGuard=s.lastIndexOf('requireConfigOnline();',cancel);assert(cancel>=0&&cancelGuard>=0&&cancel-cancelGuard<300,'cancel must fail closed Offline');
+assert(s.includes("commitOptionalTxRpc('inventory_supply_request_submit_v1'"),'request submit must use accepted Offline V2 owner');
+assert(!s.includes("rpc('inventory_supply_request_create_v1'"),'direct request create bypass remains');
+assert(!s.includes("rpc('inventory_supply_request_submit_v1'"),'direct request submit bypass remains');
+assert(s.includes("startsWith('offline-supply-request-')"),'offline request must remain draft until authoritative id exists');
 new vm.Script(s,{filename:'beta55-central-warehouse-v2.js'});
 console.log('RC1 Central Warehouse V2 ownership routing gate PASS');
