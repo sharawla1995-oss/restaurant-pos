@@ -20,7 +20,7 @@ const money=v=>Number(v||0).toLocaleString('ar-EG',{minimumFractionDigits:2,maxi
 const date=v=>v?new Date(v).toLocaleDateString('ar-EG'):'—';
 const tx=p=>`${p}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const toast=m=>{try{if(typeof global.toast==='function')return global.toast(m)}catch{};alert(m)};
-async function rpc(name,payload={}){if(typeof global.rpc!=='function')throw new Error('الاتصال غير جاهز');return global.rpc(name,payload)}
+const cloudMutations=new Set(["hr_employee_update_v1","hr_employee_create_v1","hr_employee_compensation_set_v1","hr_advance_decide_v1","hr_advance_create_v1","hr_advance_disburse_v1","hr_adjustment_create_v1","hr_payroll_approve_v1","hr_payroll_run_attendance_v1","hr_payroll_run_v1","hr_payroll_pay_attendance_v1","hr_payroll_pay_v1","treasury_manual_post_v1"]);async function rpc(name,payload={}){if(typeof global.rpc!=='function')throw new Error('الاتصال غير جاهز');if(cloudMutations.has(name)){const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}await guard.requireCloud('HR/Payroll/Treasury')}return global.rpc(name,payload)}
 async function rest(table,query=''){if(typeof global.rest!=='function')throw new Error('الاتصال غير جاهز');return global.rest(table,query)}
 function branchId(){try{return Number(typeof global.currentBranchId==='function'?global.currentBranchId():0)||0}catch{return 0}}
 function has(code){return perms[code]===true}

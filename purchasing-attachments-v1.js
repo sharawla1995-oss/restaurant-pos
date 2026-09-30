@@ -5,7 +5,7 @@ const P={view:'purchasing.attachments.view',upload:'purchasing.attachments.uploa
 let perms={view:false,upload:false,del:false},started=false,observer=null;
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const toast=m=>{try{if(typeof global.toast==='function')return global.toast(m)}catch{};alert(m)};
-const rpc=(n,p={})=>global.rpc(n,p),rest=(t,q='')=>global.rest(t,q);
+const cloudMutations=new Set(["purchase_attachment_prepare_v1","purchase_attachment_finalize_v1","purchase_attachment_abort_v1","purchase_attachment_soft_delete_v1"]);const requireMutationCloud=async label=>{const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}return guard.requireCloud(label)};const rpc=async(n,p={})=>{if(cloudMutations.has(n))await requireMutationCloud('Purchasing Attachments');return global.rpc(n,p)},rest=(t,q='')=>global.rest(t,q);
 const branch=()=>{try{return Number(global.currentBranchId?.()||0)}catch{return 0}};
 const fmtSize=n=>{n=Number(n||0);if(n<1024)return `${n} B`;if(n<1048576)return `${(n/1024).toFixed(1)} KB`;return `${(n/1048576).toFixed(1)} MB`};
 const today=()=>new Date().toISOString().slice(0,10);

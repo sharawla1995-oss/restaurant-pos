@@ -4,7 +4,7 @@ const VERSION='permissions-v2.1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const toast=m=>{try{return global.toast?.(m)}catch{};console.warn(m)};
 async function rest(resource,query=''){if(typeof global.rest!=='function')throw new Error('REST غير جاهز');return global.rest(resource,query)}
-async function rpc(name,payload){if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');return global.rpc(name,payload)}
+const cloudMutations=new Set(['admin_reset_employee_action_permission_v2','admin_set_employee_action_permission_v2']);async function rpc(name,payload){if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');if(cloudMutations.has(name)){const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}await guard.requireCloud('Permissions Admin')}return global.rpc(name,payload)}
 function isUsersPage(){return String(document.querySelector('#pageTitle')?.textContent||'').includes('المستخدم')}
 async function openPermissions(employeeId,employeeName){
  const [actions,overrides]=await Promise.all([
