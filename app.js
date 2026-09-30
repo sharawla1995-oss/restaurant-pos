@@ -2005,6 +2005,7 @@ async function renderWebsiteAvailability(){
 }
 
 async function rc1RemoveStorageObject(bucket,path){
+ await rc1RequireCloudOnline('تنظيف ملف Cloud Storage');
  const r=await fetch(`${cfg.url}/storage/v1/object/${encodeURIComponent(bucket)}`,{method:'DELETE',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({prefixes:[String(path||'')]})});
  if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||`تعذر تنظيف الملف (${r.status})`)}return true;
 }
