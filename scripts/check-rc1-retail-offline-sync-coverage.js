@@ -37,6 +37,7 @@ ok(transport.includes("offlineV2RetailPurchaseOrders")&&transport.includes("offl
 ok(transport.includes("offlineV2RetailGoodsReceipts")&&transport.includes("offlineV2RetailSupplierReturns"),'Retail GRN/Return local projection missing');
 ok(app.includes("retailSuppliersCloudCache")&&app.includes("retailPurchaseOrdersCloudCache:")&&app.includes("retailPurchaseOrderItemsCloudCache"),'Retail purchasing Cloud baseline cache missing');
 ok(app.includes("mergeOperational(suppliers,localSuppliers)")&&app.includes("mergeOperational(orders,localOrders)")&&app.includes("mergeOperational(items,localItems)"),'Retail purchasing operational merge missing');
+ok(app.includes("cloudItemPoIds")&&app.includes("!cloudItemPoIds.has(String(x.purchase_order_id))"),'Authoritative Retail PO lines must replace local placeholders after sync');
 ok(app.includes("!o._offline&&oi.every(x=>!x._offline)"),'GRN must fail closed until authoritative PO line IDs exist');
 if(gaps.length){console.error('RC1 retail offline sync coverage: OPEN\n- '+gaps.join('\n- '));process.exit(2)}
 console.log('RC1 retail offline sync coverage: PASS');
