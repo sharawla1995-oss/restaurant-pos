@@ -2729,6 +2729,7 @@ async function openWebsiteOrderReview(id,action=null){
  }catch(e){toast(e.message);return false}
 }
 async function acceptOnlineOrderFromChannel(orderRef,opts={}){
+  await rc1RequireCloudOnline('استلام طلب أونلاين');
   const channel=resolveOnlineOrderChannel(opts.source||'website');
   if(!channel.supported)throw new Error(`مصدر الطلب الأونلاين غير مدعوم في هذا الإصدار: ${channel.source}`);
   const source=channel.source;
@@ -2776,6 +2777,7 @@ function resolveOnlineOrderFulfillment(order){
 }
 
 async function rejectOnlineOrderFromChannel(orderRef,opts={}){
+  await rc1RequireCloudOnline('رفض طلب أونلاين');
   const channel=resolveOnlineOrderChannel(opts.source||'website');
   if(!channel.supported)throw new Error(`مصدر الطلب الأونلاين غير مدعوم في هذا الإصدار: ${channel.source}`);
   const source=channel.source;
