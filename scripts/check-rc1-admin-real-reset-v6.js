@@ -42,7 +42,10 @@ must(app.includes("createDesktopFullBackup('pre-reset-full')"),'full cloud pre-r
 must(app.includes("req('/rest/v1/rpc/reset_pos_data_v7'"),'renderer is not using V7');
 must(app.includes('p_branch_id:branchId,p_groups:groups'),'renderer does not pass current branch');
 must(!app.includes("req('/rest/v1/rpc/reset_pos_data',{method:'POST'"),'unsafe legacy reset fallback still reachable');
-must(app.indexOf("backup.create('pre-reset-full')")<app.indexOf("req('/rest/v1/rpc/reset_pos_data_v7'"),'destructive cloud reset happens before backup');
+const resetStart=app.indexOf('async function resetGroups(groups)');
+const resetEnd=app.indexOf('async function restoreBackup',resetStart);
+const resetBody=app.slice(resetStart,resetEnd);
+must(resetBody.indexOf("backup.create('pre-reset-full')")<resetBody.indexOf("req('/rest/v1/rpc/reset_pos_data_v7'"),'destructive cloud reset happens before backup');
 
 must(native.includes("Offline V2 scoped reset verification failed"),'Offline V2 selected-group verification missing');
 must(!native.includes('RESET_PROTECTED_DEVICE_SEQUENCES'),'obsolete protected reset sequence contract must be removed');
