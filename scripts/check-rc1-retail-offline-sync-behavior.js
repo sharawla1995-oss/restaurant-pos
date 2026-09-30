@@ -34,29 +34,39 @@ class Store{
   const approve=event('ret-approve',3,'retail_po_approve','retail_purchase_order','ret-po',{p_purchase_order_id:'offline-retail-po-ret-po',p_purchase_order_create_tx:'ret-po',p_client_tx_id:'ret-approve'});
   const grn=event('ret-grn',4,'retail_purchase_receive','retail_goods_receipt','ret-po',{p_purchase_order_id:'offline-retail-po-ret-po',p_purchase_order_create_tx:'ret-po',p_client_tx_id:'ret-grn',p_items:[{product_id:11,variant_id:101,quantity:3,unit_cost:20}]});
   const store=new Store([supplier,po,approve,grn]);
-  const seen=[];let supplierAttempts=0;
+  const seen=[];let supplierAttempts=0,poAttempts=0,approveAttempts=0;
   const ids={'ret-supplier':501,'ret-po':601,'ret-approve':601,'ret-grn':701};
   const engine=createSyncEngine({store,clock:()=>clock,random:()=>0.5,retry:{jitterRatio:0},
     identityProvider:async()=>({device_fingerprint:'canonical-retail-device'}),
     transport:{send:async e=>{
       seen.push({tx:e.client_tx_id,map:e.dependency_mapping,payload:e.envelope?.payload});
       if(e.client_tx_id==='ret-supplier'&&++supplierAttempts===1)throw Object.assign(new Error('ACK lost'),{code:'ECONNRESET',kind:'network'});
-      return ack(e,ids[e.client_tx_id],{duplicate:e.client_tx_id==='ret-supplier'});
+      if(e.client_tx_id==='ret-po'&&++poAttempts===1)throw Object.assign(new Error('PO ACK lost'),{code:'ECONNRESET',kind:'network'});
+      if(e.client_tx_id==='ret-approve'&&++approveAttempts===1)throw Object.assign(new Error('approval ACK lost'),{code:'ECONNRESET',kind:'network'});
+      return ack(e,ids[e.client_tx_id],{duplicate:(e.client_tx_id==='ret-supplier'&&supplierAttempts>1)||(e.client_tx_id==='ret-po'&&poAttempts>1)||(e.client_tx_id==='ret-approve'&&approveAttempts>1)});
     }}});
   let r=await engine.syncOnce();
   assert.equal(store.rows[0].status,'retryable','lost supplier ACK must be retryable');
   assert.equal(store.rows[1].status,'pending','PO must wait for supplier mapping');
   clock+=6000;r=await engine.syncOnce();
   assert.equal(store.rows[0].status,'synced','duplicate supplier ACK must reconcile');
-  assert.equal(store.rows[1].status,'synced','PO must sync after supplier ACK');
-  assert.equal(store.rows[2].status,'synced','approval must sync after PO ACK');
-  assert.equal(store.rows[3].status,'synced','GRN must sync after PO ACK');
+  assert.equal(store.rows[1].status,'retryable','lost PO ACK must be retryable');
+  assert.equal(store.rows[2].status,'pending','approval must still wait while PO ACK is unresolved');
+  assert.equal(store.rows[3].status,'pending','GRN must still wait while PO ACK is unresolved');
+  clock+=6000;r=await engine.syncOnce();
+  assert.equal(store.rows[1].status,'synced','duplicate PO ACK must reconcile');
+  assert.equal(store.rows[2].status,'retryable','lost approval ACK must be retryable');
+  assert.equal(store.rows[3].status,'synced','GRN may sync after authoritative PO mapping exists');
+  clock+=6000;r=await engine.syncOnce();
+  assert.equal(store.rows[2].status,'synced','duplicate approval ACK must reconcile');
   const poSend=seen.find(x=>x.tx==='ret-po'),approveSend=seen.find(x=>x.tx==='ret-approve'),grnSend=seen.find(x=>x.tx==='ret-grn');
   assert.equal(poSend.map.client_tx_id,'ret-supplier');assert.equal(poSend.map.server_id,'501');
   assert.equal(approveSend.map.client_tx_id,'ret-po');assert.equal(approveSend.map.server_id,'601');
   assert.equal(grnSend.map.client_tx_id,'ret-po');assert.equal(grnSend.map.server_id,'601');
   assert.equal(po.envelope.payload.p_items[0].variant_id,101,'PO variant identity must survive local envelope');
   assert.equal(grn.envelope.payload.p_items[0].variant_id,101,'GRN variant identity must survive local envelope');
+  const productOnly=event('ret-product-only',6,'retail_po_create','retail_purchase_order',null,{p_supplier_id:501,p_client_tx_id:'ret-product-only',p_items:[{product_id:12,quantity:2,unit_cost:9}]});
+  assert.equal(Object.prototype.hasOwnProperty.call(productOnly.envelope.payload.p_items[0],'variant_id'),false,'product-only line must not invent variant identity');
 
   const ret=event('ret-return',5,'retail_supplier_return','retail_supplier_return','ret-supplier',{p_supplier_id:'offline-retail-supplier-ret-supplier',p_supplier_create_tx:'ret-supplier',p_client_tx_id:'ret-return',p_items:[{product_id:11,variant_id:101,quantity:1,unit_cost:20}]});
   const store2=new Store([ret]);store2.maps.set('ret-supplier',{client_tx_id:'ret-supplier',server_id:'501',entity_type:'retail_supplier',local_id:'offline-retail-supplier-ret-supplier'});
@@ -64,5 +74,5 @@ class Store{
   const engine2=createSyncEngine({store:store2,clock:()=>clock,identityProvider:async()=>({device_fingerprint:'canonical-retail-device'}),transport:{send:async e=>{returnMap=e.dependency_mapping;return ack(e,801)}}});
   r=await engine2.syncOnce();assert.equal(r.acked,1);assert.equal(returnMap.server_id,'501');assert.equal(ret.envelope.payload.p_items[0].variant_id,101);
 
-  console.log('RC1 Retail Offline behavioral replay/dependency harness PASS — supplier lost-ACK + PO/approve/GRN/return + variant identity');
+  console.log('RC1 Retail Offline behavioral replay/dependency harness PASS — supplier/PO/approval lost-ACK + dependencies + GRN/return + variant/product identity');
 })().catch(e=>{console.error(e);process.exit(1)});
