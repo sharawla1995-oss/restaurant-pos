@@ -58,7 +58,7 @@ const ROUTE_ORDER=Object.freeze([
   'pos','orders','returns','customers','promoCodes','retailOffers',
   'onlineOrders','deliveryOrders','delivery','kitchen','tables',
   'inventory','foodIngredients','foodRecipes','foodOperations','suppliers','purchasing','stockCount','transfers','internalSupply','pharmacyBatches','pharmacyExpiry',
-  '__hr_group__','employees','advances','adjustments','payroll',
+  'employees','advances','adjustments','payroll','__hr_group__',
   'treasury','expenses','shifts','pharmacyInsurance','pharmacyClaims',
   'reports',
   'websiteManagement','branchProductAvailability','websiteBranchSettings','websitePayments','websiteAppearance','retailWebsiteOrders',
