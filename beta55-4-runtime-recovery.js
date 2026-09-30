@@ -45,12 +45,12 @@ function parseIlike(query,key){const m=String(query||'').match(new RegExp(`(?:^|
 function ilike(value,pattern){const escaped=String(pattern||'').replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*');return new RegExp(`^${escaped}$`,'i').test(String(value??''))}
 function applyQuery(rows,query){
  let out=Array.isArray(rows)?rows.slice():[];
- const keys=['id','branch_id','employee_id','shift_id','order_id','return_id','customer_id','driver_id','product_id','status','order_type','source','active','auth_user_id','invoice_number','bon_number','payment_method','payment_status','phone','customer_phone'];
+ const keys=['id','branch_id','home_branch_id','employee_id','shift_id','order_id','return_id','customer_id','driver_id','product_id','schedule_id','staff_account_id','status','verification_status','request_type','work_date','order_type','source','active','auth_user_id','invoice_number','bon_number','payment_method','payment_status','phone','customer_phone'];
  for(const k of keys){const v=parseEq(query,k);if(v!==null)out=out.filter(r=>String(r?.[k])===String(v));const vals=parseIn(query,k);if(vals)out=out.filter(r=>vals.includes(String(r?.[k])))}
  for(const k of ['phone','customer_phone']){const v=parseIlike(query,k);if(v!==null)out=out.filter(r=>ilike(r?.[k],v))}
  const orderTypeOr=String(query||'').match(/(?:^|&)or=\((order_type\.eq\.[^)]+)\)/)?.[1]?.split(',').map(x=>x.match(/^order_type\.eq\.(.+)$/)?.[1]).filter(Boolean);if(orderTypeOr?.length)out=out.filter(r=>orderTypeOr.includes(String(r?.order_type)));
  for(const k of ['closed_at']){if(new RegExp(`(?:^|&)${k}=is\\.null(?:&|$)`).test(String(query||'')))out=out.filter(r=>r?.[k]==null)}
- for(const k of ['created_at','opened_at']){const g=parseBound(query,k,'gte'),l=parseBound(query,k,'lte');if(g)out=out.filter(r=>new Date(r?.[k]||0)>=new Date(g));if(l)out=out.filter(r=>new Date(r?.[k]||0)<=new Date(l))}
+ for(const k of ['created_at','opened_at','captured_at_device','starts_at','ends_at','work_date','effective_from','effective_to','effective_date','requested_on','last_seen_at']){const g=parseBound(query,k,'gte'),l=parseBound(query,k,'lte');if(g)out=out.filter(r=>new Date(r?.[k]||0)>=new Date(g));if(l)out=out.filter(r=>new Date(r?.[k]||0)<=new Date(l))}
  const order=String(query||'').match(/(?:^|&)order=([a-zA-Z0-9_]+)\.(asc|desc)/);if(order){const [,key,dir]=order;out.sort((a,b)=>{const av=a?.[key],bv=b?.[key];if(av===bv)return 0;if(av==null)return 1;if(bv==null)return -1;const an=typeof av==='number'?av:(Date.parse(av)||null),bn=typeof bv==='number'?bv:(Date.parse(bv)||null),cmp=an!==null&&bn!==null?an-bn:String(av).localeCompare(String(bv));return dir==='desc'?-cmp:cmp})}
  const offset=Number(String(query||'').match(/(?:^|&)offset=(\d+)/)?.[1]||0);if(offset>0)out=out.slice(offset);
  const lim=Number(String(query||'').match(/(?:^|&)limit=(\d+)/)?.[1]||0);if(lim>0)out=out.slice(0,lim);
@@ -157,6 +157,11 @@ async function eligibleLegacyQueue(){
  }
  return eligible;
 }
+const HR_OFFLINE_SNAPSHOT_TABLES=new Set([
+ 'hr_employees','hr_attendance_daily_summary','hr_attendance_events','hr_leave_requests','hr_attendance_devices',
+ 'hr_work_schedules','hr_employee_schedule_assignments','hr_deduction_rules','hr_recurring_adjustments',
+ 'hr_employee_adjustments','hr_employee_advances','hr_payroll_items','hr_staff_accounts','hr_branch_geofences','hr_settings'
+]);
 async function compatibilityRows(table){
  const st=appState()||{};
  let rows=null;
@@ -179,6 +184,7 @@ async function compatibilityRows(table){
  else if(table==='business_settings')rows=st.business?[st.business]:[];
  else if(table==='website_settings')rows=st.websiteSettings?[st.websiteSettings]:[];
  else if(table==='app_settings')rows=Object.entries(st.settings||{}).map(([key,value])=>({key,value:String(value)}));
+ else if(HR_OFFLINE_SNAPSHOT_TABLES.has(table)){const cached=await dbGet(`hrSnapshot:${branchId()}:${table}`);if(Array.isArray(cached))rows=cached}
  else if(table==='orders'){
    const bundles=await dbGet('cachedOrders')||[];rows=bundles.map(x=>x.order).filter(Boolean);
    const q=await eligibleLegacyQueue();rows=mergeByIdentity(rows,q.filter(x=>x.type==='sale'&&x.local_order).map(x=>({...x.local_order,client_tx_id:x.local_order.client_tx_id||x.client_tx_id})));
@@ -368,8 +374,24 @@ async function warmRuntimeCaches(){
   ['restaurant_tables',`select=*&branch_id=eq.${b}&order=floor_id,id`],
   ['restaurant_table_sessions',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=200`],
   ['restaurant_table_session_orders','select=*'],
+  // HR read-only Offline snapshots. Mutations remain server-authoritative/Online-only.
+  ['hr_employees','select=*&active=eq.true&order=name'],
+  ['hr_attendance_daily_summary',`select=*&branch_id=eq.${b}&order=work_date.desc&limit=2000`],
+  ['hr_attendance_events',`select=*&branch_id=eq.${b}&order=captured_at_device.desc&limit=5000`],
+  ['hr_leave_requests','select=*&order=created_at.desc&limit=2000'],
+  ['hr_attendance_devices','select=*'],
+  ['hr_work_schedules',`select=*&branch_id=eq.${b}&order=active.desc,name`],
+  ['hr_employee_schedule_assignments',`select=*&branch_id=eq.${b}&order=effective_from.desc`],
+  ['hr_deduction_rules','select=*&order=active.desc,id.desc'],
+  ['hr_recurring_adjustments','select=*&order=created_at.desc&limit=2000'],
+  ['hr_employee_adjustments','select=*&order=effective_date.desc&limit=5000'],
+  ['hr_employee_advances','select=*&order=requested_on.desc&limit=5000'],
+  ['hr_payroll_items','select=*&order=id.desc&limit=5000'],
+  ['hr_staff_accounts','select=*'],
+  ['hr_branch_geofences',`select=*&branch_id=eq.${b}`],
+  ['hr_settings',`select=*&branch_id=eq.${b}`],
   ['orders',`select=id,invoice_number,bon_number,total,status,created_at,order_type&branch_id=eq.${b}&order_type=eq.dinein&order=created_at.desc&limit=100`] ];
- for(const [t,q] of calls){try{const rows=await baseRest(t,q);await dbSet(readKey(t,q),rows);if(t==='shifts')await dbSet(`shiftHistory:${b}`,rows);if(t==='orders'){const bundles=(await dbGet('cachedOrders'))||[],itemsByOrder=new Map();for(const x of ((await dbGet(readKey('order_items','select=*&order_id=not.is.null&order=id.desc&limit=5000')))||[])){const k=String(x.order_id);if(!itemsByOrder.has(k))itemsByOrder.set(k,[]);itemsByOrder.get(k).push(x)}await dbSet('cachedOrders',rows.map(o=>({order:o,items:itemsByOrder.get(String(o.id))||[]})).concat(bundles.filter(x=>!rows.some(o=>String(o.id)===String(x.order?.id)))).slice(0,500))}if(t==='customers')await dbSet('customersCache',rows);if(t==='customer_addresses')await dbSet('customerAddressesCache',rows)}catch{}}
+ for(const [t,q] of calls){try{const rows=await baseRest(t,q);await dbSet(readKey(t,q),rows);if(HR_OFFLINE_SNAPSHOT_TABLES.has(t))await dbSet(`hrSnapshot:${b}:${t}`,rows);if(t==='shifts')await dbSet(`shiftHistory:${b}`,rows);if(t==='orders'){const bundles=(await dbGet('cachedOrders'))||[],itemsByOrder=new Map();for(const x of ((await dbGet(readKey('order_items','select=*&order_id=not.is.null&order=id.desc&limit=5000')))||[])){const k=String(x.order_id);if(!itemsByOrder.has(k))itemsByOrder.set(k,[]);itemsByOrder.get(k).push(x)}await dbSet('cachedOrders',rows.map(o=>({order:o,items:itemsByOrder.get(String(o.id))||[]})).concat(bundles.filter(x=>!rows.some(o=>String(o.id)===String(x.order?.id)))).slice(0,500))}if(t==='customers')await dbSet('customersCache',rows);if(t==='customer_addresses')await dbSet('customerAddressesCache',rows)}catch{}}
  try{await getOpenShiftRecovery(employeeId(),b)}catch{}
  lastWarmCachesAt=Date.now();
  return true;
