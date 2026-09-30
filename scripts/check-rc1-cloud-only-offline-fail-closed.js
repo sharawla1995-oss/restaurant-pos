@@ -14,7 +14,8 @@ for(const [file,names] of Object.entries(specs)){
  for(const n of names)if(!s.includes("'"+n+"'"))throw new Error(file+': missing guarded mutation '+n);
 }
 const lc=fs.readFileSync('landed-cost-posting-v1.js','utf8');
-const guard=lc.indexOf("__SharawlaRC1OnlineOnlyGuard?.requireCloud?.('Landed Cost')");
+const guard=lc.indexOf("await requireCloud('Landed Cost')");
+if(!lc.includes("code='ONLINE_ONLY_GUARD_UNAVAILABLE'"))throw new Error('Landed Cost: strict unavailable guard missing');
 const post=lc.indexOf("g.rpc('retail_landed_cost_post_v1'");
 if(guard<0||post<0||guard>post)throw new Error('Landed Cost: guard must precede posting RPC');
 console.log('RC1 cloud-only offline fail-closed coverage: PASS');
