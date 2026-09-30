@@ -12,7 +12,8 @@ const productById=id=>products().find(p=>String(p.id)===String(id));
 const toast=m=>global.toast?.(m)||console.log(m);
 const rest=(t,q='')=>global.rest(t,q);
 const cloudMutations=new Set(['pharmacy_upsert_product_details','pharmacy_save_substitute','pharmacy_receive_batch','pharmacy_adjust_batch','pharmacy_create_prescription','pharmacy_update_web_rx_status','pharmacy_save_insurance_company','pharmacy_save_insurance_plan','pharmacy_update_claim_status','create_pharmacy_pos_order_atomic']);
-const rpc=async(n,p={})=>{if(cloudMutations.has(n))await global.__SharawlaRC1OnlineOnlyGuard?.requireCloud?.('Pharmacy');return global.rpc(n,p)};
+const requireCloud=async label=>{const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}return guard.requireCloud(label)};
+const rpc=async(n,p={})=>{if(cloudMutations.has(n))await requireCloud('Pharmacy');return global.rpc(n,p)};
 const page=()=>$('#page');
 
 const PHARMACY_PAGES=[
