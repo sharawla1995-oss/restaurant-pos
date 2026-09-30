@@ -1,0 +1,12 @@
+'use strict';
+const fs=require('fs'),assert=require('assert'),vm=require('vm');
+const customer=fs.readFileSync('shared-business-core-v1.js','utf8');
+assert(customer.includes("commitOptionalTxRpc('offline_customer_create_v1'"),'customer create must route through Offline V2 owner');
+assert(!customer.includes("global.rpc('customer_create_v2'"),'direct customer_create_v2 bypass remains');
+assert(customer.includes("p_client_tx_id:"),'customer create client_tx_id missing');
+const po=fs.readFileSync('beta55-ui-workflow-fixes.js','utf8');
+const guard=po.indexOf("await guard.requireCloud('إنشاء أمر شراء Legacy')"),legacy=po.indexOf("rpc('retail_purchase_order_create'");
+assert(guard>=0&&legacy>guard,'legacy PO must require Cloud before RPC');
+assert(po.includes("rpc('retail_purchase_order_create_v2'"),'V2 PO route missing');
+new vm.Script(customer,{filename:'shared-business-core-v1.js'});new vm.Script(po,{filename:'beta55-ui-workflow-fixes.js'});
+console.log('RC1 customer/PO ownership routing gate PASS');

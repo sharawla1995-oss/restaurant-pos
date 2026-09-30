@@ -103,6 +103,7 @@ async function openPurchaseOrderWorkspace(){
        if(hasFeature('inventory.purchase_orders')){
          id=await rpc('retail_purchase_order_create_v2',{...payload,p_po_number:m.querySelector('[data-b55-po-number]').value.trim()||null,p_expected_at:m.querySelector('[data-b55-expected]').value?new Date(m.querySelector('[data-b55-expected]').value).toISOString():null});
        }else{
+         const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}await guard.requireCloud('إنشاء أمر شراء Legacy');
          id=await rpc('retail_purchase_order_create',{...payload,p_items:lines.map(({product_id,quantity,unit_cost})=>({product_id,quantity,unit_cost}))});
        }
        m.remove();toast(`تم إنشاء أمر الشراء${id?` #${id}`:''}`);if(typeof global.showPage==='function')global.showPage('purchasing');
