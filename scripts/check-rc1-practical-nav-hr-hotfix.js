@@ -19,7 +19,7 @@ for(const route of ['tables','foodIngredients','foodRecipes','foodOperations']){
 assert(app.includes("error.code='RESTAURANT_CLOSURE_ADAPTER_MISSING'"),'Restaurant Closure delegate must fail closed when adapter is missing');
 
 assert(hr.includes("group.setAttribute('data-beta55-hr-group','1')"),'HR group must publish Product Map ownership marker');
-assert(nav.includes("node.matches?.('[data-beta55-hr-group],.hr-nav-group')"),'Product Map must recognize HR group marker/class fallback');
+assert(nav.includes("node.matches?.('[data-beta55-hr-group]')"),'Product Map must recognize canonical HR group ownership marker');
 assert(nav.includes("if(routeKey==='__hr_group__')return 'hr'"),'Product Map HR grouping contract missing');
 
 const newActions=[
