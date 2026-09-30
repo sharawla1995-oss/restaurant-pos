@@ -419,7 +419,7 @@ function show(id){['activationView','setupView','loginView','appView'].forEach(x
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){const method=String(opt?.method||'GET').toUpperCase();if(method!=='GET'&&method!=='HEAD'&&globalThis.navigator?.onLine===false){const e=new Error(`تعديل ${table} يحتاج اتصالًا بالسيرفر. لم يتم تغيير أي بيانات.`);e.code='REST_MUTATION_OFFLINE_BLOCKED';throw e}return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
-async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function callFunction(name,payload={}){if(globalThis.navigator?.onLine===false){const e=new Error(`تنفيذ ${name} يحتاج اتصالًا بالسيرفر. لم يتم تغيير أي بيانات.`);e.code='FUNCTION_MUTATION_OFFLINE_BLOCKED';throw e}return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rc1RequireCloudOnline(action='العملية'){
  const label=String(action||'العملية');
@@ -2547,6 +2547,7 @@ async function resetGroups(groups){
  return cloud
 }
 async function restoreBackup(file,groups){
+ await rc1RequireCloudOnline('استعادة النسخة الاحتياطية');
  const text=await file.text();let b;
  try{b=JSON.parse(text)}catch{throw new Error('ملف النسخة غير صالح')}
  if(b?.format!=='topburger-pos-backup')throw new Error('هذا ليس ملف Backup للبرنامج');
