@@ -6,6 +6,9 @@ on:
       - beta56-runtime-snapshot-consumer
       - beta56-offline-ownership-consolidation
       - rc1-beta58-32-performance-hotfix
+  pull_request:
+    branches:
+      - rc1-beta58-32-performance-hotfix
   workflow_dispatch:
 
 jobs:
