@@ -30,7 +30,7 @@ const META=Object.freeze({
  'page:foodOperations':{icon:'🏭',label:'الإنتاج والهالك',description:'Prep والإنتاج والهالك وFood Cost',tone:'rose'},
  'page:tables':{icon:'🪑',label:'الصالات والترابيزات',description:'الصالات والترابيزات وجلسات الصالة',tone:'violet'},
  'beta54:treasury':{icon:'🏦',label:'الخزنة',description:'حركات الخزنة والتسويات المالية',tone:'green'},
- 'group:hr':{icon:'👨‍💼',label:'الموظفون',description:'الموظفون والسلف والخصومات والمرتبات',tone:'blue'},
+ 'group:hr':{icon:'👨‍💼',label:'Sharawla HR',description:'الحضور والجداول والإجازات وقواعد HR',tone:'blue'},
  'custom:supply':{icon:'🏭',label:'التوريد الداخلي',description:'طلبات التوريد بين المخزن والفروع',tone:'amber'}
 });
 let observer=null,queued=false,wired=false;
@@ -61,7 +61,7 @@ function topLevelEntries(){
      out.push({key,kind:'button',button:node,meta:META[key]||null});continue;
    }
    if(node.matches?.('[data-beta55-hr-group]')){
-     const children=[...node.querySelectorAll('button[data-beta54-page]')].filter(visible);
+     const children=[...node.querySelectorAll('button[data-hr-page]')].filter(visible);
      if(!children.length)continue;
      out.push({key:'group:hr',kind:'group',button:node.querySelector('[data-beta55-hr-toggle]'),children,meta:META['group:hr']});
    }
