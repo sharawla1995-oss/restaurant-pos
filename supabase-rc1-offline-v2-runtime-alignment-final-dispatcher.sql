@@ -646,7 +646,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_operation text:=nullif(trim(coalesce(p_event->>'operation_type','')),'');
   v_rpc text:=nullif(trim(coalesce(p_event#>>'{payload,rpc_name}','')),'');
@@ -717,14 +717,14 @@ begin
 
   return public.sharawla_offline_v2_apply_event_core_v1(v_forward);
 end;
-$;
+$$;
 
 create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   v_operation text:=nullif(trim(coalesce(p_event->>'operation_type','')),'');
   v_rpc text:=nullif(trim(coalesce(p_event#>>'{payload,rpc_name}','')),'');
