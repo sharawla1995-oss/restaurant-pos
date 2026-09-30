@@ -5,6 +5,7 @@ on:
     branches:
       - beta56-runtime-snapshot-consumer
       - beta56-offline-ownership-consolidation
+      - rc1-beta58-32-performance-hotfix
   workflow_dispatch:
 
 jobs:
@@ -110,6 +111,8 @@ jobs:
           $transportRuntimeText = Get-Content (Join-Path $probe 'beta45-offline-v2-transport-runtime.js') -Raw
           $customerDeliveryAcceptanceText = Get-Content (Join-Path $probe 'owner-acceptance-offline-customer-delivery-v58.js') -Raw
           $coreOpsAcceptanceText = Get-Content (Join-Path $probe 'owner-acceptance-offline-core-ops-v58.js') -Raw
+          $readonlyPreflightText = Get-Content (Join-Path $probe 'owner-acceptance-sh0007-readonly-preflight-v58.js') -Raw
+          $lazyLoaderText = Get-Content (Join-Path $probe 'owner-acceptance-lazy-loader-v47.js') -Raw
           foreach ($marker in @('offline_customer_create_v1','offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1','offline_delivery_assign_driver_v1')) {
             if (!$nativeStoreText.Contains($marker)) { throw "packaged native-store missing fail-closed binding: $marker" }
             if (!$transportRuntimeText.Contains($marker)) { throw "packaged transport runtime missing binding: $marker" }
@@ -120,6 +123,13 @@ jobs:
           foreach ($testId in @('offline.expense-runtime-e2e','offline.return-runtime-e2e')) {
             if (!$coreOpsAcceptanceText.Contains($testId)) { throw "packaged core offline acceptance missing: $testId" }
           }
+          if (!$readonlyPreflightText.Contains("id:'core.sh0007-readonly-preflight'")) { throw 'packaged SH-0007 read-only preflight missing' }
+          if (!$readonlyPreflightText.Contains('Object.freeze([293,304,316])')) { throw 'packaged protected sequence observe-only set missing' }
+          foreach ($forbidden in @('manualRetry','resetTestQueue','resetTestGroups','resetTestAll','syncNow','commitOperation')) {
+            if ($readonlyPreflightText.Contains($forbidden)) { throw "packaged read-only preflight contains forbidden mutation API: $forbidden" }
+          }
+          if (!$lazyLoaderText.Contains('owner-acceptance-sh0007-readonly-preflight-v58.js')) { throw 'packaged lazy loader missing SH-0007 read-only preflight' }
+          if (!$customerDeliveryAcceptanceText.Contains("e.code='ACCEPTANCE_SANDBOX_LOCK'")) { throw 'packaged customer/delivery mutating acceptance sandbox lock missing' }
           if (!$app.Contains('window.__SharawlaPoint4UuidV4')) { throw 'packaged app.js missing Point4 UUID provider delegation' }
           if (!$app.Contains('data-settings-hub-v1="1"')) { throw 'packaged Settings Hub marker missing' }
           if (!$app.Contains('تفعيل تشغيل المطبخ')) { throw 'packaged app.js missing explicit Kitchen operational label' }
