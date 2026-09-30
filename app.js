@@ -2131,7 +2131,9 @@ async function renderRetailPurchasing(){
   rest('retail_inventory_balances',`select=*&branch_id=eq.${branchId}`)
  ]);try{await Promise.all([odbSet('retailSuppliersCloudCache',suppliers),odbSet('retailPurchaseOrdersCloudCache:'+branchId,orders),odbSet('retailPurchaseOrderItemsCloudCache',items),odbSet('retailInventoryBalancesCloudCache:'+branchId,balances)])}catch{}}catch(e){try{[suppliers,orders,items,balances]=await Promise.all([odbGet('retailSuppliersCloudCache'),odbGet('retailPurchaseOrdersCloudCache:'+branchId),odbGet('retailPurchaseOrderItemsCloudCache'),odbGet('retailInventoryBalancesCloudCache:'+branchId)]);suppliers=suppliers||[];orders=orders||[];items=items||[];balances=balances||[]}catch{};if(!orders.length&&!localOrders.length&&navigator.onLine!==false){if(String(e?.message||'').includes('retail_purchase_')||String(e?.message||'').includes('retail_suppliers')){$('#page').innerHTML='<div class="empty">شغّل SQL beta.16 Suppliers & Purchasing أولًا</div>';return;}throw e}}
  const mergeOperational=(cloud,local)=>{const byId=new Map((cloud||[]).map(x=>[String(x.id),x]));for(const x of local||[]){const tx=String(x.client_tx_id||''),same=[...byId.values()].find(y=>tx&&String(y.client_tx_id||'')===tx);if(same)byId.delete(String(same.id));byId.set(String(x.id),x)}return [...byId.values()]};
- suppliers=mergeOperational(suppliers,localSuppliers).filter(x=>x.active!==false);orders=mergeOperational(orders,localOrders).filter(x=>Number(x.branch_id)===branchId);items=mergeOperational(items,localItems);
+ suppliers=mergeOperational(suppliers,localSuppliers).filter(x=>x.active!==false);orders=mergeOperational(orders,localOrders).filter(x=>Number(x.branch_id)===branchId);
+ const cloudItemPoIds=new Set((items||[]).map(x=>String(x.purchase_order_id)));
+ items=mergeOperational(items,(localItems||[]).filter(x=>!cloudItemPoIds.has(String(x.purchase_order_id))));
  const supMap=new Map(suppliers.map(x=>[String(x.id),x]));
  const prodMap=new Map(state.products.map(x=>[String(x.id),x]));
  const orderItems=id=>items.filter(x=>String(x.purchase_order_id)===String(id));
