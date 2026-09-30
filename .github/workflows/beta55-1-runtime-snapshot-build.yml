@@ -33,7 +33,7 @@ jobs:
       - name: Verify installed sqlite3 N-API binary
         run: node -e "const s=require('sqlite3'); console.log('sqlite3 runtime OK', s.VERSION || 'loaded')"
       - name: Candidate validation
-        run: npm run check
+        run: npm run check:ci
       - name: Build Windows x64 installer without redundant native rebuild
         run: npx electron-builder --win nsis --x64 --config.npmRebuild=false --publish never
       - name: Verify packaged app.asar renderer ownership
