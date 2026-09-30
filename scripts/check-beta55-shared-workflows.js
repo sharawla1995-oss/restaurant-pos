@@ -22,7 +22,7 @@ need(supply,["const FEATURE='inventory.multi_warehouse'","'inventory.supply.view
 
 const supplyV2=read('beta55-central-warehouse-v2.js');
 need(supplyV2,[
- 'inventory_supply_branch_catalog_v2','inventory_supply_shortages_v1','inventory_supply_shortage_request_create_v1','inventory_supply_catalog_policy_set_v1','inventory_supply_request_cancel_v1',
+ 'inventory_supply_branch_catalog_v2','inventory_supply_shortages_v1',"commitOptionalTxRpc('inventory_supply_request_create_v1'",'inventory_supply_catalog_policy_set_v1','inventory_supply_request_cancel_v1',
  "'inventory.supply.stock.availability'","'inventory.supply.stock.exact'","'inventory.supply.shortages.view'","'inventory.supply.shortages.create'",
  'طلبات مفتوحة','في الطريق','Min / Target','🟢 متاح','🟡 محدود','🔴 غير متاح','🔒 مخفي','📊 نواقص الفروع','إنشاء توريد داخلي','إنشاء طلب شراء للمخزن',
  'retail_purchase_request_create_v1','retail_purchase_request_submit_v1','__SharawlaBeta55CentralWarehouseV2'
