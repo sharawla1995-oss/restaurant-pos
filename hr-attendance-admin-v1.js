@@ -26,6 +26,7 @@ function $(selector){return document.querySelector(selector)}
 async function refreshPermissions(){const values=await Promise.all(PERMISSIONS.map(code=>rpc('has_action_permission_v2',{p_action_code:code}).catch(()=>false)));PERMISSIONS.forEach((code,index)=>perms[code]=values[index]===true);syncNav()}
 function syncNav(){
  const nav=$('#nav');if(!nav)return;let group=nav.querySelector('.hr-nav-group');if(!group){group=document.createElement('details');group.className='hr-nav-group';group.innerHTML='<summary>👥 Sharawla HR</summary><div data-hr-links></div>';const anchor=nav.querySelector('button[data-page="users"]')||nav.querySelector('button[data-page="settings"]');anchor?nav.insertBefore(group,anchor):nav.appendChild(group)}
+ group.setAttribute('data-beta55-hr-group','1');
  const links=group.querySelector('[data-hr-links]');for(const [key,[label,permission]] of Object.entries(PAGE_DEF)){let button=links.querySelector(`[data-hr-page="${key}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.hrPage=key;button.textContent=label;links.appendChild(button)}button.classList.toggle('hidden',!has(permission))}group.classList.toggle('hidden',!Object.values(PAGE_DEF).some(x=>has(x[1])));
 }
 async function renderAttendance(selectedDate=null,selectedBranchId=null){

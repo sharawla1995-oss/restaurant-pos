@@ -22,6 +22,25 @@ insert into public.permission_actions_v2(code,name_ar,domain,legacy_permission,s
 on conflict(code) do update set name_ar=excluded.name_ar,domain=excluded.domain,
  legacy_permission=excluded.legacy_permission,sort_order=excluded.sort_order,active=true;
 
+-- Keep new HR actions applicable to the same POS profiles as the established
+-- HR core. Profile applicability is evaluated before Admin authority, so
+-- missing rows here would fail closed even for Admin users.
+insert into public.permission_action_profiles_v2(action_code,profile_code,required_feature_code,active)
+select a.code,p.profile_code,null,true
+from (values
+ ('hr.attendance.view'),('hr.attendance.manage'),('hr.attendance.adjust'),
+ ('hr.schedules.view'),('hr.schedules.manage'),('hr.geofence.manage'),
+ ('hr.staff_accounts.manage'),('hr.deduction_rules.view'),('hr.deduction_rules.manage'),
+ ('hr.leave.view'),('hr.leave.manage'),('hr.reports.view'),('hr.settings.manage')
+) as a(code)
+cross join (
+ select distinct profile_code
+ from public.permission_action_profiles_v2
+ where action_code='hr.employees.view' and active=true
+) p
+on conflict(action_code,profile_code) do update
+set required_feature_code=excluded.required_feature_code,active=true;
+
 create table if not exists public.hr_settings(
  branch_id bigint primary key references public.branches(id) on delete restrict,
  timezone text not null default 'Africa/Cairo',
