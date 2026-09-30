@@ -60,6 +60,9 @@ need(js.includes("planSignature(plan)===currentSignature(nav)"),'Idempotent stru
 need(js.includes("REGISTRY_MISSING"),'Missing registry must fail closed');
 need(css.includes('.sidebar nav .sharawla-nav-group-label'),'Product Map label styles missing');
 
+need(js.includes("'businessSummary','home'"),'Business Summary must remain above Home in Product Map ordering');
+need(/routeKey:'businessSummary'[^\n]+navigationType:'data-page'[^\n]+pagePermission:'home'[^\n]+renderer:'renderBusinessSummary'[^\n]+conflictStatus:'NONE'[^\n]+migrationStatus:S/.test(reg),'Business Summary registry route must be canonical and implemented');
+need(!/routeKey:'summary'[^\n]+conflictStatus:'NOT_IMPLEMENTED'/.test(reg),'Legacy unimplemented summary registry entry must not shadow Business Summary');
 need(/routeKey:'orders'[^\n]+conflictStatus:'LOCKED'[^\n]+migrationStatus:L/.test(reg),'Orders V58.3 locked-owner marker regressed');
 for(const route of ['suppliers','purchasing','stockCount','transfers']){
   need(new RegExp("routeKey:'"+route+"'[^\\n]+profile:'core'[^\\n]+renderer:'renderSharedInventoryPurchasingRoute'[^\\n]+rendererOwner:'app\\.js'[^\\n]+conflictStatus:'NONE'[^\\n]+migrationStatus:S").test(reg),route+' Core profile-router ownership regressed');
