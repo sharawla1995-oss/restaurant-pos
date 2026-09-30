@@ -16,12 +16,25 @@ const missing=ops.filter(op=>!routed.has(op));
 assert.deepStrictEqual(missing,[],'client operations missing from final dispatcher: '+missing.join(', '));
 
 for(const marker of [
+  'sharawla_offline_v2_apply_event_point4_outer_v1',
   'sharawla_offline_v2_apply_event_reference_v1',
   'sharawla_offline_v2_apply_event_modern_v1',
   'sharawla_offline_v2_apply_event_alignment_special_v1'
 ]) assert(sql.includes(marker),marker+' helper missing');
 
-assert(final.includes("v_operation in ('sale','return','expense','shift_open')"),'Point-4/base core delegation missing');
+assert(final.includes("v_operation in ('sale','return','expense','shift_open')"),'Point-4/base routing missing');
+assert(final.includes("return public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event);"),'Point-4/base operations must enter Outer preparation before Core');
+assert(!final.includes("return public.sharawla_offline_v2_apply_event_core_v1(p_event);"),'public final dispatcher must not bypass Point-4 Outer preparation');
+const outerStart=sql.indexOf('create or replace function public.sharawla_offline_v2_apply_event_point4_outer_v1');
+assert(outerStart>=0,'Point-4 Outer helper missing');
+const outerEnd=sql.indexOf('create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)',outerStart);
+const outer=sql.slice(outerStart,outerEnd);
+assert(outer.includes('sharawla_offline_v2_prepare_stock_event_v1(p_event)'),'Point-4 Outer must prepare stock context');
+assert(outer.includes("v_prepared->'context_envelope'"),'Point-4 Outer must forward prepared context envelope');
+assert(outer.includes("v_prepared->'stock_identities'"),'Point-4 Outer must forward prepared stock identities');
+assert(outer.includes('sharawla_point4_assert_context_envelope_v1'),'Point-4 Outer must validate prepared context envelope');
+assert(outer.includes('inventory_stock_assert_legacy_write_allowed_v2'),'Point-4 Outer must preserve literal stock guards');
+assert(outer.includes('return public.sharawla_offline_v2_apply_event_core_v1(v_forward);'),'Point-4 Outer must forward the enriched event to Core');
 assert(final.includes("v_operation='shift_close' and v_rpc='close_pos_shift_idempotent'"),'legacy shift-close replay compatibility missing');
 assert(final.includes("v_operation in ('shift_close','delivery_mark_delivered','delivery_driver_settle','inventory_supply_request_create')"),'runtime-gap special router missing');
 assert(final.includes("v_operation='retail_suspend_sale' and v_rpc='offline_retail_suspend_sale_v1'"),'retail suspend route missing');
@@ -44,9 +57,10 @@ for(const op of [
  assert(pattern.test(sql),'supply request state path must assign server entity id: '+op);
 }
 
-assert(!/grant execute on function public\.sharawla_offline_v2_apply_event_(reference|modern|alignment_special)_v1/i.test(sql),'private helper dispatcher must not be executable by authenticated/public');
+assert(!/grant execute on function public\.sharawla_offline_v2_apply_event_(point4_outer|reference|modern|alignment_special)_v1/i.test(sql),'private helper dispatcher must not be executable by authenticated/public');
+assert(sql.includes('revoke all on function public.sharawla_offline_v2_apply_event_point4_outer_v1(jsonb) from public,anon,authenticated'),'Point-4 Outer helper revoke missing');
 assert(sql.includes('revoke all on function public.sharawla_offline_v2_apply_event_reference_v1(jsonb) from public,anon,authenticated'),'reference helper revoke missing');
 assert(sql.includes('revoke all on function public.sharawla_offline_v2_apply_event_modern_v1(jsonb) from public,anon,authenticated'),'modern helper revoke missing');
 assert(sql.includes('grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated'),'single public dispatcher grant missing');
 
-console.log('RC1 Runtime Alignment final dispatcher gate PASS — operations='+ops.length+'; missing=0; helpers=private; Point4 core preserved');
+console.log('RC1 Runtime Alignment final dispatcher gate PASS — operations='+ops.length+'; missing=0; helpers=private; Point4 Outer restored before Core');
