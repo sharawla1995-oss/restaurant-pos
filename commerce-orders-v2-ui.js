@@ -1,5 +1,5 @@
 (function(global){
-'use strict';
+'use strict';const requireCloud=async label=>{const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}return guard.requireCloud(label)};
 const VERSION='orders-v2-ui.1';
 const FEATURES={quotation:'commerce.quotations',sales_order:'commerce.b2b_orders',custom_order:'commerce.custom_orders',reservation:'commerce.custom_orders'};
 const RUNTIME_KEY='sharawlaRuntimeConfigV1';
@@ -8,7 +8,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'
 const money=v=>Number(v||0).toFixed(2);
 const toast=m=>{try{return global.toast?.(m)}catch{};console.warn(m)};
 const cloudMutations=new Set(['commerce_order_document_create_v2','commerce_order_document_submit_v2','commerce_order_document_decide_v2','commerce_order_document_record_payment_v2','commerce_order_document_cancel_v2']);
-const rpc=async(n,p)=>{if(cloudMutations.has(n))await global.__SharawlaRC1OnlineOnlyGuard?.requireCloud?.('Commerce Orders');return global.rpc(n,p)};
+const rpc=async(n,p)=>{if(cloudMutations.has(n))await requireCloud('Commerce Orders');return global.rpc(n,p)};
 const rest=(t,q)=>global.rest(t,q);
 const uuid=()=>global.uuid?.()||crypto.randomUUID();
 function cfg(){try{return JSON.parse(localStorage.getItem(RUNTIME_KEY)||'{}')||{}}catch{return {}}}
