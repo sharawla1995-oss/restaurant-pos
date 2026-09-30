@@ -2,6 +2,8 @@
 const fs=require('fs'),assert=require('assert');
 
 const app=fs.readFileSync('app.js','utf8');
+const restaurantUi=fs.readFileSync('beta55-restaurant-closure-ui.js','utf8');
+const registry=fs.readFileSync('sharawla-navigation-registry.js','utf8');
 const hr=fs.readFileSync('hr-attendance-admin-v1.js','utf8');
 const nav=fs.readFileSync('product-map-navigation-v1.js','utf8');
 const ext=fs.readFileSync('supabase-hr-attendance-payroll-extension-v1.sql','utf8');
@@ -17,6 +19,14 @@ for(const route of ['tables','foodIngredients','foodRecipes','foodOperations']){
   );
 }
 assert(app.includes("error.code='RESTAURANT_CLOSURE_ADAPTER_MISSING'"),'Restaurant Closure delegate must fail closed when adapter is missing');
+assert(!restaurantUi.includes("nav.addEventListener('click',e=>{if(!isRestaurant())return;const b=e.target.closest('button[data-page]')"),'Restaurant Closure must not retain a second sidebar click dispatcher after Core route ownership');
+assert(restaurantUi.includes("restaurantClosureWired==='core-owned'"),'Restaurant Closure must mark Core-owned navigation');
+for(const route of ['tables','foodIngredients','foodRecipes','foodOperations']){
+  const row=(registry.split('\n').find(line=>line.includes("routeKey:'"+route+"'"))||'');
+  assert(row.includes("navigationOwner:'app.js'"),'Navigation registry must assign '+route+' to Core app.js');
+  assert(row.includes("dispatchMechanism:'showPage -> Restaurant Closure openPage'"),'Navigation registry dispatch contract drifted for '+route);
+}
+
 
 assert(hr.includes("group.setAttribute('data-beta55-hr-group','1')"),'HR group must publish Product Map ownership marker');
 assert(nav.includes("node.matches?.('[data-beta55-hr-group]')"),'Product Map must recognize canonical HR group ownership marker');
@@ -36,4 +46,4 @@ for(const sql of [ext,patch]){
 }
 assert((patch.match(/\bbegin;/gi)||[]).length===1 && (patch.match(/\bcommit;/gi)||[]).length===1,'HR corrective patch must remain transactional');
 
-console.log('RC1 practical nav/HR hotfix PASS — restaurant_routes=4; hr_group=owned; hr_profile_actions='+newActions.length);
+console.log('RC1 practical nav/HR hotfix PASS — restaurant_routes=4; single_nav_owner=core; hr_group=owned; hr_profile_actions='+newActions.length);
