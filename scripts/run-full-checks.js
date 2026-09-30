@@ -173,7 +173,8 @@ const commands = [
   "node scripts/check-offline-pos-return-native-owner.js",
   "node scripts/check-retail-suspend-resume-local-first.js",
   "node scripts/check-rc1-retail-offline-sync-coverage.js",
-  "node scripts/check-rc1-retail-offline-sync-behavior.js"
+  "node scripts/check-rc1-retail-offline-sync-behavior.js",
+  "node scripts/check-rc1-cloud-only-offline-fail-closed.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
