@@ -3,11 +3,18 @@
 const VERSION='10.5.4-beta.58.29',R=()=>global.__SharawlaAcceptanceRegistry;
 const text=v=>String(v??'').trim(),sleep=ms=>new Promise(r=>setTimeout(r,ms)),uuid=()=>global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const net=()=>global.__SharawlaAcceptanceNetworkLab;
+function sandboxLock(){
+ const license=(()=>{try{return JSON.parse(localStorage.getItem('sharawlaLicenseStateV1')||'{}')||{}}catch{return {}}})();
+ const cfg=(()=>{try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}})();
+ const support=text(license.support_code),branch=text(cfg.branch_name||cfg.branch?.name),business=text(cfg.business_name);
+ if(support!=='SH-0007'||branch!=='TEST'||business!=='تجريبي'){const e=new Error('SANDBOX_LOCK: mutating acceptance is allowed only on SH-0007 / تجريبي / TEST');e.code='ACCEPTANCE_SANDBOX_LOCK';throw e}
+ return {support_code:support,branch_name:branch,business_name:business};
+}
 async function event(tx){for(let i=0;i<40;i++){const e=await global.topBurgerDesktop?.offlineV2?.event?.(tx);if(e)return e;await sleep(75)}return null}
 async function sync(tx){for(let i=0;i<60;i++){try{await global.SharawlaOfflineV2Transport?.syncNow?.()}catch{}const e=await event(tx);if(e?.status==='synced')return e;if(['dead_letter','conflict','blocked'].includes(text(e?.status)))throw new Error(`terminal ${e.status}: ${e.last_error_code||''} ${e.last_error_message||''}`);await sleep(150)}throw new Error('offline event did not sync')}
 function ack(e){const a=e?.server_ack;if(!a||a.acknowledged!==true)throw new Error('explicit server ACK missing');return a}
 async function durable(name,payload,tx){let err=null;await net().enable('offline',{run_id:'offline-customer-delivery'});try{await global.SharawlaOfflineV2Transport.commitRpc(name,{...payload,p_client_tx_id:tx})}catch(e){err=e}finally{await net().disable('offline-durable-commit')}if(err&&!/fetch|network|offline|deferred/i.test(text(err?.message||err))&&!err?.offline_v2_status)throw err;const e=await event(tx);if(!e||!['pending','retryable'].includes(text(e.status)))throw new Error(`durable event missing: ${name} / ${e?.status||'missing'}`);return e}
-async function customer(ctx){
+async function customer(ctx){sandboxLock();
  const marker=`ACC-${String(ctx.run_id).slice(-8)}-${Date.now().toString().slice(-5)}`,phone='010'+String(Date.now()).slice(-8),tx=uuid();
  await durable('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Offline',p_notes:'SHARAWLA_ACCEPTANCE'},tx);
  const done=await sync(tx),a=ack(done);
@@ -17,7 +24,7 @@ async function customer(ctx){
  await global.SharawlaOfflineV2Transport.syncNow();
  return {status:'PASS',detail:`customer=${cid}; seq=${done.device_sequence}; receipts=1; replay=stable`,evidence:{customer_id:cid,client_tx_id:tx,device_sequence:done.device_sequence}};
 }
-async function customerChain(ctx){
+async function customerChain(ctx){sandboxLock();
  const marker=`CHAIN-${String(ctx.run_id).slice(-6)}-${Date.now().toString().slice(-5)}`,phone='011'+String(Date.now()).slice(-8),parent=uuid(),child=uuid();
  await net().enable('offline',{run_id:'offline-customer-chain'});let err=null;
  try{await global.SharawlaOfflineV2Transport.commitRpc('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Parent',p_notes:'CHAIN',p_client_tx_id:parent})}catch(e){if(!/fetch|network|offline|deferred/i.test(text(e?.message||e))&&!e?.offline_v2_status)throw e}
@@ -30,7 +37,7 @@ async function customerChain(ctx){
  await global.SharawlaOfflineV2Transport.syncNow();
  return {status:'PASS',detail:`customer=${cid}; address=${aid}; dependency=ACK-mapped; replay=stable`,evidence:{customer_id:cid,address_id:aid,parent_tx:parent,child_tx:child,parent_sequence:pe.device_sequence,child_sequence:ce.device_sequence}};
 }
-async function customerMutations(ctx){
+async function customerMutations(ctx){sandboxLock();
  const marker=`MUT-${String(ctx.run_id).slice(-6)}-${Date.now().toString().slice(-5)}`,phone='012'+String(Date.now()).slice(-8),createTx=uuid();
  await durable('offline_customer_create_v1',{p_name:marker,p_phone:phone,p_area:'Acceptance',p_address:'Fixture',p_notes:'MUTATION_FIXTURE'},createTx);
  const created=await sync(createTx),baseId=Number(ack(created).server_entity_id);if(!baseId)throw new Error('mutation fixture customer id missing');
@@ -43,7 +50,7 @@ async function customerMutations(ctx){
  for(const tx of [createTx,updateTx,addrTx,delTx]){ack(await event(tx))}
  return {status:'PASS',detail:`customer=${baseId}; isolated create+update+address-save+delete synced; receipts=4`,evidence:{customer_id:baseId,create_tx:createTx,update_tx:updateTx,address_tx:addrTx,delete_tx:delTx,address_id:aid}};
 }
-async function driver(ctx){
+async function driver(ctx){sandboxLock();
  const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
  const fx=await global.rpc('sharawla_beta58_offline_driver_fixture_v1',{p_run_id:ctx.run_id,p_branch_id:bid});
  const o={id:Number(fx?.order_id),branch_id:bid},d={id:Number(fx?.driver_id)};if(!o.id||!d.id)throw new Error('offline driver fixture incomplete');
@@ -54,7 +61,7 @@ async function driver(ctx){
  await global.SharawlaOfflineV2Transport.syncNow();
  return {status:'PASS',detail:`order=${o.id}; driver=${d.id}; seq=${done.device_sequence}; replay=stable`,evidence:{order_id:o.id,driver_id:d.id,client_tx_id:tx,device_sequence:done.device_sequence}};
 }
-async function delivered(ctx){
+async function delivered(ctx){sandboxLock();
  const bid=Number(global.currentBranchId?.()||0);if(!bid)throw new Error('active branch required');
  const fx=await global.rpc('sharawla_beta58_offline_status_fixture_v1',{p_run_id:ctx.run_id,p_branch_id:bid,p_kind:'delivery'});
  const o={id:Number(fx?.order_id),total:1,payment_method:'cash',status:'out_for_delivery',driver_id:Number(fx?.driver_id),delivery_cash_custody_amount:0};
