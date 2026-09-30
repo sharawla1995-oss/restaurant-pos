@@ -177,7 +177,8 @@ const commands = [
   "node scripts/check-rc1-cloud-only-offline-fail-closed.js",
   "node scripts/check-rc1-systemwide-offline-guard-coverage-2.js",
   "node scripts/check-rc1-rest-mutation-offline-fail-closed.js",
-  "node scripts/check-rc1-function-restore-offline-fail-closed.js"
+  "node scripts/check-rc1-function-restore-offline-fail-closed.js",
+  "node scripts/check-rc1-customer-po-ownership-routing.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
