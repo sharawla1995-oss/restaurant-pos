@@ -4,6 +4,7 @@ const html=fs.readFileSync('index.html','utf8');
 const js=fs.readFileSync('product-map-navigation-v1.js','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const reg=fs.readFileSync('sharawla-navigation-registry.js','utf8');
+const app=fs.readFileSync('app.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const runtimeVersion=String(pkg.version||'');
 const fail=[];
@@ -60,6 +61,11 @@ need(js.includes("planSignature(plan)===currentSignature(nav)"),'Idempotent stru
 need(js.includes("REGISTRY_MISSING"),'Missing registry must fail closed');
 need(css.includes('.sidebar nav .sharawla-nav-group-label'),'Product Map label styles missing');
 
+need(app.includes("foodIngredients:(...args)=>renderRestaurantClosurePage('foodIngredients',...args)"),'Main router must delegate Ingredients to Restaurant Closure owner');
+need(app.includes("foodRecipes:(...args)=>renderRestaurantClosurePage('foodRecipes',...args)"),'Main router must delegate Recipes to Restaurant Closure owner');
+need(app.includes("foodOperations:(...args)=>renderRestaurantClosurePage('foodOperations',...args)"),'Main router must delegate Production/Waste to Restaurant Closure owner');
+need(app.includes("tables:(...args)=>renderRestaurantClosurePage('tables',...args)"),'Main router must delegate Tables to Restaurant Closure owner');
+need(app.includes('window.__SharawlaRestaurantClosureV55'),'Main router Restaurant Closure adapter missing');
 need(js.includes("'businessSummary','home'"),'Business Summary must remain above Home in Product Map ordering');
 need(/routeKey:'businessSummary'[^\n]+navigationType:'data-page'[^\n]+pagePermission:'home'[^\n]+renderer:'renderBusinessSummary'[^\n]+conflictStatus:'NONE'[^\n]+migrationStatus:S/.test(reg),'Business Summary registry route must be canonical and implemented');
 need(!/routeKey:'summary'[^\n]+conflictStatus:'NOT_IMPLEMENTED'/.test(reg),'Legacy unimplemented summary registry entry must not shadow Business Summary');
