@@ -60,4 +60,18 @@ test('source contract and standalone PWA security',()=>{
  assert.equal(manifest.display,'standalone');assert(manifest.icons.some(x=>x.sizes==='192x192'&&x.type==='image/png'));assert(manifest.icons.some(x=>x.sizes==='512x512'&&x.type==='image/png'));assert(html.includes('cameraVideo'));assert(!html.includes('type="file"'));assert(pwa.includes('navigator.mediaDevices.getUserMedia'));assert(pwa.includes("document.addEventListener('visibilitychange'"));assert(edge.includes('SUPABASE_SERVICE_ROLE_KEY'));assert(edge.includes('@supabase/supabase-js@2.49.4'));assert(!edge.includes('has_action_permission_v2'));
 });
 
+test('HR admin keeps authoritative permission cache and read snapshots offline',()=>{
+ const ui=read('hr-attendance-admin-v1.js'),recovery=read('beta55-4-runtime-recovery.js');
+ assert(ui.includes('sharawlaHrActionPermissionsV1:'),'HR action permission cache key missing');
+ assert(ui.includes("if(global.navigator?.onLine===false){loadPermissionCache();syncNav();return}"),'Offline HR permission reuse missing');
+ assert(ui.includes('Promise.allSettled(PERMISSIONS.map'),'HR permission refresh must distinguish network failures from explicit false');
+ assert(!ui.includes("PERMISSIONS.map(code=>rpc('has_action_permission_v2',{p_action_code:code}).catch(()=>false))"),'Network failure must not erase HR permissions');
+ for(const table of ['hr_employees','hr_attendance_daily_summary','hr_attendance_events','hr_leave_requests','hr_attendance_devices','hr_work_schedules','hr_employee_schedule_assignments','hr_deduction_rules','hr_recurring_adjustments','hr_employee_adjustments','hr_employee_advances','hr_payroll_items','hr_staff_accounts','hr_branch_geofences','hr_settings']){
+  assert(recovery.includes("'"+table+"'"),'HR offline snapshot coverage missing '+table);
+ }
+ assert(recovery.includes('HR_OFFLINE_SNAPSHOT_TABLES.has(table)'),'HR compatibility read model missing');
+ assert(recovery.includes('hrSnapshot:${b}:${t}'),'HR warm snapshot persistence missing');
+ assert(ui.includes('const cloudMutations=new Set'),'HR cloud-authoritative mutation boundary missing');
+});
+
 (async()=>{let passed=0;for(const [name,fn] of tests){try{await fn();passed++}catch(error){console.error(`FAIL: ${name}`);throw error}}console.log(`Sharawla HR Attendance & Payroll Extension V1 PASS — ${passed} behavioral/security tests`)} )().catch(error=>{console.error(error.stack||error);process.exit(1)});
