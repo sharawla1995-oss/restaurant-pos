@@ -11,6 +11,8 @@ for(const [file,names] of Object.entries(guarded)){
  if(!s.includes('ONLINE_ONLY_GUARD_UNAVAILABLE'))throw new Error(file+': missing fail-closed unavailable-guard behavior');
  for(const n of names)if(!s.includes("'"+n+"'")&&!s.includes('"'+n+'"'))throw new Error(file+': missing guarded mutation '+n);
 }
+const pa=fs.readFileSync('purchasing-attachments-v1.js','utf8');
+for(const token of ["async function uploadObject(bucket,path,file){\n await requireMutationCloud('رفع مرفقات المشتريات');","async function removeObject(bucket,path){\n await requireMutationCloud('تنظيف مرفقات المشتريات');"])if(!pa.includes(token))throw new Error('purchasing attachments: missing strict storage guard '+token);
 const wh=fs.readFileSync('warehouse-v1-ui.js','utf8');
 if(wh.includes("rpc('retail_purchase_order_create'"))throw new Error('warehouse-v1: legacy PO RPC remains');
 for(const token of ["commitOptionalTxRpc('retail_purchase_order_create_v2'","WAREHOUSE_VARIANT_REQUIRED","OFFLINE_V2_OWNER_UNAVAILABLE"])if(!wh.includes(token))throw new Error('warehouse-v1: missing '+token);
