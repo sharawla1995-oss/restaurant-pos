@@ -984,6 +984,15 @@ async function renderBusinessSummary(){
   if(!dashboard||typeof dashboard.render!=='function')throw new Error('ملخص الأعمال غير متاح في هذا الإصدار.');
   return dashboard.render();
 }
+async function renderRestaurantClosureRoute(page){
+  const api=window.__SharawlaRestaurantClosureV55;
+  if(typeof api?.openPage!=='function'){
+    const error=new Error(`Restaurant Closure route adapter غير محمل: ${String(page||'')}`);
+    error.code='RESTAURANT_CLOSURE_ADAPTER_MISSING';
+    throw error;
+  }
+  return api.openPage(page);
+}
 const PAGE_RENDERERS=Object.freeze({
   businessSummary:renderBusinessSummary,
   home:renderHome,
@@ -996,8 +1005,12 @@ const PAGE_RENDERERS=Object.freeze({
   deliverySettings:renderDeliverySettings,
   delivery:(...args)=>window.renderDeliveryOrders(...args),
   kitchen:renderKitchen,
+  tables:()=>renderRestaurantClosureRoute('tables'),
   shifts:(...args)=>window.renderShifts(...args),
   inventory:renderInventory,
+  foodIngredients:()=>renderRestaurantClosureRoute('foodIngredients'),
+  foodRecipes:()=>renderRestaurantClosureRoute('foodRecipes'),
+  foodOperations:()=>renderRestaurantClosureRoute('foodOperations'),
   marketSettings:renderRetailMarketSettings,
   retailOffers:renderRetailOffers,
   stockCount:(...args)=>renderSharedInventoryPurchasingRoute('stockCount',...args),
