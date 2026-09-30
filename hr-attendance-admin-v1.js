@@ -10,8 +10,9 @@ const PERMISSIONS=[...new Set(Object.values(PAGE_DEF).map(x=>x[1]).concat(['hr.a
 const perms=Object.create(null);let started=false,observer=null;
 function permissionIdentity(){
  const cfg=global.SharawlaRuntimeConfig?.current?.()||{};
- const business=String(cfg.business_id||global.state?.business?.business_id||global.state?.business?.id||'').trim();
- const employeeId=Number(global.state?.employee?.id||0);
+ const host=global.__SharawlaUniversalDashboardHostV1?.getContext?.()||{};
+ const business=String(cfg.business_id||'').trim();
+ const employeeId=Number(host.employee?.id||0);
  return business&&employeeId>0?{business,employeeId}:null;
 }
 function permissionCacheKey(){
