@@ -2494,6 +2494,43 @@ async function exportBackup(groups){
 }
 async function createDesktopFullBackup(reason='auto-full'){if(!window.topBurgerDesktop?.backup?.saveJson||!navigator.onLine||!session?.access_token)return null;await refreshSessionIfNeeded();const data=await buildBackupData(Object.keys(BACKUP_GROUPS));const p=await window.topBurgerDesktop.backup.saveJson(JSON.stringify(data,null,2),reason);await odbSet('lastFullBackupAt',new Date().toISOString());return p}
 async function maybeDesktopDailyBackup(){if(!window.topBurgerDesktop?.isDesktop||!navigator.onLine)return;const last=await odbGet('lastFullBackupAt');if(last&&Date.now()-new Date(last).getTime()<24*60*60*1000)return;try{await createDesktopFullBackup('daily-full')}catch(e){console.warn('daily full backup',e)}}
+const SH0007_ZERO_STATE_GROUPS=Object.freeze(['orders','shifts','expenses','customers','delivery']);
+async function resetSh0007ZeroState(){
+ const st=await loadLicenseState(),supportCode=String(st?.support_code||'').trim(),testBranch=String(branchName(currentBranchId())||'').trim().toUpperCase();
+ if(supportCode!=='SH-0007'||testBranch!=='TEST')throw new Error('Zero State is restricted to SH-0007 / TEST');
+ if(!navigator.onLine)throw new Error('Zero State يحتاج اتصالًا بالإنترنت لإنشاء Backup كامل ومسح Cloud أولًا');
+ if(!window.topBurgerDesktop?.backup?.create||!window.topBurgerDesktop?.backup?.saveJson)throw new Error('تعذر الوصول لنظام النسخ الاحتياطي — تم إلغاء Zero State');
+ const localBackup=await window.topBurgerDesktop.backup.create('pre-zero-state-full');
+ if(!localBackup)throw new Error('تعذر إنشاء Backup محلي كامل — تم إلغاء Zero State');
+ const cloudBackup=await createDesktopFullBackup('pre-zero-state-full');
+ if(!cloudBackup)throw new Error('تعذر إنشاء Backup Cloud كامل — تم إلغاء Zero State');
+ const branchId=Number(currentBranchId());
+ if(!Number.isInteger(branchId)||branchId<=0)throw new Error('تعذر تحديد فرع TEST — تم إلغاء Zero State');
+ const groups=[...SH0007_ZERO_STATE_GROUPS];
+ const cloud=await req('/rest/v1/rpc/reset_pos_data_v7',{method:'POST',body:JSON.stringify({p_branch_id:branchId,p_groups:groups})});
+ if(!cloud?.ok||cloud?.contract!=='reset_pos_data_v7'||Number(cloud?.branch_id)!==branchId)throw new Error('فشل Cloud Zero State — لم يبدأ التنظيف المحلي');
+ try{
+  const scope={support_code:supportCode,branch_name:testBranch,groups};
+  if(!window.topBurgerDesktop?.offlineV2?.resetTestAll)throw new Error('Full Offline V2 test cleanup is unavailable');
+  await window.topBurgerDesktop.offlineV2.resetTestAll(scope);
+  if(!window.topBurgerDesktop?.sandbox?.cleanRuntime)throw new Error('Sandbox runtime cleanup is unavailable');
+  await window.topBurgerDesktop.sandbox.cleanRuntime(scope);
+  const idb=window.__SharawlaBeta44StorageRecovery;
+  if(!idb?.idbDeleteMatching)throw new Error('IndexedDB cleanup is unavailable');
+  const exact=['cachedOrders','offlineV2ReturnItems','offlineV2ReturnPayments','offlineV2Expenses','customersCache','customerAddressesCache','customersCacheAt'];
+  const prefixes=['cachedReturns:','returnUsage:','point4OrderIdentity:','sharawla55.4:bon:','openShift:','shiftHistory:','sharawla55.4:read:orders:','sharawla55.4:read:order_items:','sharawla55.4:read:order_payments:','sharawla55.4:read:returns:','sharawla55.4:read:return_items:','sharawla55.4:read:return_payments:','sharawla55.4:read:shifts:','sharawla55.4:read:expenses:','sharawla55.4:read:customers:','sharawla55.4:read:customer_addresses:','sharawla55.4:read:delivery_zones:','sharawla55.4:read:delivery_drivers:'];
+  await idb.idbDeleteMatching({exact,prefixes});
+  for(const k of exact){if((await idb.idbGet(k))!==undefined)throw new Error('Zero State IndexedDB residue: '+k)}
+  const stats=await window.topBurgerDesktop.offlineV2.syncStats();
+  const inbox=await window.topBurgerDesktop.offlineV2.inboxStats();
+  const outbox=await window.topBurgerDesktop.offlineV2.outbox(null);
+  if(Array.isArray(outbox)&&outbox.length)throw new Error('Zero State Offline V2 outbox is not empty');
+  if(Number(stats?.pending||0)||Number(stats?.retryable||0)||Number(stats?.conflict||0))throw new Error('Zero State Offline V2 sync residue remains');
+  const inboxTotal=Object.values(inbox||{}).reduce((n,v)=>n+(Number(v)||0),0);
+  if(inboxTotal)throw new Error('Zero State Offline V2 inbox is not empty');
+  return {ok:true,contract:'SH0007_ZERO_STATE_V1',branch_id:branchId,groups,cloud_reset:true,local_cleanup:true,verified:true};
+ }catch(e){const err=new Error(`Partial Failure: Cloud Zero State نجح لكن التنظيف المحلي لم يكتمل: ${e?.message||e}`);err.code='ZERO_STATE_PARTIAL_FAILURE';err.cloud_reset_succeeded=true;err.local_cleanup_succeeded=false;throw err}
+}
 async function resetGroups(groups){
  if(!navigator.onLine)throw new Error('إعادة الضبط تحتاج اتصالًا بالإنترنت لإنشاء آخر Backup كامل قبل المسح');
  if(!window.topBurgerDesktop?.backup?.create||!window.topBurgerDesktop?.backup?.saveJson)throw new Error('تعذر الوصول لنظام النسخ الاحتياطي على الجهاز — تم إلغاء إعادة الضبط');

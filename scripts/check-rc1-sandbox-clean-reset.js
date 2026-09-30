@@ -23,7 +23,10 @@ must(scoped.includes('DELETE FROM offline_v2_mappings WHERE client_tx_id IN'),'s
 must(scoped.includes('DELETE FROM offline_v2_outbox WHERE client_tx_id IN'),'scoped outbox cleanup missing');
 must(preload.includes("resetTestGroups:x=>ipcRenderer.invoke('offline-v2:reset-test-groups'"),'Offline V2 scoped reset preload bridge missing');
 must(app.includes('await window.topBurgerDesktop.offlineV2.resetTestGroups(scope)'),'Cloud reset must invoke scoped Offline V2 clean');
-must(!app.includes('await window.topBurgerDesktop.offlineV2.resetTestAll(scope)'),'normal Cloud reset must never invoke full Offline V2 clean');
+const normalStart=app.indexOf('async function resetGroups(groups)');
+const normalEnd=app.indexOf('async function restoreBackup',normalStart);
+const normalReset=app.slice(normalStart,normalEnd);
+must(!normalReset.includes('await window.topBurgerDesktop.offlineV2.resetTestAll(scope)'),'normal Cloud reset must never invoke full Offline V2 clean');
 must(app.includes("supportCode==='SH-0007'&&testBranch==='TEST'"),'renderer SH-0007 TEST guard missing');
 must(app.includes('Scoped Offline V2 reset is unavailable; refusing unsafe full reset'),'missing fail-closed scoped reset guard');
 must(app.includes('تمت إعادة ضبط Cloud لكن تعذر إكمال Scoped Clean على SH-0007'),'partial scoped reset must fail visibly');
