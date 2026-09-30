@@ -984,6 +984,20 @@ async function renderBusinessSummary(){
   if(!dashboard||typeof dashboard.render!=='function')throw new Error('ملخص الأعمال غير متاح في هذا الإصدار.');
   return dashboard.render();
 }
+async function renderRestaurantClosurePage(page){
+  const api=window.__SharawlaRestaurantClosureV55;
+  if(typeof api?.openPage!=='function'){
+    const e=new Error('مسار تشغيل المطعم غير محمل.');
+    e.code='RESTAURANT_CLOSURE_ADAPTER_MISSING';
+    throw e;
+  }
+  if(!api.pages?.includes?.(page)){
+    const e=new Error(`مسار تشغيل المطعم غير معروف: ${page}`);
+    e.code='RESTAURANT_CLOSURE_ROUTE_MISSING';
+    throw e;
+  }
+  return api.openPage(page);
+}
 const PAGE_RENDERERS=Object.freeze({
   businessSummary:renderBusinessSummary,
   home:renderHome,
@@ -996,6 +1010,10 @@ const PAGE_RENDERERS=Object.freeze({
   deliverySettings:renderDeliverySettings,
   delivery:(...args)=>window.renderDeliveryOrders(...args),
   kitchen:renderKitchen,
+  tables:(...args)=>renderRestaurantClosurePage('tables',...args),
+  foodIngredients:(...args)=>renderRestaurantClosurePage('foodIngredients',...args),
+  foodRecipes:(...args)=>renderRestaurantClosurePage('foodRecipes',...args),
+  foodOperations:(...args)=>renderRestaurantClosurePage('foodOperations',...args),
   shifts:(...args)=>window.renderShifts(...args),
   inventory:renderInventory,
   marketSettings:renderRetailMarketSettings,
