@@ -600,8 +600,8 @@ begin
     );
     v_entity_id:=coalesce(nullif(v_result#>>'{order,id}',''),nullif(v_payload->>'p_order_id',''));
   elsif v_operation='delivery_driver_settle' then
-    select coalesce(array_agg(x::bigint),'{}'::bigint[]) into v_order_ids
-    from jsonb_array_elements_text(coalesce(v_payload->'p_order_ids','[]'::jsonb)) x;
+    select coalesce(array_agg(q.value::bigint),'{}'::bigint[]) into v_order_ids
+    from jsonb_array_elements_text(coalesce(v_payload->'p_order_ids','[]'::jsonb)) as q(value);
     v_result:=public.offline_delivery_driver_settle_v1(
       (v_payload->>'p_driver_id')::bigint,
       v_order_ids,
