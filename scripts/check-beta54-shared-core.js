@@ -44,7 +44,8 @@ for(const token of [
  versionConst,
  "allowed('customers.create')",
  "b.textContent='➕ عميل جديد'",
- "global.rpc('customer_create_v2'",
+ "commitOptionalTxRpc('offline_customer_create_v1'",
+ 'p_client_tx_id:',
  'global.__SharawlaSharedBusinessCoreV1'
 ])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);
 
