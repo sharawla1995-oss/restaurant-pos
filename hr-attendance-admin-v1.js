@@ -1,5 +1,5 @@
 (function(global){
-'use strict';
+'use strict';const requireCloud=async label=>{const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}return guard.requireCloud(label)};
 const VERSION='10.5.4-beta.58.32';
 const PAGE_DEF={
  employees:['الموظفون','hr.employees.view','legacy'],attendance:['الحضور والانصراف','hr.attendance.view','new'],schedules:['جداول العمل','hr.schedules.view','new'],
@@ -16,7 +16,7 @@ const tx=prefix=>`${prefix}-${Date.now()}-${global.crypto?.randomUUID?.()||Math.
 const has=code=>perms[code]===true;
 const toast=message=>typeof global.toast==='function'?global.toast(message):alert(message);
 const cloudMutations=new Set(["hr_attendance_summary_approve_v1","hr_attendance_adjust_v1","hr_work_schedule_save_v1","hr_schedule_assign_v1","hr_leave_decide_v1","hr_recurring_adjustments_generate_v1","hr_deduction_rule_save_v1","hr_recurring_adjustment_save_v1","hr_staff_account_set_active_v1","hr_staff_logout_all_v1","hr_staff_device_revoke_v1","hr_staff_account_create_or_reset_v1","hr_geofence_set_v1","hr_settings_set_v1"]);
-const rpc=async(name,payload={})=>{if(cloudMutations.has(name))await global.__SharawlaRC1OnlineOnlyGuard?.requireCloud?.('HR');return global.rpc(name,payload)};
+const rpc=async(name,payload={})=>{if(cloudMutations.has(name))await requireCloud('HR');return global.rpc(name,payload)};
 const rest=(table,query='')=>global.rest(table,query);
 const branchId=()=>Number(global.currentBranchId?.()||0);
 function setPage(title,html){document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('active'));const heading=document.querySelector('#pageTitle');if(heading)heading.textContent=title;const page=document.querySelector('#page');if(page)page.innerHTML=html;document.querySelector('.sidebar')?.classList.remove('open')}
