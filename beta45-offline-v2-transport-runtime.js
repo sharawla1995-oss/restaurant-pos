@@ -510,7 +510,7 @@ async function reconcileCompatibilityProjections(){
   const hasIngredientConversions=rows.some(r=>text(r?.operation_type)==='ingredient_conversion_save');
   const hasRecipeDrafts=rows.some(r=>text(r?.operation_type)==='recipe_draft_save'||text(r?.operation_type)==='recipe_version_activate');
   const prepRows=rows.filter(r=>['prep_item_save','prep_recipe_draft_save'].includes(text(r?.operation_type)));
-  const retailPurchasingRows=rows.filter(r=>['retail_supplier_save','retail_po_create','retail_po_approve','retail_purchase_receive','retail_supplier_return'].includes(text(r?.operation_type)));
+  const retailPurchasingRows=rows.filter(r=>['retail_supplier_save','retail_po_create','retail_po_approve','retail_purchase_receive','retail_supplier_return'].includes(text(r?.operation_type))).sort((a,b)=>num(a?.device_sequence,0)-num(b?.device_sequence,0));
   const foodPoRows=rows.filter(r=>['food_po_create','food_po_approve','food_po_cancel'].includes(text(r?.operation_type)));
   const foodReceiptRows=rows.filter(r=>text(r?.operation_type)==='food_purchase_receive');
   const foodSupplierReturnRows=rows.filter(r=>text(r?.operation_type)==='food_supplier_return');
