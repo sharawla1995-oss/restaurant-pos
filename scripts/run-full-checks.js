@@ -182,7 +182,8 @@ const commands = [
   "node scripts/check-rc1-central-warehouse-v2-ownership-routing.js",
   "node scripts/check-rc1-strict-online-only-guards-batch3.js",
   "node scripts/check-rc1-special-direct-write-guards.js",
-  "node scripts/check-rc1-website-helper-replay-boundary.js"
+  "node scripts/check-rc1-website-helper-replay-boundary.js",
+  "node scripts/check-rc1-offline-closure-matrix.js"
 ];
 
 for (let index = 0; index < commands.length; index += 1) {
