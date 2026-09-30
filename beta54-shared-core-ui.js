@@ -23,9 +23,9 @@ const toast=m=>{try{if(typeof global.toast==='function')return global.toast(m)}c
 const cloudMutations=new Set(["hr_employee_update_v1","hr_employee_create_v1","hr_employee_compensation_set_v1","hr_advance_decide_v1","hr_advance_create_v1","hr_advance_disburse_v1","hr_adjustment_create_v1","hr_payroll_approve_v1","hr_payroll_run_attendance_v1","hr_payroll_run_v1","hr_payroll_pay_attendance_v1","hr_payroll_pay_v1","treasury_manual_post_v1"]);async function rpc(name,payload={}){if(typeof global.rpc!=='function')throw new Error('الاتصال غير جاهز');if(cloudMutations.has(name)){const guard=global.__SharawlaRC1OnlineOnlyGuard;if(typeof guard?.requireCloud!=='function'){const e=new Error('مسار الحماية Online-only غير جاهز');e.code='ONLINE_ONLY_GUARD_UNAVAILABLE';throw e}await guard.requireCloud('HR/Payroll/Treasury')}return global.rpc(name,payload)}
 async function rest(table,query=''){if(typeof global.rest!=='function')throw new Error('الاتصال غير جاهز');return global.rest(table,query)}
 function branchId(){try{return Number(typeof global.currentBranchId==='function'?global.currentBranchId():0)||0}catch{return 0}}
-function has(code){return perms[code]===true}
-async function permission(code){try{return (await rpc('has_action_permission_v2',{p_action_code:code}))===true}catch{return false}}
-async function refreshPermissions(){const values=await Promise.all(PERMISSION_CODES.map(permission));PERMISSION_CODES.forEach((c,i)=>perms[c]=values[i]);syncNav()}
+function has(code){try{if(typeof global.isAdmin==='function'&&global.isAdmin())return true}catch{}return perms[code]===true}
+async function permission(code){try{return {resolved:true,allowed:(await rpc('has_action_permission_v2',{p_action_code:code}))===true}}catch{return {resolved:false,allowed:false}}}
+async function refreshPermissions(){const values=await Promise.all(PERMISSION_CODES.map(permission));PERMISSION_CODES.forEach((c,i)=>{if(values[i].resolved)perms[c]=values[i].allowed});syncNav()}
 function appVisible(){const v=document.querySelector('#appView');return !!v&&!v.classList.contains('hidden')}
 function injectStyle(){if(document.querySelector('#beta54CoreStyle'))return;const s=document.createElement('style');s.id='beta54CoreStyle';s.textContent=`
 .beta54-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
