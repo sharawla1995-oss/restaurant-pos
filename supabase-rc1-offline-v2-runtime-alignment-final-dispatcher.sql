@@ -31,7 +31,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path=pg_catalog,public
-as $
+as $$
 declare
   v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
   v_digest text:=nullif(trim(coalesce(p_payload_digest,'')),'');
@@ -53,7 +53,7 @@ begin
   values(v_tx,'driver_save',v_digest,v_id,v_result);
   return v_result;
 end;
-$;
+$$;
 
 create or replace function public.offline_delivery_zone_save_v1(
   p_zone_id bigint,
@@ -68,7 +68,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path=pg_catalog,public
-as $
+as $$
 declare
   v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
   v_digest text:=nullif(trim(coalesce(p_payload_digest,'')),'');
@@ -90,7 +90,7 @@ begin
   values(v_tx,'zone_save',v_digest,v_id,v_result);
   return v_result;
 end;
-$;
+$$;
 
 create or replace function public.sharawla_offline_v2_apply_event_reference_v1(p_event jsonb)
 returns jsonb
