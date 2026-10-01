@@ -11,6 +11,7 @@ const SHELL=[
  './retail-variants-runtime-bridge.js?v=10.5.4-beta.58.32','./retail-variants-ui.js?v=10.5.4-beta.58.32','./retail-variants-startup-hotfix.js?v=10.5.4-beta.58.32','./advanced-purchasing-runtime-bridge.js?v=10.5.4-beta.58.32','./advanced-purchasing-v1.js?v=10.5.4-beta.58.32',
  './food-recipe-runtime-bridge.js?v=10.5.4-beta.58.32','./food-recipe-ui-v1.js?v=10.5.4-beta.58.32','./food-advanced-ui-v1.js?v=10.5.4-beta.58.32',
  './beta36-offline-v2.js?v=10.5.4-beta.58.32','./permissions-v2-ui.js?v=10.5.4-beta.58.32','./printing-v2.js?v=10.5.4-beta.58.32','./landed-cost-posting-v1.js?v=10.5.4-beta.58.32','./commerce-orders-v2-ui.js?v=10.5.4-beta.58.32','./reports-v2-ui.js?v=10.5.4-beta.58.32','./finance-b2b-ui.js?v=10.5.4-beta.58.32','./service-v1-ui.js?v=10.5.4-beta.58.32','./warehouse-v1-ui.js?v=10.5.4-beta.58.32','./membership-v1-ui.js?v=10.5.4-beta.58.32','./logistics-v1-ui.js?v=10.5.4-beta.58.32',
+ './hr-employee-profile-model-v1.js?v=10.5.4-beta.58.32',
  './beta45-offline-v2-foundation.js?v=10.5.4-beta.58.32',
  './beta-self-test.js?v=10.5.4-beta.58.32',
  './beta45-offline-v2-runtime-takeover.js?v=10.5.4-beta.58.32',
