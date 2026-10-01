@@ -1,7 +1,7 @@
 # Sharawla RC1 Root-Cause Stabilization Contract
 
-Date: 2026-09-30  
-Starting source SHA: `40511daacf42b8aed6201bd610f99f6d015d1a23`  
+Date: 2026-09-30
+Starting source SHA: `40511daacf42b8aed6201bd610f99f6d015d1a23`
 Scope: source and tests only; no deployment, device installation, migration execution, merge, or Production access.
 
 ## Authority map
