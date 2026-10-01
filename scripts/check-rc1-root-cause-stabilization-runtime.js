@@ -111,8 +111,10 @@ async function checkHrModel(){
 
   const parity=read('beta55-navigation-parity.js');
   assert(parity.includes('canonicalNavAliasOf'));
-  assert(parity.includes("global.__SharawlaBeta54SharedCore?.render('treasury')"));
-  assert(parity.includes("global.__SharawlaHrAttendanceAdminV1?.open()"));
+  assert(parity.includes("key==='beta54:treasury'&&typeof global.__SharawlaBeta54SharedCore?.render==='function'"));
+  assert(parity.includes("global.__SharawlaBeta54SharedCore.render('treasury')"),'Treasury parity route must call canonical Beta54 owner');
+  assert(parity.includes("key==='group:hr'&&typeof global.__SharawlaHrAttendanceAdminV1?.open==='function'"));
+  assert(parity.includes("global.__SharawlaHrAttendanceAdminV1.open()"),'HR parity route must call canonical HR parent owner');
 
   const hr=read('hr-attendance-admin-v1.js');
   assert(hr.includes("const HR_NAV_KEYS=Object.freeze(['employees','attendance','schedules','leaves','advances','adjustments','rules','payroll','reports','settings']);"));
