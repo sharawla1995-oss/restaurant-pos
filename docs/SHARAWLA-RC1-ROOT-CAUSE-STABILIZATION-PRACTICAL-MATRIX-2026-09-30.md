@@ -1,8 +1,8 @@
 # SH-0007 Practical Acceptance Matrix — Root-Cause Stabilization
 
-Date: 2026-09-30  
-Source baseline: `40511daacf42b8aed6201bd610f99f6d015d1a23`  
-Target device for later execution: `SH-0007` only  
+Date: 2026-09-30
+Source baseline: `40511daacf42b8aed6201bd610f99f6d015d1a23`
+Target device for later execution: `SH-0007` only
 Status: procedure prepared; **not executed by this source task**
 
 ## Safety and evidence rules
