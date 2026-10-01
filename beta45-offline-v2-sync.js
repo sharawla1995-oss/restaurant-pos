@@ -47,6 +47,29 @@ function classifyError(error){
   const auth=status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
   if(auth)return {kind:'blocked',reason:'auth',code,message,retryable:false,http_status:status};
   if(code==='OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'||code==='OFFLINE_V2_DEPENDENCY_PENDING'||error?.kind==='dependency')return {kind:'blocked',reason:'dependency',code,message,retryable:false,http_status:status};
+  const backendContract=
+    error?.kind==='backend_contract'
+    || (
+      code==='22023'
+      && (
+        lower.includes('offline v2 operation/rpc binding')
+        || lower.includes('offline v2 rpc')
+        || lower.includes('runtime alignment operation')
+      )
+      && (
+        lower.includes('غير مدعومة')
+        || lower.includes('not supported')
+        || lower.includes('unsupported')
+      )
+    );
+  if(backendContract)return {
+    kind:'transient',
+    reason:'backend_contract',
+    code:'OFFLINE_V2_BACKEND_CONTRACT_MISSING',
+    message,
+    retryable:true,
+    http_status:status
+  };
   const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
   if(business)return {kind:'conflict',code,message,retryable:false,http_status:status};
   if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true,http_status:status};
@@ -128,7 +151,7 @@ function createSyncEngine(options={}){
       if(typeof store.markBlocked!=='function')throw new Error('Offline V2 store missing markBlocked');
       await store.markBlocked(row.client_tx_id,c);return 'blocked';
     }
-    if(c.kind==='permanent'||(c.kind==='protocol'&&attempts>=num(cfg.maxProtocolAttempts,5))||(c.kind==='transient'&&attempts>=num(cfg.maxTransientAttempts,12))){
+    if(c.kind==='permanent'||(c.kind==='protocol'&&attempts>=num(cfg.maxProtocolAttempts,5))||(c.kind==='transient'&&c.reason!=='backend_contract'&&attempts>=num(cfg.maxTransientAttempts,12))){
       if(typeof store.markDeadLetter!=='function'){
         const delay=retryDelayMs(attempts,cfg,random);await store.markRetryable(row.client_tx_id,c,iso(num(clock(),Date.now())+delay));return 'retry';
       }
