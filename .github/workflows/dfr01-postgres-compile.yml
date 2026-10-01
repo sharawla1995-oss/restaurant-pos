@@ -1,0 +1,137 @@
+name: DFR-01 PostgreSQL Compile and Integration Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [rc1-beta58-32-performance-hotfix]
+    paths:
+      - "supabase-dfr01-readonly-report-drilldowns.sql"
+      - "scripts/check-dfr01-readonly-reports.js"
+      - "scripts/dfr01-postgres-integration-fixture.sql"
+      - ".github/workflows/dfr01-postgres-compile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-compile-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dfr01_compile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dfr01_compile"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: dfr01_compile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assert isolated database gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_URL:-}"
+          test -z "${SUPABASE_DB_URL:-}"
+          test -z "${DATABASE_URL:-}"
+          echo "DFR-01 gate uses only the ephemeral PostgreSQL 16 service."
+
+      - name: Run source-only DFR-01 checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/check-dfr01-readonly-reports.js .
+
+      - name: PostgreSQL compile and integration proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp scripts/dfr01-postgres-integration-fixture.sql /tmp/dfr01-postgres-integration-fixture.sql
+          cp supabase-dfr01-readonly-report-drilldowns.sql /tmp/supabase-dfr01-readonly-report-drilldowns.sql
+          cd /tmp
+          psql -v ON_ERROR_STOP=1 -f dfr01-postgres-integration-fixture.sql | tee /tmp/dfr01-postgres-proof.log
+          grep -q "DFR01_POSTGRES_INTEGRATION_PASS" /tmp/dfr01-postgres-proof.log
+
+      - name: Verify six effective function definitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(psql -Atc "
+            select count(*)
+            from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public'
+              and p.proname in (
+                'report_sales_by_payment_method_v1',
+                'report_sales_by_employee_v1',
+                'report_sales_by_customer_v1',
+                'report_purchases_by_supplier_v1',
+                'report_purchases_by_employee_v1',
+                'report_purchase_orders_detail_v1'
+              );")" = "6"
+          psql -Atc "
+            select p.oid::regprocedure::text
+            from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public'
+              and p.proname like 'report_%_v1'
+            order by 1;" > /tmp/dfr01-function-signatures.txt
+          psql -Atc "
+            select pg_get_functiondef(p.oid)
+            from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public'
+              and p.proname in (
+                'report_sales_by_payment_method_v1',
+                'report_sales_by_employee_v1',
+                'report_sales_by_customer_v1',
+                'report_purchases_by_supplier_v1',
+                'report_purchases_by_employee_v1',
+                'report_purchase_orders_detail_v1'
+              )
+            order by p.oid::regprocedure::text;" > /tmp/dfr01-pg-get-functiondef.txt
+          echo "DFR01_EFFECTIVE_FUNCTIONS=6"
+
+      - name: Build compile evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dfr01-postgres-evidence
+          cp /tmp/dfr01-postgres-proof.log dfr01-postgres-evidence/ 2>/dev/null || true
+          cp /tmp/dfr01-function-signatures.txt dfr01-postgres-evidence/ 2>/dev/null || true
+          cp /tmp/dfr01-pg-get-functiondef.txt dfr01-postgres-evidence/ 2>/dev/null || true
+          {
+            echo "DFR01_POSTGRES_GATE_V1"
+            echo "tested_commit_sha=$GITHUB_SHA"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "postgres_version=$(psql -Atc 'show server_version' 2>/dev/null || true)"
+            echo "sql_sha256=$(sha256sum supabase-dfr01-readonly-report-drilldowns.sql | awk '{print $1}')"
+            echo "fixture_sha256=$(sha256sum scripts/dfr01-postgres-integration-fixture.sql | awk '{print $1}')"
+          } > dfr01-postgres-evidence/report.txt
+
+      - name: Upload compile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dfr01-postgres-compile-evidence-${{ github.sha }}
+          path: dfr01-postgres-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
