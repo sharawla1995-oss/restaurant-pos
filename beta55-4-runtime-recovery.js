@@ -337,7 +337,8 @@ async function warmRuntimeCaches(){
   ['customer_addresses','select=*&order=id.desc&limit=20000'],
   ['delivery_drivers',`select=*&branch_id=eq.${b}&order=active.desc,name`],
   ['delivery_zones',`select=*&branch_id=eq.${b}&order=active.desc,name`],
-  ['driver_settlements',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=50`]
+  ['driver_settlements',`select=*&branch_id=eq.${b}&order=created_at.desc&limit=50`],
+  ['treasury_movements',`select=id,branch_id,shift_id,direction,movement_type,amount,method,entity_type,entity_id,reference,notes,created_at&branch_id=eq.${b}&order=created_at.desc,id.desc&limit=300`]
 ,
   // Restaurant Offline Read Foundation: deterministic screen snapshots.
   ['ingredients','select=*&order=active.desc,name'],
