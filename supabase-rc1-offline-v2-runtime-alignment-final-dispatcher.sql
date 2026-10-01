@@ -16,6 +16,82 @@
 
 begin;
 
+
+-- Root-Cause Stabilization: durable Delivery Settings wrappers.
+create or replace function public.offline_delivery_driver_save_v1(
+  p_driver_id bigint,
+  p_branch_id bigint,
+  p_name text,
+  p_phone text,
+  p_active boolean,
+  p_client_tx_id text,
+  p_payload_digest text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path=pg_catalog,public
+as $
+declare
+  v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
+  v_digest text:=nullif(trim(coalesce(p_payload_digest,'')),'');
+  v_receipt public.offline_customer_delivery_receipts_v1%rowtype;
+  v_id bigint;
+  v_result jsonb;
+begin
+  if auth.uid() is null then raise exception 'UNAUTHENTICATED'; end if;
+  if v_tx is null or v_digest is null then raise exception 'OFFLINE_DRIVER_IDENTITY_REQUIRED'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('offline-driver-save:'||v_tx,0));
+  select * into v_receipt from public.offline_customer_delivery_receipts_v1 where client_tx_id=v_tx;
+  if found then
+    if v_receipt.operation_type<>'driver_save' or v_receipt.payload_digest<>v_digest then raise exception 'OFFLINE_DRIVER_REPLAY_MISMATCH'; end if;
+    return v_receipt.result_json||jsonb_build_object('idempotent_replay',true);
+  end if;
+  v_id:=public.delivery_driver_save_v2(p_driver_id,p_branch_id,p_name,p_phone,p_active);
+  v_result:=jsonb_build_object('ok',true,'driver_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
+  values(v_tx,'driver_save',v_digest,v_id,v_result);
+  return v_result;
+end;
+$;
+
+create or replace function public.offline_delivery_zone_save_v1(
+  p_zone_id bigint,
+  p_branch_id bigint,
+  p_name text,
+  p_delivery_fee numeric,
+  p_active boolean,
+  p_client_tx_id text,
+  p_payload_digest text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path=pg_catalog,public
+as $
+declare
+  v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
+  v_digest text:=nullif(trim(coalesce(p_payload_digest,'')),'');
+  v_receipt public.offline_customer_delivery_receipts_v1%rowtype;
+  v_id bigint;
+  v_result jsonb;
+begin
+  if auth.uid() is null then raise exception 'UNAUTHENTICATED'; end if;
+  if v_tx is null or v_digest is null then raise exception 'OFFLINE_ZONE_IDENTITY_REQUIRED'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('offline-zone-save:'||v_tx,0));
+  select * into v_receipt from public.offline_customer_delivery_receipts_v1 where client_tx_id=v_tx;
+  if found then
+    if v_receipt.operation_type<>'zone_save' or v_receipt.payload_digest<>v_digest then raise exception 'OFFLINE_ZONE_REPLAY_MISMATCH'; end if;
+    return v_receipt.result_json||jsonb_build_object('idempotent_replay',true);
+  end if;
+  v_id:=public.delivery_zone_save_v2(p_zone_id,p_branch_id,p_name,p_delivery_fee,p_active);
+  v_result:=jsonb_build_object('ok',true,'zone_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
+  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
+  values(v_tx,'zone_save',v_digest,v_id,v_result);
+  return v_result;
+end;
+$;
+
 create or replace function public.sharawla_offline_v2_apply_event_reference_v1(p_event jsonb)
 returns jsonb
 language plpgsql
@@ -120,6 +196,10 @@ begin
     end if;
     if v_operation='shift_open' and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
       raise exception using errcode='22023', message='Offline V2 shift branch mismatch';
+    end if;
+    if v_operation in ('driver_save','zone_save')
+       and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+      raise exception using errcode='22023', message='Offline V2 Delivery Settings branch mismatch';
     end if;
   end if;
 
@@ -249,6 +329,12 @@ begin
     when 'offline_food_supplier_save_v1' then
       v_result := public.offline_food_supplier_save_v1(nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_email',v_payload->>'p_tax_no',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'supplier_id','');
+    when 'offline_delivery_driver_save_v1' then
+      v_result := public.offline_delivery_driver_save_v1(nullif(v_payload->>'p_driver_id','')::bigint,v_branch,v_payload->>'p_name',v_payload->>'p_phone',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'driver_id','');
+    when 'offline_delivery_zone_save_v1' then
+      v_result := public.offline_delivery_zone_save_v1(nullif(v_payload->>'p_zone_id','')::bigint,v_branch,v_payload->>'p_name',(v_payload->>'p_delivery_fee')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'zone_id','');
     when 'offline_food_ingredient_save_v1' then
       v_result := public.offline_food_ingredient_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_name',v_payload->>'p_base_unit_code',v_payload->>'p_purchase_unit_code',v_payload->>'p_sku',v_payload->>'p_barcode',coalesce((v_payload->>'p_cost_per_base_unit')::numeric,0),coalesce((v_payload->>'p_minimum_quantity')::numeric,0),coalesce((v_payload->>'p_track_inventory')::boolean,true),coalesce((v_payload->>'p_usable_yield_percent')::numeric,100),nullif(v_payload->>'p_shelf_life_minutes','')::integer,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'ingredient_id','');
@@ -781,6 +867,8 @@ revoke all on function public.sharawla_offline_v2_apply_event_point4_outer_v1(js
 revoke all on function public.sharawla_offline_v2_apply_event_reference_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_modern_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_alignment_special_v1(jsonb) from public,anon,authenticated;
+revoke all on function public.offline_delivery_driver_save_v1(bigint,bigint,text,text,boolean,text,text) from public,anon,authenticated;
+revoke all on function public.offline_delivery_zone_save_v1(bigint,bigint,text,numeric,boolean,text,text) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event(jsonb) from public,anon;
 grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated;
 
