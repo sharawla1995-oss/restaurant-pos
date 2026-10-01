@@ -57,6 +57,7 @@ function topLevelEntries(){
  for(const node of [...nav.children]){
    if(node.id==='logoutMenuBtn'||!visible(node))continue;
    if(node.matches?.('button')){
+     if(node.dataset?.canonicalNavAliasOf)continue;
      const key=keyForButton(node);if(!key)continue;
      out.push({key,kind:'button',button:node,meta:META[key]||null});continue;
    }
@@ -82,6 +83,12 @@ function createCard(entry){
 }
 function cardKey(card){return card?.dataset?.navParityKey||(card?.dataset?.homePage?`page:${card.dataset.homePage}`:null)}
 function route(key){
+ if(key==='beta54:treasury'&&typeof global.__SharawlaBeta54SharedCore?.render==='function'){
+  global.__SharawlaBeta54SharedCore.render('treasury');return true;
+ }
+ if(key==='group:hr'&&typeof global.__SharawlaHrAttendanceAdminV1?.open==='function'){
+  global.__SharawlaHrAttendanceAdminV1.open();return true;
+ }
  const e=topLevelEntries().find(x=>x.key===key);if(!e)return false;
  if(e.kind==='group'){
    const first=e.children.find(visible);if(!first)return false;first.click();return true;
