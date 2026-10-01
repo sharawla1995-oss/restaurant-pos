@@ -111,8 +111,8 @@ async function checkHrModel(){
 
   const parity=read('beta55-navigation-parity.js');
   assert(parity.includes('canonicalNavAliasOf'));
-  assert(parity.includes("__SharawlaBeta54SharedCore?.render('treasury')"));
-  assert(parity.includes("__SharawlaHrAttendanceAdminV1?.open()"));
+  assert(parity.includes("global.__SharawlaBeta54SharedCore?.render('treasury')"));
+  assert(parity.includes("global.__SharawlaHrAttendanceAdminV1?.open()"));
 
   const hr=read('hr-attendance-admin-v1.js');
   assert(hr.includes("const HR_NAV_KEYS=Object.freeze(['employees','attendance','schedules','leaves','advances','adjustments','rules','payroll','reports','settings']);"));
