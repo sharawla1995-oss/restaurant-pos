@@ -1,6 +1,12 @@
 \set ON_ERROR_STOP on
 
 create schema if not exists auth;
+do $roles$
+begin
+  if not exists(select 1 from pg_roles where rolname='anon') then execute 'create role anon nologin'; end if;
+  if not exists(select 1 from pg_roles where rolname='authenticated') then execute 'create role authenticated nologin'; end if;
+end
+$roles$;
 create or replace function auth.uid() returns uuid language sql stable as $$select '11111111-1111-1111-1111-111111111111'::uuid$$;
 create or replace function public.is_admin() returns boolean language sql stable as $$select true$$;
 create or replace function public.has_permission(text) returns boolean language sql stable as $$select true$$;
