@@ -1,0 +1,112 @@
+name: Wave 1 Read-only PostgreSQL Compile and Integration Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [rc1-beta58-32-performance-hotfix]
+    paths:
+      - "supabase-dfr02-customer-timeline-read-model.sql"
+      - "supabase-dfr04-activity-log-read-model.sql"
+      - "supabase-dfr22-operational-statements.sql"
+      - "customer-timeline-v1.js"
+      - "activity-log-v1.js"
+      - "operational-statements-v1.js"
+      - "beta36-integration-loader.js"
+      - "scripts/check-dfr02-customer-timeline.js"
+      - "scripts/check-dfr04-activity-log.js"
+      - "scripts/check-dfr22-operational-statements.js"
+      - "scripts/check-wave1-source-contracts.js"
+      - "scripts/check-wave1-postgres-gate-source.js"
+      - "scripts/wave1-postgres-integration-fixture.sql"
+      - ".github/workflows/wave1-postgres-compile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-compile-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wave1_compile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d wave1_compile"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: wave1_compile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert isolated database gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_URL:-}"
+          test -z "${SUPABASE_DB_URL:-}"
+          test -z "${DATABASE_URL:-}"
+          echo "Wave 1 gate uses only ephemeral PostgreSQL 16."
+      - name: Run source-only checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/check-dfr02-customer-timeline.js .
+          node scripts/check-dfr04-activity-log.js .
+          node scripts/check-dfr22-operational-statements.js .
+          node scripts/check-wave1-source-contracts.js .
+          node scripts/check-wave1-postgres-gate-source.js .
+      - name: PostgreSQL compile and integration proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wave1
+          cp scripts/wave1-postgres-integration-fixture.sql /tmp/wave1/
+          cp supabase-dfr02-customer-timeline-read-model.sql /tmp/wave1/
+          cp supabase-dfr04-activity-log-read-model.sql /tmp/wave1/
+          cp supabase-dfr22-operational-statements.sql /tmp/wave1/
+          cd /tmp/wave1
+          psql -v ON_ERROR_STOP=1 -f wave1-postgres-integration-fixture.sql | tee /tmp/wave1-postgres-proof.log
+          grep -q "WAVE1_POSTGRES_INTEGRATION_PASS" /tmp/wave1-postgres-proof.log
+      - name: Capture effective functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -Atc "select p.oid::regprocedure::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('customer_timeline_v1','activity_log_read_v1','customer_operational_statement_v1','supplier_operational_parties_v1','supplier_operational_statement_v1') order by 1" > /tmp/wave1-function-signatures.txt
+          test "$(wc -l < /tmp/wave1-function-signatures.txt | tr -d ' ')" = "5"
+          psql -Atc "select pg_get_functiondef(p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('customer_timeline_v1','activity_log_read_v1','customer_operational_statement_v1','supplier_operational_parties_v1','supplier_operational_statement_v1') order by p.oid::regprocedure::text" > /tmp/wave1-pg-get-functiondef.txt
+          echo "WAVE1_EFFECTIVE_FUNCTIONS=5"
+      - name: Build compile evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p wave1-postgres-evidence
+          cp /tmp/wave1-postgres-proof.log wave1-postgres-evidence/
+          cp /tmp/wave1-function-signatures.txt wave1-postgres-evidence/
+          cp /tmp/wave1-pg-get-functiondef.txt wave1-postgres-evidence/
+          {
+            echo "WAVE1_POSTGRES_GATE_V1"
+            echo "tested_commit_sha=$GITHUB_SHA"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "postgres_version=$(psql -Atc 'show server_version')"
+            sha256sum supabase-dfr02-customer-timeline-read-model.sql
+            sha256sum supabase-dfr04-activity-log-read-model.sql
+            sha256sum supabase-dfr22-operational-statements.sql
+            sha256sum scripts/wave1-postgres-integration-fixture.sql
+          } > wave1-postgres-evidence/report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wave1-postgres-compile-evidence-${{ github.sha }}
+          path: wave1-postgres-evidence/
+          retention-days: 90
+          if-no-files-found: error
