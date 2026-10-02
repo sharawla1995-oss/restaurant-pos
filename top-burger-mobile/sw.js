@@ -1,9 +1,9 @@
-const CACHE='top-burger-mobile-v8.8.1-4';
+const CACHE='top-burger-mobile-v8.8.2-5';
 const SHELL=[
   './',
   './index.html',
   './styles.css?v=8.8.1',
-  './app.js?v=8.8.1',
+  './app.js?v=8.8.2',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

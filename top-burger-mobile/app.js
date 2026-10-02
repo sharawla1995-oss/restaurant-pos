@@ -132,7 +132,7 @@ $('#changeBranchBtn').onclick=()=>renderBranchPicker();
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
-function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setMobileNavOpen(false)}
+function navActive(p){document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setMobileNavOpen(false)}
 async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
