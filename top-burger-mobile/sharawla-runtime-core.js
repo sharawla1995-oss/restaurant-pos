@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
 
-  // Sharawla POS V10.5.2 — Multi-Industry Runtime Core.
+  // Sharawla POS V10.5.3 — Multi-Industry Runtime Core.
   // Industry-specific navigation, permissions and operational page rules are
   // supplied by the installed profile engine. The Core stays industry-neutral.
   const engines=new Map();
@@ -41,10 +41,14 @@
   function resolveEngine(config){
     const exact=getEngine(config?.pos_profile);
     if(exact)return exact;
-    // During bootstrap there may be no Runtime Config yet. If this build only
-    // contains one implemented engine, using it for static UI metadata is safe
-    // and avoids hardcoding an industry name in app.js.
-    if(!config && engines.size===1)return [...engines.values()][0];
+    // During bootstrap there may be no Runtime Config yet. Prefer the one engine
+    // explicitly marked as the bootstrap compatibility default. This keeps the
+    // Core industry-neutral even when multiple profile engines are installed.
+    if(!config){
+      const defaults=[...engines.values()].filter(engine=>engine.bootstrapDefault===true);
+      if(defaults.length===1)return defaults[0];
+      if(engines.size===1)return [...engines.values()][0];
+    }
     return null;
   }
 

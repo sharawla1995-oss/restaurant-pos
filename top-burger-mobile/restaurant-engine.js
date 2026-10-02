@@ -89,6 +89,7 @@
   core.registerEngine({
     code:'restaurant',
     displayName:'Restaurant',
+    bootstrapDefault:true,
 
     resolveModules(modules,configured){
       return configured ? core.normalizeModules(modules) : [...LEGACY_MODULES];
