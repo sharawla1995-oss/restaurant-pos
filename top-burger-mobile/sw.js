@@ -1,10 +1,12 @@
-const CACHE='top-burger-mobile-v8.8.0-1';
+const CACHE='top-burger-mobile-v8.8.0-2';
 const SHELL=[
   './',
   './index.html',
   './styles.css?v=8.8.0',
   './app.js?v=8.8.0',
-  './manifest.json'
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install',event=>{
