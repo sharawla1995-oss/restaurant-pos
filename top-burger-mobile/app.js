@@ -118,11 +118,21 @@ async function bootstrap(){
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);await bootstrap()}catch(err){toast(err.message)}});
-$('#logoutBtn').onclick=logout;$('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');$('#changeBranchBtn').onclick=()=>renderBranchPicker();
+function setMobileNavOpen(open){
+  const sidebar=$('.sidebar'),backdrop=$('#mobileNavBackdrop');
+  if(!sidebar)return;
+  sidebar.classList.toggle('open',open===true);
+  document.body.classList.toggle('mobile-nav-open',open===true);
+  backdrop?.classList.toggle('show',open===true);
+}
+$('#logoutBtn').onclick=logout;
+$('#menuBtn').onclick=()=>setMobileNavOpen(!$('.sidebar')?.classList.contains('open'));
+$('#mobileNavBackdrop')?.addEventListener('click',()=>setMobileNavOpen(false));
+$('#changeBranchBtn').onclick=()=>renderBranchPicker();
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 const titles={home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',customers:'العملاء',deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'};
-function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));$('.sidebar').classList.remove('open')}
+function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setMobileNavOpen(false)}
 async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=titles[p]||p;await ({home:renderHome,pos:renderPOS,orders:renderOrders,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
@@ -156,6 +166,7 @@ function renderPOS(){
  <div class="cat-tabs" id="catTabs"><button data-cat="all" class="active">الكل</button>${state.categories.map(c=>`<button data-cat="${c.id}">${c.name}</button>`).join('')}</div>
  <div class="products-grid" id="productsGrid"></div></section>
  <aside class="cart">
+  <div class="mobile-cart-head"><b>🛒 السلة</b><button id="mobileCartClose" type="button" aria-label="إغلاق السلة">✕</button></div>
   <div class="cart-head sales-head">
    <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل">
@@ -184,7 +195,22 @@ function renderPOS(){
     <button class="secondary" data-pay="instapay">🟣 InstaPay</button>
    </div>
   </div>
- </aside></div>`;
+ </aside>
+ <div id="mobileCartBackdrop" class="mobile-cart-backdrop"></div>
+ <button id="mobileCartFab" class="mobile-cart-fab" type="button" aria-label="فتح السلة">
+   <span>🛒 السلة</span><b id="mobileCartFabCount">0</b><strong id="mobileCartFabTotal">0.00 ج.م</strong>
+ </button>
+ </div>`;
+ const setMobileCartOpen=open=>{
+   const cart=$('.cart'),backdrop=$('#mobileCartBackdrop');
+   if(!cart)return;
+   cart.classList.toggle('mobile-open',open===true);
+   backdrop?.classList.toggle('show',open===true);
+   document.body.classList.toggle('mobile-cart-open',open===true);
+ };
+ $('#mobileCartFab')?.addEventListener('click',()=>setMobileCartOpen(true));
+ $('#mobileCartClose')?.addEventListener('click',()=>setMobileCartOpen(false));
+ $('#mobileCartBackdrop')?.addEventListener('click',()=>setMobileCartOpen(false));
  $('#catTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;state.cat=b.dataset.cat;$$('#catTabs button').forEach(x=>x.classList.toggle('active',x===b));drawProducts()};
  $('#productSearch').oninput=drawProducts;
  $('#discount').oninput=drawCart;
@@ -338,7 +364,7 @@ function addProductToCart(p){const canExtras=state.settings.enable_extras&&p.all
 function pushCartItem(item){state.cart.push(item);drawCart()}
 function openItemOptions(p){const mods=productModifierList(p);const removals=Array.isArray(p.removable_components)?p.removable_components:[];const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>${p.name}</h2><h3>العدد</h3><div class="item-qty-picker"><button type="button" data-q="minus">−</button><input id="itemQty" type="number" min="1" value="1" inputmode="numeric"><button type="button" data-q="plus">+</button></div>${state.settings.enable_extras&&p.allow_extras!==false&&mods.length?`<h3>إضافات</h3><div class="option-list">${mods.map(x=>`<label><input type="checkbox" data-mod="${x.id}"> ${x.name} (+${money(x.price)})</label>`).join('')}</div>`:''}${state.settings.enable_removals&&p.allow_removals!==false&&removals.length?`<h3>بدون</h3><div class="option-list">${removals.map((x,i)=>`<label><input type="checkbox" data-rem="${i}"> بدون ${x}</label>`).join('')}</div>`:''}${state.settings.enable_item_notes&&p.allow_item_notes!==false?`<h3>تعليق الصنف</h3><textarea id="itemNote" rows="3" placeholder="مثال: 2 ببصل، 1 من غير بصل"></textarea><small>تعليق واحد على كل كمية الصنف</small>`:''}<div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-add>إضافة للأوردر</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{const qb=e.target.closest('[data-q]');if(qb){const q=m.querySelector('#itemQty');let v=Math.max(1,Number(q.value||1));q.value=qb.dataset.q==='plus'?v+1:Math.max(1,v-1);return;}if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-add]')){const selected=[...m.querySelectorAll('[data-mod]:checked')].map(c=>mods.find(x=>String(x.id)===String(c.dataset.mod))).filter(Boolean);const removed=[...m.querySelectorAll('[data-rem]:checked')].map(c=>removals[Number(c.dataset.rem)]);const extra=selected.reduce((a,x)=>a+Number(x.price||0),0);const qty=Math.max(1,Math.floor(Number(m.querySelector('#itemQty')?.value||1)));const item={product_id:p.id,name:p.name,base_price:Number(p.price),price:Number(p.price)+extra,cost:Number(p.cost||0),qty,modifiers:selected.map(x=>({id:x.id,name:x.name,price:Number(x.price||0)})),removed,notes:m.querySelector('#itemNote')?.value.trim()||''};const same=state.cart.find(x=>String(x.product_id)===String(item.product_id)&&JSON.stringify(x.modifiers||[])===JSON.stringify(item.modifiers||[])&&JSON.stringify(x.removed||[])===JSON.stringify(item.removed||[]));if(same){same.qty+=item.qty;if(item.notes)same.notes=item.notes;drawCart()}else pushCartItem(item);m.remove()}}}
 function cartCalc(){const subtotal=state.cart.reduce((s,i)=>s+(i.price*i.qty),0);const discount=Number($('#discount')?.value||0);let deliveryFee=0;if($('#orderType')?.value==='delivery')deliveryFee=Number($('#manualDeliveryFee')?.value||0);return{subtotal,discount,deliveryFee,total:Math.max(0,subtotal-discount+deliveryFee)}}
-function drawCart(){if(!$('#cartItems'))return;$('#cartItems').innerHTML=state.cart.length?state.cart.map((i,n)=>`<div class="cart-item"><div class="cart-row"><b>${i.name}</b><b>${money(i.price*i.qty)}</b></div>${i.modifiers?.length?`<small>+ ${i.modifiers.map(x=>x.name).join('، ')}</small>`:''}${i.removed?.length?`<small>بدون: ${i.removed.join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${i.notes}</small>`:''}<div class="qty"><button data-a="plus" data-i="${n}">+</button><b>${i.qty}</b><button data-a="minus" data-i="${n}">−</button><button data-a="del" data-i="${n}">🗑</button></div></div>`).join(''):'<div class="empty">أضف أصناف للأوردر</div>';$('#cartItems').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=state.cart[+b.dataset.i];if(b.dataset.a==='plus')i.qty++;if(b.dataset.a==='minus'){i.qty--;if(i.qty<=0)state.cart.splice(+b.dataset.i,1)}if(b.dataset.a==='del')state.cart.splice(+b.dataset.i,1);drawCart()};const c=cartCalc();$('#subtotal').textContent=money(c.subtotal);if($('#deliveryFee'))$('#deliveryFee').textContent=money(c.deliveryFee);$('#grand').textContent=money(c.total)}
+function drawCart(){if(!$('#cartItems'))return;$('#cartItems').innerHTML=state.cart.length?state.cart.map((i,n)=>`<div class="cart-item"><div class="cart-row"><b>${i.name}</b><b>${money(i.price*i.qty)}</b></div>${i.modifiers?.length?`<small>+ ${i.modifiers.map(x=>x.name).join('، ')}</small>`:''}${i.removed?.length?`<small>بدون: ${i.removed.join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${i.notes}</small>`:''}<div class="qty"><button data-a="plus" data-i="${n}">+</button><b>${i.qty}</b><button data-a="minus" data-i="${n}">−</button><button data-a="del" data-i="${n}">🗑</button></div></div>`).join(''):'<div class="empty">أضف أصناف للأوردر</div>';$('#cartItems').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const i=state.cart[+b.dataset.i];if(b.dataset.a==='plus')i.qty++;if(b.dataset.a==='minus'){i.qty--;if(i.qty<=0)state.cart.splice(+b.dataset.i,1)}if(b.dataset.a==='del')state.cart.splice(+b.dataset.i,1);drawCart()};const c=cartCalc();$('#subtotal').textContent=money(c.subtotal);if($('#deliveryFee'))$('#deliveryFee').textContent=money(c.deliveryFee);$('#grand').textContent=money(c.total);const mobileCount=state.cart.reduce((sum,item)=>sum+Number(item.qty||0),0);if($('#mobileCartFabCount'))$('#mobileCartFabCount').textContent=String(mobileCount);if($('#mobileCartFabTotal'))$('#mobileCartFabTotal').textContent=money(c.total)}
 async function checkout(payment){
  if(!state.cart.length)return toast('الأوردر فارغ');
  const c=cartCalc(), orderType=$('#orderType').value;
