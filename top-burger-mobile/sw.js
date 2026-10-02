@@ -1,4 +1,4 @@
-const CACHE='top-burger-mobile-v8.8.1-3';
+const CACHE='top-burger-mobile-v8.8.1-4';
 const SHELL=[
   './',
   './index.html',

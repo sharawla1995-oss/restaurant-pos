@@ -161,6 +161,7 @@ async function renderHome(){
 }
 
 function renderPOS(){
+ document.body.classList.remove('mobile-cart-open');
  $('#page').innerHTML=`<div class="pos-layout"><section class="catalog">
  <div class="catalog-tools"><input id="productSearch" placeholder="🔎 بحث سريع عن صنف"></div>
  <div class="cat-tabs" id="catTabs"><button data-cat="all" class="active">الكل</button>${state.categories.map(c=>`<button data-cat="${c.id}">${c.name}</button>`).join('')}</div>
