@@ -42,7 +42,9 @@ for(const marker of [
   "status='expired'",
   'pg_advisory_xact_lock',
   'request_digest',
-  'decision_digest'
+  'decision_digest',
+  'returns_approval_request_uidx',
+  'returns_approval_request_fk'
 ]) assert(sql.includes(marker),'sql marker '+marker);
 
 console.log('RETURN_APPROVAL_V1_PASS');
