@@ -22,9 +22,13 @@ jobs:
         run: |
           $tag = "v10.5.8"
           gh api "repos/${{ github.repository }}/git/ref/tags/$tag" *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Stable tag $tag already exists and is immutable." }
+          $tagExists = ($LASTEXITCODE -eq 0)
+          $global:LASTEXITCODE = 0
+          if ($tagExists) { throw "Stable tag $tag already exists and is immutable." }
           gh release view $tag -R "${{ github.repository }}" *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Stable release $tag already exists and is immutable." }
+          $releaseExists = ($LASTEXITCODE -eq 0)
+          $global:LASTEXITCODE = 0
+          if ($releaseExists) { throw "Stable release $tag already exists and is immutable." }
 
       - name: Download certified candidate artifact
         shell: pwsh
