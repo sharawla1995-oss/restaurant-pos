@@ -48,6 +48,27 @@ create index if not exists return_approval_requests_pending_idx
 create index if not exists return_approval_requests_requester_idx
   on public.return_approval_requests(requester_employee_id,created_at desc);
 
+-- One approval request can create at most one financial return.
+create unique index if not exists returns_approval_request_uidx
+  on public.returns(approval_request_id)
+  where approval_request_id is not null;
+
+do $
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname='returns_approval_request_fk'
+      and conrelid='public.returns'::regclass
+  ) then
+    alter table public.returns
+      add constraint returns_approval_request_fk
+      foreign key (approval_request_id)
+      references public.return_approval_requests(id)
+      on delete set null;
+  end if;
+end $;
+
 alter table public.return_approval_requests enable row level security;
 
 grant select on public.return_approval_requests to authenticated;
