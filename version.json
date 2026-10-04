@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.7",
+  "version": "10.5.8",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production maintenance 10.5.7 direct-production candidate: preserves the reviewed 10.5.5 maintenance functionality plus stable-only updater isolation, safe pre-update backup hardening, immutable stable release protections, and serialized delivery settlement replay. No Return Approval, no licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock change."
+  "notes": "Production 10.5.8 cumulative roll-forward from reviewed 10.5.7 maintenance plus Recipe Production V1 backend: recipe definitions consume ingredient stock fail-open after sale item creation; stock may go negative and never blocks a sale; returns restore frozen historical consumption snapshots. No Return Approval, no licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock cutover."
 }
