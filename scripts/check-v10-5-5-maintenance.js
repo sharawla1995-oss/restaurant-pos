@@ -17,6 +17,7 @@ try{new Function(main)}catch(e){console.error('FAIL: main.js syntax',e);process.
 assert(pkg.version==='10.5.5','package version');
 assert(ver.version==='10.5.5'&&ver.channel==='stable','version.json stable');
 assert(updater.enabled===true&&updater.channel==='stable','stable updater enabled');
+assert(updater.owner==='sharawla1995-oss'&&updater.repo==='restaurant-pos','production updater repository must stay pinned');
 
 for(const marker of [
   'function receiptModifierHTML',
@@ -88,6 +89,9 @@ assert(!/[-+](?:beta|rc|alpha|dev|canary)/i.test(pkg.version),'production packag
 assert(ver.channel==='stable','production version channel must stay stable');
 assert(updater.channel==='stable','production updater channel must stay stable');
 assert(main.includes('/releases/latest'),'production updater must use GitHub latest stable release endpoint');
+assert(main.includes("!/^v?\\\\d+\\\\.\\\\d+\\\\.\\\\d+$/.test(rawTag)"),'production updater must reject beta/rc/non-stable release tags');
+assert(main.includes("rel?.draft===true||rel?.prerelease===true"),'production updater must reject draft/prerelease releases');
+assert(main.includes('Latest release is not an approved stable SemVer tag'),'production updater stable-tag fail-closed error missing');
 
 for(const forbiddenPath of [
   'supabase-v10-5-6-return-approval-v1.sql',
