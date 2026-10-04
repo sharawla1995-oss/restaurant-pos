@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.7",
-  "description": "Sharawla POS V10.5.7 - Production Maintenance: receipts, shift reports, website reports, hardened delivery settlements",
+  "version": "10.5.8",
+  "description": "Sharawla POS V10.5.8 - Production Maintenance + fail-open recipe stock consumption",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node scripts/check-v10-5-7-maintenance.js",
+    "check": "node scripts/check-version.js && node scripts/check-v10-5-8-production.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
