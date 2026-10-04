@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   release:
-    if: github.ref_name == 'release/v10.5.7-production-maintenance'
+    if: github.ref_name == 'release/v10.5.8-production-recipe'
     runs-on: windows-2022
 
     steps:
@@ -112,8 +112,8 @@ jobs:
 
           gh release create $tag `
             --target "${{ github.sha }}" `
-            --title "Sharawla POS $version — Production Maintenance" `
-            --notes "Production Maintenance stable roll-forward: receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, atomic delivery cash settlements, complete accumulated-settlement visibility/history, returned-modifier reporting, and shift-close safeguards without adding a new network-only close dependency."
+            --title "Sharawla POS $version — Production 10.5.8 — Maintenance + Recipe" `
+            --notes "Production cumulative stable roll-forward: preserves all reviewed maintenance fixes and adds Recipe Production V1 backend integration. Recipe stock consumption is fail-open so sales/returns remain authoritative even if stock processing fails; returns restore frozen sale snapshots."
 
           gh release upload $tag `
             "Sharawla-POS-Setup-$version-x64.exe" `
