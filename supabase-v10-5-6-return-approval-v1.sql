@@ -53,7 +53,7 @@ create unique index if not exists returns_approval_request_uidx
   on public.returns(approval_request_id)
   where approval_request_id is not null;
 
-do $
+do $constraint$
 begin
   if not exists (
     select 1
@@ -67,7 +67,8 @@ begin
       references public.return_approval_requests(id)
       on delete set null;
   end if;
-end $;
+end
+$constraint$;
 
 alter table public.return_approval_requests enable row level security;
 
