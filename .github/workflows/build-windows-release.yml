@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   release:
-    if: github.ref_name == 'release/v10.5.5-production-maintenance'
+    if: github.ref_name == 'release/v10.5.7-production-maintenance'
     runs-on: windows-2022
 
     steps:
