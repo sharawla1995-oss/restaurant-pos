@@ -57,6 +57,8 @@
     const configured=raw.modules_configured===true;
     const requested=normalizeModules(raw.enabled_modules);
     const enabled=normalizeModules(engine.resolveModules(requested,configured,raw));
+    const featuresConfigured=raw.features_configured===true;
+    const enabledFeatures=normalizeModules(raw.enabled_features);
 
     return {
       business_id:String(raw.business_id||''),
@@ -67,6 +69,9 @@
       modules_configured:configured,
       legacy_profile_compat:!configured,
       enabled_modules:enabled,
+      features_configured:featuresConfigured,
+      enabled_features:enabledFeatures,
+      capability_version:Number(raw.capability_version||1),
       updated_at:new Date().toISOString()
     };
   }
@@ -94,6 +99,13 @@
     const wanted=normalizeCode(code);
     if(!wanted)return true;
     return normalizeModules(config.enabled_modules).includes(wanted);
+  }
+
+  function featureEnabled(config,code){
+    if(!config)return false;
+    const wanted=normalizeCode(code);
+    if(!wanted)return true;
+    return normalizeModules(config.enabled_features).includes(wanted);
   }
 
   function pageAllowed(config,page){
@@ -156,6 +168,7 @@
     saveCache,
     loadCache,
     moduleEnabled,
+    featureEnabled,
     pageAllowed,
     pageOperationalAllowed,
     pageTitle,

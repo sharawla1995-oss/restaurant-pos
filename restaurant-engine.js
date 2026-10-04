@@ -13,6 +13,10 @@
 
   // Restaurant-only page → module ownership. Multi-Industry Core never needs to
   // know these page names or module relationships.
+  const PAGE_FEATURE=Object.freeze({
+    foodRecipes:'food.recipes'
+  });
+
   const PAGE_MODULE=Object.freeze({
     pos:'pos',
     orders:'pos',
@@ -38,7 +42,7 @@
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',
     deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
-    kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',expenses:'المصروفات',products:'الأصناف',
+    kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',foodRecipes:'الوصفات',expenses:'المصروفات',products:'الأصناف',
     promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',
     websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',websitePayments:'طرق الدفع على الموقع',
     websiteAppearance:'تصميم وقائمة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'
@@ -46,7 +50,7 @@
 
   const ALL_PAGES=Object.freeze([
     'home','pos','orders','returns','customers','deliveryOrders','deliverySettings','delivery','kitchen',
-    'shifts','inventory','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
+    'shifts','inventory','foodRecipes','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
@@ -95,6 +99,8 @@
     },
 
     pageAllowed(config,page){
+      const featureCode=PAGE_FEATURE[page]||null;
+      if(featureCode && !core.featureEnabled(config,featureCode))return false;
       const moduleCode=PAGE_MODULE[page]||null;
       return !moduleCode || core.moduleEnabled(config,moduleCode);
     },

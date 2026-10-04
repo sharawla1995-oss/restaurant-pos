@@ -75,6 +75,10 @@ function moduleEnabled(code){
   if(!sharawlaRuntimeConfig)return true;
   return runtimeCore()?.moduleEnabled(sharawlaRuntimeConfig,code)===true;
 }
+function runtimeFeatureEnabled(code){
+  if(!sharawlaRuntimeConfig)return false;
+  return runtimeCore()?.featureEnabled(sharawlaRuntimeConfig,code)===true;
+}
 function runtimeAllowsPage(page){
   if(!sharawlaRuntimeConfig)return true;
   return runtimeCore()?.pageAllowed(sharawlaRuntimeConfig,page)===true;
@@ -108,7 +112,12 @@ async function ensureSharawlaRuntimeConfig(){
   if(!core)return showActivation('تعذر تحميل Sharawla Runtime Core. أعد تشغيل البرنامج.'),false;
   if(navigator.onLine){
     try{
-      const d=await cloudRpc('get_sharawla_business_runtime_config',{p_device_id:st.device_id,p_device_fingerprint:canonical});
+      let d=null;
+      try{
+        d=await cloudRpc('get_sharawla_business_runtime_config_v2',{p_device_id:st.device_id,p_device_fingerprint:canonical});
+      }catch(_v2){
+        d=await cloudRpc('get_sharawla_business_runtime_config',{p_device_id:st.device_id,p_device_fingerprint:canonical});
+      }
       if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعداد تشغيل النشاط.'),false;
       if(String(d.business_id)!==String(st.business_id))return showActivation('Runtime Config غير متطابقة مع ترخيص الجهاز.'),false;
       const profile=String(d.pos_profile||'').trim().toLowerCase();
@@ -499,6 +508,7 @@ function canAccessPage(page){
   if(page==='websitePayments')return isAdmin()||allowed.has('financialSettings')||allowed.has('websiteAppearance');
   if(page==='websiteAppearance')return isAdmin()||allowed.has('websiteAppearance');
   if(page==='settings')return isAdmin()||allowed.has('settings')||allowed.has('businessSettings')||allowed.has('printingSettings')||allowed.has('financialSettings');
+  if(page==='foodRecipes')return isAdmin()&&runtimeOperationalAllowsPage(page);
   if(!allowed.has(page))return false;
   if(page==='users')return isAdmin();
   return runtimeOperationalAllowsPage(page);
@@ -705,8 +715,13 @@ if($('#sidebarCloseBtn'))$('#sidebarCloseBtn').onclick=()=>setSidebarOpen(false)
 $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('#addBranchBtn').onclick=openCreateBranch;if($('#manageBranchesBtn'))$('#manageBranchesBtn').onclick=openManageBranches;
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
-function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+function navActive(p){$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
+async function renderFoodRecipes(){
+  const ui=window.SharawlaFoodRecipeUIV1;
+  if(!ui?.renderPage)throw new Error('واجهة الوصفات غير محملة');
+  return ui.renderPage();
+}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -725,6 +740,7 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
+    ['foodRecipes','🍲','الوصفات','الخامات وتركيبات الأصناف','amber'],
     ['websiteManagement','🌐','إدارة الموقع','التحكم في الموقع وتوافر الأصناف','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
