@@ -86,6 +86,14 @@ jobs:
 
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
 
+      - name: Align stable tag to release source
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ steps.ver.outputs.tag }}" "${{ github.sha }}"
+          git push origin "refs/tags/${{ steps.ver.outputs.tag }}" --force
+
       - name: Create or update GitHub Release
         shell: pwsh
         env:
