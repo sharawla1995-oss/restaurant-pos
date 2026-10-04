@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.11",
-  "description": "Sharawla POS V10.5.11 - Emergency restore to certified V10.5.9 runtime after V10.5.10 UI regression",
+  "version": "10.5.12",
+  "description": "Sharawla POS V10.5.12 - Production branch-open runtime fix over emergency restore",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node scripts/check-v10-5-11-emergency-restore.js",
+    "check": "node scripts/check-version.js && node scripts/check-v10-5-12-branch-open.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },

@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.11",
+  "version": "10.5.12",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Emergency forward restore. Runtime/UI source is identical to certified 10.5.9 except version/cache stamps. Removes the 10.5.10 delivery compact UI hotfix completely. No DB, Recipe, checkout, delivery, licensing, Offline, Point 4, Canonical Stock, Reset/Rebind or business-data changes."
+  "notes": "Production 10.5.12 candidate. Fixes branch opening crash caused by calling forEach on querySelector result in navActive(). Runtime/UI otherwise matches 10.5.11 emergency restore (certified 10.5.9 runtime). No DB, checkout, delivery, Recipe, Offline, licensing, fingerprint, Reset/Rebind, Point 4 or Canonical Stock changes."
 }
