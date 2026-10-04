@@ -43,6 +43,39 @@ jobs:
           "prerelease=$isBeta" >> $env:GITHUB_OUTPUT
           "channel=$(if ($isBeta) { 'beta' } else { 'stable' })" >> $env:GITHUB_OUTPUT
 
+      - name: Protect frozen V10.5.8 Stable during Beta work
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ("${{ steps.ver.outputs.prerelease }}" -ne "True") {
+            throw "main is Beta-only. Stable publishing is blocked; use a dedicated protected release branch."
+          }
+
+          $expectedTag = "v10.5.8"
+          $expectedSha = "fae709d59d5cf55197bb41432b92c2a42bca3de5"
+          $expectedIa32 = "sha256:f14dc4d279f9468a3fc68497339bf96140df7c45dc968d3e078161d197d090a0"
+          $expectedX64  = "sha256:f90004b60aae95232b14bc339a92c893c0480d4c0dbc1bec87f54a5bd11ac1c7"
+
+          $tagSha = gh api "repos/${{ github.repository }}/git/ref/tags/$expectedTag" --jq ".object.sha"
+          if ($tagSha -ne $expectedSha) { throw "Production stable tag moved: $tagSha" }
+
+          $latestTag = gh api "repos/${{ github.repository }}/releases/latest" --jq ".tag_name"
+          if ($latestTag -ne $expectedTag) { throw "Production latest stable changed: $latestTag" }
+
+          $draft = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq ".draft"
+          $prerelease = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq ".prerelease"
+          if ($draft -ne "false" -or $prerelease -ne "false") {
+            throw "Production stable classification changed"
+          }
+
+          $ia32Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.8-ia32.exe") | .digest'
+          $x64Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.8-x64.exe") | .digest'
+          if ($ia32Digest -ne $expectedIa32) { throw "Production ia32 asset digest changed: $ia32Digest" }
+          if ($x64Digest -ne $expectedX64) { throw "Production x64 asset digest changed: $x64Digest" }
+
+          Write-Host "V10.5.8_PRODUCTION_FREEZE_GUARD_PASS"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
