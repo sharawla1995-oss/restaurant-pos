@@ -477,6 +477,10 @@ begin
     raise exception 'ليس لديك صلاحية اعتماد المرتجعات لهذا الفرع';
   end if;
 
+  if v_emp=v_req.requester_employee_id then
+    raise exception 'لا يمكن اعتماد طلب المرتجع الذي أنشأته بنفسك';
+  end if;
+
   v_digest:=md5(jsonb_build_object(
     'request_id',p_request_id,
     'decision',v_decision,
