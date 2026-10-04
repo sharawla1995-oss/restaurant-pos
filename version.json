@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.4",
+  "version": "10.5.5",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production maintenance release based on stable 10.5.3. Adds receipt/prep modifier display, expanded shift breakdowns, detailed website-order reporting, print-settings fix, and atomic delivery cash settlements with shift-close safeguards. No licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock change."
+  "notes": "Production maintenance roll-forward based on 10.5.4 candidate: preserves receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, and atomic delivery cash settlements; hardens accumulated settlement visibility, settlement history, shift-close offline safety, and returned-modifier reporting. No licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock change."
 }
