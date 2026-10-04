@@ -1,0 +1,106 @@
+name: V10.5.10 Stable Publish
+
+on:
+  push:
+    branches:
+      - release/v10.5.10-delivery-ui-hotfix
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Verify exact certified source parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="127ef9fb1bcc36e908081a3166a09538e37ce0da"
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          test "$PARENT_SHA" = "$SOURCE_SHA"
+          test "$(git show "$SOURCE_SHA:package.json" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>process.stdout.write(JSON.parse(s).version))")" = "10.5.10"
+          echo "CERTIFIED_SOURCE_PARENT_PASS=$SOURCE_SHA"
+
+      - name: Refuse existing v10.5.10 tag or release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/v10.5.10" >/dev/null 2>&1; then
+            echo "v10.5.10 tag already exists"; exit 1
+          fi
+          if gh release view v10.5.10 >/dev/null 2>&1; then
+            echo "v10.5.10 release already exists"; exit 1
+          fi
+
+      - name: Download certified candidate artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p certified
+          gh run download 37195116533 \
+            -n sharawla-pos-10.5.10-production-recipe-ui-candidate \
+            -D certified
+          test -f certified/Sharawla-POS-Setup-10.5.10-ia32.exe
+          test -f certified/Sharawla-POS-Setup-10.5.10-x64.exe
+
+      - name: Verify certified installer SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "58dbd663ddeb002eedfa9133764e3c46e73cd0d66269d905f36d12d1e3faf262  certified/Sharawla-POS-Setup-10.5.10-ia32.exe" | sha256sum -c -
+          echo "46ee80573f8e2eaa9029fdbdc3230ced272041544c2905c62c0f9fdcef3ae3b0  certified/Sharawla-POS-Setup-10.5.10-x64.exe" | sha256sum -c -
+
+      - name: Create stable release from certified artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v10.5.10 \
+            certified/Sharawla-POS-Setup-10.5.10-ia32.exe \
+            certified/Sharawla-POS-Setup-10.5.10-x64.exe \
+            --target "127ef9fb1bcc36e908081a3166a09538e37ce0da" \
+            --title "Sharawla POS 10.5.10 — Production Stable" \
+            --notes "Production Stable 10.5.10. UI-only delivery cashier compact hotfix over certified 10.5.9. Makes delivery fields compact so cart, totals and payment actions remain visible on production screens. No checkout, totals, customer lookup, delivery fee, driver, Recipe, Offline, licensing, fingerprint, Reset/Rebind, Point 4 or Canonical Stock logic changes. Certified run: 37195116533."
+
+          RELEASE_ID="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.id')"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RELEASE_ID" \
+            -F prerelease=false -F draft=false -f make_latest=true >/dev/null
+
+      - name: Verify published stable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/${GITHUB_REPOSITORY}/git/ref/tags/v10.5.10 --jq '.object.sha')" = "127ef9fb1bcc36e908081a3166a09538e37ce0da"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.target_commitish')" = "127ef9fb1bcc36e908081a3166a09538e37ce0da"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.draft')" = "false"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.prerelease')" = "false"
+
+          IA32="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.10-ia32.exe") | .digest')"
+          X64="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.10 --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.10-x64.exe") | .digest')"
+          test "$IA32" = "sha256:58dbd663ddeb002eedfa9133764e3c46e73cd0d66269d905f36d12d1e3faf262"
+          test "$X64" = "sha256:46ee80573f8e2eaa9029fdbdc3230ced272041544c2905c62c0f9fdcef3ae3b0"
+
+          for i in {1..10}; do
+            LATEST="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq '.tag_name')"
+            if [ "$LATEST" = "v10.5.10" ]; then
+              echo "V10.5.10_STABLE_PUBLISH_PASS"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Latest stable did not converge to v10.5.10"
+          exit 1
