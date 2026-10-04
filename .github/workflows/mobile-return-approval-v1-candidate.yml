@@ -1,0 +1,28 @@
+name: Mobile Return Approval V1 Candidate
+
+on:
+  push:
+    branches:
+      - feature/mobile-return-approval-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: JavaScript syntax
+        run: |
+          node --check top-burger-mobile/app.js
+          node --check top-burger-mobile/restaurant-engine.js
+          node --check top-burger-mobile/sw.js
+      - name: Mobile approval source gates
+        run: node scripts/check-mobile-return-approval-v1.js
