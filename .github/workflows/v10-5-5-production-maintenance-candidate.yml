@@ -3,7 +3,7 @@ name: V10.5.5 Production Maintenance Candidate
 on:
   push:
     branches:
-      - hotfix/v10.5.5-production-maintenance
+      - candidate/v10.5.5-maintenance-safe-reconcile
   workflow_dispatch:
 
 permissions:
@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   candidate:
+    if: github.ref_name == 'candidate/v10.5.5-maintenance-safe-reconcile'
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -24,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Production maintenance checks
+      - name: Production isolation and maintenance checks
         run: npm run check
 
       - name: Build Windows x64
