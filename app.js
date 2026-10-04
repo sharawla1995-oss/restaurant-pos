@@ -315,6 +315,9 @@ modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZo
 let websiteOrderWatchTimer=null;
 let knownWebsiteOrderIds=new Set();
 let websiteOrderWatchPrimed=false;
+let returnApprovalWatchTimer=null;
+let knownReturnApprovalIds=new Set();
+let returnApprovalWatchPrimed=false;
 let websiteAudioCtx=null;
 function websiteOrderBeep(){
   try{
@@ -493,6 +496,8 @@ function hasFeaturePermission(key){
 }
 function canAccessPage(page){
   if(!runtimeAllowsPage(page))return false;
+  if(page==='returns')return runtimeOperationalAllowsPage(page);
+  if(page==='approvals')return (isAdmin()||hasFeaturePermission('returnApprovals'))&&runtimeOperationalAllowsPage(page);
   const allowed=effectivePermissionSet();
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings')||allowed.has('websiteAppearance')||allowed.has('financialSettings');
   if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
@@ -527,6 +532,7 @@ function selectBranch(id){
   state.activeBranchId=bid;
   refreshBranchChrome();
   startWebsiteOrderWatch();
+  startReturnApprovalWatch();
   showPage('home');
 }
 function renderBranchPicker(){
@@ -665,7 +671,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
-  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
+  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();startReturnApprovalWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
 
@@ -706,7 +712,7 @@ $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -720,6 +726,7 @@ async function renderHome(){
     ['deliveryOrders','🛵','طلبات الدليفري',`${activeDelivery.length} طلب نشط`,'amber'],
     ['orders','📋','الطلبات','متابعة وطباعة الطلبات','blue'],
     ['returns','↩️','المرتجعات','مرتجع كلي أو جزئي من الفاتورة','rose'],
+    ['approvals','✅','موافقات المدير','طلبات اعتماد المرتجعات','green'],
     ['customers','👤','العملاء','بحث وبيانات العملاء','violet'],
     ['shifts','🕘','الورديات',openShift?'الوردية مفتوحة 🟢':'لا توجد وردية مفتوحة','green'],
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
@@ -1055,18 +1062,155 @@ function prepReceiptHTML(o,items,isCopy=false){const c=printCfg(o.branch_id);ret
 async function printPrepReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'prep')>0,printable=await enrichOrderItemsWithModifiers(items);const ok=await printIsolated(prepReceiptHTML(o,printable,isCopy),c.paper_size,c.prep_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'prep')});if(ok)await recordSuccessfulPrint(o,'prep',isCopy);return ok}
 function autoPrintOrder(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer);if(autoPrep&&state.settings.enable_prep_receipt)setTimeout(()=>printPrepReceipt(o,items),250);if(autoCustomer&&state.settings.enable_receipt_print)setTimeout(()=>printReceipt(o,items),900)}
 async function showReceipt(o,items){const printable=await enrichOrderItemsWithModifiers(items),c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer),didAuto=(autoCustomer&&state.settings.enable_receipt_print)||(autoPrep&&state.settings.enable_prep_receipt);autoPrintOrder(o,printable);if(didAuto)return;const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>تم حفظ بون ${esc(bonDisplay(o))}</h2>${receiptHTML(o,printable)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${state.settings.enable_prep_receipt?'<button class="secondary" data-prep>ريسيت التحضير</button>':''}${state.settings.enable_receipt_print?'<button class="primary" data-print>فاتورة العميل</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print]'))printReceipt(o,printable);if(e.target.closest('[data-prep]'))printPrepReceipt(o,printable)}}
+async function fetchPendingReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!navigator.onLine)return [];
+ try{
+  const now=encodeURIComponent(new Date().toISOString());
+  return await rest('return_approval_requests',`select=*&status=eq.pending&expires_at=gt.${now}&order=created_at.desc&limit=100`);
+ }catch(e){console.warn('return approval watch',e);return []}
+}
+function updateReturnApprovalBadge(count){
+ const badge=$('#returnApprovalBadge');if(!badge)return;
+ badge.textContent=count>99?'99+':String(count||0);
+ badge.classList.toggle('hidden',!count);
+}
+async function refreshReturnApprovalWatch(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){updateReturnApprovalBadge(0);return}
+ const rows=await fetchPendingReturnApprovals();
+ const ids=new Set(rows.map(x=>String(x.id)));
+ if(returnApprovalWatchPrimed){
+  const fresh=rows.filter(x=>!knownReturnApprovalIds.has(String(x.id)));
+  if(fresh.length){
+   websiteOrderBeep();
+   const r=fresh[0];
+   toast(`طلب اعتماد مرتجع جديد • ${branchName(r.branch_id)||'فرع'} • ${money(r.expected_total)}`);
+  }
+ }else returnApprovalWatchPrimed=true;
+ knownReturnApprovalIds=ids;
+ updateReturnApprovalBadge(rows.length);
+}
+function stopReturnApprovalWatch(){
+ if(returnApprovalWatchTimer){clearInterval(returnApprovalWatchTimer);returnApprovalWatchTimer=null}
+ knownReturnApprovalIds=new Set();returnApprovalWatchPrimed=false;updateReturnApprovalBadge(0);
+}
+function startReturnApprovalWatch(){
+ stopReturnApprovalWatch();
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!state.employee)return;
+ refreshReturnApprovalWatch();
+ returnApprovalWatchTimer=setInterval(refreshReturnApprovalWatch,5000);
+}
+async function showApprovedReturnReceipt(returnId){
+ const [rr,ri,rp]=await Promise.all([
+  rest('returns',`select=*&id=eq.${returnId}`),
+  rest('return_items',`select=*&return_id=eq.${returnId}&order=id`),
+  rest('return_payments',`select=*&return_id=eq.${returnId}&order=id`)
+ ]);
+ if(!rr[0])return toast('تم الاعتماد لكن تعذر تحميل إيصال المرتجع');
+ const x=document.createElement('div');x.className='modal';
+ x.innerHTML=`<div class="modal-card"><h2>✅ تم اعتماد وتنفيذ المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;
+ document.body.appendChild(x);
+ x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)};
+}
+function waitForReturnApproval(requestId,expectedTotal,expiresAt){
+ const m=document.createElement('div');m.className='modal';
+ let stopped=false,timer=null;
+ const stop=()=>{stopped=true;if(timer)clearInterval(timer);timer=null};
+ m.innerHTML=`<div class="modal-card"><h2>⏳ في انتظار اعتماد المدير</h2><p>تم إرسال طلب الاعتماد داخل Sharawla للمديرين المصرح لهم على نفس الفرع.</p><div class="return-total-box">قيمة المرتجع <b>${money(expectedTotal)}</b><small>الطلب صالح حتى ${fmtDate(expiresAt)}</small></div><div id="returnApprovalState" class="empty">جاري انتظار قرار المدير…</div><div class="modal-actions"><button class="secondary" data-close>إغلاق والمتابعة لاحقًا</button></div></div>`;
+ document.body.appendChild(m);
+ const check=async()=>{
+  if(stopped)return;
+  try{
+   const rows=await rest('return_approval_requests',`select=id,status,return_id,approver_employee_id,decision_at,expires_at&id=eq.${requestId}&limit=1`);
+   const r=rows?.[0];if(!r)return;
+   const stateEl=m.querySelector('#returnApprovalState');
+   if(r.status==='approved'&&r.return_id){
+    stop();m.remove();toast('✅ تمت موافقة المدير وتنفيذ المرتجع');await showApprovedReturnReceipt(r.return_id);return;
+   }
+   if(r.status==='rejected'){
+    stop();if(stateEl)stateEl.textContent='❌ تم رفض طلب المرتجع';toast('تم رفض طلب المرتجع');return;
+   }
+   if(r.status==='expired'||new Date(r.expires_at).getTime()<Date.now()){
+    stop();if(stateEl)stateEl.textContent='⌛ انتهت صلاحية طلب الاعتماد';toast('انتهت صلاحية طلب الاعتماد');return;
+   }
+  }catch(e){if(!isNetError(e)){console.warn('return approval poll',e)}}
+ };
+ m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m){stop();m.remove()}};
+ check();timer=setInterval(check,2000);
+}
+async function renderReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){toast('ليس لديك صلاحية اعتماد المرتجعات');return showPage('home')}
+ let rows=[];
+ try{rows=await rest('return_approval_requests','select=*&order=created_at.desc&limit=100')}catch(e){$('#page').innerHTML=`<div class="panel"><h2>✅ موافقات المدير</h2><div class="empty">${esc(e.message||'تعذر تحميل الطلبات')}</div></div>`;return}
+ const pending=rows.filter(r=>r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now());
+ updateReturnApprovalBadge(pending.length);
+ const statusLabel=s=>({pending:'⏳ في الانتظار',approved:'✅ تمت الموافقة',rejected:'❌ مرفوض',expired:'⌛ منتهي'}[s]||s);
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>✅ موافقات المدير</h2><p>طلبات اعتماد المرتجعات التي أرسلها الموظفون. لا تحتاج لفتح وردية للمدير.</p></div><button id="refreshReturnApprovals" class="secondary">↻ تحديث</button></div><div class="approval-list">${rows.map(r=>`<div class="user-card ${r.status==='pending'?'':'muted'}"><div class="user-main"><b>مرتجع ${money(r.expected_total)} • ${esc(branchName(r.branch_id)||('فرع '+r.branch_id))}</b><small>بون ${r.order_bon_number||'-'} • فاتورة ${r.order_invoice_number||'-'} • بواسطة ${esc(r.requester_name||'موظف')} • ${fmtDate(r.created_at)}</small></div><div class="user-branch-tags"><span class="tag">${esc(r.reason||'')}</span><span class="tag">${statusLabel(r.status)}</span></div>${r.notes?`<p class="muted">${esc(r.notes)}</p>`:''}${r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now()?`<div class="row-actions"><button class="primary" data-approve-return="${r.id}">✅ موافقة</button><button class="danger" data-reject-return="${r.id}">رفض</button></div>`:''}</div>`).join('')||'<div class="empty">لا توجد طلبات اعتماد</div>'}</div></div>`;
+ $('#refreshReturnApprovals').onclick=renderReturnApprovals;
+ $('#page').onclick=async e=>{
+  const approve=e.target.closest('[data-approve-return]'),reject=e.target.closest('[data-reject-return]');
+  if(!approve&&!reject)return;
+  const id=Number((approve||reject).dataset[approve?'approveReturn':'rejectReturn']);
+  let note=null;
+  if(reject){note=await uiPrompt('سبب الرفض (اختياري)');if(note===null)return}
+  if(approve&&!await uiConfirm('تأكيد اعتماد المرتجع؟ سيتم تنفيذ المرتجع فورًا على وردية الموظف الذي طلبه.',{title:'اعتماد المرتجع',okText:'موافقة'}))return;
+  const btn=approve||reject;btn.disabled=true;
+  try{
+   const result=await rpc('decide_order_return_approval_v1',{p_request_id:id,p_decision:approve?'approve':'reject',p_note:note,p_client_tx_id:uuid()});
+   if(result?.status==='approved')toast('تم اعتماد وتنفيذ المرتجع');
+   else if(result?.status==='rejected')toast('تم رفض طلب المرتجع');
+   else if(result?.status==='expired')toast('انتهت صلاحية طلب الاعتماد');
+   else toast('تم تحديث الطلب');
+   await refreshReturnApprovalWatch();renderReturnApprovals();
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
+}
 async function openReturnForOrder(o,items){
- if(!canAccessPage('returns'))return toast('ليس لديك صلاحية المرتجعات');
  const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل عمل المرتجع');
  let prior=[];try{prior=await rest('return_items',`select=order_item_id,quantity,returns!inner(order_id)&returns.order_id=eq.${o.id}`);await odbSet(`returnUsage:${o.id}`,prior)}catch(e){if(!isNetError(e))throw e;prior=(await odbGet(`returnUsage:${o.id}`))||[]}
  const used={};for(const x of prior)used[String(x.order_item_id)]=(used[String(x.order_item_id)]||0)+Number(x.quantity||0);
  const available=items.map(i=>({...i,_available:Math.max(0,Number(i.quantity||0)-Number(used[String(i.id)]||0))})).filter(i=>i._available>0);
  if(!available.length)return toast('تم إرجاع كل أصناف الفاتورة بالفعل');
  const pays=branchPaymentList(o.branch_id);const defaultPay=pays.find(x=>x.is_default)||pays[0];
- const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card return-modal"><h2>↩️ مرتجع من بون ${esc(bonDisplay(o))}</h2><p>فاتورة داخلية ${esc(invoiceDisplay(o))} • ${fmtDate(o.created_at)}</p><div class="table-wrap"><table style="min-width:0"><thead><tr><th>الصنف</th><th>المتاح</th><th>كمية المرتجع</th></tr></thead><tbody>${available.map(i=>`<tr><td>${esc(i.product_name)}</td><td>${i._available}</td><td><input class="return-qty" data-ri="${i.id}" type="number" min="0" max="${i._available}" step="1" value="0"></td></tr>`).join('')}</tbody></table></div><div class="form-grid"><label>سبب المرتجع<select id="retReason"><option value="">اختر السبب</option><option>خطأ في الطلب</option><option>جودة المنتج</option><option>طلب العميل</option><option>تكرار الطلب</option><option>أخرى</option></select></label><label>طريقة رد المبلغ<select id="retMethod">${pays.map(x=>`<option value="${esc(x.code)}" ${defaultPay&&String(x.id)===String(defaultPay.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="span-2">ملاحظات<textarea id="retNotes" rows="2" placeholder="اختياري"></textarea></label></div><div class="return-total-box">المبلغ المتوقع للمرتجع <b id="retEstimate">${money(0)}</b><small>رسوم الدليفري لا تُرد تلقائيًا</small></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="secondary" data-full-return>↩️ مرتجع الأوردر بالكامل</button><button class="danger" data-submit-return>تنفيذ المرتجع</button></div></div>`;document.body.appendChild(m);
+ const canExecute=isAdmin()||hasFeaturePermission('returns');
+ const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card return-modal"><h2>↩️ مرتجع من بون ${esc(bonDisplay(o))}</h2><p>فاتورة داخلية ${esc(invoiceDisplay(o))} • ${fmtDate(o.created_at)}</p><div class="table-wrap"><table style="min-width:0"><thead><tr><th>الصنف</th><th>المتاح</th><th>كمية المرتجع</th></tr></thead><tbody>${available.map(i=>`<tr><td>${esc(i.product_name)}</td><td>${i._available}</td><td><input class="return-qty" data-ri="${i.id}" type="number" min="0" max="${i._available}" step="1" value="0"></td></tr>`).join('')}</tbody></table></div><div class="form-grid"><label>سبب المرتجع<select id="retReason"><option value="">اختر السبب</option><option>خطأ في الطلب</option><option>جودة المنتج</option><option>طلب العميل</option><option>تكرار الطلب</option><option>أخرى</option></select></label><label>طريقة رد المبلغ<select id="retMethod">${pays.map(x=>`<option value="${esc(x.code)}" ${defaultPay&&String(x.id)===String(defaultPay.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="span-2">ملاحظات<textarea id="retNotes" rows="2" placeholder="اختياري"></textarea></label></div><div class="return-total-box">المبلغ المتوقع للمرتجع <b id="retEstimate">${money(0)}</b><small>رسوم الدليفري لا تُرد تلقائيًا</small></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="secondary" data-full-return>↩️ مرتجع الأوردر بالكامل</button><button class="${canExecute?'danger':'primary'}" data-submit-return>${canExecute?'تنفيذ المرتجع':'📲 طلب اعتماد مدير'}</button></div></div>`;document.body.appendChild(m);
  const calc=()=>{let sub=0;for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));const q=Math.min(i._available,Math.max(0,Number(inp.value||0)));sub+=(Number(i.total||0)/Number(i.quantity||1))*q}const ratio=Number(o.subtotal||0)>0?Math.min(1,sub/Number(o.subtotal)):0;const f=financialCfg(o.branch_id),taxPart=Number(o.tax_amount||0)*ratio;const total=Math.max(0,sub-Number(o.discount||0)*ratio+(f.prices_include_tax?0:taxPart)+Number(o.service_amount||0)*ratio);m.querySelector('#retEstimate').textContent=money(total);return Math.round(total*100)/100};
  m.oninput=e=>{if(e.target.matches('.return-qty'))calc()};
- m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}if(e.target.closest('[data-full-return]')){for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));inp.value=i?i._available:0}calc();toast('تم تحديد كل الكميات المتاحة للمرتجع');return}if(!e.target.closest('[data-submit-return]'))return;const selected=[...m.querySelectorAll('.return-qty')].map(inp=>{const item=available.find(x=>String(x.id)===String(inp.dataset.ri));const quantity=Math.min(Number(item?._available||0),Math.max(0,Math.floor(Number(inp.value||0)||0)));inp.value=quantity;return {order_item_id:Number(inp.dataset.ri),quantity}}).filter(x=>x.quantity>0);if(!selected.length)return toast('حدد كمية مرتجع لصنف واحد على الأقل');const reason=m.querySelector('#retReason').value;if(!reason)return toast('اختر سبب المرتجع');const total=calc();if(total<=0)return toast('قيمة المرتجع غير صحيحة');if(!await uiConfirm(`تأكيد مرتجع ${money(total)}؟\nالعملية لن تمسح الفاتورة الأصلية.`,{title:'تأكيد المرتجع',danger:true,okText:'تنفيذ المرتجع'}))return;const btn=m.querySelector('[data-submit-return]');btn.disabled=true;try{let rr,ri,rp,rid;try{rid=Number(await rpc('create_order_return_idempotent',{p_order_id:Number(o.id),p_reason:reason,p_notes:m.querySelector('#retNotes').value.trim()||null,p_items:selected,p_payments:[{method:m.querySelector('#retMethod').value,amount:total}],p_client_tx_id:uuid()}));[rr,ri,rp]=await Promise.all([rest('returns',`select=*&id=eq.${rid}`),rest('return_items',`select=*&return_id=eq.${rid}&order=id`),rest('return_payments',`select=*&return_id=eq.${rid}&order=id`)])}catch(netErr){if(!isNetError(netErr))throw netErr;if(String(o.id).startsWith('offline-'))throw new Error('مرتجع فاتورة أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا');const saved=await saveOfflineReturn(o,selected,reason,m.querySelector('#retNotes').value.trim()||null,m.querySelector('#retMethod').value,total,available);rr=[saved.r];ri=saved.items;rp=saved.payments;rid=saved.r.id}m.remove();toast(rr[0]?._offline?'تم حفظ المرتجع أوفلاين وسيُزامن تلقائيًا':`تم تسجيل مرتجع #${rr[0]?.return_number||rid}`);const x=document.createElement('div');x.className='modal';x.innerHTML=`<div class="modal-card"><h2>تم تسجيل المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;document.body.appendChild(x);x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)}}catch(err){btn.disabled=false;toast(err.message)}};
+ m.onclick=async e=>{
+  if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
+  if(e.target.closest('[data-full-return]')){for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));inp.value=i?i._available:0}calc();toast('تم تحديد كل الكميات المتاحة للمرتجع');return}
+  if(!e.target.closest('[data-submit-return]'))return;
+  const selected=[...m.querySelectorAll('.return-qty')].map(inp=>{const item=available.find(x=>String(x.id)===String(inp.dataset.ri));const quantity=Math.min(Number(item?._available||0),Math.max(0,Math.floor(Number(inp.value||0)||0)));inp.value=quantity;return {order_item_id:Number(inp.dataset.ri),quantity}}).filter(x=>x.quantity>0);
+  if(!selected.length)return toast('حدد كمية مرتجع لصنف واحد على الأقل');
+  const reason=m.querySelector('#retReason').value;if(!reason)return toast('اختر سبب المرتجع');
+  const notes=m.querySelector('#retNotes').value.trim()||null;
+  const total=calc();if(total<=0)return toast('قيمة المرتجع غير صحيحة');
+  const payments=[{method:m.querySelector('#retMethod').value,amount:total}];
+  const btn=m.querySelector('[data-submit-return]');btn.disabled=true;
+  if(!canExecute){
+   try{
+    if(!navigator.onLine)throw new Error('طلب اعتماد المدير يحتاج اتصال بالإنترنت');
+    const result=await rpc('request_order_return_approval_v1',{p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:payments,p_client_tx_id:uuid()});
+    m.remove();
+    toast('تم إرسال طلب الاعتماد للمدير');
+    waitForReturnApproval(Number(result.request_id),Number(result.expected_total||total),result.expires_at);
+   }catch(err){btn.disabled=false;toast(err.message)}
+   return;
+  }
+  if(!await uiConfirm(`تأكيد مرتجع ${money(total)}؟\nالعملية لن تمسح الفاتورة الأصلية.`,{title:'تأكيد المرتجع',danger:true,okText:'تنفيذ المرتجع'})){btn.disabled=false;return}
+  try{
+   let rr,ri,rp,rid;
+   try{
+    rid=Number(await rpc('create_order_return_idempotent',{p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:payments,p_client_tx_id:uuid()}));
+    [rr,ri,rp]=await Promise.all([rest('returns',`select=*&id=eq.${rid}`),rest('return_items',`select=*&return_id=eq.${rid}&order=id`),rest('return_payments',`select=*&return_id=eq.${rid}&order=id`)]);
+   }catch(netErr){
+    if(!isNetError(netErr))throw netErr;
+    if(String(o.id).startsWith('offline-'))throw new Error('مرتجع فاتورة أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا');
+    const saved=await saveOfflineReturn(o,selected,reason,notes,m.querySelector('#retMethod').value,total,available);rr=[saved.r];ri=saved.items;rp=saved.payments;rid=saved.r.id;
+   }
+   m.remove();toast(rr[0]?._offline?'تم حفظ المرتجع أوفلاين وسيُزامن تلقائيًا':`تم تسجيل مرتجع #${rr[0]?.return_number||rid}`);
+   const x=document.createElement('div');x.className='modal';x.innerHTML=`<div class="modal-card"><h2>تم تسجيل المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;document.body.appendChild(x);x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)};
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
 }
 async function renderReturns(){
  let rows=[];try{rows=await rest('returns',`select=*&branch_id=eq.${currentBranchId()}&order=created_at.desc&limit=200`);await odbSet(`cachedReturns:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet(`cachedReturns:${currentBranchId()}`))||[];const q=await offlineQueue();rows=[...q.filter(x=>x.type==='return'&&Number(x.local_return?.branch_id)===currentBranchId()).map(x=>x.local_return),...rows]}
