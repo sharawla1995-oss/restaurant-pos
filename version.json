@@ -1,12 +1,12 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.5",
+  "version": "10.5.7",
   "channel": "stable",
   "source": "github",
   "windows": {
-    "supported": "Windows 7 x64",
+    "supported": "Windows 7 x64 / ia32",
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production maintenance roll-forward based on 10.5.4 candidate: preserves receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, and atomic delivery cash settlements; hardens accumulated settlement visibility, settlement history, shift-close offline safety, and returned-modifier reporting. No licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock change."
+  "notes": "Production maintenance 10.5.7 direct-production candidate: preserves the reviewed 10.5.5 maintenance functionality plus stable-only updater isolation, safe pre-update backup hardening, immutable stable release protections, and serialized delivery settlement replay. No Return Approval, no licensing/fingerprint reset, no Offline ownership redesign, and no Canonical Stock change."
 }
