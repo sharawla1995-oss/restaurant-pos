@@ -1,0 +1,71 @@
+name: V10.5.11 Emergency Stable Publish
+
+on:
+  push:
+    branches:
+      - release/v10.5.11-emergency-restore
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify certified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "4a3e17ae373c5583c16d3f0d82d0453e85143b36"
+          test "$(git show 4a3e17ae373c5583c16d3f0d82d0453e85143b36:package.json | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>process.stdout.write(JSON.parse(s).version))")" = "10.5.11"
+      - name: Refuse existing release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ! git ls-remote --exit-code --tags origin refs/tags/v10.5.11 >/dev/null 2>&1
+          ! gh release view v10.5.11 >/dev/null 2>&1
+      - name: Download certified artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p certified
+          gh run download 37196288821 -n sharawla-pos-10.5.11-emergency-restore-candidate -D certified
+      - name: Verify SHA256
+        shell: bash
+        run: |
+          echo "3999db31d4d60000c02bb36fe9e095e69efd89fbf4c6cfb26943147cab377c86  certified/Sharawla-POS-Setup-10.5.11-ia32.exe" | sha256sum -c -
+          echo "ea2738763cf55ca868e68d180847e348384c448cc255727d3a241115b5aaeb67  certified/Sharawla-POS-Setup-10.5.11-x64.exe" | sha256sum -c -
+      - name: Publish stable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v10.5.11 \
+            certified/Sharawla-POS-Setup-10.5.11-ia32.exe \
+            certified/Sharawla-POS-Setup-10.5.11-x64.exe \
+            --target "4a3e17ae373c5583c16d3f0d82d0453e85143b36" \
+            --title "Sharawla POS 10.5.11 — Emergency Production Restore" \
+            --notes "Emergency forward restore to the certified 10.5.9 runtime after the 10.5.10 delivery UI regression. Runtime/UI source is identical to certified 10.5.9 except version/cache stamps. No DB, Recipe, checkout, delivery, licensing, Offline, Point 4, Canonical Stock, Reset/Rebind or business-data changes."
+          RID="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.11 --jq '.id')"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/$RID" -F prerelease=false -F draft=false -f make_latest=true >/dev/null
+      - name: Verify stable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/${GITHUB_REPOSITORY}/git/ref/tags/v10.5.11 --jq '.object.sha')" = "4a3e17ae373c5583c16d3f0d82d0453e85143b36"
+          test "$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq '.tag_name')" = "v10.5.11"
+          IA32="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.11 --jq '.assets[]|select(.name=="Sharawla-POS-Setup-10.5.11-ia32.exe")|.digest')"
+          X64="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.11 --jq '.assets[]|select(.name=="Sharawla-POS-Setup-10.5.11-x64.exe")|.digest')"
+          test "$IA32" = "sha256:3999db31d4d60000c02bb36fe9e095e69efd89fbf4c6cfb26943147cab377c86"
+          test "$X64" = "sha256:ea2738763cf55ca868e68d180847e348384c448cc255727d3a241115b5aaeb67"
