@@ -463,7 +463,7 @@ async function signIn(email,password){
   if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
   session=resumeSession;return session;
 }
-async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
+async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;stopReturnApprovalWatch();try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
