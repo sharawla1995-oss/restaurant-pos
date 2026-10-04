@@ -162,6 +162,12 @@ assert(!/v_stock_quantity\s*<\s*v_need/i.test(recipeSoftSql),'recipe migration m
 assert(!/insufficient stock|مخزون الخامة غير كاف/i.test(recipeSoftSql),'recipe migration must not contain stock-shortage rejection');
 assert(recipeSoftSql.includes("set quantity=round(coalesce(v_stock_quantity,0)-v_need,6)"),'sale stock deduction must be arithmetic and allow negative stock');
 assert(recipeSoftSql.includes('from public.recipe_order_item_consumption_v1 s'),'returns must restore from frozen sale snapshot');
+for(const marker of [
+  "hashtextextended('recipe-return-order-item-v1:'",
+  'sum(r.restored_quantity)',
+  'v_remaining := greatest(v_snapshot.consumed_quantity-v_already_restored,0)',
+  'v_restore := least('
+]) assert(recipeSoftSql.includes(marker),'return over-restore guard marker '+marker);
 assert(!/from\s+public\.recipes[\s\S]{0,600}recipe_apply_return_item_restore_v1/i.test(recipeSoftSql),'return path must not recalculate current recipe');
 
 console.log('V10.5.8_PRODUCTION_RECIPE_CHECK_PASS');

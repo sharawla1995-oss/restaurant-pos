@@ -182,6 +182,8 @@ declare
   v_original_quantity numeric(18,6);
   v_snapshot record;
   v_restore numeric(18,6);
+  v_already_restored numeric(18,6);
+  v_remaining numeric(18,6);
   v_restore_id bigint;
   v_stock_id bigint;
   v_stock_quantity numeric;
@@ -207,16 +209,34 @@ begin
     return jsonb_build_object('status','skipped','reason','return_item_not_eligible');
   end if;
 
+  -- Serialize all returns that refer to the same original order item.
+  -- This makes the recipe restore independently safe even if the core return
+  -- owner is ever changed later and multiple returns arrive concurrently.
+  perform pg_advisory_xact_lock(
+    hashtextextended('recipe-return-order-item-v1:' || v_order_item_id::text,0)
+  );
+
   for v_snapshot in
     select s.ingredient_id,s.consumed_quantity,s.unit_cost_snapshot
     from public.recipe_order_item_consumption_v1 s
     where s.order_item_id=v_order_item_id
     order by s.ingredient_id
   loop
-    v_restore := round(
-      v_snapshot.consumed_quantity * least(v_return_quantity,v_original_quantity)
-      / greatest(v_original_quantity,0.000001),
-      6
+    select coalesce(sum(r.restored_quantity),0)::numeric(18,6)
+    into v_already_restored
+    from public.recipe_return_consumption_v1 r
+    where r.order_item_id=v_order_item_id
+      and r.ingredient_id=v_snapshot.ingredient_id;
+
+    v_remaining := greatest(v_snapshot.consumed_quantity-v_already_restored,0);
+
+    v_restore := least(
+      round(
+        v_snapshot.consumed_quantity * least(v_return_quantity,v_original_quantity)
+        / greatest(v_original_quantity,0.000001),
+        6
+      ),
+      v_remaining
     );
     if v_restore<=0 then
       continue;
