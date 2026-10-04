@@ -1188,29 +1188,63 @@ async function shiftMetrics(shift){
 async function shiftReportData(shift){
  const orders=await rest('orders',`select=id,order_number,total,subtotal,discount,delivery_fee,status,order_type,payment_method,source,payment_status,created_at&shift_id=eq.${shift.id}&order=created_at.asc`);
  const ids=(orders||[]).map(o=>o.id);
- const [items,expenses,returnRows]=await Promise.all([
-   ids.length?rest('order_items',`select=order_id,product_name,quantity,unit_price,total&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
+ const [items,expenses,returnRows,orderPayments]=await Promise.all([
+   ids.length?rest('order_items',`select=id,order_id,product_id,product_name,quantity,unit_price,total&order_id=in.(${ids.join(',')})`):Promise.resolve([]),
    rest('expenses',`select=id,description,amount,created_at,employee_id&shift_id=eq.${shift.id}&order=created_at.asc`),
-   rest('returns',`select=*&shift_id=eq.${shift.id}&order=created_at.asc`).catch(()=>[])
+   rest('returns',`select=*&shift_id=eq.${shift.id}&order=created_at.asc`).catch(()=>[]),
+   ids.length?rest('order_payments',`select=order_id,method,amount&order_id=in.(${ids.join(',')})`).catch(()=>[]):Promise.resolve([])
  ]);
  const valid=(orders||[]).filter(o=>{const web=String(o.source||'')==='website',paid=!web||o.payment_status==='confirmed'||(String(o.payment_method||'').toLowerCase()==='cash'&&['delivered','completed'].includes(String(o.status||'').toLowerCase()));return o.status!=='cancelled'&&paid});
  const validIds=new Set(valid.map(o=>String(o.id)));
- const products=new Map();
- for(const i of (items||[])){
-   if(!validIds.has(String(i.order_id)))continue;
-   const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
-   x.qty+=Number(i.quantity||0);x.total+=Number(i.total||0);products.set(k,x);
- }
+ const validItems=(items||[]).filter(i=>validIds.has(String(i.order_id)));
  const returnIds=(returnRows||[]).map(r=>r.id);
- const returnItems=returnIds.length?await rest('return_items',`select=return_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):[];
- for(const i of returnItems){
-   const k=i.product_name||'صنف',x=products.get(k)||{name:k,qty:0,total:0};
-   x.qty-=Number(i.quantity||0);x.total-=Number(i.total||0);products.set(k,x);
- }
+ const [returnItems,returnPayments,mods]=await Promise.all([
+   returnIds.length?rest('return_items',`select=return_id,order_item_id,product_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([]),
+   returnIds.length?rest('return_payments',`select=return_id,method,amount&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([]),
+   validItems.length?rest('order_item_modifiers',`select=order_item_id,modifier_id,modifier_name,price&order_item_id=in.(${validItems.map(i=>i.id).join(',')})`).catch(()=>[]):Promise.resolve([])
+ ]);
+
+ const productIds=[...new Set([...validItems,...returnItems].map(i=>Number(i.product_id)).filter(Number.isFinite))];
+ const productRows=productIds.length?await rest('products',`select=id,name,category_id&id=in.(${productIds.join(',')})`).catch(()=>[]):[];
+ const categoryIds=[...new Set((productRows||[]).map(p=>Number(p.category_id)).filter(Number.isFinite))];
+ const categoryRows=categoryIds.length?await rest('categories',`select=id,name&id=in.(${categoryIds.join(',')})`).catch(()=>[]):[];
+ const productMeta=new Map((productRows||[]).map(p=>[String(p.id),p]));
+ const categoryNameById=new Map((categoryRows||[]).map(x=>[String(x.id),x.name||'بدون تصنيف']));
+ const categoryOfItem=i=>{const p=productMeta.get(String(i.product_id));return p?.category_id!=null?(categoryNameById.get(String(p.category_id))||'بدون تصنيف'):'بدون تصنيف'};
+
+ const products=new Map();
+ const addProduct=(i,sign=1)=>{
+   const category=categoryOfItem(i),key=`${category}::${i.product_name||'صنف'}`,x=products.get(key)||{name:i.product_name||'صنف',category,qty:0,total:0};
+   x.qty+=sign*Number(i.quantity||0);x.total+=sign*Number(i.total||0);products.set(key,x);
+ };
+ validItems.forEach(i=>addProduct(i,1));returnItems.forEach(i=>addProduct(i,-1));
+ const productRowsNet=[...products.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>a.category.localeCompare(b.category,'ar')||b.qty-a.qty);
+
+ const categories=new Map();
+ for(const p of productRowsNet){const x=categories.get(p.category)||{name:p.category,qty:0,total:0,products:[]};x.qty+=p.qty;x.total+=p.total;x.products.push(p);categories.set(p.category,x)}
+ const categoryStats=[...categories.values()].sort((a,b)=>b.total-a.total);
+
+ const itemById=new Map(validItems.map(i=>[String(i.id),i])),modsByItem=new Map(),modifierStats=new Map();
+ for(const m of (mods||[])){const k=String(m.order_item_id);if(!modsByItem.has(k))modsByItem.set(k,[]);modsByItem.get(k).push(m);const item=itemById.get(k);if(!item)continue;const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty+=Number(item.quantity||0);x.total+=Number(m.price||0)*Number(item.quantity||0);modifierStats.set(name,x)}
+ for(const r of returnItems){const originalMods=modsByItem.get(String(r.order_item_id))||[];for(const m of originalMods){const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty-=Number(r.quantity||0);x.total-=Number(m.price||0)*Number(r.quantity||0);modifierStats.set(name,x)}}
+ const modifierRows=[...modifierStats.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
+
+ const orderTypes=new Map();
+ for(const o of valid){const key=String(o.order_type||'unknown'),x=orderTypes.get(key)||{code:key,count:0,total:0};x.count++;x.total+=Number(o.total||0);orderTypes.set(key,x)}
+
+ const paymentStats=new Map(),detailedOrders=new Set(),paymentOrderSeen=new Set();
+ const addPayment=(method,amount,orderId=null,countOperation=false)=>{const key=String(method||'unknown').toLowerCase(),x=paymentStats.get(key)||{code:key,count:0,total:0};x.total+=Number(amount||0);if(countOperation){const seenKey=`${key}:${orderId}`;if(!paymentOrderSeen.has(seenKey)){x.count++;paymentOrderSeen.add(seenKey)}}paymentStats.set(key,x)};
+ for(const p of (orderPayments||[])){if(!validIds.has(String(p.order_id)))continue;detailedOrders.add(String(p.order_id));addPayment(p.method,p.amount,p.order_id,true)}
+ for(const o of valid){if(!detailedOrders.has(String(o.id)))addPayment(o.payment_method,Number(o.total||0),o.id,true)}
+ for(const p of returnPayments)addPayment(p.method,-Number(p.amount||0),null,false);
+ const paymentRows=[...paymentStats.values()].filter(x=>x.count||Math.abs(x.total)>0.005).sort((a,b)=>b.total-a.total);
+
  return {
    orders:orders||[],valid,items:items||[],expenses:expenses||[],returnItems,
-   products:[...products.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty),
+   products:productRowsNet,categories:categoryStats,modifiers:modifierRows,
+   paymentStats:paymentRows,orderTypeStats:[...orderTypes.values()].sort((a,b)=>b.count-a.count),
    deliveryCount:valid.filter(o=>o.order_type==='delivery').length,
+   deliverySales:valid.filter(o=>o.order_type==='delivery').reduce((a,o)=>a+Number(o.total||0),0),
    deliveryFees:valid.reduce((a,o)=>a+Number(o.delivery_fee||0),0),
    cancelled:(orders||[]).filter(o=>o.status==='cancelled'),
    cancelledValue:(orders||[]).filter(o=>o.status==='cancelled').reduce((a,o)=>a+Number(o.total||0),0),
@@ -1218,12 +1252,18 @@ async function shiftReportData(shift){
  };
 }
 function shiftReportHTML(sh,employees,mtr,data){
- const sales=sh.closed_at?Number(sh.sales_total??mtr.sales):mtr.sales,cash=sh.closed_at?Number(sh.cash_sales??mtr.cash):mtr.cash,exp=sh.closed_at?Number(sh.expenses_total??mtr.exp):mtr.exp,expected=sh.closed_at?Number(sh.expected_cash??mtr.expected):mtr.expected;
- const methodName=code=>state.paymentMethods.find(x=>String(x.code)===String(code))?.name||({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',visa:'Visa'}[code]||code);
- const paymentRows=Object.entries(mtr.paymentTotals||{}).filter(([,v])=>Math.abs(Number(v||0))>0.005).map(([code,v])=>`<div><span>${esc(methodName(code))}</span><b>${money(v)}</b></div>`).join('');
+ const sales=sh.closed_at?Number(sh.sales_total??mtr.sales):mtr.sales,exp=sh.closed_at?Number(sh.expenses_total??mtr.exp):mtr.exp,expected=sh.closed_at?Number(sh.expected_cash??mtr.expected):mtr.expected;
+ const methodName=code=>state.paymentMethods.find(x=>String(x.code)===String(code))?.name||({cash:'كاش',wallet:'محفظة',instapay:'InstaPay',visa:'Visa',mixed:'دفع مختلط'}[code]||code);
+ const paymentTable=data.paymentStats.map(x=>`<tr><td>${esc(methodName(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مدفوعات</td></tr>';
+ const orderTypeTable=data.orderTypeStats.map(x=>`<tr><td>${esc(orderTypeLabel(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد طلبات</td></tr>';
+ const categoryTable=data.categories.map(cat=>`<tr><td><b>${esc(cat.name)}</b></td><td><b>${cat.qty}</b></td><td><b>${money(cat.total)}</b></td></tr>${cat.products.map(p=>`<tr><td>↳ ${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.total)}</td></tr>`).join('')}`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>';
+ const modifierTable=data.modifiers.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات داخلية</td></tr>';
  return `<div class="shift-print"><h2>${esc(businessName())}</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
- <div class="r-totals"><div><span>صافي المبيعات بعد المرتجعات</span><b>${money(sales)}</b></div>${Number(data.returnTotal||0)?`<div><span>المرتجعات</span><b>-${money(data.returnTotal)}</b></div>`:``}<div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div>${paymentRows}<div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
- <h3>مبيعات الأصناف</h3><table class="shift-report-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${data.products.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>'}</tbody></table><hr>
+ <div class="r-totals"><div><span>صافي المبيعات بعد المرتجعات</span><b>${money(sales)}</b></div>${Number(data.returnTotal||0)?`<div><span>المرتجعات</span><b>-${money(data.returnTotal)}</b></div>`:''}<div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div><div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>مبيعات الدليفري</span><b>${money(data.deliverySales)}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
+ <h3>طرق الدفع</h3><table class="shift-report-table"><thead><tr><th>الطريقة</th><th>العمليات</th><th>القيمة</th></tr></thead><tbody>${paymentTable}</tbody></table><hr>
+ <h3>طرق الطلب</h3><table class="shift-report-table"><thead><tr><th>النوع</th><th>الأوردرات</th><th>القيمة</th></tr></thead><tbody>${orderTypeTable}</tbody></table><hr>
+ <h3>مبيعات التصنيفات والأصناف</h3><table class="shift-report-table"><thead><tr><th>التصنيف / الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${categoryTable}</tbody></table><hr>
+ <h3>مبيعات الإضافات الداخلية</h3><small>تحليل فقط — قيمة الإضافات داخلة بالفعل في إجمالي الصنف ولا تُجمع مرة ثانية.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>${modifierTable}</tbody></table><hr>
  <h3>المصروفات</h3><table class="shift-report-table"><thead><tr><th>البيان</th><th>المبلغ</th></tr></thead><tbody>${data.expenses.map(x=>`<tr><td>${esc(x.description||'مصروف')}<small>${fmtDate(x.created_at)}</small></td><td>${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</tbody></table><div class="r-totals"><div><span>إجمالي المصروفات</span><b>${money(exp)}</b></div></div><hr>
  <div class="r-totals"><div><span>افتتاحية الخزنة</span><b>${money(sh.opening_cash)}</b></div><div><span>الكاش المتوقع</span><b>${money(expected)}</b></div>${sh.closed_at?`<div><span>الكاش الفعلي</span><b>${money(sh.closing_cash)}</b></div><div class="grand-print"><span>العجز / الزيادة</span><b>${money(sh.cash_difference||0)}</b></div>`:''}</div><hr><div class="r-footer">تقرير الوردية • ${new Date().toLocaleString('ar-EG')}</div></div>`;
 }
