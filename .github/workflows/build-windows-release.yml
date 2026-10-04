@@ -1,120 +1,54 @@
-name: Build Windows Release
+name: Publish V10.5.8 Stable Once
 
 on:
+  push:
+    branches:
+      - release/v10.5.8-production-recipe
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
     if: github.ref_name == 'release/v10.5.8-production-recipe'
     runs-on: windows-2022
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Read version
-        id: ver
-        shell: pwsh
-        run: |
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
-          "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-
-      - name: Stamp update repository
-        shell: pwsh
-        run: |
-          $cfg = @{
-            enabled = $true
-            owner = "${{ github.repository_owner }}"
-            repo = "${{ github.event.repository.name }}"
-            channel = "stable"
-            checkEveryHours = 6
-          }
-
-          $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Verify version
-        run: npm run check
-
-      - name: Build Windows x64
-        shell: pwsh
-        run: |
-          npm run dist -- --win --x64 --publish never
-
-      - name: Save x64 installer
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem dist -Filter *.exe |
-            Where-Object { $_.Name -notmatch "ia32|x86" } |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-
-          if (-not $exe) {
-            throw "x64 installer not found"
-          }
-
-          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
-
-      - name: Build Windows ia32
-        shell: pwsh
-        run: |
-          npm run dist -- --win --ia32 --publish never
-
-      - name: Save ia32 installer
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem dist -Filter *.exe |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-
-          if (-not $exe) {
-            throw "ia32 installer not found"
-          }
-
-          Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
-
       - name: Refuse existing stable tag or release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ steps.ver.outputs.tag }}"
+          $tag = "v10.5.8"
+          gh api "repos/${{ github.repository }}/git/ref/tags/$tag" *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Stable tag $tag already exists and is immutable." }
+          gh release view $tag -R "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Stable release $tag already exists and is immutable." }
 
-          git fetch --tags --force
-          git rev-parse "refs/tags/$tag" *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Stable tag $tag already exists and is immutable."
-          }
-
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Stable release $tag already exists and is immutable."
-          }
-
-      - name: Create immutable GitHub Release
+      - name: Download certified candidate artifact
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ steps.ver.outputs.tag }}"
-          $version = "${{ steps.ver.outputs.version }}"
+          gh run download 37180858500 -R "${{ github.repository }}" -n "sharawla-pos-10.5.8-production-recipe-candidate" -D "release-assets"
 
-          gh release create $tag `
-            --target "${{ github.sha }}" `
-            --title "Sharawla POS $version — Production 10.5.8 — Maintenance + Recipe" `
-            --notes "Production cumulative stable roll-forward: preserves all reviewed maintenance fixes and adds Recipe Production V1 backend integration. Recipe stock consumption is fail-open so sales/returns remain authoritative even if stock processing fails; returns restore frozen sale snapshots."
+      - name: Verify certified installer digests
+        shell: pwsh
+        run: |
+          $ia32 = "release-assets/Sharawla-POS-Setup-10.5.8-ia32.exe"
+          $x64 = "release-assets/Sharawla-POS-Setup-10.5.8-x64.exe"
+          if (-not (Test-Path $ia32)) { throw "ia32 installer missing" }
+          if (-not (Test-Path $x64)) { throw "x64 installer missing" }
+          $ia32Hash = (Get-FileHash $ia32 -Algorithm SHA256).Hash.ToLowerInvariant()
+          $x64Hash = (Get-FileHash $x64 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($ia32Hash -ne "f14dc4d279f9468a3fc68497339bf96140df7c45dc968d3e078161d197d090a0") { throw "Certified ia32 digest mismatch: $ia32Hash" }
+          if ($x64Hash -ne "f90004b60aae95232b14bc339a92c893c0480d4c0dbc1bec87f54a5bd11ac1c7") { throw "Certified x64 digest mismatch: $x64Hash" }
 
-          gh release upload $tag `
-            "Sharawla-POS-Setup-$version-x64.exe" `
-            "Sharawla-POS-Setup-$version-ia32.exe"
+      - name: Create immutable V10.5.8 Stable Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v10.5.8" -R "${{ github.repository }}" --target "fae709d59d5cf55197bb41432b92c2a42bca3de5" --title "Sharawla POS 10.5.8 — Production Stable" --notes "Top Burger protected production stable. Cumulative roll-forward of reviewed 10.5.7 maintenance plus Recipe Production V1. Recipe stock consumption is fail-open and never blocks authoritative sales; returns restore frozen historical sale snapshots. Return Approval remains excluded. Beta work must use separate prerelease branches/releases and must never move or overwrite this tag."
+          gh release upload "v10.5.8" -R "${{ github.repository }}" "release-assets/Sharawla-POS-Setup-10.5.8-ia32.exe" "release-assets/Sharawla-POS-Setup-10.5.8-x64.exe"
