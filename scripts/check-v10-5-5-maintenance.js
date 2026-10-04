@@ -79,6 +79,44 @@ for(const marker of [
 
 assert(!main.includes("createBackup('pre-update')"),'unsafe pre-update backup path must stay absent');
 
+// ===== Production Isolation Guard =====
+const releaseWorkflow=read('.github/workflows/build-windows-release.yml');
+const candidateWorkflow=read('.github/workflows/v10-5-5-production-maintenance-candidate.yml');
+const restaurantEngine=read('restaurant-engine.js');
+
+assert(!/[-+](?:beta|rc|alpha|dev|canary)/i.test(pkg.version),'production package version must not be prerelease');
+assert(ver.channel==='stable','production version channel must stay stable');
+assert(updater.channel==='stable','production updater channel must stay stable');
+assert(main.includes('/releases/latest'),'production updater must use GitHub latest stable release endpoint');
+
+for(const forbiddenPath of [
+  'supabase-v10-5-6-return-approval-v1.sql',
+  'scripts/check-return-approval-v1.js',
+  '.github/workflows/return-approval-v1-candidate.yml'
+]){
+  assert(!fs.existsSync(path.join(root,forbiddenPath)),'beta/return-approval artifact leaked into production maintenance: '+forbiddenPath);
+}
+
+for(const [name,source] of [['app.js',app],['main.js',main],['restaurant-engine.js',restaurantEngine]]){
+  for(const marker of ['return_approval_requests','returnApprovals','v10_5_6_return_approval']){
+    assert(!source.includes(marker),'return-approval marker leaked into production source: '+name+' -> '+marker);
+  }
+}
+
+assert(releaseWorkflow.includes('workflow_dispatch:'),'stable release workflow must remain manual');
+assert(!releaseWorkflow.includes('\n  push:\n'),'stable release workflow must not publish on push');
+assert(releaseWorkflow.includes("if: github.ref_name == 'release/v10.5.5-production-maintenance'"),'stable release workflow must be locked to the dedicated release branch');
+assert(!releaseWorkflow.includes('--clobber'),'stable release assets must be immutable');
+assert(!releaseWorkflow.includes('git tag -f'),'stable tags must never be force-moved');
+assert(!releaseWorkflow.includes('git push origin')||!releaseWorkflow.includes('--force'),'stable tags must never be force-pushed');
+assert(releaseWorkflow.includes('Refuse existing stable tag or release'),'stable workflow must refuse existing immutable releases');
+
+assert(candidateWorkflow.includes('contents: read'),'candidate workflow must stay read-only to repository contents');
+assert(!candidateWorkflow.includes('contents: write'),'candidate workflow must not gain write permission');
+assert((candidateWorkflow.match(/--publish never/g)||[]).length>=2,'candidate x64/ia32 builds must never publish');
+assert(!candidateWorkflow.includes('gh release'),'candidate workflow must never create or mutate releases');
+assert(!candidateWorkflow.includes('git tag'),'candidate workflow must never create or move tags');
+
 for(const marker of [
   'add column if not exists client_tx_id text',
   'add column if not exists request_digest text',
