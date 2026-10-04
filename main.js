@@ -190,7 +190,7 @@ async function checkForWindowsUpdate({interactive=false}={}){
     const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
     const rel=await githubJson(api);
     const rawTag=String(rel&&rel.tag_name||'').trim();
-    if(rel?.draft===true||rel?.prerelease===true||!/^v?\\d+\\.\\d+\\.\\d+$/.test(rawTag)){
+    if(rel?.draft===true||rel?.prerelease===true||!/^v?\d+\.\d+\.\d+$/.test(rawTag)){
       throw new Error('Latest release is not an approved stable SemVer tag');
     }
     const remote=rawTag.replace(/^v/i,'');const local=app.getVersion();
