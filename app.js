@@ -671,7 +671,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
-  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();startReturnApprovalWatch();showPage('home')}else renderBranchPicker();
+  show('appView');startReturnApprovalWatch();if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
 
