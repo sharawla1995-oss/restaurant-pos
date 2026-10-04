@@ -5,6 +5,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const assert=(ok,msg)=>{if(!ok){console.error('FAIL:',msg);process.exit(1)}};
 
 const app=read('app.js');
+const main=read('main.js');
 const sql=read('supabase-v10-5-4-delivery-settlement-atomic.sql');
 const pkg=JSON.parse(read('package.json'));
 const ver=JSON.parse(read('version.json'));
@@ -36,6 +37,16 @@ assert(dsStart>=0&&dsEnd>dsStart,'delivery settings bounds');
 const ds=app.slice(dsStart,dsEnd);
 assert(!ds.includes('driver_settlements'),'settlements removed from delivery settings');
 assert(!ds.includes('data-settle='),'legacy settlement button removed');
+
+for(const marker of [
+  'function pendingLocalOperationCount',
+  "status='pending'",
+  'function sha256File',
+  "asset.digest",
+  'Downloaded installer SHA-256 mismatch',
+  "createBackup('pre-update')",
+  "blocked:'pending-local-operations'"
+])assert(main.includes(marker),'updater safety marker '+marker);
 
 for(const marker of [
   'add column if not exists client_tx_id text',
