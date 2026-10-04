@@ -74,6 +74,18 @@ let updateCheckBusy = false;
 function readUpdateConfig(){
   try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
 }
+function pendingLocalOperationCount(){
+  let count=0;
+  try{const r=one("select count(*) as n from local_operations where status='pending'");count=Math.max(count,Number(r?.n||0))}catch{}
+  try{const r=one('select value from kv where key=?',['queueCount']);count=Math.max(count,Number(JSON.parse(r?.value||'0')||0))}catch{}
+  try{const r=one('select value from kv where key=?',['queue']);const q=r?.value?JSON.parse(r.value):[];if(Array.isArray(q))count=Math.max(count,q.length)}catch{}
+  return count;
+}
+function sha256File(filePath){
+  const h=crypto.createHash('sha256');
+  h.update(fs.readFileSync(filePath));
+  return h.digest('hex');
+}
 function semverParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
 function isNewerVersion(remote,local){
   const a=semverParts(remote), b=semverParts(local), n=Math.max(a.length,b.length);
@@ -137,6 +149,11 @@ async function checkForWindowsUpdate({interactive=false}={}){
     // Backward compatibility for old x64-only releases that used a generic EXE name.
     if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
     if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in latest release`);
+    const pendingBefore=pendingLocalOperationCount();
+    if(pendingBefore>0){
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'التحديث مؤجل',message:`يوجد ${pendingBefore} حركة أوفلاين في انتظار المزامنة.`,detail:'لن يتم تنزيل أو تثبيت التحديث قبل اكتمال المزامنة حفاظًا على بيانات التشغيل.',buttons:['تمام']});
+      return {available:true,blocked:'pending-local-operations',pending:pendingBefore,remote};
+    }
     const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
     if(ask.response!==0)return {available:true,skipped:true,remote};
     userAcceptedUpdate=true;
@@ -144,9 +161,21 @@ async function checkForWindowsUpdate({interactive=false}={}){
     const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
     sendUpdateProgress({state:'start',version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
     await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
-    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
+    const expectedDigest=String(asset.digest||'').trim().toLowerCase();
+    if(!/^sha256:[0-9a-f]{64}$/.test(expectedDigest)){try{if(fs.existsSync(target))fs.unlinkSync(target)}catch{}throw new Error('Release asset SHA-256 digest is missing')}
+    const actualDigest=`sha256:${sha256File(target)}`;
+    if(actualDigest!==expectedDigest){try{if(fs.existsSync(target))fs.unlinkSync(target)}catch{}throw new Error('Downloaded installer SHA-256 mismatch')}
+    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل والتحقق من التحديث V${remote}`});
     const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة. بيانات الكاشير المحلية والنسخ الاحتياطية لن تُحذف.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
     if(ready.response===0){
+      const pendingNow=pendingLocalOperationCount();
+      if(pendingNow>0){
+        sendUpdateProgress({state:'idle'});
+        await dialog.showMessageBox(mainWindow,{type:'warning',title:'التحديث مؤجل',message:`ظهر ${pendingNow} حركة أوفلاين في انتظار المزامنة.`,detail:'تم إلغاء بدء التثبيت. أعد المحاولة بعد اكتمال المزامنة.',buttons:['تمام']});
+        return {available:true,downloaded:true,blocked:'pending-local-operations',pending:pendingNow,remote};
+      }
+      let backupPath=null;try{backupPath=createBackup('pre-update');pruneBackups(30)}catch(e){throw new Error('تعذر إنشاء نسخة احتياطية قبل التحديث: '+String(e&&e.message||e))}
+      if(!backupPath)throw new Error('تعذر إنشاء نسخة احتياطية قبل التحديث');
       sendUpdateProgress({state:'installing',version:remote,percent:100,message:'جاري بدء التثبيت…'});
       try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),600)}catch(e){throw e}
     }else sendUpdateProgress({state:'idle'});
