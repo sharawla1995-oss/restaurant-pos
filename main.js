@@ -188,7 +188,12 @@ async function checkForWindowsUpdate({interactive=false}={}){
   updateCheckBusy=true;let userAcceptedUpdate=false;
   try{
     const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
-    const rel=await githubJson(api);const remote=String(rel.tag_name||'').replace(/^v/i,'');const local=app.getVersion();
+    const rel=await githubJson(api);
+    const rawTag=String(rel&&rel.tag_name||'').trim();
+    if(rel?.draft===true||rel?.prerelease===true||!/^v?\\d+\\.\\d+\\.\\d+$/.test(rawTag)){
+      throw new Error('Latest release is not an approved stable SemVer tag');
+    }
+    const remote=rawTag.replace(/^v/i,'');const local=app.getVersion();
     if(!isNewerVersion(remote,local)){
       if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Sharawla POS',message:`أنت على أحدث إصدار V${local}.`,buttons:['تمام']});
       return {available:false,local,remote};
