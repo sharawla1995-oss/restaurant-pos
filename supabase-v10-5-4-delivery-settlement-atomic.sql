@@ -53,6 +53,13 @@ begin
     raise exception 'client_tx_id مطلوب';
   end if;
 
+  -- Serialize identical client transactions before checking the durable receipt.
+  -- This makes concurrent exact replays return the same settlement instead of
+  -- racing into the already-settled order guard.
+  perform pg_advisory_xact_lock(
+    hashtextextended('settle_driver_orders_v1:' || btrim(p_client_tx_id), 0)
+  );
+
   select coalesce(array_agg(x order by x),'{}'::bigint[])
     into v_order_ids
   from (
