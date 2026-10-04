@@ -1,88 +1,40 @@
-name: V10.5.9 Stable Publish
+name: V10.5.9 Stable Immutable Guard
 
 on:
-  push:
-    branches:
-      - release/v10.5.9-production-recipe-ui
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout release branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Verify exact certified source parent
-        shell: bash
-        run: |
-          set -euo pipefail
-          SOURCE_SHA="82c70566b1d78408f0f8f592defa5056802a57f7"
-          PARENT_SHA="$(git rev-parse HEAD^)"
-          test "$PARENT_SHA" = "$SOURCE_SHA"
-          test "$(git show "$SOURCE_SHA:package.json" | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>process.stdout.write(JSON.parse(s).version))")" = "10.5.9"
-          echo "CERTIFIED_SOURCE_PARENT_PASS=$SOURCE_SHA"
-
-      - name: Refuse existing v10.5.9 tag or release
+      - name: Verify immutable v10.5.9 stable
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if git ls-remote --exit-code --tags origin "refs/tags/v10.5.9" >/dev/null 2>&1; then
-            echo "v10.5.9 tag already exists"; exit 1
-          fi
-          if gh release view v10.5.9 >/dev/null 2>&1; then
-            echo "v10.5.9 release already exists"; exit 1
-          fi
+          EXPECTED_SOURCE="82c70566b1d78408f0f8f592defa5056802a57f7"
+          EXPECTED_IA32="sha256:64aad17857d6bf81dd05c7576ca667769b9d68aca71ce4ce01a1a4577846896e"
+          EXPECTED_X64="sha256:50f2f151f5d5eb45ab7eb679fbf959b3c71eea5ab61f00f9236fd3bc24cf3298"
 
-      - name: Download certified candidate artifact
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p certified
-          gh run download 37188616445 \
-            -n sharawla-pos-10.5.9-production-recipe-ui-candidate \
-            -D certified
-          test -f certified/Sharawla-POS-Setup-10.5.9-ia32.exe
-          test -f certified/Sharawla-POS-Setup-10.5.9-x64.exe
+          TAG_SHA="$(gh api repos/${GITHUB_REPOSITORY}/git/ref/tags/v10.5.9 --jq '.object.sha')"
+          test "$TAG_SHA" = "$EXPECTED_SOURCE"
 
-      - name: Verify certified installer SHA256
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "64aad17857d6bf81dd05c7576ca667769b9d68aca71ce4ce01a1a4577846896e  certified/Sharawla-POS-Setup-10.5.9-ia32.exe" | sha256sum -c -
-          echo "50f2f151f5d5eb45ab7eb679fbf959b3c71eea5ab61f00f9236fd3bc24cf3298  certified/Sharawla-POS-Setup-10.5.9-x64.exe" | sha256sum -c -
+          TARGET="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.9 --jq '.target_commitish')"
+          DRAFT="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.9 --jq '.draft')"
+          PRE="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.9 --jq '.prerelease')"
+          LATEST="$(gh api repos/${GITHUB_REPOSITORY}/releases/latest --jq '.tag_name')"
+          test "$TARGET" = "$EXPECTED_SOURCE"
+          test "$DRAFT" = "false"
+          test "$PRE" = "false"
+          test "$LATEST" = "v10.5.9"
 
-      - name: Create immutable stable release from certified source
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh release create v10.5.9 \
-            certified/Sharawla-POS-Setup-10.5.9-ia32.exe \
-            certified/Sharawla-POS-Setup-10.5.9-x64.exe \
-            --target "82c70566b1d78408f0f8f592defa5056802a57f7" \
-            --title "Sharawla POS 10.5.9 — Production Stable" \
-            --notes "Production Stable 10.5.9. Based exactly on certified 10.5.8 plus feature-gated Recipe UI ported semantically from Beta. Uses Runtime Config V2 enabled_features and admin-only recipe RPC wrappers. Preserves fail-open sale recipe consumption and frozen historical return restoration. Excludes Return Approval, Point 4 Offline ownership, Canonical Stock, Reset/Rebind, and unrelated Beta runtime. Certified candidate run: 37188616445. ia32 SHA256: 64aad17857d6bf81dd05c7576ca667769b9d68aca71ce4ce01a1a4577846896e. x64 SHA256: 50f2f151f5d5eb45ab7eb679fbf959b3c71eea5ab61f00f9236fd3bc24cf3298."
+          IA32="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.9 --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.9-ia32.exe") | .digest')"
+          X64="$(gh api repos/${GITHUB_REPOSITORY}/releases/tags/v10.5.9 --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.9-x64.exe") | .digest')"
+          test "$IA32" = "$EXPECTED_IA32"
+          test "$X64" = "$EXPECTED_X64"
 
-      - name: Verify latest stable
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          test "$(gh release view v10.5.9 --json isDraft,isPrerelease,tagName,targetCommitish --jq '.isDraft|tostring')" = "false"
-          test "$(gh release view v10.5.9 --json isDraft,isPrerelease,tagName,targetCommitish --jq '.isPrerelease|tostring')" = "false"
-          test "$(gh release view v10.5.9 --json tagName --jq '.tagName')" = "v10.5.9"
-          test "$(gh release view v10.5.9 --json targetCommitish --jq '.targetCommitish')" = "82c70566b1d78408f0f8f592defa5056802a57f7"
-          test "$(gh release view latest --json tagName --jq '.tagName')" = "v10.5.9"
-          echo "V10.5.9_STABLE_PUBLISH_PASS"
+          echo "V10.5.9_STABLE_IMMUTABLE_GUARD_PASS"
