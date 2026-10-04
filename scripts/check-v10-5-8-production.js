@@ -158,7 +158,8 @@ for(const marker of [
 
 assert(!/create\s+or\s+replace\s+function\s+public\.create_pos_order_atomic/i.test(recipeSoftSql),'recipe migration must not replace core sale owner');
 assert(!/create\s+or\s+replace\s+function\s+public\.create_order_return_idempotent/i.test(recipeSoftSql),'recipe migration must not replace core return owner');
-assert(!/quantity\s*</i.test(recipeSoftSql.replace(/v_restore\s*</g,'')),'recipe migration must not block sale on insufficient stock');
+assert(!/v_stock_quantity\s*<\s*v_need/i.test(recipeSoftSql),'recipe migration must not block sale on insufficient stock');
+assert(!/insufficient stock|مخزون الخامة غير كاف/i.test(recipeSoftSql),'recipe migration must not contain stock-shortage rejection');
 assert(recipeSoftSql.includes("set quantity=round(coalesce(v_stock_quantity,0)-v_need,6)"),'sale stock deduction must be arithmetic and allow negative stock');
 assert(recipeSoftSql.includes('from public.recipe_order_item_consumption_v1 s'),'returns must restore from frozen sale snapshot');
 assert(!/from\s+public\.recipes[\s\S]{0,600}recipe_apply_return_item_restore_v1/i.test(recipeSoftSql),'return path must not recalculate current recipe');
