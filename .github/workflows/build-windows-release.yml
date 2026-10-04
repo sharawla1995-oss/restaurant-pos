@@ -1,58 +1,26 @@
-name: Publish V10.5.8 Stable Once
+name: V10.5.8 Stable Immutable Guard
 
 on:
-  push:
-    branches:
-      - release/v10.5.8-production-recipe
   workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 jobs:
-  release:
+  verify-immutable:
     if: github.ref_name == 'release/v10.5.8-production-recipe'
-    runs-on: windows-2022
+    runs-on: ubuntu-latest
     steps:
-      - name: Refuse existing stable tag or release
-        shell: pwsh
+      - name: Verify immutable production release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v10.5.8"
-          gh api "repos/${{ github.repository }}/git/ref/tags/$tag" *> $null
-          $tagExists = ($LASTEXITCODE -eq 0)
-          $global:LASTEXITCODE = 0
-          if ($tagExists) { throw "Stable tag $tag already exists and is immutable." }
-          gh release view $tag -R "${{ github.repository }}" *> $null
-          $releaseExists = ($LASTEXITCODE -eq 0)
-          $global:LASTEXITCODE = 0
-          if ($releaseExists) { throw "Stable release $tag already exists and is immutable." }
-
-      - name: Download certified candidate artifact
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download 37180858500 -R "${{ github.repository }}" -n "sharawla-pos-10.5.8-production-recipe-candidate" -D "release-assets"
-
-      - name: Verify certified installer digests
-        shell: pwsh
-        run: |
-          $ia32 = "release-assets/Sharawla-POS-Setup-10.5.8-ia32.exe"
-          $x64 = "release-assets/Sharawla-POS-Setup-10.5.8-x64.exe"
-          if (-not (Test-Path $ia32)) { throw "ia32 installer missing" }
-          if (-not (Test-Path $x64)) { throw "x64 installer missing" }
-          $ia32Hash = (Get-FileHash $ia32 -Algorithm SHA256).Hash.ToLowerInvariant()
-          $x64Hash = (Get-FileHash $x64 -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($ia32Hash -ne "f14dc4d279f9468a3fc68497339bf96140df7c45dc968d3e078161d197d090a0") { throw "Certified ia32 digest mismatch: $ia32Hash" }
-          if ($x64Hash -ne "f90004b60aae95232b14bc339a92c893c0480d4c0dbc1bec87f54a5bd11ac1c7") { throw "Certified x64 digest mismatch: $x64Hash" }
-
-      - name: Create immutable V10.5.8 Stable Release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "v10.5.8" -R "${{ github.repository }}" --target "fae709d59d5cf55197bb41432b92c2a42bca3de5" --title "Sharawla POS 10.5.8 — Production Stable" --notes "Top Burger protected production stable. Cumulative roll-forward of reviewed 10.5.7 maintenance plus Recipe Production V1. Recipe stock consumption is fail-open and never blocks authoritative sales; returns restore frozen historical sale snapshots. Return Approval remains excluded. Beta work must use separate prerelease branches/releases and must never move or overwrite this tag."
-          gh release upload "v10.5.8" -R "${{ github.repository }}" "release-assets/Sharawla-POS-Setup-10.5.8-ia32.exe" "release-assets/Sharawla-POS-Setup-10.5.8-x64.exe"
+          set -euo pipefail
+          TAG="v10.5.8"
+          EXPECTED="fae709d59d5cf55197bb41432b92c2a42bca3de5"
+          REF_SHA="$(gh api "repos/${{ github.repository }}/git/ref/tags/$TAG" --jq .object.sha)"
+          RELEASE_TARGET="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq .target_commitish)"
+          test "$REF_SHA" = "$EXPECTED"
+          test "$RELEASE_TARGET" = "$EXPECTED"
+          echo "V10.5.8_STABLE_IMMUTABLE_GUARD_PASS"
