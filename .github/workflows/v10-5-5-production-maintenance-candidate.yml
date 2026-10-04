@@ -1,6 +1,9 @@
 name: V10.5.5 Production Maintenance Candidate
 
 on:
+  push:
+    branches:
+      - candidate/v10.5.5-maintenance-safe-reconcile
   workflow_dispatch:
 
 permissions:
