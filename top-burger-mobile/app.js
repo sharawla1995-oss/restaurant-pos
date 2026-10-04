@@ -333,6 +333,9 @@ modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZo
 let websiteOrderWatchTimer=null;
 let knownWebsiteOrderIds=new Set();
 let websiteOrderWatchPrimed=false;
+let returnApprovalWatchTimer=null;
+let knownReturnApprovalIds=new Set();
+let returnApprovalWatchPrimed=false;
 let websiteAudioCtx=null;
 function websiteOrderBeep(){
   try{
@@ -478,7 +481,7 @@ async function signIn(email,password){
   if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
   session=resumeSession;return session;
 }
-async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
+async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchTimer=null;stopReturnApprovalWatch();try{if(navigator.onLine&&session?.access_token)await req('/auth/v1/logout',{method:'POST'})}catch{}session=null;resumeSession=null;localStorage.removeItem('sbResumeSession');localStorage.removeItem('offlineLoginVerifier');state.employee=null;show('loginView')}
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
@@ -511,6 +514,7 @@ function hasFeaturePermission(key){
 }
 function canAccessPage(page){
   if(!runtimeAllowsPage(page))return false;
+  if(page==='approvals')return (isAdmin()||hasFeaturePermission('returnApprovals'))&&runtimeOperationalAllowsPage(page);
   const allowed=effectivePermissionSet();
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings')||allowed.has('websiteAppearance')||allowed.has('financialSettings');
   if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
@@ -545,6 +549,7 @@ function selectBranch(id){
   state.activeBranchId=bid;
   refreshBranchChrome();
   startWebsiteOrderWatch();
+  startReturnApprovalWatch();
   showPage('home');
 }
 function renderBranchPicker(){
@@ -683,7 +688,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
-  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
+  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();startReturnApprovalWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
 
@@ -724,7 +729,7 @@ $('#changeBranchBtn').onclick=()=>renderBranchPicker();if($('#addBranchBtn'))$('
 $('#nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)showPage(b.dataset.page)};
 setInterval(()=>{if($('#clock'))$('#clock').textContent=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})},1000);
 function navActive(p){$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));setSidebarOpen(false)}
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,marketSettings:renderRetailMarketSettings,retailOffers:renderRetailOffers,stockCount:renderRetailStockCount,transfers:renderRetailTransfers,suppliers:renderRetailSuppliers,purchasing:renderRetailPurchasing,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,marketSettings:renderRetailMarketSettings,retailOffers:renderRetailOffers,stockCount:renderRetailStockCount,transfers:renderRetailTransfers,suppliers:renderRetailSuppliers,purchasing:renderRetailPurchasing,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -738,6 +743,7 @@ async function renderHome(){
     ['deliveryOrders','🛵','طلبات الدليفري',`${activeDelivery.length} طلب نشط`,'amber'],
     ['orders','📋','الطلبات','متابعة وطباعة الطلبات','blue'],
     ['returns','↩️','المرتجعات','مرتجع كلي أو جزئي من الفاتورة','rose'],
+    ['approvals','✅','موافقات المدير','طلبات اعتماد المرتجعات','green'],
     ['customers','👤','العملاء','بحث وبيانات العملاء','violet'],
     ['shifts','🕘','الورديات',openShift?'الوردية مفتوحة 🟢':'لا توجد وردية مفتوحة','green'],
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
@@ -1129,6 +1135,70 @@ function prepReceiptHTML(o,items,isCopy=false){const c=printCfg(o.branch_id);ret
 async function printPrepReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'prep')>0;const ok=await printIsolated(prepReceiptHTML(o,items,isCopy),c.paper_size,c.prep_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'prep')});if(ok)await recordSuccessfulPrint(o,'prep',isCopy);return ok}
 function autoPrintOrder(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer);if(autoPrep&&state.settings.enable_prep_receipt)setTimeout(()=>printPrepReceipt(o,items),250);if(autoCustomer&&state.settings.enable_receipt_print)setTimeout(()=>printReceipt(o,items),900)}
 function showReceipt(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer),didAuto=(autoCustomer&&state.settings.enable_receipt_print)||(autoPrep&&state.settings.enable_prep_receipt);autoPrintOrder(o,items);if(didAuto)return;const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>تم حفظ بون ${esc(bonDisplay(o))}</h2>${receiptHTML(o,items)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${state.settings.enable_prep_receipt?'<button class="secondary" data-prep>ريسيت التحضير</button>':''}${state.settings.enable_receipt_print?'<button class="primary" data-print>فاتورة العميل</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print]'))printReceipt(o,items);if(e.target.closest('[data-prep]'))printPrepReceipt(o,items)}}
+async function fetchPendingReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!navigator.onLine)return [];
+ try{
+  const now=encodeURIComponent(new Date().toISOString());
+  return await rest('return_approval_requests',`select=*&status=eq.pending&expires_at=gt.${now}&order=created_at.desc&limit=100`);
+ }catch(e){console.warn('return approval watch',e);return []}
+}
+function updateReturnApprovalBadge(count){
+ const badge=$('#returnApprovalBadge');if(!badge)return;
+ badge.textContent=count>99?'99+':String(count||0);
+ badge.classList.toggle('hidden',!count);
+}
+async function refreshReturnApprovalWatch(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){updateReturnApprovalBadge(0);return}
+ const rows=await fetchPendingReturnApprovals();
+ const ids=new Set(rows.map(x=>String(x.id)));
+ if(returnApprovalWatchPrimed){
+  const fresh=rows.filter(x=>!knownReturnApprovalIds.has(String(x.id)));
+  if(fresh.length){
+   websiteOrderBeep();
+   const r=fresh[0];
+   toast(`طلب اعتماد مرتجع جديد • ${branchName(r.branch_id)||'فرع'} • ${money(r.expected_total)}`);
+  }
+ }else returnApprovalWatchPrimed=true;
+ knownReturnApprovalIds=ids;updateReturnApprovalBadge(rows.length);
+}
+function stopReturnApprovalWatch(){
+ if(returnApprovalWatchTimer){clearInterval(returnApprovalWatchTimer);returnApprovalWatchTimer=null}
+ knownReturnApprovalIds=new Set();returnApprovalWatchPrimed=false;updateReturnApprovalBadge(0);
+}
+function startReturnApprovalWatch(){
+ stopReturnApprovalWatch();
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!state.employee)return;
+ refreshReturnApprovalWatch();
+ returnApprovalWatchTimer=setInterval(refreshReturnApprovalWatch,5000);
+}
+async function renderReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){toast('ليس لديك صلاحية اعتماد المرتجعات');return showPage('home')}
+ let rows=[];
+ try{rows=await rest('return_approval_requests','select=*&order=created_at.desc&limit=100')}catch(e){$('#page').innerHTML=`<div class="panel"><h2>✅ موافقات المدير</h2><div class="empty">${esc(e.message||'تعذر تحميل الطلبات')}</div></div>`;return}
+ const pending=rows.filter(r=>r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now());
+ updateReturnApprovalBadge(pending.length);
+ const statusLabel=s=>({pending:'⏳ في الانتظار',approved:'✅ تمت الموافقة',rejected:'❌ مرفوض',expired:'⌛ منتهي'}[s]||s);
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>✅ موافقات المدير</h2><p>طلبات اعتماد المرتجعات من الموظفين. الموافقة لا تحتاج فتح وردية للمدير.</p></div><button id="refreshReturnApprovals" class="secondary">↻ تحديث</button></div><div class="approval-list">${rows.map(r=>`<div class="user-card ${r.status==='pending'?'':'muted'}"><div class="user-main"><b>مرتجع ${money(r.expected_total)} • ${esc(branchName(r.branch_id)||('فرع '+r.branch_id))}</b><small>بون ${r.order_bon_number||'-'} • فاتورة ${r.order_invoice_number||'-'} • بواسطة ${esc(r.requester_name||'موظف')} • ${fmtDate(r.created_at)}</small></div><div class="user-branch-tags"><span class="tag">${esc(r.reason||'')}</span><span class="tag">${statusLabel(r.status)}</span></div>${r.notes?`<p class="muted">${esc(r.notes)}</p>`:''}${r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now()?`<div class="row-actions"><button class="primary" data-approve-return="${r.id}">✅ موافقة</button><button class="danger" data-reject-return="${r.id}">رفض</button></div>`:''}</div>`).join('')||'<div class="empty">لا توجد طلبات اعتماد</div>'}</div></div>`;
+ $('#refreshReturnApprovals').onclick=renderReturnApprovals;
+ $('#page').onclick=async e=>{
+  const approve=e.target.closest('[data-approve-return]'),reject=e.target.closest('[data-reject-return]');
+  if(!approve&&!reject)return;
+  const id=Number((approve||reject).dataset[approve?'approveReturn':'rejectReturn']);
+  let note=null;
+  if(reject){note=await uiPrompt('سبب الرفض (اختياري)');if(note===null)return}
+  if(approve&&!await uiConfirm('تأكيد اعتماد المرتجع؟ سيتم تنفيذ المرتجع فورًا على وردية الموظف الذي طلبه.',{title:'اعتماد المرتجع',okText:'موافقة'}))return;
+  const btn=approve||reject;btn.disabled=true;
+  try{
+   const result=await rpc('decide_order_return_approval_v1',{p_request_id:id,p_decision:approve?'approve':'reject',p_note:note,p_client_tx_id:uuid()});
+   if(result?.status==='approved')toast('تم اعتماد وتنفيذ المرتجع');
+   else if(result?.status==='rejected')toast('تم رفض طلب المرتجع');
+   else if(result?.status==='expired')toast('انتهت صلاحية طلب الاعتماد');
+   else toast('تم تحديث الطلب');
+   await refreshReturnApprovalWatch();renderReturnApprovals();
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
+}
+
 async function openReturnForOrder(o,items){
  if(!canAccessPage('returns'))return toast('ليس لديك صلاحية المرتجعات');
  const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل عمل المرتجع');
