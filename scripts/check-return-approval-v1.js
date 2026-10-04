@@ -44,7 +44,8 @@ for(const marker of [
   'request_digest',
   'decision_digest',
   'returns_approval_request_uidx',
-  'returns_approval_request_fk'
+  'returns_approval_request_fk',
+  'لا يمكن اعتماد طلب المرتجع الذي أنشأته بنفسك'
 ]) assert(sql.includes(marker),'sql marker '+marker);
 
 console.log('RETURN_APPROVAL_V1_PASS');
