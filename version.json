@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.9",
+  "version": "10.5.10",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production 10.5.9 candidate based exactly on certified 10.5.8. Adds feature-gated admin-only Recipe UI ported semantically from Beta, Runtime Config V2 feature consumption, and narrow POS wrappers over the existing authoritative Recipe Admin owners. Keeps fail-open sale consumption, frozen historical return restoration, stable updater safety, and excludes Return Approval, Point 4 Offline ownership, Canonical Stock and Beta runtime."
+  "notes": "Production 10.5.10 candidate based exactly on certified 10.5.9. UI-only hotfix compacts the delivery cashier fields so the cart, totals and payment actions remain usable on production screens. No checkout, totals, customer lookup, delivery fee, driver, Recipe, Offline, licensing, fingerprint, Reset/Rebind, Point 4 or Canonical Stock logic changes."
 }

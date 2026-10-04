@@ -811,6 +811,7 @@ function toggleDeliveryFields(){
  const delivery=$('#orderType')?.value==='delivery';
  $('#deliveryFields')?.classList.toggle('hidden',!delivery);
  $('#deliveryFeeLine')?.classList.toggle('hidden',!delivery);
+ $('.cart')?.classList.toggle('delivery-mode',delivery);
 }
 function normalizePhone(v){
  const ar='٠١٢٣٤٥٦٧٨٩', fa='۰۱۲۳۴۵۶۷۸۹';

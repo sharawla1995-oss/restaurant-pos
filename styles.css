@@ -385,3 +385,83 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:8px;scrollbar-width:thin}
 .sidebar nav::-webkit-scrollbar{width:7px}.sidebar nav::-webkit-scrollbar-thumb{background:#ffffff2b;border-radius:999px}.sidebar nav::-webkit-scrollbar-track{background:transparent}
 .sidebar-foot{flex:0 0 auto;margin-top:0}
+
+
+/* V10.5.10 — compact delivery cashier hotfix.
+   Presentation only: no totals, checkout, customer, driver or fee logic changes. */
+.cart.delivery-mode .next-bon-badge{
+  padding:7px 10px;
+  margin-bottom:6px;
+  border-radius:12px;
+}
+.cart.delivery-mode .next-bon-badge b{font-size:22px}
+.cart.delivery-mode .cart-head{
+  padding:7px 9px!important;
+  gap:6px!important;
+}
+.cart.delivery-mode .cart-head input,
+.cart.delivery-mode .cart-head select{
+  min-height:34px;
+  padding:6px 8px;
+}
+.cart.delivery-mode .delivery-fields{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  padding:6px 9px;
+  gap:5px;
+  align-items:center;
+}
+.cart.delivery-mode .delivery-fields>select,
+.cart.delivery-mode .delivery-fields>input,
+.cart.delivery-mode .delivery-fields>textarea{
+  min-height:34px;
+  padding:6px 8px;
+}
+.cart.delivery-mode .delivery-fee-control{min-width:0}
+.cart.delivery-mode .delivery-fee-manual{
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:6px;
+  margin:0;
+  font-size:12px;
+}
+.cart.delivery-mode .delivery-fee-manual input{
+  min-width:0;
+  min-height:34px;
+  padding:6px 8px;
+}
+.cart.delivery-mode #deliveryAddress{
+  grid-column:1/-1;
+  min-height:40px;
+  height:40px;
+  max-height:40px;
+  resize:none;
+}
+.cart.delivery-mode>.customer-hint{
+  padding:3px 9px 2px;
+  min-height:0;
+  max-height:30px;
+  line-height:1.25;
+  overflow:hidden;
+}
+.cart.delivery-mode .cart-items{
+  min-height:120px;
+  padding:6px 10px;
+}
+.cart.delivery-mode .cart-item{padding:7px 0}
+.cart.delivery-mode .cart-foot{
+  padding:7px 9px!important;
+}
+.cart.delivery-mode .totline{margin:3px 0}
+.cart.delivery-mode .grand{font-size:19px}
+.cart.delivery-mode .promo-pos-box{margin:5px 0}
+.cart.delivery-mode .pay-actions{
+  gap:5px;
+  margin-top:6px;
+}
+.cart.delivery-mode .pay-actions button{padding:8px 6px}
+@media(max-width:900px){
+  .cart.delivery-mode .delivery-fields{grid-template-columns:1fr!important}
+  .cart.delivery-mode #deliveryAddress{grid-column:auto}
+  .cart.delivery-mode .cart-items{min-height:160px}
+}

@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.9",
-  "description": "Sharawla POS V10.5.9 - Production Recipe UI + fail-open recipe stock consumption",
+  "version": "10.5.10",
+  "description": "Sharawla POS V10.5.10 - Production delivery cashier compact UI hotfix over V10.5.9",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node scripts/check-v10-5-9-production.js",
+    "check": "node scripts/check-version.js && node scripts/check-v10-5-10-delivery-ui.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
