@@ -1,0 +1,30 @@
+name: Return Approval V1 Candidate
+
+on:
+  push:
+    branches:
+      - feature/v10.5.6-return-approval-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: JavaScript syntax
+        run: |
+          node --check app.js
+          node --check restaurant-engine.js
+
+      - name: Return approval source gates
+        run: node scripts/check-return-approval-v1.js
