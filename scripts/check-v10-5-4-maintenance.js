@@ -54,6 +54,8 @@ for(const marker of [
   'driver_settlements_client_tx_uidx',
   'security definer',
   'public.is_admin()',
+  'pg_advisory_xact_lock',
+  "hashtextextended('settle_driver_orders_v1:'",
   'for update',
   "raise exception 'client_tx_id مستخدم ببيانات مختلفة'",
   'revoke all on function public.settle_driver_orders_v1',
