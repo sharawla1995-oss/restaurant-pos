@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   release:
+    if: github.ref_name == 'release/v10.5.5-production-maintenance'
     runs-on: windows-2022
 
     steps:
@@ -83,7 +84,25 @@ jobs:
 
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
 
-      - name: Create or update GitHub Release
+      - name: Refuse existing stable tag or release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ steps.ver.outputs.tag }}"
+
+          git fetch --tags --force
+          git rev-parse "refs/tags/$tag" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Stable tag $tag already exists and is immutable."
+          }
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Stable release $tag already exists and is immutable."
+          }
+
+      - name: Create immutable GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -91,16 +110,11 @@ jobs:
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
 
-          gh release view $tag *> $null
-
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag `
-              --target "${{ github.sha }}" `
-              --title "Sharawla POS $version — Production Maintenance" `
-              --notes "Production Maintenance stable roll-forward: receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, atomic delivery cash settlements, complete accumulated-settlement visibility/history, returned-modifier reporting, and shift-close safeguards without adding a new network-only close dependency."
-          }
+          gh release create $tag `
+            --target "${{ github.sha }}" `
+            --title "Sharawla POS $version — Production Maintenance" `
+            --notes "Production Maintenance stable roll-forward: receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, atomic delivery cash settlements, complete accumulated-settlement visibility/history, returned-modifier reporting, and shift-close safeguards without adding a new network-only close dependency."
 
           gh release upload $tag `
             "Sharawla-POS-Setup-$version-x64.exe" `
-            "Sharawla-POS-Setup-$version-ia32.exe" `
-            --clobber
+            "Sharawla-POS-Setup-$version-ia32.exe"
