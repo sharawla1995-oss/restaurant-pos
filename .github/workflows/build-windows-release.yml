@@ -3,7 +3,7 @@ name: Build Windows Release
 on:
   push:
     branches:
-      - hotfix/v10.5.4-production-maintenance
+      - hotfix/v10.5.5-production-maintenance
   workflow_dispatch:
 
 permissions:
@@ -100,7 +100,7 @@ jobs:
             gh release create $tag `
               --target "${{ github.sha }}" `
               --title "Sharawla POS $version — Production Maintenance" `
-              --notes "Production Maintenance release based on stable 10.5.3: receipt/prep modifier display, expanded shift breakdowns, detailed website-order reporting, print-settings fix, and atomic delivery cash settlements with shift-close safeguards."
+              --notes "Production Maintenance stable roll-forward: receipt/prep modifier display, expanded shift/category/payment/order-type reporting, detailed website-order reporting, print-settings fix, atomic delivery cash settlements, complete accumulated-settlement visibility/history, returned-modifier reporting, and shift-close safeguards without adding a new network-only close dependency."
           }
 
           gh release upload $tag `
