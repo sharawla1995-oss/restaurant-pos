@@ -1,9 +1,6 @@
 name: Build Windows Release
 
 on:
-  push:
-    branches:
-      - hotfix/v10.5.4-production-maintenance
   workflow_dispatch:
 
 permissions:
