@@ -1,9 +1,6 @@
 name: V10.5.6 RC1 Candidate
 
 on:
-  push:
-    branches:
-      - candidate/v10.5.6-production-maintenance
   workflow_dispatch:
 
 permissions:
@@ -48,8 +45,9 @@ jobs:
       - name: Save ia32 installer
         shell: pwsh
         run: |
+          # electron-builder emits the generic artifactName for single-arch builds.
+          # The ia32 build runs immediately before this step, so select the newest EXE.
           $exe = Get-ChildItem dist -Filter *.exe |
-            Where-Object { $_.Name -match "ia32|x86" } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
           if (-not $exe) { throw "ia32 installer not found" }
