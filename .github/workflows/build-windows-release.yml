@@ -43,7 +43,7 @@ jobs:
           "prerelease=$isBeta" >> $env:GITHUB_OUTPUT
           "channel=$(if ($isBeta) { 'beta' } else { 'stable' })" >> $env:GITHUB_OUTPUT
 
-      - name: Protect frozen V10.5.9 Stable during Beta work
+      - name: Protect frozen V10.5.10 Stable during Beta work
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -52,10 +52,10 @@ jobs:
             throw "main is Beta-only. Stable publishing is blocked; use a dedicated protected release branch."
           }
 
-          $expectedTag = "v10.5.9"
-          $expectedSha = "82c70566b1d78408f0f8f592defa5056802a57f7"
-          $expectedIa32 = "sha256:64aad17857d6bf81dd05c7576ca667769b9d68aca71ce4ce01a1a4577846896e"
-          $expectedX64  = "sha256:50f2f151f5d5eb45ab7eb679fbf959b3c71eea5ab61f00f9236fd3bc24cf3298"
+          $expectedTag = "v10.5.10"
+          $expectedSha = "127ef9fb1bcc36e908081a3166a09538e37ce0da"
+          $expectedIa32 = "sha256:58dbd663ddeb002eedfa9133764e3c46e73cd0d66269d905f36d12d1e3faf262"
+          $expectedX64  = "sha256:46ee80573f8e2eaa9029fdbdc3230ced272041544c2905c62c0f9fdcef3ae3b0"
 
           $tagSha = gh api "repos/${{ github.repository }}/git/ref/tags/$expectedTag" --jq ".object.sha"
           if ($tagSha -ne $expectedSha) { throw "Production stable tag moved: $tagSha" }
@@ -69,12 +69,12 @@ jobs:
             throw "Production stable classification changed"
           }
 
-          $ia32Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.9-ia32.exe") | .digest'
-          $x64Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.9-x64.exe") | .digest'
+          $ia32Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.10-ia32.exe") | .digest'
+          $x64Digest = gh api "repos/${{ github.repository }}/releases/tags/$expectedTag" --jq '.assets[] | select(.name=="Sharawla-POS-Setup-10.5.10-x64.exe") | .digest'
           if ($ia32Digest -ne $expectedIa32) { throw "Production ia32 asset digest changed: $ia32Digest" }
           if ($x64Digest -ne $expectedX64) { throw "Production x64 asset digest changed: $x64Digest" }
 
-          Write-Host "V10.5.9_PRODUCTION_FREEZE_GUARD_PASS"
+          Write-Host "V10.5.10_PRODUCTION_FREEZE_GUARD_PASS"
 
       - name: Setup Node
         uses: actions/setup-node@v4
