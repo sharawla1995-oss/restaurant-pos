@@ -111,6 +111,9 @@ assert(!releaseWorkflow.includes('git tag -f'),'stable tags must never be force-
 assert(!releaseWorkflow.includes('git push origin')||!releaseWorkflow.includes('--force'),'stable tags must never be force-pushed');
 assert(releaseWorkflow.includes('Refuse existing stable tag or release'),'stable workflow must refuse existing immutable releases');
 
+assert(candidateWorkflow.includes("if: github.ref_name == 'candidate/v10.5.5-maintenance-safe-reconcile'"),'candidate workflow must be locked to the isolated candidate branch');
+assert(candidateWorkflow.includes('- candidate/v10.5.5-maintenance-safe-reconcile'),'candidate push trigger must target only the isolated candidate branch');
+assert(!candidateWorkflow.includes('- hotfix/v10.5.5-production-maintenance'),'candidate workflow must not run from the old production hotfix branch');
 assert(candidateWorkflow.includes('contents: read'),'candidate workflow must stay read-only to repository contents');
 assert(!candidateWorkflow.includes('contents: write'),'candidate workflow must not gain write permission');
 assert((candidateWorkflow.match(/--publish never/g)||[]).length>=2,'candidate x64/ia32 builds must never publish');
