@@ -63,6 +63,58 @@ function run(sql,params=[]){db.run(sql,params);persistDb();return true}
 function stamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
 function createBackup(reason='manual'){if(!db)return null;persistDb();const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.sqlite`);fs.copyFileSync(dbPath(),target);return target}
 function pruneBackups(max=30){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).map(n=>({n,p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
+function safeFileToken(value){return String(value||'unknown').replace(/[^0-9A-Za-z._-]/g,'-')}
+function createPreUpdateBackup(remoteVersion){
+  if(!db)throw new Error('Local database is not ready');
+  const local=safeFileToken(app.getVersion());
+  const remote=safeFileToken(remoteVersion);
+  const dir=backupDir();
+  const target=path.join(dir,`topburger-pos-pre-update-${local}-to-${remote}-${stamp()}.sqlite`);
+  const tmp=`${target}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+  let tempExists=false;
+  let targetCreated=false;
+  let success=false;
+  try{
+    const bytes=Buffer.from(db.export());
+    if(!bytes.length)throw new Error('Pre-update database export is empty');
+    if(fs.existsSync(target))throw new Error('Pre-update backup target already exists');
+
+    const fd=fs.openSync(tmp,'wx');
+    tempExists=true;
+    try{
+      fs.writeFileSync(fd,bytes);
+      fs.fsyncSync(fd);
+    }finally{fs.closeSync(fd)}
+
+    const tmpStat=fs.statSync(tmp);
+    if(!tmpStat.isFile()||tmpStat.size!==bytes.length||tmpStat.size<=0)throw new Error('Pre-update temporary backup verification failed');
+
+    try{
+      fs.renameSync(tmp,target);
+      tempExists=false;
+      targetCreated=true;
+    }catch(renameErr){
+      fs.copyFileSync(tmp,target,fs.constants.COPYFILE_EXCL);
+      targetCreated=true;
+      const copied=fs.statSync(target);
+      if(!copied.isFile()||copied.size!==bytes.length||copied.size<=0)throw new Error(`Pre-update copied backup verification failed: ${renameErr.message||renameErr}`);
+      fs.unlinkSync(tmp);
+      tempExists=false;
+    }
+
+    const finalFd=fs.openSync(target,'r+');
+    try{fs.fsyncSync(finalFd)}finally{fs.closeSync(finalFd)}
+
+    const st=fs.statSync(target);
+    if(!st.isFile()||st.size!==bytes.length||st.size<=0)throw new Error('Pre-update backup verification failed');
+    pruneBackups(30);
+    success=true;
+    return {name:path.basename(target),path:target,size:st.size,createdAt:new Date(st.mtimeMs).toISOString()};
+  }finally{
+    if(tempExists)try{fs.unlinkSync(tmp)}catch{}
+    if(targetCreated&&!success)try{fs.unlinkSync(target)}catch{}
+  }
+}
 function saveJsonBackup(json,reason='full'){const target=path.join(backupDir(),`topburger-pos-${reason}-${stamp()}.json`);fs.writeFileSync(target,String(json||''),'utf8');pruneJsonBackups(15);return target}
 function pruneJsonBackups(max=15){try{const a=fs.readdirSync(backupDir()).filter(x=>x.endsWith('.json')).map(n=>({p:path.join(backupDir(),n),t:fs.statSync(path.join(backupDir(),n)).mtimeMs})).sort((a,b)=>b.t-a.t);for(const f of a.slice(max))fs.unlinkSync(f.p)}catch{}}
 
@@ -73,6 +125,18 @@ const { spawn } = require('child_process');
 let updateCheckBusy = false;
 function readUpdateConfig(){
   try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
+}
+function pendingLocalOperationCount(){
+  let count=0;
+  try{const r=one("select count(*) as n from local_operations where status='pending'");count=Math.max(count,Number(r?.n||0))}catch{}
+  try{const r=one('select value from kv where key=?',['queueCount']);count=Math.max(count,Number(JSON.parse(r?.value||'0')||0))}catch{}
+  try{const r=one('select value from kv where key=?',['queue']);const q=r?.value?JSON.parse(r.value):[];if(Array.isArray(q))count=Math.max(count,q.length)}catch{}
+  return count;
+}
+function sha256File(filePath){
+  const h=crypto.createHash('sha256');
+  h.update(fs.readFileSync(filePath));
+  return h.digest('hex');
 }
 function semverParts(v){return String(v||'0').replace(/^v/i,'').split('.').map(x=>parseInt(x,10)||0)}
 function isNewerVersion(remote,local){
@@ -137,16 +201,41 @@ async function checkForWindowsUpdate({interactive=false}={}){
     // Backward compatibility for old x64-only releases that used a generic EXE name.
     if(!asset&&wantedArch==='x64')asset=exeAssets.find(a=>/Top[ ._-]*Burger[ ._-]*POS/i.test(a.name||''))||exeAssets.find(a=>!/ia32|x86|win32/i.test(String(a.name||'')));
     if(!asset?.browser_download_url)throw new Error(`No Windows ${wantedArch} installer asset found in latest release`);
-    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. لن يتم حذف بيانات الكاشير المحلية.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
+    const pendingBefore=pendingLocalOperationCount();
+    if(pendingBefore>0){
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{type:'warning',title:'التحديث مؤجل',message:`يوجد ${pendingBefore} حركة أوفلاين في انتظار المزامنة.`,detail:'لن يتم تنزيل أو تثبيت التحديث قبل اكتمال المزامنة حفاظًا على بيانات التشغيل.',buttons:['تمام']});
+      return {available:true,blocked:'pending-local-operations',pending:pendingBefore,remote};
+    }
+    const ask=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث جديد متاح',message:`متاح تحديث Sharawla POS V${remote}`,detail:'سيتم تنزيل التحديث من GitHub ثم تثبيته. قبل التثبيت سيتم التحقق من الملف وإنشاء Backup آمن.',buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1});
     if(ask.response!==0)return {available:true,skipped:true,remote};
     userAcceptedUpdate=true;
     const dir=path.join(app.getPath('userData'),'updates');fs.mkdirSync(dir,{recursive:true});
     const target=path.join(dir,asset.name||`Sharawla-POS-${remote}.exe`);
     sendUpdateProgress({state:'start',version:remote,percent:0,message:`جاري تنزيل التحديث V${remote}`});
     await downloadFile(asset.browser_download_url,target,p=>sendUpdateProgress({state:'progress',version:remote,percent:p.percent,received:p.received,total:p.total,message:p.percent==null?'جاري تنزيل التحديث…':`جاري تنزيل التحديث V${remote} — ${p.percent}%`}));
-    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل التحديث V${remote}`});
-    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote}`,detail:'اضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة. بيانات الكاشير المحلية والنسخ الاحتياطية لن تُحذف.',buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
+    const expectedDigest=String(asset.digest||'').trim().toLowerCase();
+    if(!/^sha256:[0-9a-f]{64}$/.test(expectedDigest)){try{if(fs.existsSync(target))fs.unlinkSync(target)}catch{}throw new Error('Release asset SHA-256 digest is missing')}
+    const actualDigest=`sha256:${sha256File(target)}`;
+    if(actualDigest!==expectedDigest){try{if(fs.existsSync(target))fs.unlinkSync(target)}catch{}throw new Error('Downloaded installer SHA-256 mismatch')}
+
+    const pendingAfterDownload=pendingLocalOperationCount();
+    if(pendingAfterDownload>0){
+      return {available:true,downloaded:true,blocked:'pending-local-operations',pending:pendingAfterDownload,remote};
+    }
+
+    let preUpdateBackup;
+    try{preUpdateBackup=createPreUpdateBackup(remote)}
+    catch(e){throw new Error('تعذر إنشاء نسخة احتياطية قبل التحديث: '+String(e&&e.message||e))}
+
+    sendUpdateProgress({state:'done',version:remote,percent:100,message:`تم تنزيل والتحقق من التحديث V${remote} وإنشاء Backup آمن`});
+    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'التحديث جاهز',message:`تم تنزيل V${remote} وتجهيز Backup آمن`,detail:`Backup: ${preUpdateBackup.name}\n\nاضغط تثبيت الآن. سيغلق البرنامج ويبدأ تثبيت النسخة الجديدة.`,buttons:['تثبيت الآن','لاحقًا'],defaultId:0,cancelId:1});
     if(ready.response===0){
+      const pendingNow=pendingLocalOperationCount();
+      if(pendingNow>0){
+        sendUpdateProgress({state:'idle'});
+        await dialog.showMessageBox(mainWindow,{type:'warning',title:'التحديث مؤجل',message:`ظهر ${pendingNow} حركة أوفلاين في انتظار المزامنة.`,detail:'تم منع تشغيل برنامج التثبيت. أعد المحاولة بعد اكتمال المزامنة.',buttons:['تمام']});
+        return {available:true,downloaded:true,backup:preUpdateBackup,blocked:'pending-local-operations',pending:pendingNow,remote};
+      }
       sendUpdateProgress({state:'installing',version:remote,percent:100,message:'جاري بدء التثبيت…'});
       try{spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();setTimeout(()=>app.quit(),600)}catch(e){throw e}
     }else sendUpdateProgress({state:'idle'});
