@@ -16,7 +16,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare h public.hr_employees%rowtype;idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.adjustments.manage') then raise exception 'ليس لديك صلاحية إدارة الخصومات والمكافآت';end if;
+ if not public.has_permission('hr.adjustments.manage') then raise exception 'ليس لديك صلاحية إدارة الخصومات والمكافآت';end if;
  select * into h from public.hr_employees where id=p_employee_id and active=true;if not found then raise exception 'الموظف غير موجود';end if;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_adjustment_type not in ('deduction','bonus','overtime') or coalesce(p_amount,0)<=0 then raise exception 'بيانات الحركة غير صحيحة';end if;
@@ -43,7 +43,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare pid bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');r record;basev numeric;bonusv numeric;otv numeric;dedv numeric;advv numeric;grossv numeric;netv numeric;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.payroll.run') then raise exception 'ليس لديك صلاحية إعداد مسير المرتبات';end if;
+ if not public.has_permission('hr.payroll.run') then raise exception 'ليس لديك صلاحية إعداد مسير المرتبات';end if;
  if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_period_start is null or p_period_end is null or p_period_end<p_period_start then raise exception 'فترة المرتب غير صحيحة';end if;
  if k is null then raise exception 'معرف الحركة مطلوب';end if;
@@ -77,7 +77,7 @@ returns boolean language plpgsql security definer set search_path=public
 as $$
 declare p public.hr_payroll_periods%rowtype;e bigint;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.payroll.approve') then raise exception 'ليس لديك صلاحية اعتماد المرتبات';end if;
+ if not public.has_permission('hr.payroll.approve') then raise exception 'ليس لديك صلاحية اعتماد المرتبات';end if;
  select * into p from public.hr_payroll_periods where id=p_payroll_period_id for update;if not found then raise exception 'مسير المرتبات غير موجود';end if;
  if p.branch_id is not null and not public.has_branch_access(p.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p.status='approved' then return true;end if;
@@ -95,7 +95,7 @@ returns boolean language plpgsql security definer set search_path=public
 as $$
 declare p public.hr_payroll_periods%rowtype;i record;a record;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');remain numeric;takev numeric;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.payroll.pay') or not public.has_action_permission_v2('treasury.post') then raise exception 'ليس لديك صلاحية صرف المرتبات';end if;
+ if not public.has_permission('hr.payroll.pay') or not public.has_permission('treasury.post') then raise exception 'ليس لديك صلاحية صرف المرتبات';end if;
  select * into p from public.hr_payroll_periods where id=p_payroll_period_id for update;if not found then raise exception 'مسير المرتبات غير موجود';end if;
  if p.branch_id is not null and not public.has_branch_access(p.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p.status='paid' then return true;end if;
@@ -139,7 +139,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('treasury.post') then raise exception 'ليس لديك صلاحية تسجيل حركة خزنة';end if;
+ if not public.has_permission('treasury.post') then raise exception 'ليس لديك صلاحية تسجيل حركة خزنة';end if;
  if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_direction not in ('in','out') or coalesce(p_amount,0)<=0 then raise exception 'بيانات حركة الخزنة غير صحيحة';end if;
  if k is null then raise exception 'معرف الحركة مطلوب';end if;
