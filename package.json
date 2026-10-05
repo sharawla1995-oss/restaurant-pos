@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.12",
-  "description": "Sharawla POS V10.5.12 - Production branch-open runtime fix over emergency restore",
+  "version": "10.5.13",
+  "description": "Sharawla POS V10.5.13 Candidate - operations polish batch",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node scripts/check-v10-5-12-branch-open.js",
+    "check": "node scripts/check-version.js && node --check app.js && node scripts/check-v10-5-12-branch-open.js && node scripts/check-v10-5-13-ops-polish.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
