@@ -23,6 +23,7 @@
     products:'pos',
     shifts:'pos',
     returns:'returns',
+    approvals:'returns',
     customers:'customers',
     deliveryOrders:'delivery',
     deliverySettings:'delivery',
@@ -40,7 +41,7 @@
   });
 
   const PAGE_TITLES=Object.freeze({
-    home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',customers:'العملاء',
+    home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',approvals:'موافقات المدير',customers:'العملاء',
     deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
     kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',foodRecipes:'الوصفات',expenses:'المصروفات',products:'الأصناف',
     promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',
@@ -49,7 +50,7 @@
   });
 
   const ALL_PAGES=Object.freeze([
-    'home','pos','orders','returns','customers','deliveryOrders','deliverySettings','delivery','kitchen',
+    'home','pos','orders','returns','approvals','customers','deliveryOrders','deliverySettings','delivery','kitchen',
     'shifts','inventory','foodRecipes','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
   ]);
 
@@ -61,7 +62,7 @@
   });
 
   const PERMISSION_DEFS=Object.freeze([
-    ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['shifts','الشيفت'],
+    ['pos','الكاشير'],['orders','الطلبات'],['returns','↩️ شاشة المرتجعات'],['returnExecute','↩️ تنفيذ المرتجع مباشرة'],['returnApprovals','✅ اعتماد المرتجعات'],['customers','العملاء'],['deliveryOrders','طلبات الدليفري'],['deliverySettlement','💰 تسوية تحصيلات المندوبين'],['deliveryPaymentCorrection','💳 تعديل طريقة دفع الدليفري'],['shifts','الشيفت'],
     ['expenses','المصروفات'],['reports','التقارير'],['products','الأصناف'],['promoCodes','🎟️ البرومو كود'],['deliverySettings','إعدادات الدليفري'],
     ['kitchen','المطبخ'],['inventory','المخزون'],['settings','الإعدادات'],
     ['branchProductAvailability','🌐 إدارة توافر أصناف الموقع'],
@@ -75,9 +76,9 @@
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
-    ['🧾 المبيعات',['pos','orders','returns','customers','deliveryOrders','shifts']],
+    ['🧾 المبيعات',['pos','orders','returns','returnExecute','returnApprovals','customers','deliveryOrders','shifts']],
     ['📊 الإدارة',['expenses','reports','products','promoCodes','settings']],
-    ['🚚 التشغيل',['deliverySettings','kitchen','inventory']],
+    ['🚚 التشغيل',['deliverySettings','deliverySettlement','deliveryPaymentCorrection','kitchen','inventory']],
     ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']]
