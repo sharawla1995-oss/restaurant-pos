@@ -74,6 +74,10 @@ const hrStaffBetaHost=read('supabase/functions/hr-staff-app-beta/index.ts');
 assert(!stableFoundation.includes('has_action_permission_v2'));
 assert(!stableFoundation.includes('permission_actions_v2(code'));
 assert(!read('supabase-v10-5-13-hr-attendance-extension.sql').includes('permission_actions_v2(code'));
+const hrAttendanceSql=read('supabase-v10-5-13-hr-attendance-extension.sql');
+const pgcryptoScan=hrAttendanceSql.replace(/extensions\./g,'');
+assert(!/\b(gen_random_bytes|crypt|gen_salt|digest)\s*\(/.test(pgcryptoScan));
+for(const token of ['extensions.gen_random_bytes(','extensions.crypt(','extensions.gen_salt(','extensions.digest('])assert(hrAttendanceSql.includes(token));
 for(const file of ['supabase-v10-5-13-hr-foundation.sql','supabase-v10-5-13-hr-payroll-runtime.sql','supabase-v10-5-13-hr-ui-support.sql','supabase-v10-5-13-hr-attendance-extension.sql']){
   assert(!read(file).includes('has_action_permission_v2'));
 }
