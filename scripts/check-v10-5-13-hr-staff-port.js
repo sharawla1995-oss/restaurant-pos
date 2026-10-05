@@ -67,12 +67,12 @@ const stableCore=read('hr-core-admin-v1.js');
 const stableAdmin=read('hr-attendance-admin-v1.js');
 const stableEngine=read('restaurant-engine.js');
 const stableIndex=read('index.html');
-assert(stableFoundation.includes("select public.has_permission(p_action_code)"));
-assert(stableFoundation.includes("to_regprocedure('public.has_action_permission_v2(text)')"));
-assert(stableFoundation.includes('as $body
+assert(!stableFoundation.includes('has_action_permission_v2'));
 assert(!stableFoundation.includes('permission_actions_v2(code'));
 assert(!read('supabase-v10-5-13-hr-attendance-extension.sql').includes('permission_actions_v2(code'));
 assert(stableCore.includes('__SharawlaHrCoreAdminV1'));
+assert(stableCore.includes("rpc('has_permission',{p_permission:code})"));
+for(const file of ['supabase-v10-5-13-hr-foundation.sql','supabase-v10-5-13-hr-payroll-runtime.sql','supabase-v10-5-13-hr-ui-support.sql','supabase-v10-5-13-hr-attendance-extension.sql'])assert(!read(file).includes('has_action_permission_v2'));
 assert(stableAdmin.includes('__SharawlaHrCoreAdminV1'));
 assert(stableIndex.includes('hr-core-admin-v1.js?v=10.5.13'));
 assert(stableIndex.includes('hr-attendance-admin-v1.js?v=10.5.13'));
