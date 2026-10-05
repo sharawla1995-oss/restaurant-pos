@@ -91,4 +91,4 @@ Deno.serve(async (request:Request)=>{
   const serverConfig=message.startsWith("server_config_missing:");
   return json(serverConfig?503:400,{ok:false,code:serverConfig?"SERVER_CONFIG_MISSING":cleanError(error)});
  }
-}));
+});
