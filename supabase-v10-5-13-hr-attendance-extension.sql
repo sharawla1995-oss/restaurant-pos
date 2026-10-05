@@ -399,7 +399,7 @@ returns table(staff_account_id bigint,employee_id bigint,branch_id bigint,device
 language plpgsql security definer set search_path=public as $$
 declare d bytea;begin
  if nullif(trim(coalesce(p_session_token,'')),'') is null then return;end if;
- d:=digest(convert_to(p_session_token,'UTF8'),'sha256');
+ d:=extensions.digest(convert_to(p_session_token,'UTF8'),'sha256');
  return query
  select a.id,a.employee_id,h.home_branch_id,s.device_id,a.must_change_pin
  from public.hr_staff_sessions s join public.hr_staff_accounts a on a.id=s.staff_account_id
@@ -420,7 +420,7 @@ declare a public.hr_staff_accounts%rowtype;h public.hr_employees%rowtype;dv bigi
  where sa.active=true and he.active=true and he.employment_status<>'terminated'
    and (lower(coalesce(he.employee_code,''))=lower(trim(p_identity)) or regexp_replace(coalesce(he.phone,''),'[^0-9]','','g')=regexp_replace(trim(p_identity),'[^0-9]','','g'))
  order by sa.id limit 1 for update of sa;
- if not found or (a.locked_until is not null and a.locked_until>nowv) or crypt(p_pin,a.pin_hash)<>a.pin_hash then
+ if not found or (a.locked_until is not null and a.locked_until>nowv) or extensions.crypt(p_pin,a.pin_hash)<>a.pin_hash then
    if found then update public.hr_staff_accounts set failed_attempts=failed_attempts+1,locked_until=case when failed_attempts+1>=5 then nowv+interval '15 minutes' else locked_until end,updated_at=nowv where id=a.id;end if;
    return jsonb_build_object('ok',false,'code','INVALID_CREDENTIALS');
  end if;
@@ -430,9 +430,9 @@ declare a public.hr_staff_accounts%rowtype;h public.hr_employees%rowtype;dv bigi
  on conflict(staff_account_id,device_uid) do update set device_name=excluded.device_name,device_model=excluded.device_model,platform=excluded.platform,user_agent=excluded.user_agent,last_seen_at=nowv
  returning id into dv;
  if exists(select 1 from public.hr_attendance_devices where id=dv and (active=false or revoked_at is not null)) then raise exception 'هذا الجهاز موقوف';end if;
- raw_token:=encode(gen_random_bytes(32),'hex');
+ raw_token:=encode(extensions.gen_random_bytes(32),'hex');
  insert into public.hr_staff_sessions(staff_account_id,device_id,token_digest,token_version,expires_at)
- values(a.id,dv,digest(convert_to(raw_token,'UTF8'),'sha256'),a.token_version,nowv+interval '30 days') returning id into sid;
+ values(a.id,dv,extensions.digest(convert_to(raw_token,'UTF8'),'sha256'),a.token_version,nowv+interval '30 days') returning id into sid;
  update public.hr_staff_accounts set failed_attempts=0,locked_until=null,last_login_at=nowv,updated_at=nowv where id=a.id;
  return jsonb_build_object('ok',true,'session_token',raw_token,'session_id',sid,'expires_at',nowv+interval '30 days','must_change_pin',a.must_change_pin,'employee',jsonb_build_object('id',h.id,'name',h.name,'employee_code',h.employee_code,'branch_id',h.home_branch_id),'device_id',dv);
 end;$$;
@@ -443,8 +443,8 @@ declare c record;a public.hr_staff_accounts%rowtype;begin
  select * into c from public.hr_staff_session_context_v1(p_session_token);if not found then raise exception 'جلسة الموظف غير صالحة';end if;
  if p_current_pin !~ '^[0-9]{6}$' or p_new_pin !~ '^[0-9]{6}$' or p_new_pin=p_current_pin then raise exception 'PIN الجديد يجب أن يكون 6 أرقام ومختلفًا';end if;
  select * into a from public.hr_staff_accounts where id=c.staff_account_id for update;
- if crypt(p_current_pin,a.pin_hash)<>a.pin_hash then raise exception 'PIN الحالي غير صحيح';end if;
- update public.hr_staff_accounts set pin_hash=crypt(p_new_pin,gen_salt('bf',10)),must_change_pin=false,pin_changed_at=now(),token_version=token_version+1,updated_at=now() where id=a.id;
+ if extensions.crypt(p_current_pin,a.pin_hash)<>a.pin_hash then raise exception 'PIN الحالي غير صحيح';end if;
+ update public.hr_staff_accounts set pin_hash=extensions.crypt(p_new_pin,extensions.gen_salt('bf',10)),must_change_pin=false,pin_changed_at=now(),token_version=token_version+1,updated_at=now() where id=a.id;
  update public.hr_staff_sessions set revoked_at=now() where staff_account_id=a.id;
  return true;
 end;$$;
@@ -460,7 +460,7 @@ declare c record;r public.hr_staff_selfie_uploads%rowtype;pathv text;k text:=nul
   if lower(r.content_sha256)<>lower(p_content_sha256) then raise exception 'نفس client_tx_id مستخدم لسيلفي مختلف';end if;
   return jsonb_build_object('id',r.id,'bucket',r.storage_bucket,'path',r.storage_path,'status',r.upload_status,'replay',true);
  end if;
- pathv:=c.employee_id||'/'||to_char(coalesce(p_captured_at_device,now()) at time zone 'UTC','YYYY/MM/DD')||'/'||encode(digest(convert_to(k,'UTF8'),'sha256'),'hex')||'.jpg';
+ pathv:=c.employee_id||'/'||to_char(coalesce(p_captured_at_device,now()) at time zone 'UTC','YYYY/MM/DD')||'/'||encode(extensions.digest(convert_to(k,'UTF8'),'sha256'),'hex')||'.jpg';
  insert into public.hr_staff_selfie_uploads(staff_account_id,employee_id,client_tx_id,storage_path,content_sha256,captured_at_device,metadata)
  values(c.staff_account_id,c.employee_id,k,pathv,lower(p_content_sha256),coalesce(p_captured_at_device,now()),coalesce(p_metadata,'{}'::jsonb)) returning * into r;
  return jsonb_build_object('id',r.id,'bucket',r.storage_bucket,'path',r.storage_path,'status',r.upload_status,'replay',false);
@@ -518,7 +518,7 @@ declare h public.hr_employees%rowtype;s record;tz text;startv timestamptz;endv t
  if adj ? 'early_leave_minutes' then earlyv:=greatest(0,(adj->>'early_leave_minutes')::int);end if;
  if adj ? 'overtime_minutes' then otv:=greatest(0,(adj->>'overtime_minutes')::int);end if;
  if adj ? 'worked_minutes' then worked:=greatest(0,(adj->>'worked_minutes')::int);end if;
- digestv:=digest(convert_to(jsonb_build_object('schedule',s.id,'in',inv,'out',outv,'leave',leavev,'adjustment',adj)::text,'UTF8'),'sha256');
+ digestv:=extensions.digest(convert_to(jsonb_build_object('schedule',s.id,'in',inv,'out',outv,'leave',leavev,'adjustment',adj)::text,'UTF8'),'sha256');
  select input_digest,verification_status into old_digest,old_status from public.hr_attendance_daily_summary where employee_id=p_employee_id and work_date=p_work_date;
  insert into public.hr_attendance_daily_summary(employee_id,branch_id,schedule_id,work_date,scheduled_start_at,scheduled_end_at,actual_check_in_at,actual_check_out_at,worked_minutes,break_minutes,late_minutes,early_leave_minutes,overtime_minutes,absent,incomplete,missing_check_out,approved_leave,verification_status,input_digest,calculated_at,updated_at)
  values(p_employee_id,h.home_branch_id,s.id,p_work_date,startv,endv,inv,outv,worked,coalesce(s.break_minutes,0),latev,earlyv,otv,absentv,incompletev,missingv,leavev,case when old_digest=digestv and old_status='approved' then 'approved' else 'draft' end,digestv,now(),now())
@@ -535,7 +535,7 @@ declare c record;a public.hr_attendance_events%rowtype;g public.hr_branch_geofen
  k:=nullif(trim(coalesce(p_payload->>'client_tx_id','')),'');et:=p_payload->>'event_type';cap:=(p_payload->>'captured_at_device')::timestamptz;lat:=(p_payload->>'latitude')::double precision;lon:=(p_payload->>'longitude')::double precision;acc:=(p_payload->>'accuracy_m')::numeric;
  if k is null or et not in ('check_in','check_out') or cap is null or acc<0 or nullif(trim(coalesce(p_payload->>'app_version','')),'') is null then raise exception 'بيانات حركة الحضور غير صحيحة';end if;
  if (p_payload->>'branch_id')::bigint<>c.branch_id then raise exception 'الفرع لا يطابق ملف الموظف';end if;
- dig:=digest(convert_to((p_payload-'session_token')::text,'UTF8'),'sha256');perform pg_advisory_xact_lock(hashtextextended('hr-attendance:'||c.staff_account_id||':'||k,0));
+ dig:=extensions.digest(convert_to((p_payload-'session_token')::text,'UTF8'),'sha256');perform pg_advisory_xact_lock(hashtextextended('hr-attendance:'||c.staff_account_id||':'||k,0));
  select * into a from public.hr_attendance_events where staff_account_id=c.staff_account_id and client_tx_id=k;
  if found then if a.payload_digest<>dig then raise exception 'نفس client_tx_id مستخدم ببيانات حضور مختلفة';end if;return jsonb_build_object('event_id',a.id,'verification_status',a.verification_status,'replay',true,'received_at_server',a.received_at_server);end if;
  select * into g from public.hr_branch_geofences where branch_id=c.branch_id and active=true;if not found then raise exception 'نطاق الفرع غير مُعد';end if;
@@ -567,7 +567,7 @@ declare c record;result jsonb;begin
   'leave_requests',coalesce((select jsonb_agg(to_jsonb(x) order by created_at desc) from (select * from public.hr_leave_requests where employee_id=c.employee_id order by created_at desc limit 100)x),'[]'::jsonb),
   'pending_review',coalesce((select count(*) from public.hr_attendance_events where employee_id=c.employee_id and verification_status='pending_review'),0)
  ) into result;
- update public.hr_staff_sessions set last_seen_at=now() where token_digest=digest(convert_to(p_session_token,'UTF8'),'sha256');
+ update public.hr_staff_sessions set last_seen_at=now() where token_digest=extensions.digest(convert_to(p_session_token,'UTF8'),'sha256');
  update public.hr_attendance_devices set last_seen_at=now() where id=c.device_id;
  return result;
 end;$$;
@@ -577,7 +577,7 @@ returns bigint language plpgsql security definer set search_path=public as $$
 declare c record;idv bigint;dig bytea;old_digest bytea;begin
  select * into c from public.hr_staff_session_context_v1(p_session_token);if not found or c.must_change_pin then raise exception 'جلسة الموظف غير صالحة';end if;
  if p_request_type not in ('leave','permission','late_permission','early_leave_permission','sick_leave','unpaid_leave') or p_ends_at<=p_starts_at then raise exception 'بيانات الطلب غير صحيحة';end if;
- dig:=digest(convert_to(jsonb_build_object('employee_id',c.employee_id,'request_type',p_request_type,'starts_at',p_starts_at,'ends_at',p_ends_at,'reason',nullif(trim(coalesce(p_reason,'')),''))::text,'UTF8'),'sha256');
+ dig:=extensions.digest(convert_to(jsonb_build_object('employee_id',c.employee_id,'request_type',p_request_type,'starts_at',p_starts_at,'ends_at',p_ends_at,'reason',nullif(trim(coalesce(p_reason,'')),''))::text,'UTF8'),'sha256');
  perform pg_advisory_xact_lock(hashtextextended('hr-leave:'||c.staff_account_id||':'||p_client_tx_id,0));
  select id,payload_digest into idv,old_digest from public.hr_leave_requests where client_tx_id=p_client_tx_id;if found then if old_digest<>dig then raise exception 'نفس client_tx_id مستخدم بطلب إجازة مختلف';end if;return idv;end if;
  insert into public.hr_leave_requests(employee_id,branch_id,request_type,starts_at,ends_at,reason,client_tx_id,payload_digest,requested_by_staff_account_id)
@@ -585,7 +585,7 @@ declare c record;idv bigint;dig bytea;old_digest bytea;begin
 end;$$;
 
 create or replace function public.hr_staff_logout_v1(p_session_token text)
-returns boolean language plpgsql security definer set search_path=public as $$begin update public.hr_staff_sessions set revoked_at=now() where token_digest=digest(convert_to(p_session_token,'UTF8'),'sha256') and revoked_at is null;return found;end;$$;
+returns boolean language plpgsql security definer set search_path=public as $$begin update public.hr_staff_sessions set revoked_at=now() where token_digest=extensions.digest(convert_to(p_session_token,'UTF8'),'sha256') and revoked_at is null;return found;end;$$;
 
 create or replace function public.hr_staff_sync_state_v1(p_session_token text,p_pending_count integer,p_last_error text default null)
 returns boolean language plpgsql security definer set search_path=public as $$
@@ -601,9 +601,9 @@ declare h public.hr_employees%rowtype;a public.hr_staff_accounts%rowtype;e bigin
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  select * into a from public.hr_staff_accounts where employee_id=p_employee_id for update;
  if found and not p_reset_existing then raise exception 'حساب الموظف موجود بالفعل';end if;
- pin:=lpad(((get_byte(gen_random_bytes(4),0)::integer*256*256+get_byte(gen_random_bytes(4),1)::integer*256+get_byte(gen_random_bytes(4),2)::integer)%1000000)::text,6,'0');e:=public.current_employee_id();
+ pin:=lpad(((get_byte(extensions.gen_random_bytes(4),0)::integer*256*256+get_byte(extensions.gen_random_bytes(4),1)::integer*256+get_byte(extensions.gen_random_bytes(4),2)::integer)%1000000)::text,6,'0');e:=public.current_employee_id();
  insert into public.hr_staff_accounts(employee_id,pin_hash,must_change_pin,active,token_version,created_by_employee_id,updated_at)
- values(p_employee_id,crypt(pin,gen_salt('bf',10)),true,true,1,e,now())
+ values(p_employee_id,extensions.crypt(pin,extensions.gen_salt('bf',10)),true,true,1,e,now())
  on conflict(employee_id) do update set pin_hash=excluded.pin_hash,must_change_pin=true,active=true,failed_attempts=0,locked_until=null,token_version=hr_staff_accounts.token_version+1,disabled_at=null,disabled_by_employee_id=null,updated_at=now()
  returning * into a;
  update public.hr_staff_sessions set revoked_at=now() where staff_account_id=a.id and revoked_at is null;
