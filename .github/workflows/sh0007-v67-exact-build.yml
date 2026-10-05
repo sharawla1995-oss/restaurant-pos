@@ -3,7 +3,7 @@ name: SH0007 V67 Exact Candidate x64 Build
 on:
   push:
     branches:
-      - build/sh0007-v67-exact-candidate
+      - 'build/sh0007-v67-exact-candidate*'
 
 permissions:
   contents: write
@@ -81,7 +81,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "build(sh0007): materialize exact V67 practical candidate [skip ci]"
-          git push origin HEAD:build/sh0007-v67-exact-candidate
+          git push origin HEAD:"${GITHUB_REF_NAME}"
       - id: out
         shell: bash
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
