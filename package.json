@@ -6,7 +6,7 @@
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node --check app.js && node scripts/check-v10-5-12-branch-open.js && node scripts/check-v10-5-13-ops-polish.js",
+    "check": "node scripts/check-version.js && node --check app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-ops-polish.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
