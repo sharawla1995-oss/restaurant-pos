@@ -101,6 +101,29 @@ create trigger trg_sync_extra_product_modifier_v1
 after insert or update of name,price,active,category_id on public.products
 for each row execute function public.sync_extra_product_modifier_trigger_v1();
 
+create or replace function public.sync_extra_category_products_trigger_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path=public
+as $
+declare r record;
+begin
+  if old.name is distinct from new.name then
+    for r in select id from public.products where category_id=new.id loop
+      perform public.sync_extra_product_modifier_v1(r.id);
+    end loop;
+  end if;
+  return new;
+end;
+$;
+
+revoke all on function public.sync_extra_category_products_trigger_v1() from public,anon,authenticated;
+drop trigger if exists trg_sync_extra_category_products_v1 on public.categories;
+create trigger trg_sync_extra_category_products_v1
+after update of name on public.categories
+for each row execute function public.sync_extra_category_products_trigger_v1();
+
 -- Initial non-destructive backfill.
 do $$
 declare r record;
@@ -731,6 +754,20 @@ begin
       and s.branch_id=v_order.branch_id
       and s.status='open' and s.closed_at is null
   ) then raise exception 'وردية الموظف لم تعد مفتوحة'; end if;
+
+  if not exists(
+    select 1 from public.employees e
+    where e.id=p_requester_employee_id
+      and coalesce(e.active,true)=true
+      and (
+        e.role='admin'
+        or e.branch_id=v_order.branch_id
+        or exists(
+          select 1 from public.employee_branches eb
+          where eb.employee_id=e.id and eb.branch_id=v_order.branch_id
+        )
+      )
+  ) then raise exception 'الموظف لم يعد مصرحًا له على هذا الفرع'; end if;
 
   v_total:=public.return_approval_validate_v1(p_order_id,p_items,p_payments);
 
