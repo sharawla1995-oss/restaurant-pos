@@ -38,13 +38,13 @@ revoke all on function public.hr_employee_update_v1(bigint,text,text,text,text,t
 grant execute on function public.hr_employee_update_v1(bigint,text,text,text,text,text,date,text,text,boolean) to authenticated,service_role;
 
 
-do $
+do $hr$
 begin
   if to_regprocedure('public.sharawla_beta54_hr_acceptance_cleanup_v1(text)') is not null then
     execute 'revoke all on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) from public,anon';
     execute 'grant execute on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) to service_role';
   end if;
 end
-$;
+$hr$;
 
 commit;
