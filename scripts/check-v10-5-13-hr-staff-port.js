@@ -68,6 +68,7 @@ const stableAdmin=read('hr-attendance-admin-v1.js');
 const stableEngine=read('restaurant-engine.js');
 const stableIndex=read('index.html');
 const hrStaffApi=read('supabase/functions/hr-staff-api/index.ts');
+const hrPrivilegeHardening=read('supabase-v10-5-13-hr-privilege-hardening.sql');
 assert(!stableFoundation.includes('has_action_permission_v2'));
 assert(!stableFoundation.includes('permission_actions_v2(code'));
 assert(!read('supabase-v10-5-13-hr-attendance-extension.sql').includes('permission_actions_v2(code'));
@@ -111,3 +112,8 @@ assert(!hrStaffApi.trim().endsWith('}));'));
 assert(hrStaffApi.includes('x-staff-session'));
 assert(hrStaffApi.includes('SUPABASE_SERVICE_ROLE_KEY'));
 console.log('V10.5.13_HR_EDGE_SOURCE_PASS');
+
+for(const fn of ['hr_employee_create_v1','hr_employee_compensation_set_v1','hr_advance_create_v1','hr_advance_decide_v1','hr_advance_disburse_v1','hr_adjustment_create_v1','hr_payroll_run_v1','hr_payroll_approve_v1','hr_payroll_pay_v1','treasury_manual_post_v1','hr_employee_update_v1']){
+  assert(hrPrivilegeHardening.includes('revoke all on function public.'+fn));
+}
+console.log('V10.5.13_HR_PRIVILEGE_HARDENING_PASS');
