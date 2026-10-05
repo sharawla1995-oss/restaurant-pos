@@ -1,0 +1,11 @@
+--- a/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
++++ b/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
+@@ -158,7 +158,7 @@
+   -- Mapping before bigint validation, after exact replay; same device/actor/branch/type receipt only.
+   if v_operation in ('order_status','driver_save','zone_save') and v_dep_tx is not null then
+     select * into v_customer_parent from public.offline_v2_server_receipts where client_tx_id=v_dep_tx;
+-    if not found or v_customer_parent.operation_type is distinct from case when v_operation='order_status' then 'sale' else v_operation end
++    if not found or v_customer_parent.operation_type is distinct from (case when v_operation='order_status' then 'sale' else v_operation end)
+      or v_customer_parent.device_id is distinct from v_device_id or v_customer_parent.branch_id is distinct from v_branch
+      or v_customer_parent.employee_id is distinct from v_employee or v_customer_parent.auth_user_id is distinct from auth.uid()
+      or v_customer_parent.server_entity_id is distinct from v_dep_server_id

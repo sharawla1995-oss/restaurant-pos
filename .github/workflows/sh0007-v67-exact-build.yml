@@ -1,0 +1,166 @@
+name: SH0007 V67 Exact Candidate x64 Build
+
+on:
+  push:
+    branches:
+      - build/sh0007-v67-exact-candidate
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sh0007-v67-exact-candidate
+  cancel-in-progress: false
+
+jobs:
+  materialize-v67:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      materialized_sha: ${{ steps.out.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify pinned base ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 2d174feff680c4ffc0dd6972036590d259f75626 HEAD
+          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.32"
+      - name: Materialize exact V67 candidate overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in \
+            .v67/patches/01-three-fixes.patch \
+            .v67/patches/02-offline-closure-batch1.patch \
+            .v67/patches/03-final-source-gaps.patch \
+            .v67/patches/04-v65-dispatcher-case.patch; do
+            echo "Applying $p"
+            git apply --check "$p"
+            git apply "$p"
+          done
+          touch .v67/MATERIALIZED
+      - name: Verify V67 1036-file identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, pathlib, sys
+          root=pathlib.Path('.')
+          expected={}
+          for line in pathlib.Path('.v67/V67_CANDIDATE_SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
+              if not line.strip(): continue
+              h,p=line.split('  ',1); expected[p]=h
+          bad=[]
+          for p,h in expected.items():
+              q=root/p
+              if not q.is_file(): bad.append((p,'MISSING',h)); continue
+              got=hashlib.sha256(q.read_bytes()).hexdigest()
+              if got!=h: bad.append((p,got,h))
+          actual=[]
+          for q in root.rglob('*'):
+              if not q.is_file(): continue
+              p=q.as_posix().removeprefix('./')
+              if p.startswith('.git/') or p.startswith('.v67/') or p=='.github/workflows/sh0007-v67-exact-build.yml': continue
+              actual.append(p)
+          extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual))
+          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          for x in bad[:50]: print('BAD',*x)
+          for x in extra[:50]: print('EXTRA',x)
+          for x in missing[:50]: print('MISSING',x)
+          if len(expected)!=1036 or bad or extra or missing: sys.exit(1)
+          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          PY
+      - name: Commit materialized V67 source to isolated build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "build(sh0007): materialize exact V67 practical candidate [skip ci]"
+          git push origin HEAD:build/sh0007-v67-exact-candidate
+      - id: out
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build-x64:
+    needs: materialize-v67
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.materialize-v67.outputs.materialized_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reverify exact V67 candidate identity
+        shell: pwsh
+        run: |
+          @'
+          import hashlib, pathlib, sys
+          root=pathlib.Path('.')
+          expected={}
+          for line in pathlib.Path('.v67/V67_CANDIDATE_SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
+              if not line.strip(): continue
+              h,p=line.split('  ',1); expected[p]=h
+          bad=[]
+          for p,h in expected.items():
+              q=root/p
+              if not q.is_file(): bad.append((p,'MISSING',h)); continue
+              got=hashlib.sha256(q.read_bytes()).hexdigest()
+              if got!=h: bad.append((p,got,h))
+          actual=[]
+          for q in root.rglob('*'):
+              if not q.is_file(): continue
+              p=q.as_posix().removeprefix('./')
+              if p.startswith('.git/') or p.startswith('.v67/') or p=='.github/workflows/sh0007-v67-exact-build.yml': continue
+              actual.append(p)
+          extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual))
+          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1036 or bad or extra or missing:
+              for x in bad[:50]: print('BAD',*x)
+              for x in extra[:50]: print('EXTRA',x)
+              for x in missing[:50]: print('MISSING',x)
+              sys.exit(1)
+          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          '@ | python -
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source and regression gates
+        run: npm run check:ci
+      - name: Build Windows x64 installer
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save V67 SH-0007 installer and SHA256
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.32'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
+          "${{ needs.materialize-v67.outputs.materialized_sha }}" | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
+      - name: Upload V67 SH-0007 x64 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-v67-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            V67-SH0007-SHA256.txt
+            V67-SH0007-SOURCE-SHA.txt
+          if-no-files-found: error
+          retention-days: 7

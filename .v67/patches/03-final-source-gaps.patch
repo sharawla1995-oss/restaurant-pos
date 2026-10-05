@@ -1,0 +1,1076 @@
+--- a/app.js
++++ b/app.js
+@@ -498,7 +498,7 @@
+ function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ أوفلاين':'✓ متصل';el.title=off?'وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'الجهاز متصل بالإنترنت';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
+ async function refreshOfflineCustomerCache(){
+   if(!navigator.onLine)return;
+-  try{const customers=await fetchAll('customers','select=id,name,phone,area,address,updated_at');await odbSet('customersCache',customers);const addresses=await fetchAll('customer_addresses','select=*');await odbSet('customerAddressesCache',addresses);await odbSet('customersCacheAt',new Date().toISOString())}catch(e){console.warn('customer offline cache',e)}
++  try{const customers=await fetchAll('customers','select=id,name,phone,area,address,updated_at');if(window.SharawlaOfflineV2Transport?.mergeCanonicalCustomerRows)await window.SharawlaOfflineV2Transport.mergeCanonicalCustomerRows('customer',customers);else await odbSet('customersCache',customers);const addresses=await fetchAll('customer_addresses','select=*');if(window.SharawlaOfflineV2Transport?.mergeCanonicalCustomerRows)await window.SharawlaOfflineV2Transport.mergeCanonicalCustomerRows('customer_address',addresses);else await odbSet('customerAddressesCache',addresses);await odbSet('customersCacheAt',new Date().toISOString())}catch(e){console.warn('customer offline cache',e)}
+ }
+ async function cachedCustomerByPhone(raw){const normalized=normalizePhone(raw),all=(await odbGet('customersCache'))||[];const tail=normalized.slice(-10);return all.find(c=>normalizePhone(c.phone)===normalized)||all.find(c=>normalizePhone(c.phone).slice(-10)===tail)||null}
+ async function cachedAddressesForCustomer(id){return ((await odbGet('customerAddressesCache'))||[]).filter(a=>String(a.customer_id)===String(id)).sort((a,b)=>Number(b.is_default===true)-Number(a.is_default===true)||Number(b.id||0)-Number(a.id||0))}
+@@ -1650,7 +1650,7 @@
+  let resolved=customerId;
+  if(active&&String(customerId||'').startsWith('offline-customer-')){await transport.reconcileCompatibilityProjections();const tx=String(customerId).slice('offline-customer-'.length),rows=await window.topBurgerDesktop.offlineV2.outbox(),parent=rows.find(r=>r.client_tx_id===tx&&r.operation_type==='customer_create');if(parent?.status==='synced')resolved=parent.server_ack?.result?.customer_id||customerId;}
+  try{if(!addresses||Number(resolved)>0){const cloud=addresses?await rest('customer_addresses',`select=*&customer_id=eq.${Number(resolved)}&order=is_default.desc,id.desc`):await fetchAll('customers','select=*&order=created_at.desc');
+- const previous=(await odbGet(key))||[];await odbSet(key,addresses?[...previous.filter(a=>String(a.customer_id)!==String(resolved)),...cloud]:cloud);}}
++ const previous=(await odbGet(key))||[];if(active&&transport.mergeCanonicalCustomerRows)await transport.mergeCanonicalCustomerRows(addresses?'customer_address':'customer',cloud);else await odbSet(key,addresses?[...previous.filter(a=>String(a.customer_id)!==String(resolved)),...cloud]:cloud);}}
+  catch(e){if(!active&&!isNetError(e))throw e;console.warn('Customer cloud read unavailable; durable local view retained',e?.message)}
+  if(active)await transport.reconcileCompatibilityProjections();
+  const rows=(await odbGet(key))||[];return addresses?rows.filter(a=>String(a.customer_id)===String(resolved)||String(a.customer_id)===String(customerId)).sort((a,b)=>Number(b.is_default)-Number(a.is_default)):rows;
+@@ -1852,12 +1852,12 @@
+ }
+ 
+ async function renderExpenses(){
+- async function localExpenseProjectionRows(fromIso,toIso){const branch=String(currentBranchId()),fromMs=Date.parse(fromIso),toMs=Date.parse(toIso),all=[];try{for(const e of (await odbGet('offlineV2Expenses'))||[])all.push(e)}catch{}try{for(const j of await offlineQueue())if(j?.type==='expense'&&j.local_expense)all.push(j.local_expense)}catch{}const seen=new Set();return all.filter(e=>{const tx=String(e?.client_tx_id||'').trim(),key=tx||String(e?.id||'');if(!key||seen.has(key))return false;seen.add(key);const at=Date.parse(e?.created_at||'');return String(e?.branch_id||'')===branch&&Number.isFinite(at)&&at>=fromMs&&at<=toMs}).map(e=>({...e,_offline:true}))}
+- function mergeExpenseProjectionRows(cloudRows,localRows){const cloud=Array.isArray(cloudRows)?cloudRows:[],local=Array.isArray(localRows)?localRows:[],cloudTx=new Set(cloud.map(e=>String(e?.client_tx_id||'').trim()).filter(Boolean)),cloudIds=new Set(cloud.map(e=>String(e?.id||'')).filter(Boolean));return [...cloud,...local.filter(e=>{const tx=String(e?.client_tx_id||'').trim();return !(tx&&cloudTx.has(tx))&&!cloudIds.has(String(e?.id||''))})].sort((a,b)=>Date.parse(b?.created_at||0)-Date.parse(a?.created_at||0))}
++ async function localExpenseProjectionRows(fromIso,toIso){const branch=String(currentBranchId()),fromMs=Date.parse(fromIso),toMs=Date.parse(toIso),all=[];try{for(const e of (await odbGet('offlineV2Expenses'))||[])all.push(e)}catch{}try{for(const j of await offlineQueue())if(j?.type==='expense'&&j.local_expense)all.push(j.local_expense)}catch{}const seen=new Set();return all.filter(e=>{const tx=String(e?.client_tx_id||'').trim(),key=tx||String(e?.id||'');if(!key||seen.has(key))return false;seen.add(key);const at=Date.parse(e?.created_at||'');return String(e?.branch_id||'')===branch&&Number.isFinite(at)&&at>=fromMs&&at<=toMs}).map(e=>({...e,_offline:e._offline!==false}))}
++ function mergeExpenseProjectionRows(cloudRows,localRows){const cloud=Array.isArray(cloudRows)?cloudRows:[],local=Array.isArray(localRows)?localRows:[],cloudTx=new Set(cloud.map(e=>String(e?.client_tx_id||'').trim()).filter(Boolean)),cloudIds=new Set(cloud.map(e=>String(e?.id||'')).filter(Boolean));const pendingEdits=local.filter(e=>e._expense_revision_tx&&e._offline_sync_status!=='synced'),editIds=new Set(pendingEdits.map(e=>String(e.id)));return [...pendingEdits,...cloud.filter(e=>!editIds.has(String(e.id))),...local.filter(e=>{if(editIds.has(String(e.id)))return false;const tx=String(e?.client_tx_id||'').trim();return !(tx&&cloudTx.has(tx))&&!cloudIds.has(String(e?.id||''))})].sort((a,b)=>Date.parse(b?.created_at||0)-Date.parse(a?.created_at||0))}
+  const today=localDateInput();
+  $('#page').innerHTML=`<div class="panel"><h2>إضافة مصروف</h2><div class="form-grid"><label>البيان<input id="exTitle"></label><label>المبلغ<input id="exAmount" type="number" min="0" step="0.01"></label></div><button id="addExpense" class="primary">حفظ المصروف</button></div>
+  <div class="panel"><div class="toolbar expense-toolbar"><button class="secondary" data-period="today">اليوم</button><button class="secondary" data-period="yesterday">أمس</button><button class="secondary" data-period="week">الأسبوع</button><button class="secondary" data-period="month">الشهر</button><label>من<input id="exFrom" type="date" value="${today}"></label><label>إلى<input id="exTo" type="date" value="${today}"></label><button id="loadExpenses" class="primary">عرض</button></div><div class="kpi-line">إجمالي مصروفات الفترة: <strong id="expenseTotal">0</strong></div><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>الوردية</th><th>إجراء</th></tr></thead><tbody id="expenseRows"></tbody></table></div></div>`;
+- const load=async()=>{const from=$('#exFrom').value,to=$('#exTo').value;if(!from||!to||from>to)return toast('راجع فترة المصروفات: تاريخ البداية لازم يكون قبل أو يساوي تاريخ النهاية');const a=new Date(from+'T00:00:00').toISOString(),b=new Date(to+'T23:59:59.999').toISOString();let cloud=[];try{cloud=await rest('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(a)}&created_at=lte.${encodeURIComponent(b)}&order=created_at.desc&limit=500`)}catch(err){if(!isNetError(err))throw err}const rows=mergeExpenseProjectionRows(cloud,await localExpenseProjectionRows(a,b));$('#expenseTotal').textContent=money(rows.reduce((x,e)=>x+Number(e.amount||0),0));$('#expenseRows').innerHTML=rows.map(e=>`<tr><td>${fmtDate(e.created_at)}</td><td>${esc(e.description)}${e._offline?'<small style="display:block">محفوظ محليًا — بانتظار/تأكيد المزامنة</small>':''}</td><td>${money(e.amount)}</td><td>${e.shift_id?'#'+e.shift_id:'-'}</td><td>${e._offline?'—':`<button class="secondary" data-edit-exp="${e.id}">✏️ تعديل</button>`}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد مصروفات في الفترة</td></tr>';$('#expenseRows').onclick=async ev=>{const btn=ev.target.closest('[data-edit-exp]');if(!btn)return;const e=rows.find(x=>String(x.id)===btn.dataset.editExp);if(!e)return;const desc=await uiPrompt('بيان المصروف',e.description);if(desc===null)return;const amount=await uiPrompt('المبلغ',e.amount);const amountNum=Number(amount);if(amount===null||!desc.trim()||!Number.isFinite(amountNum)||amountNum<=0)return toast('اكتب بيانًا ومبلغًا أكبر من صفر');const router=globalThis.__SharawlaPV2ExpenseEdit;if(typeof router?.updateExpense!=='function')throw new Error('مسار تعديل المصروف غير جاهز');await router.updateExpense({id:e.id,description:desc.trim(),amount:amountNum});await audit('edit_expense','expense',e.id,{amount:Number(amount)});toast('تم تعديل المصروف');load()};};
++ const load=async()=>{const from=$('#exFrom').value,to=$('#exTo').value;if(!from||!to||from>to)return toast('راجع فترة المصروفات: تاريخ البداية لازم يكون قبل أو يساوي تاريخ النهاية');const a=new Date(from+'T00:00:00').toISOString(),b=new Date(to+'T23:59:59.999').toISOString();let cloud=[];try{cloud=await rest('expenses',`select=*&branch_id=eq.${currentBranchId()}&created_at=gte.${encodeURIComponent(a)}&created_at=lte.${encodeURIComponent(b)}&order=created_at.desc&limit=500`)}catch(err){if(!isNetError(err))throw err}const rows=mergeExpenseProjectionRows(cloud,await localExpenseProjectionRows(a,b));$('#expenseTotal').textContent=money(rows.reduce((x,e)=>x+Number(e.amount||0),0));$('#expenseRows').innerHTML=rows.map(e=>`<tr><td>${fmtDate(e.created_at)}</td><td>${esc(e.description)}${e._offline?'<small style="display:block">محفوظ محليًا — بانتظار/تأكيد المزامنة</small>':''}</td><td>${money(e.amount)}</td><td>${e.shift_id?'#'+e.shift_id:'-'}</td><td>${`<button class="secondary" data-edit-exp="${e.id}">✏️ تعديل</button>`}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد مصروفات في الفترة</td></tr>';$('#expenseRows').onclick=async ev=>{const btn=ev.target.closest('[data-edit-exp]');if(!btn)return;const e=rows.find(x=>String(x.id)===btn.dataset.editExp);if(!e)return;const desc=await uiPrompt('بيان المصروف',e.description);if(desc===null)return;const amount=await uiPrompt('المبلغ',e.amount);const amountNum=Number(amount);if(amount===null||!desc.trim()||!Number.isFinite(amountNum)||amountNum<=0)return toast('اكتب بيانًا ومبلغًا أكبر من صفر');const router=globalThis.__SharawlaPV2ExpenseEdit;if(typeof router?.updateExpense!=='function')throw new Error('مسار تعديل المصروف غير جاهز');if(btn.disabled)return;btn.disabled=true;try{const saved=await router.updateExpense({id:e.id,description:desc.trim(),amount:amountNum,expected_amount:e.amount,expected_description:e.description,parent_tx:e._expense_revision_tx||null},{withState:true});toast(saved.synced?'تم تعديل المصروف':'تم حفظ تعديل المصروف محليًا — بانتظار المزامنة؛ أثر النقدية غير معتمد');try{await load()}catch(error){toast('تم الحفظ — تحديث العرض مؤجل')}}catch(error){toast(error.message)}finally{btn.disabled=false}};};
+  $('#loadExpenses').onclick=load;$('#page').onclick=e=>{const b=e.target.closest('[data-period]');if(!b)return;const d=new Date(),fmt=x=>{const z=new Date(x.getTime()-x.getTimezoneOffset()*60000);return z.toISOString().slice(0,10)};let from=new Date(d),to=new Date(d);if(b.dataset.period==='yesterday'){from.setDate(d.getDate()-1);to=new Date(from)}if(b.dataset.period==='week')from.setDate(d.getDate()-6);if(b.dataset.period==='month')from=new Date(d.getFullYear(),d.getMonth(),1);$('#exFrom').value=fmt(from);$('#exTo').value=fmt(to);load()};
+  $('#addExpense').onclick=async()=>{const description=$('#exTitle').value.trim(),amount=Number($('#exAmount').value);if(!description||!Number.isFinite(amount)||amount<=0)return toast('أدخل بيانًا ومبلغًا أكبر من صفر');const shift=await getOpenShift();if(!shift)return toast('افتح وردية أولًا قبل تسجيل المصروف');const clientTx=uuid();try{const r=await window.SharawlaOfflineV2Transport.commitRpcLocal('create_pos_expense_idempotent',{p_shift_id:shift.id,p_description:description,p_amount:amount,p_client_tx_id:clientTx});toast(r.synced?'تم حفظ المصروف وربطه بالوردية':'تم حفظ المصروف أوفلاين وسيُزامن تلقائيًا')}catch(err){toast(err?.message||String(err));return}$('#exTitle').value='';$('#exAmount').value='';await load()};load();
+ }
+--- a/beta45-offline-v2-inbox-runtime.js
++++ b/beta45-offline-v2-inbox-runtime.js
+@@ -45,12 +45,14 @@
+   await putOrderBundle({...old?.order,...order},items);
+ }
+ async function applyCustomerCache(event){
++  if(global.SharawlaOfflineV2Transport?.applyCanonicalCustomerEvent){await global.SharawlaOfflineV2Transport.applyCanonicalCustomerEvent(event);await global.SharawlaOfflineV2Transport.reconcileCompatibilityProjections();return}
+   const customer=clone(event.payload||{});if(!customer?.id)customer.id=event.entity_id;
+   const all=(await odbGet('customersCache'))||[];
+   const phone=normalizePhone(customer.phone),next=[customer,...all.filter(x=>String(x.id)!==String(customer.id)&&(!phone||normalizePhone(x.phone)!==phone))];
+   await odbSet('customersCache',next.slice(0,10000));
+ }
+ async function applyAddressCache(event){
++  if(global.SharawlaOfflineV2Transport?.applyCanonicalCustomerEvent){await global.SharawlaOfflineV2Transport.applyCanonicalCustomerEvent(event);await global.SharawlaOfflineV2Transport.reconcileCompatibilityProjections();return}
+   const address=clone(event.payload||{});if(!address?.id)address.id=event.entity_id;
+   const all=(await odbGet('customerAddressesCache'))||[];
+   const rest=all.filter(x=>String(x.id)!==String(address.id));
+--- a/beta45-offline-v2-inbox-store.js
++++ b/beta45-offline-v2-inbox-store.js
+@@ -115,6 +115,7 @@
+     }
+     if(row.status!=='received')throw Object.assign(new Error(`Offline V2 Inbox apply rejected from ${row.status}`),{code:'OFFLINE_V2_INBOX_STATE_REJECTED'});
+     const event=parseJson(row.payload_json,null),meta=validateEvent(event),payload=clone(event.payload||{});
++    if(['customer','customer_address'].includes(meta.entityType)&&!Number.isFinite(Date.parse(event.created_at)))throw Object.assign(new Error('Canonical customer server revision required'),{code:'OFFLINE_V2_CUSTOMER_REVISION_REQUIRED'});
+ 
+     if(meta.entityType==='order'){
+       const branchId=event.branch_id==null?num(payload.branch_id,0):num(event.branch_id,0);
+@@ -128,14 +129,14 @@
+     }else if(meta.entityType==='customer'){
+       await run(`INSERT INTO offline_v2_customer_projection(server_customer_id,normalized_phone,payload_json,last_server_event_id,updated_at)
+         VALUES(?,?,?,?,?) ON CONFLICT(server_customer_id) DO UPDATE SET
+-          normalized_phone=excluded.normalized_phone,payload_json=excluded.payload_json,last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at`,
++          normalized_phone=excluded.normalized_phone,payload_json=excluded.payload_json,last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at WHERE julianday(excluded.updated_at)>julianday(offline_v2_customer_projection.updated_at)`,
+         [meta.entityId,normalizePhone(payload.phone)||null,JSON.stringify(payload),id,text(event.created_at)||now]);
+     }else if(meta.entityType==='customer_address'){
+       const deleted=meta.type==='customer_address.deleted'?1:0;
+       await run(`INSERT INTO offline_v2_customer_address_projection(server_address_id,server_customer_id,deleted,payload_json,last_server_event_id,updated_at)
+         VALUES(?,?,?,?,?,?) ON CONFLICT(server_address_id) DO UPDATE SET
+           server_customer_id=excluded.server_customer_id,deleted=excluded.deleted,payload_json=excluded.payload_json,
+-          last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at`,
++          last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at WHERE julianday(excluded.updated_at)>julianday(offline_v2_customer_address_projection.updated_at)`,
+         [meta.entityId,text(payload.customer_id)||null,deleted,JSON.stringify(payload),id,text(event.created_at)||now]);
+     }else{
+       // Unknown future event types remain durable and can be consumed by a later
+--- a/beta45-offline-v2-native-store.js
++++ b/beta45-offline-v2-native-store.js
+@@ -219,6 +219,11 @@
+   // Fail closed for durable order-status events. The generic runtime catalog may
+   // exist before the transport-specific adapter registers, but such a window
+   // must never be allowed to persist an unbound event into the outbox.
++  if(text(input?.operation_type)==='expense_update'){
++    const p=input?.payload?.rpc_payload||{};
++    if(input?.payload?.rpc_name!=='offline_expense_update_v1'||text(p.p_client_tx_id)!==text(input.client_tx_id))errors.push('invalid:expense_update_binding');
++    if(!text(p.p_expense_id)||!text(p.p_description)||!Number.isFinite(Number(p.p_amount))||Number(p.p_amount)<=0||!Number.isFinite(Number(p.p_expected_amount))||Number(p.p_expected_amount)<=0||typeof p.p_expected_description!=='string')errors.push('invalid:expense_update_revision');
++  }
+   if(text(input?.operation_type)==='order_status'){
+     const rpcName=text(input?.payload?.rpc_name);
+     const rpcPayload=input?.payload?.rpc_payload;
+@@ -231,6 +236,7 @@
+     }
+   }
+   const boundRpc={
++    driver_save:'offline_delivery_driver_save_v1',zone_save:'offline_delivery_zone_save_v1',
+     customer_create:'offline_customer_create_v1',
+     customer_update:'offline_customer_update_v1',
+     customer_address_save:'offline_customer_address_save_v1',
+@@ -398,6 +404,49 @@
+       if(existing.payload_digest!==comparableHash){const e=new Error('Same client_tx_id was reused with different payload');e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw e}
+       await exec('COMMIT');
+       return {ok:true,duplicate:true,durable:true,event:hydrate(existing).envelope};
++    }
++    // Exact replay above does not reread parents. New scoped children require a same-owner durable parent.
++    const scopedType=text(input.operation_type),p=input.payload?.rpc_payload||{},dependency=text(input.depends_on_tx_id);
++    if(['driver_save','zone_save','order_status','expense_update'].includes(scopedType)){
++      const bindings={driver_save:'offline_delivery_driver_save_v1',zone_save:'offline_delivery_zone_save_v1',order_status:'order_status_apply_offline_v2',expense_update:'offline_expense_update_v1'};
++      const field=scopedType==='driver_save'?'p_driver_id':scopedType==='zone_save'?'p_zone_id':scopedType==='order_status'?'p_order_id':'p_expense_id';
++      const parentField=scopedType==='driver_save'?'p_driver_save_tx':scopedType==='zone_save'?'p_zone_save_tx':scopedType==='expense_update'?'p_expense_parent_tx':null;
++      if(input.payload.rpc_name!==bindings[scopedType]||text(p.p_client_tx_id)!==tx
++       ||(['driver_save','zone_save'].includes(scopedType)&&number(p.p_branch_id)!==number(input.branch_id))
++       ||(parentField&&text(p[parentField])!==dependency)
++       ||(text(p[field]).startsWith('offline-')&&!dependency)){
++        const error=new Error('Offline V2 scoped route/branch/dependency mismatch');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
++      }
++    }
++    if(['driver_save','zone_save','order_status','expense_update'].includes(scopedType)&&dependency){
++      const parent=await get('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',[dependency]);
++      const expected=scopedType==='order_status'?'sale':scopedType==='expense_update'?['expense','expense_update']:scopedType;
++      const field=scopedType==='driver_save'?'p_driver_id':scopedType==='zone_save'?'p_zone_id':scopedType==='order_status'?'p_order_id':'p_expense_id';
++      const prefix=scopedType==='driver_save'?'offline-driver-':scopedType==='zone_save'?'offline-zone-':scopedType==='order_status'?'offline-':'offline-exp-';
++      const alias=text(p[field]);
++      if(!parent||!(Array.isArray(expected)?expected.includes(parent.operation_type):parent.operation_type===expected)
++       ||parent.device_id!==text(input.device_id)||parent.business_id!==text(input.business_id)||number(parent.branch_id)!==number(input.branch_id)
++       ||number(parent.employee_id)!==number(input.employee_id)||['conflict','dead_letter'].includes(parent.status)
++       ||(scopedType!=='expense_update'&&alias!==prefix+dependency)){
++        const error=new Error('Offline V2 scoped parent identity/type/dependency mismatch');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
++      }
++      if(scopedType==='expense_update'){
++        let ancestor=parent,root=null;const seen=new Set();
++        while(ancestor&&!seen.has(ancestor.client_tx_id)){
++          seen.add(ancestor.client_tx_id);
++          if(!['expense','expense_update'].includes(ancestor.operation_type)||ancestor.device_id!==text(input.device_id)
++           ||ancestor.business_id!==text(input.business_id)||number(ancestor.branch_id)!==number(input.branch_id)
++           ||number(ancestor.employee_id)!==number(input.employee_id))break;
++          const envelope=hydrate(ancestor).envelope,rpc=envelope.payload?.rpc_payload||{};
++          if(ancestor.operation_type==='expense'){root='offline-exp-'+ancestor.client_tx_id;break}
++          if(!text(ancestor.depends_on_tx_id)){root=text(rpc.p_expense_id);break}
++          ancestor=await get('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',[ancestor.depends_on_tx_id]);
++        }
++        const canonical=text(hydrate(parent).server_ack?.server_entity_id);
++        if(!root||(alias!==root&&(!canonical||alias!==canonical))){
++          const error=new Error('Offline V2 expense parent belongs to another entity');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
++        }
++      }
+     }
+     // Bon selection, consumption and the operational outbox event share one serialized SQLite transaction.
+     // No previewed number is trusted here; capacity exhaustion leaves the sale unreserved (OFF-*).
+--- a/beta45-offline-v2-sync.js
++++ b/beta45-offline-v2-sync.js
+@@ -46,10 +46,11 @@
+   const lower=message.toLowerCase();
+   const status=num(error?.http_status||error?.status,0);
+   const businessCodes=new Set(['INSUFFICIENT_STOCK','NEGATIVE_STOCK_NOT_ALLOWED','BUSINESS_CONFLICT','VALIDATION_CONFLICT','OUT_OF_STOCK','23505','P0001']);
+-  const auth=status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
++  const auth=code==='42501'||status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
+   if(auth)return {kind:'blocked',reason:'auth',code,message,retryable:false,http_status:status};
+   if(code==='OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'||code==='OFFLINE_V2_DEPENDENCY_PENDING'||error?.kind==='dependency')return {kind:'blocked',reason:'dependency',code,message,retryable:false,http_status:status};
+-  const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
++  const expenseConflict=/^EXPENSE_EDIT_(AMOUNT_INVALID|REVISION_CONFLICT|CLOSED_SHIFT|SCOPE_CHANGED|PARENT_INVALID|PARENT_ENTITY_MISMATCH|ROOT_INVALID|PARENT_REQUIRED|UNEXPECTED_DEPENDENCY|DENIED)/.test(message);
++  const business=expenseConflict||error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
+   if(business)return {kind:'conflict',code,message,retryable:false,http_status:status};
+   if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true,http_status:status};
+   if(error?.kind==='permanent')return {kind:'permanent',code,message,retryable:false,http_status:status};
+--- a/beta45-offline-v2-transport-runtime.js
++++ b/beta45-offline-v2-transport-runtime.js
+@@ -77,6 +77,7 @@
+   const profile=authoritativeProfile();
+   if(type==='sale')return resolveSale(payload,profile);
+   if(type==='return')return resolveReturn(payload,profile);
++  if(type==='expense_update')return {rpc_name:'offline_expense_update_v1',rpc_payload:clone(payload)};
+   if(type==='expense')return {rpc_name:'create_pos_expense_idempotent',rpc_payload:clone(payload)};
+   if(type==='shift_open')return {rpc_name:'open_pos_shift_idempotent',rpc_payload:clone(payload)};
+   if(type==='shift_close')return {rpc_name:'close_pos_shift_v2',rpc_payload:clone(payload)};
+@@ -137,6 +138,9 @@
+   throw new Error(`Offline V2 transport target is not registered: ${type}`);
+ }
+ function dependencyTx(type,payload={}){
++  if(type==='expense_update')return text(payload.p_expense_parent_tx)||null;
++  if(type==='driver_save')return text(payload.p_driver_save_tx)||null;
++  if(type==='zone_save')return text(payload.p_zone_save_tx)||null;
+   if(type==='sale')return localShiftTx(payload?.p_order?.shift_id);
+   if(type==='expense'||type==='shift_close')return localShiftTx(payload?.p_shift_id);
+   if(type==='return'||type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return localOrderTx(payload?.p_order_id);
+@@ -202,6 +206,7 @@
+   registerOne('return',adapter('return','return',[
+     'create_order_return_idempotent','create_retail_order_return_idempotent','create_retail_variant_order_return_idempotent_v1','create_food_order_return_idempotent_v1','create_food_retail_order_return_idempotent_v1'
+   ]));
++  registerOne('expense_update',adapter('expense_update','expense_edit',['offline_expense_update_v1']));
+   registerOne('expense',adapter('expense','expense',['create_pos_expense_idempotent']));
+   registerOne('shift_open',adapter('shift_open','shift',['open_pos_shift_idempotent']));
+   registerOne('shift_close',adapter('shift_close','shift_event',['close_pos_shift_idempotent','close_pos_shift_v2']));
+@@ -301,14 +306,42 @@
+ }
+ // Replay only the durable customer family, in its native sequence order. Resolve
+ // references from same-owner receipts, never by phone/product similarity.
++// Canonical revision registry is durable and separate from retained local Outbox history.
++let canonicalCustomerWrites=Promise.resolve();
++function applyCanonicalCustomerEvent(event){const next=canonicalCustomerWrites.then(()=>applyCanonicalCustomerEventUnsafe(event),()=>applyCanonicalCustomerEventUnsafe(event));canonicalCustomerWrites=next.catch(()=>{});return next}
++async function applyCanonicalCustomerEventUnsafe(event){
++ const kind=text(event.entity_type);if(!['customer','customer_address'].includes(kind))throw new Error('CANONICAL_CUSTOMER_TYPE_INVALID');
++ const payload=clone(event.payload||{}),id=text(event.entity_id||payload.id);if(!/^[1-9][0-9]*$/.test(id))throw new Error('CANONICAL_CUSTOMER_ID_INVALID');
++ const revision=text(event.created_at||payload.updated_at),stamp=Date.parse(revision),eventId=text(event.event_id),key=kind+':'+id;
++ const meta=clone(await global.odbGet('offlineV2CustomerCanonicalRevisions'))||{},old=meta[key];
++ if(old){
++  const previous=Date.parse(old.revision);
++  if(!Number.isFinite(stamp)||(Number.isFinite(previous)&&stamp<=previous)){
++    const ambiguous=(!Number.isFinite(stamp)||!Number.isFinite(previous)||stamp===previous)&&old.event_id!==eventId;
++    if(ambiguous){meta[key]={...old,needs_refresh:true};await global.odbSet('offlineV2CustomerCanonicalRevisions',meta)}
++    return {ok:true,stale:true,needs_refresh:ambiguous};
++  }
++ }
++ const deleted=event.event_type==='customer_address.deleted',cacheKey=kind==='customer'?'customersCache':'customerAddressesCache';
++ meta[key]={revision:Number.isFinite(stamp)?revision:null,event_id:eventId,deleted,payload:{...payload,id:payload.id||Number(id),_offline:false,_canonical_revision:revision||null}};
++ await global.odbSet('offlineV2CustomerCanonicalRevisions',meta);
++ const rows=clone(await global.odbGet(cacheKey))||[],next=rows.filter(r=>String(r.id)!==id);
++ if(!deleted)next.unshift(meta[key].payload);await global.odbSet(cacheKey,next);
++ return {ok:true,stale:false};
++}
++async function mergeCanonicalCustomerRows(kind,rows){
++ for(const row of rows||[])await applyCanonicalCustomerEvent({entity_type:kind,entity_id:String(row.id),payload:row,created_at:row.updated_at||null,event_id:''});
++}
++
+ async function reconcileCustomerProjections(rows){
+- const relevant=rows.filter(r=>CUSTOMER_OPERATIONS.has(text(r.operation_type)));
++ const relevant=rows.filter(r=>CUSTOMER_OPERATIONS.has(text(r.operation_type))).sort((a,b)=>num(a.device_sequence)-num(b.device_sequence));
+  if(!relevant.length)return;
+  const byTx=new Map(rows.map(r=>[text(r.client_tx_id),r]));
+  const mapped=(tx,row,type,key)=>{const parent=byTx.get(text(tx));return parent?.status==='synced'&&parent.operation_type===type
+   &&parent.device_id===row.device_id&&parent.business_id===row.business_id&&num(parent.branch_id)===num(row.branch_id)
+   &&num(parent.employee_id)===num(row.employee_id)?num(parent.server_ack?.result?.[key],0):0};
+  let customers=clone(await global.odbGet('customersCache'))||[],addresses=clone(await global.odbGet('customerAddressesCache'))||[];
++ const revisions=clone(await global.odbGet('offlineV2CustomerCanonicalRevisions'))||{};
+  for(const row of relevant){
+   const p=row.envelope?.payload?.rpc_payload||{},tx=text(row.client_tx_id),result=row.server_ack?.result||{},pending=row.status!=='synced',at=text(row.created_local_at)||nowIso();
+   const createTx=text(p.p_customer_create_tx),customerId=num(result.customer_id,0)||num(p.p_customer_id,0)||mapped(createTx,row,'customer_create','customer_id')||(createTx?'offline-customer-'+createTx:null);
+@@ -317,15 +350,22 @@
+    if(!id)continue;
+    const matches=x=>String(x.id)===String(id)||String(x.id)===localId||(!!createTx&&text(x.client_tx_id)===createTx);
+    const base=customers.find(matches)||{};
+-   const customer={...base,id,name:p.p_name??base.name,phone:p.p_phone??base.phone,area:p.p_area??null,address:p.p_address??null,notes:p.p_notes??null,client_tx_id:createTx||base.client_tx_id||tx,created_at:base.created_at||at,updated_at:at,_offline:pending,_offline_sync_status:row.status};
++   const canonical=revisions['customer:'+id],revision=result.server_revision;
++   if(!pending&&((canonical&&(!revision||!Number.isFinite(Date.parse(canonical.revision))||Date.parse(canonical.revision)>=Date.parse(revision)))||(!base._offline_projection_tx&&!base._offline&&base.updated_at&&(!revision||Date.parse(base.updated_at)>=Date.parse(revision))))){if(canonical){customers=canonical.deleted?customers.filter(x=>!matches(x)):[{...canonical.payload,id,_offline:false},...customers.filter(x=>!matches(x))]}continue;}
++   const customer={...base,id,_offline_projection_tx:tx,name:p.p_name??base.name,phone:p.p_phone??base.phone,area:p.p_area??null,address:p.p_address??null,notes:p.p_notes??null,client_tx_id:createTx||base.client_tx_id||tx,created_at:base.created_at||at,updated_at:at,_offline:pending,_offline_sync_status:row.status};
++   if(!pending&&result.canonical_entity)Object.assign(customer,result.canonical_entity,{id,_offline:false});
++   if(pending&&canonical)customer._canonical_shadow=canonical;
+    customers=[customer,...customers.filter(x=>!matches(x))];
+   }else{
+    const target=customerAddressTarget(p,tx,row,byTx),parentTx=target.rootTx,localId='offline-customer_address_save-'+parentTx,id=target.id;
+    const matches=x=>String(x.id)===String(id)||String(x.id)===localId||String(x.id)==='offline-customer_address_save-'+tx||(!!parentTx&&text(x.client_tx_id)===parentTx);
++   const canonical=revisions['customer_address:'+id],revision=result.server_revision,base=addresses.find(matches)||{};
++   if(!pending&&((canonical&&(!revision||!Number.isFinite(Date.parse(canonical.revision))||Date.parse(canonical.revision)>=Date.parse(revision)))||(!base._offline_projection_tx&&!base._offline&&base.updated_at&&(!revision||Date.parse(base.updated_at)>=Date.parse(revision))))){if(canonical){addresses=canonical.deleted?addresses.filter(x=>!matches(x)):[{...canonical.payload,id,_offline:false},...addresses.filter(x=>!matches(x))]}continue;}
+    if(row.operation_type==='customer_address_delete'){addresses=addresses.filter(x=>!matches(x));continue}
+-   const base=addresses.find(matches)||{};
+    if(p.p_is_default===true)addresses=addresses.map(x=>String(x.customer_id)===String(customerId)?{...x,is_default:false}:x);
+-   const address={...base,id,customer_id:customerId,label:p.p_label??null,area:p.p_area??null,address:p.p_address??null,notes:p.p_notes??null,is_default:p.p_is_default===true,created_at:base.created_at||at,updated_at:at,client_tx_id:parentTx||tx,_offline:pending,_offline_sync_status:row.status};
++   const address={...base,id,_offline_projection_tx:tx,customer_id:customerId,label:p.p_label??null,area:p.p_area??null,address:p.p_address??null,notes:p.p_notes??null,is_default:p.p_is_default===true,created_at:base.created_at||at,updated_at:at,client_tx_id:parentTx||tx,_offline:pending,_offline_sync_status:row.status};
++   if(!pending&&result.canonical_entity)Object.assign(address,result.canonical_entity,{id,_offline:false});
++   if(pending&&canonical)address._canonical_shadow=canonical;
+    addresses=[address,...addresses.filter(x=>!matches(x))];
+   }
+  }
+@@ -333,9 +373,22 @@
+  await global.odbSet('customerAddressesCache',addresses.slice(0,20000));
+ }
+ 
++async function reconcileExpenseProjections(rows){
++ const relevant=rows.filter(r=>['expense','expense_update'].includes(r.operation_type)).sort((a,b)=>num(a.device_sequence)-num(b.device_sequence));
++ if(!relevant.length)return;
++ const byTx=new Map(rows.map(r=>[r.client_tx_id,r]));let all=clone(await global.odbGet('offlineV2Expenses'))||[];
++ const canonical=(r,seen=new Set())=>{if(!r||seen.has(r.client_tx_id))return null;seen.add(r.client_tx_id);const p=r.envelope?.payload?.rpc_payload||{};return r.server_ack?.result?.id||r.server_ack?.server_entity_id||(r.operation_type==='expense'?'offline-exp-'+r.client_tx_id:canonical(byTx.get(p.p_expense_parent_tx),seen)||p.p_expense_id)};
++ for(const row of relevant){if(!['pending','retryable','syncing','synced'].includes(row.status))continue;const p=row.envelope?.payload?.rpc_payload||{},id=canonical(row),tx=row.client_tx_id;if(!id)continue;
++ const aliases=new Set([String(id),String(p.p_expense_id||''),row.operation_type==='expense'?'offline-exp-'+tx:'']);const old=all.find(a=>aliases.has(String(a.id)))||{};
++ const item={...old,...(row.server_ack?.result||{}),id,branch_id:row.branch_id,employee_id:row.employee_id,shift_id:old.shift_id??p.p_shift_id,description:p.p_description,amount:num(p.p_amount),created_at:old.created_at||row.created_local_at,client_tx_id:old.client_tx_id||(row.operation_type==='expense'?tx:p.p_expense_parent_tx||tx),_expense_revision_tx:tx,_offline:row.status!=='synced',_offline_sync_status:row.status};
++ all=[item,...all.filter(a=>!aliases.has(String(a.id)))];}
++ await global.odbSet('offlineV2Expenses',all);
++}
++
+ async function projectDirectOperation(type,payload,tx,row){
+   if(CUSTOMER_OPERATIONS.has(type)&&global.topBurgerDesktop?.offlineV2?.outbox){await reconcileCustomerProjections(await global.topBurgerDesktop.offlineV2.outbox());return}
+   if(typeof global.odbGet!=='function'||typeof global.odbSet!=='function')return;
++  if(['driver_save','zone_save','order_status'].includes(type)&&row?.depends_on_tx_id){const parent=await global.topBurgerDesktop.offlineV2.event(row.depends_on_tx_id);const expected=type==='order_status'?'sale':type;if(parent?.status==='synced'&&parent.operation_type===expected&&sameCustomerProjectionOwner(parent,row)){const field=type==='driver_save'?'p_driver_id':type==='zone_save'?'p_zone_id':'p_order_id';payload={...payload,[field]:parent.server_ack.server_entity_id};}}
+   const pending=row?.status!=='synced',created=text(row?.created_local_at)||nowIso(),serverResult=row?.server_ack?.result||{};
+   if(type==='order_status'){
+     const bundles=clone(await global.odbGet('cachedOrders'))||[],id=String(payload?.p_order_id??'');
+@@ -366,6 +419,8 @@
+     await global.odbSet('retailSuspendedSales:'+branchId,all.filter(x=>String(x.id)!==target&&String(x.client_tx_id||'')!==text(payload?.p_suspend_create_tx)));
+   }else if(type==='shift_open'){
+     const localId=`offline-shift-${tx}`,serverId=num(serverResult?.id??serverResult?.shift_id,0),id=serverId||localId,local={id,branch_id:payload?.p_branch_id,employee_id:runtimeEmployee(),opening_cash:Number(payload?.p_opening_cash||0),status:'open',opened_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet(`openShift:${runtimeEmployee()}:${payload?.p_branch_id}`,local);const hist=clone(await global.odbGet(`shiftHistory:${payload?.p_branch_id}`))||[];await global.odbSet(`shiftHistory:${payload?.p_branch_id}`,[local,...hist.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,100));
++  }else if(type==='expense_update'){
++    await reconcileExpenseProjections(await global.topBurgerDesktop.offlineV2.outbox());
+   }else if(type==='expense'){
+     const localId=`offline-exp-${tx}`,serverId=num(serverResult?.id??serverResult?.expense_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Expenses'))||[],item={id,branch_id:runtimeBranch(),employee_id:runtimeEmployee(),shift_id:payload?.p_shift_id,description:payload?.p_description,amount:Number(payload?.p_amount||0),created_at:created,client_tx_id:tx,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};await global.odbSet('offlineV2Expenses',[item,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,10000));
+   }else if(type==='shift_close'){
+@@ -425,12 +480,12 @@
+     await global.odbSet('offlineV2Suppliers',next.slice(0,5000));
+   }
+   else if(type==='driver_save'){
+-    const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Drivers'))||[];
++    const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||payload?.p_driver_id||localId,all=clone(await global.odbGet('offlineV2Drivers'))||[];
+     const driver={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),phone:payload?.p_phone??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+     const next=[driver,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_driver_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
+     await global.odbSet('offlineV2Drivers',next.slice(0,5000));
+   }else if(type==='zone_save'){
+-    const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||localId,all=clone(await global.odbGet('offlineV2Zones'))||[];
++    const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||payload?.p_zone_id||localId,all=clone(await global.odbGet('offlineV2Zones'))||[];
+     const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+     const next=[zone,...all.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)];
+     await global.odbSet('offlineV2Zones',next.slice(0,5000));
+@@ -555,6 +610,7 @@
+   const api=global.topBurgerDesktop?.offlineV2;if(!api?.outbox||typeof global.odbGet!=='function'||typeof global.odbSet!=='function')return;
+   const rows=await api.outbox();if(!Array.isArray(rows)||!rows.length)return;
+   await reconcileCustomerProjections(rows);
++  await reconcileExpenseProjections(rows);
+   const hasCustomers=rows.some(r=>['customer_create','customer_update'].includes(text(r?.operation_type)));
+   const hasAddresses=rows.some(r=>['customer_address_save','customer_address_delete'].includes(text(r?.operation_type)));
+   const hasOrders=rows.some(r=>text(r?.operation_type)==='delivery_assign_driver'||text(r?.operation_type)==='sale');
+@@ -625,6 +681,8 @@
+   for(const row of foodIngredientMasterRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+   for(const row of foodRecipeRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+   for(const row of foodPrepRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
++  for(const row of rows.filter(r=>['driver_save','zone_save'].includes(r.operation_type)&&['pending','retryable','syncing','synced'].includes(r.status)).sort((a,b)=>num(a.device_sequence)-num(b.device_sequence)))await projectDirectOperation(row.operation_type,row.envelope?.payload?.rpc_payload||{},text(row.client_tx_id),row);
++  drivers=zones=null;
+   for(const row of rows.filter(r=>text(r?.operation_type)==='order_status'&&['pending','retryable','syncing','synced'].includes(text(r?.status))).sort((a,b)=>num(a.device_sequence)-num(b.device_sequence)))await projectDirectOperation('order_status',row.envelope?.payload?.rpc_payload||{},text(row.client_tx_id),row);
+   for(const row of rows){
+     if(CUSTOMER_OPERATIONS.has(text(row?.operation_type)))continue;
+@@ -659,11 +717,11 @@
+       const supplier={id,name:text(payload?.p_name),phone:payload?.p_phone??null,email:payload?.p_email??null,tax_no:payload?.p_tax_no??null,address:payload?.p_address??null,notes:payload?.p_notes??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+       suppliers=[supplier,...suppliers.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_supplier_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);suppliersChanged=true;
+     }else if(type==='driver_save'&&drivers){
+-      const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||localId;
++      const localId=`offline-driver-${tx}`,serverId=num(serverResult.driver_id,0),id=serverId||payload?.p_driver_id||localId;
+       const driver={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),phone:payload?.p_phone??null,active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+       drivers=[driver,...drivers.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_driver_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);driversChanged=true;
+     }else if(type==='zone_save'&&zones){
+-      const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||localId;
++      const localId=`offline-zone-${tx}`,serverId=num(serverResult.zone_id,0),id=serverId||payload?.p_zone_id||localId;
+       const zone={id,branch_id:num(payload?.p_branch_id),name:text(payload?.p_name),delivery_fee:num(payload?.p_delivery_fee),active:payload?.p_active!==false,client_tx_id:tx,created_at:created,updated_at:created,_offline:pending,_offline_sync_status:text(row?.status)||'pending'};
+       zones=[zone,...zones.filter(x=>String(x.id)!==localId&&String(x.id)!==String(payload?.p_zone_id??'')&&String(x.id)!==String(id)&&String(x.client_tx_id||'')!==tx)].slice(0,5000);zonesChanged=true;
+     }else if(type==='floor_save'&&floors){
+@@ -761,7 +819,8 @@
+ function mustUseOriginalEntityFallback(type,payload={}){
+   if(type==='expense'||type==='shift_close')return !numericServerId(payload?.p_shift_id);
+   if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id);
+-  if(type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return !numericServerId(payload?.p_order_id);
++  if(type==='order_status')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id);
++  if(type==='delivery_assign_driver'||type==='delivery_mark_delivered')return !numericServerId(payload?.p_order_id);
+   if(type==='delivery_driver_settle')return !numericServerId(payload?.p_driver_id)||!numericServerId(payload?.p_expected_receiving_shift_id)||(Array.isArray(payload?.p_order_ids)?payload.p_order_ids:[]).length===0||(payload.p_order_ids||[]).some(x=>!numericServerId(x));
+   if(type==='customer_update')return !numericServerId(payload?.p_customer_id)&&!text(payload?.p_customer_create_tx);
+   if(type==='customer_address_save'){
+@@ -772,8 +831,8 @@
+   if(type==='customer_address_delete')return !numericServerId(payload?.p_address_id)&&!text(payload?.p_address_save_tx);
+   if(type==='floor_save')return payload?.p_floor_id!=null&&!numericServerId(payload?.p_floor_id);
+   if(type==='supplier_save'&&payload?.p_supplier_id!=null)return !numericServerId(payload.p_supplier_id);
+-  if(type==='driver_save'&&payload?.p_driver_id!=null)return !numericServerId(payload.p_driver_id);
+-  if(type==='zone_save'&&payload?.p_zone_id!=null)return !numericServerId(payload.p_zone_id);
++  if(type==='driver_save'&&payload?.p_driver_id!=null)return !numericServerId(payload.p_driver_id)&&!text(payload.p_driver_save_tx);
++  if(type==='zone_save'&&payload?.p_zone_id!=null)return !numericServerId(payload.p_zone_id)&&!text(payload.p_zone_save_tx);
+   if(type==='table_session_open')return !numericServerId(payload?.p_table_id);
+   if(type==='table_session_attach'){
+     const sessionMissing=!numericServerId(payload?.p_session_id)&&!text(payload?.p_session_open_tx);
+@@ -841,6 +900,17 @@
+   }catch{return null}
+ }
+ 
++// Passive diagnostic snapshot only: no sync/retry/renew/acquire/import or print.
++async function captureBatch1RuntimeEvidence(clientTx,observation={}){
++ const row=await global.topBurgerDesktop?.offlineV2?.event?.(text(clientTx));
++ if(!row||!['sale','return'].includes(row.operation_type))throw new Error('BATCH1_SALE_RETURN_ENVELOPE_REQUIRED');
++ const p=row.envelope?.payload?.rpc_payload||{},order=p.p_order||{},ctx=order.bon_trusted_device_context;
++ return {contract:'sharawla.batch1.runtime-evidence.v1',captured_at:nowIso(),durable_row:clone(row),network_online:global.navigator?.onLine!==false,
++ observation:{displayed_bon:observation.displayed_bon??null,printed_bon:observation.printed_bon??null,actual_http_status:observation.actual_http_status??null,error_code:text(observation.error_code)||null},
++ bon_source_state:{reserved:!!order.bon_reservation,scope:order.bon_numbering_mode||'SHIFT',context_expires_at:ctx?.expires_at||null,context_expired:!!ctx&&Date.parse(ctx.expires_at)<=Date.now(),native_import_available:typeof global.topBurgerDesktop?.offlineV2?.importBonReservation==='function',trusted_context_bridge_available:typeof global.topBurgerDesktop?.trustedDevice?.bonContext==='function',activation:'DORMANT — unchanged'},
++ root_cause:'UNDETERMINED; requires failed response/effective owner/trigger/economic evidence'};
++}
++
+ async function salePayloadWithReservedBon(payload,identity){
+   const out=clone(payload||{}),order=out?.p_order;
+   if(!order||order.bon_reservation)return out;
+@@ -861,7 +931,7 @@
+ }
+ async function ensureEvent(type,payload,tx){
+   const api=global.topBurgerDesktop?.offlineV2;if(!api?.event||!api?.commitOperation)throw new Error('Offline V2 event bridge unavailable');
+-  let row=await api.event(tx);if(row){if(CUSTOMER_OPERATIONS.has(type)||['driver_save','zone_save','order_status','delivery_mark_delivered','delivery_driver_settle','shift_close','food_production_start','food_production_complete','food_waste_post','food_ingredient_stock_adjust'].includes(type)){const a=adaptersByType.get(type),identity=await canonicalIdentity();await api.commitOperation(a.buildCommit({payload:clone(payload),clientTx:tx,identity,createdAt:row.created_local_at}));}return row;}
++  let row=await api.event(tx);if(row){if(CUSTOMER_OPERATIONS.has(type)||['expense_update','driver_save','zone_save','order_status','delivery_mark_delivered','delivery_driver_settle','shift_close','food_production_start','food_production_complete','food_waste_post','food_ingredient_stock_adjust'].includes(type)){const a=adaptersByType.get(type),identity=await canonicalIdentity();await api.commitOperation(a.buildCommit({payload:clone(payload),clientTx:tx,identity,createdAt:row.created_local_at}));}return row;}
+   const a=adaptersByType.get(type);if(!a)throw new Error(`Offline V2 transport adapter missing: ${type}`);
+   const identity=await canonicalIdentity();
+   const durablePayload=type==='sale'?await salePayloadWithReservedBon(payload,identity):clone(payload);
+@@ -908,7 +978,7 @@
+   if(!tx)throw Object.assign(new Error(`Offline V2 operational RPC requires client_tx_id: ${type}`),{code:'OFFLINE_V2_CLIENT_TX_REQUIRED'});
+   if(mustUseOriginalEntityFallback(type,payload))throw Object.assign(new Error('Offline V2 local dependency is not identified'),{code:'OFFLINE_V2_LOCAL_DEPENDENCY_REQUIRED'});
+   let row=await ensureEvent(type,payload,tx),projectionPending=false;
+-  const project=async()=>{try{await projectDirectOperation(type,payload,tx,row)}catch(error){if(!CUSTOMER_OPERATIONS.has(type)&&!['driver_save','zone_save','order_status','delivery_mark_delivered','delivery_driver_settle','shift_close','food_production_start','food_production_complete','food_waste_post','food_ingredient_stock_adjust'].includes(type))throw error;projectionPending=true;try{console.warn('Durably saved; projection recovery pending',error?.code||error?.message)}catch{}}};
++  const project=async()=>{try{await projectDirectOperation(type,payload,tx,row)}catch(error){if(!CUSTOMER_OPERATIONS.has(type)&&!['expense_update','driver_save','zone_save','order_status','delivery_mark_delivered','delivery_driver_settle','shift_close','food_production_start','food_production_complete','food_waste_post','food_ingredient_stock_adjust'].includes(type))throw error;projectionPending=true;try{console.warn('Durably saved; projection recovery pending',error?.code||error?.message)}catch{}}};
+   await project();
+   if(row?.status!=='synced'&&global.navigator?.onLine!==false)setTimeout(()=>{syncNow().catch(()=>{})},0);
+   row=await global.topBurgerDesktop.offlineV2.event(tx);
+@@ -920,6 +990,7 @@
+   else if(type==='return'){const localId='offline-ret-'+tx,all=clone(await global.odbGet('cachedReturns:'+runtimeBranch()))||[],r=all.find(x=>String(x.id)===localId||String(x.client_tx_id||'')===tx);result=r||{id:localId,return_number:'OFF-'+tx.slice(0,6),branch_id:runtimeBranch(),order_id:payload?.p_order_id,reason:payload?.p_reason,total:Number(payload?.p_payments?.[0]?.amount||0),created_at:nowIso(),client_tx_id:tx,_offline:true}}
+      else if(type==='shift_open')result=`offline-shift-${tx}`;
+    else if(type==='expense')result=`offline-exp-${tx}`;
++  else if(type==='expense_update')result={id:payload.p_expense_id,description:payload.p_description,amount:payload.p_amount,_offline:true};
+    else if(type==='shift_close')result={...clone(payload?.p_metrics||{}),id:payload?.p_shift_id,status:'closed',closing_cash:Number(payload?.p_closing_cash||0),closed_at:nowIso(),client_tx_id:tx,_offline:true};
+    else if(type==='customer_create')result=`offline-customer-${tx}`;
+   else if(type==='customer_update')result=payload.p_customer_id??`offline-customer-${text(payload.p_customer_create_tx)}`;
+@@ -991,7 +1062,7 @@
+   if(!installAuthority())return setTimeout(start,80);
+   global.addEventListener('online',()=>{syncNow().catch(e=>console.warn('Offline V2 online sync',e))});
+   timer=setInterval(()=>{if(navigator.onLine)syncNow().catch(()=>{})},60_000);
+-  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,commitRpc:authoritativeRpc,commitRpcLocal,commitOptionalTxRpc,isActive:activeState,reconcileCompatibilityProjections,validatePoint4Identity:(type,payload)=>clone(assertPoint4Payload(type,clone(payload))),registerTransportAdapters,authoritativeRpc});
++  global.SharawlaOfflineV2Transport=Object.freeze({version:VERSION,syncNow,manualRetry,attestTransport,resolveSale,resolveReturn,commitRpc:authoritativeRpc,commitRpcLocal,commitOptionalTxRpc,isActive:activeState,reconcileCompatibilityProjections,captureBatch1RuntimeEvidence,applyCanonicalCustomerEvent,mergeCanonicalCustomerRows,validatePoint4Identity:(type,payload)=>clone(assertPoint4Payload(type,clone(payload))),registerTransportAdapters,authoritativeRpc});
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+ })(window);
+--- a/permissions-v2-delivery-settings-routing.js
++++ b/permissions-v2-delivery-settings-routing.js
+@@ -12,25 +12,25 @@
+ function clean(v){const s=String(v??'').trim();return s||null}
+ async function saveDriver(input={},options={}){
+   const branchId=Number(input.branch_id);
+-  const driverId=input.id==null?null:Number(input.id);
++  const driverId=input.id==null?null:(String(input.id).startsWith('offline-')?String(input.id):Number(input.id));
+   if(!Number.isFinite(branchId)||branchId<=0)throw new Error('الفرع غير صالح');
+-  if(driverId!==null&&(!Number.isFinite(driverId)||driverId<=0))throw new Error('المندوب غير صالح');
++  if(driverId!==null&&!/^offline-driver-[0-9a-f-]{36}$/.test(String(driverId))&&(!Number.isFinite(driverId)||driverId<=0))throw new Error('المندوب غير صالح');
+   const name=clean(input.name);
+   if(!name)throw new Error('اسم المندوب مطلوب');
+-  const payload={p_driver_id:driverId,p_branch_id:branchId,p_name:name,p_phone:clean(input.phone),p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
++  const payload={p_driver_id:driverId,...(typeof driverId==='string'?{p_driver_save_tx:driverId.slice('offline-driver-'.length)}:{}),p_branch_id:branchId,p_name:name,p_phone:clean(input.phone),p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
+   const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');const saved=await t.commitOptionalTxRpc('delivery_driver_save_v2',payload,{localFirstResult:true});return options.withState?(saved?.durable===true?saved:{durable:false,synced:true,result:saved}):(saved?.durable===true?saved.result:saved);
+ }
+ 
+ async function saveZone(input={},options={}){
+   const branchId=Number(input.branch_id);
+-  const zoneId=input.id==null?null:Number(input.id);
++  const zoneId=input.id==null?null:(String(input.id).startsWith('offline-')?String(input.id):Number(input.id));
+   const fee=Number(input.delivery_fee??0);
+   if(!Number.isFinite(branchId)||branchId<=0)throw new Error('الفرع غير صالح');
+-  if(zoneId!==null&&(!Number.isFinite(zoneId)||zoneId<=0))throw new Error('المنطقة غير صالحة');
++  if(zoneId!==null&&!/^offline-zone-[0-9a-f-]{36}$/.test(String(zoneId))&&(!Number.isFinite(zoneId)||zoneId<=0))throw new Error('المنطقة غير صالحة');
+   if(!Number.isFinite(fee)||fee<0)throw new Error('رسوم التوصيل غير صحيحة');
+   const name=clean(input.name);
+   if(!name)throw new Error('اسم المنطقة مطلوب');
+-  const payload={p_zone_id:zoneId,p_branch_id:branchId,p_name:name,p_delivery_fee:fee,p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
++  const payload={p_zone_id:zoneId,...(typeof zoneId==='string'?{p_zone_save_tx:zoneId.slice('offline-zone-'.length)}:{}),p_branch_id:branchId,p_name:name,p_delivery_fee:fee,p_active:input.active!==false,p_client_tx_id:clean(input.client_tx_id)||(typeof global.uuid==='function'?global.uuid():crypto.randomUUID())};
+   const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');const saved=await t.commitOptionalTxRpc('delivery_zone_save_v2',payload,{localFirstResult:true});return options.withState?(saved?.durable===true?saved:{durable:false,synced:true,result:saved}):(saved?.durable===true?saved.result:saved);
+ }
+ 
+--- a/permissions-v2-expense-edit-routing.js
++++ b/permissions-v2-expense-edit-routing.js
+@@ -1,25 +1,17 @@
+ (function(global){
+ 'use strict';
+-
+-// PV2-F3 SOURCE CANDIDATE ONLY.
+-// Shift Open/Close and Expense Create keep their accepted Runtime RPC routes.
+-// Only Expense Edit needs a renderer route switch away from direct REST PATCH.
+-const VERSION='10.5.4-beta.58.32';
+-
+-async function rpc(name,payload){
+-  if(typeof global.rpc!=='function')throw new Error('RPC غير جاهز');
+-  return global.rpc(name,payload);
++async function updateExpense(input={},options={}){
++ const raw=String(input.id??'').trim(),local=/^offline-exp-[0-9a-f-]{36}$/.test(raw),id=local?raw:Number(raw),amount=Number(input.amount),description=String(input.description??'').trim();
++ if(!local&&(!Number.isSafeInteger(id)||id<=0))throw new Error('معرّف المصروف غير صالح');
++ if(!description||!Number.isFinite(amount)||amount<=0)throw new Error('بيان المصروف وقيمته غير صالحين');
++ const t=global.SharawlaOfflineV2Transport;
++ if(typeof t?.isActive==='function'&&await t.isActive()){
++  if(!Number.isFinite(Number(input.expected_amount))||Number(input.expected_amount)<=0||typeof input.expected_description!=='string')throw new Error('أعد تحميل المصروف قبل التعديل: النسخة الأصلية مطلوبة');
++  const p={p_expense_id:id,p_expense_parent_tx:input.parent_tx||(local?raw.slice('offline-exp-'.length):null),p_description:description,p_amount:amount,p_expected_amount:Number(input.expected_amount),p_expected_description:input.expected_description,p_client_tx_id:input.client_tx_id||global.crypto.randomUUID()};
++  const saved=await t.commitRpcLocal('offline_expense_update_v1',p);return options.withState?saved:saved.result;
++ }
++ if(global.navigator?.onLine===false||local)throw new Error('Offline V2 غير جاهز لتعديل المصروف');
++ const result=await global.rpc('expense_update_v2',{p_expense_id:id,p_description:description,p_amount:amount});return options.withState?{durable:false,synced:true,result}:result;
+ }
+-
+-async function updateExpense(input={}){
+-  const id=Number(input.id);
+-  const amount=Number(input.amount);
+-  const description=String(input.description??'').trim();
+-  if(!Number.isFinite(id)||id<=0)throw new Error('معرّف المصروف غير صالح');
+-  if(!description)throw new Error('بيان المصروف مطلوب');
+-  if(!Number.isFinite(amount)||amount<=0)throw new Error('قيمة المصروف غير صحيحة');
+-  return rpc('expense_update_v2',{p_expense_id:id,p_description:description,p_amount:amount});
+-}
+-
+-global.__SharawlaPV2ExpenseEdit=Object.freeze({version:VERSION,updateExpense});
++global.__SharawlaPV2ExpenseEdit=Object.freeze({version:'batch1-expense-edit-source-v1',updateExpense});
+ })(window);
+--- a/permissions-v2-order-fulfillment-routing.js
++++ b/permissions-v2-order-fulfillment-routing.js
+@@ -12,7 +12,7 @@
+  if(!localId)throw new Error('معرّف الطلب غير صالح');
+  if(!['preparing','ready','completed'].includes(target))throw new Error('حالة الطلب غير مسموحة');
+  const transport=global.SharawlaOfflineV2Transport;
+- if(/^\d+$/.test(serverId||localId)&&typeof transport?.isActive==='function'&&await transport.isActive()){
++ if((/^\d+$/.test(serverId||localId)||/^offline-[0-9a-f-]{36}$/.test(localId))&&typeof transport?.isActive==='function'&&await transport.isActive()){
+   const saved=await transport.commitRpcLocal('order_status_apply_offline_v2',{p_order_id:serverId||localId,p_target_status:target,p_client_tx_id:global.crypto.randomUUID()});
+   return options.withState?saved:saved.result;
+  }
+--- /dev/null
++++ b/scripts/batch1-runtime-evidence-contract.js
+@@ -0,0 +1,12 @@
++'use strict';
++// Offline analyzer only. No HTTP, device, SQL execution, retry, acquisition or import.
++function inspectCapture(c){
++ const row=c?.durable_row,e=row?.envelope,p=e?.payload?.rpc_payload||{},type=e?.operation_type;
++ if(!row||!e||!['sale','return'].includes(type))throw new Error('BATCH1_SALE_RETURN_ENVELOPE_REQUIRED');
++ if(e.client_tx_id!==row.client_tx_id||(e.payload_digest!=null&&e.payload_digest!==row.payload_digest)||!row.payload_digest)throw new Error('BATCH1_ENVELOPE_IDENTITY_MISMATCH');
++ if(type==='return'&&!/^[1-9][0-9]*$/.test(String(p.p_order_id)))throw new Error('SERVER_ORDER_RETURN_ONLY');
++ const errors=[];for(const field of ['effective_owner_definitions','effective_owner_signatures_acls_md5','economic_before_after','actual_transport_response'])if(!c[field])errors.push(field);
++ if(type==='sale'&&!c.trigger_enabled_definition_counter_scope)errors.push('trigger_enabled_definition_counter_scope');
++ return {kind:type==='return'?'SERVER_ORDER_RETURN':'ACTUAL_ONLINE_BON',tx:row.client_tx_id,operation_type:type,rpc_name:e.payload.rpc_name,payload:p,depends_on_tx_id:e.depends_on_tx_id||null,verdict:errors.length?'NEEDS RUNTIME PROOF':'CAPTURE COMPLETE — requires review',missing:errors,root_cause:'UNDETERMINED; never inferred from local-parent or provisional OFF reference'};
++}
++module.exports={inspectCapture};
+--- a/scripts/check-batch1-continuation.js
++++ b/scripts/check-batch1-continuation.js
+@@ -29,7 +29,7 @@
+  await test('Actual Online Kitchen click commits order_status and displays pending over stale Cloud',async()=>{c.rest=async t=>t==='orders'?[{id:43,branch_id:70007,status:'new',order_type:'pickup'}]:[];await c.renderKitchen();await elements.get('#page').onclick({target:{closest:()=>({dataset:{id:'43',status:'preparing'}})}});assert(toasts.at(-1).includes('بانتظار'));assert.equal(r.cache.get('cachedOrders')[0].order.status,'preparing');assert.equal(r.cloudDirect(),0);assert(elements.get('#page').html.includes('data-status="ready"'))});
+  await test('Fulfillment invalid target fails before durable commit',async()=>{const before=(await s.listOutbox()).length;await assert.rejects(()=>c.__SharawlaPV2OrderFulfillment.transition(43,'cancelled'),/غير مسموحة/);assert.equal((await s.listOutbox()).length,before)});
+  load(c,'beta55-delivery-settlement-shift-cash.js');
+- await test('Online local-parent fulfillment remains fail-closed until mapping contract is resolved',async()=>{const before=(await s.listOutbox()).length;await assert.rejects(()=>c.__SharawlaPV2OrderFulfillment.transition('offline-'+crypto.randomUUID(),'preparing',{withState:true}),/لم يحصل بعد/);assert.equal((await s.listOutbox()).length,before)});
++ await test('Online local-parent fulfillment durably queues original alias and parent dependency',async()=>{const isolated=native(path.join(work,'local-parent-variant'));await isolated.ready();const rr=renderer(isolated);load(rr.ctx,'permissions-v2-order-fulfillment-routing.js');const tx=crypto.randomUUID();await rr.transport.commitRpcLocal('create_pos_order_atomic',require('./offline-reference-return-fixture').payload(tx));const result=await rr.ctx.__SharawlaPV2OrderFulfillment.transition('offline-'+tx,'preparing',{withState:true});assert(result.durable&&!result.synced);assert.equal(result.row.depends_on_tx_id,tx);assert.equal(result.row.envelope.payload.rpc_payload.p_order_id,'offline-'+tx);});
+  await test('Actual delivered dialog Online: durable pending, no final custody assertion, refresh failure separated',async()=>{c.rest=async t=>t==='orders'?[{id:43,order_type:'delivery',status:'out_for_delivery',payment_method:'cash',total:5}]:t==='payment_methods'?[{id:1,code:'cash',active:true}]:[];c.renderDeliveryOrders=async()=>{throw new Error('view unavailable')};const pending=c.__SharawlaDeliverySettlementShiftCashV55.markDeliveredInteractive(43);await new Promise(resolve=>setImmediate(resolve));const m=modals.at(-1);m.querySelector('[data-final-payment]').value='cash';await m.onclick({target:{closest:k=>k==='[data-confirm]'?m.querySelector('[data-confirm]'):null}});await pending;assert(m.removed);assert(toasts.slice(-2).some(x=>x.includes('العهدة لم تُعتمد')));assert(toasts.at(-1).includes('تحديث العرض مؤجل'))});
+  await test('Actual payment-change dialog: typed pending does not assert zero custody',async()=>{const pending=c.__SharawlaDeliverySettlementShiftCashV55.changeDeliveryPaymentInteractive(43);await new Promise(resolve=>setImmediate(resolve));const m=modals.at(-1);m.querySelector('[data-change-payment]').value='card';await m.onclick({target:{closest:k=>k==='[data-confirm]'?m.querySelector('[data-confirm]'):null}});await pending;assert(m.removed);assert(toasts.slice(-2).some(x=>x.includes('العهدة لم تُعتمد')))});
+  // Actual four settlement callbacks constructed by two live-source renderers.
+@@ -50,10 +50,10 @@
+  await test('Actual Online shift-close pending: durable request, no cash-difference report before ACK',async()=>{const rr=renderer(s),cc=setup(rr),shiftRoot=new Element(),button=new Element(),cash=new Element();cash.value='0';shiftRoot.children.set('#closeShift',button);cc.renderShifts=async()=>{};cc.shiftMetrics=async()=>({orders:[],sales:0,wallet:0,instapay:0,count:0,cash:0,exp:0});cc.rpc=async()=>({driver_custody_unsettled:0,expected_drawer_cash:0});cc.openShiftReport=async()=>{throw new Error('Pending close must not open authoritative cash report')};cc.document.querySelector=k=>k==='.shift-current'?shiftRoot:k==='#closingCash'?cash:null;load(cc,'beta55-delivery-settlement-shift-cash.js');await cc.renderShifts();await button.onclick();assert(toasts.at(-1).includes('غير معتمد'));assert.equal((await s.listOutbox()).at(-1).operation_type,'shift_close')});
+  await test('Negative native order-status RPC binding fails before SQLite write',async()=>{const tx=crypto.randomUUID(),a=r.adapters.get('order_status'),input=a.buildCommit({payload:{p_order_id:43,p_target_status:'preparing',p_client_tx_id:tx},clientTx:tx,identity:{device_id:'fixture-device',business_id:'fixture-business'},createdAt:new Date().toISOString()});input.payload.rpc_name='order_fulfillment_transition_v2';await assert.rejects(()=>s.commitOperation(input),{code:'OFFLINE_V2_INVALID_COMMIT'});assert.equal(await s.getOutbox(tx),null)});
+  await test('Four legacy Food payloads match existing Action-wrapper signatures and delegated owners (source contract)',async()=>{const {last}=require('./offline-reference-return-sql-contract'),sql=fs.readFileSync(path.join(root,'supabase-beta55-restaurant-permissions-runtime.sql'),'utf8');for(const [rpc,params,owner] of [['food_production_batch_start_action_v2',['p_branch_id','p_prep_item_id','p_planned_output_quantity','p_batch_number','p_notes','p_client_tx_id'],'food_production_batch_start_v1'],['food_production_batch_complete_action_v2',['p_production_batch_id','p_actual_output_quantity','p_consumptions','p_client_tx_id','p_notes'],'food_production_batch_complete_v1'],['food_waste_post_action_v2',['p_branch_id','p_ingredient_id','p_prep_item_id','p_shift_id','p_reason_code','p_quantity','p_unit_code','p_notes','p_client_tx_id'],'food_waste_post_v1'],['food_ingredient_stock_adjust_action_v2',['p_branch_id','p_ingredient_id','p_quantity_delta','p_unit_cost','p_reason','p_client_tx_id'],'food_ingredient_stock_adjust_v1']]){const def=last(sql,rpc),names=[...def.header.matchAll(/\bp_[a-z_]+(?=\s+(?:bigint|numeric|jsonb|text))/g)].map(m=>m[0]);assert.deepEqual(names,params);assert(def.body.includes('public.'+owner+'('));assert(def.body.includes('has_action_permission_v2'));assert(def.body.includes('has_branch_access'))}});
+- const rows=await s.listOutbox();
++ const rows=(await s.listOutbox()).filter(x=>x.status!=='conflict');
+  await test('Fresh process restart before ACK preserves every scoped durable row',async()=>{const result=spawnSync(process.execPath,[__filename,'--probe',JSON.stringify(rows.map(x=>x.client_tx_id))],{env:{...process.env,SHARAWLA_FIXTURE_REOPEN:work},encoding:'utf8'});assert.equal(result.status,0,result.stderr)});
+  const accepted=new Map();let lost=false;const peer={send:async e=>{const a=accepted.get(e.client_tx_id)||ack(e);accepted.set(e.client_tx_id,a);if(!lost){lost=true;throw new Error('ACK loss after peer acceptance')}return a}};
+- await test('ACK loss then replay/reconnect uses one peer receipt per TX; actual worker/SQLite mappings',async()=>{await createSyncEngine({store:s,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),transport:peer,config:{maxPerRun:100}}).syncOnce();const row=(await s.listOutbox()).find(x=>x.status==='retryable');assert(row);await createSyncEngine({store:s,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),transport:peer,clock:()=>Date.now()+3600000,config:{maxPerRun:100}}).syncOnce();for(const x of await s.listOutbox()){assert.equal(x.status,'synced');assert(await s.getMappingByTx(x.client_tx_id))}assert.equal(accepted.size,rows.length)});
++ await test('ACK loss then replay/reconnect uses one peer receipt per TX; actual worker/SQLite mappings',async()=>{await createSyncEngine({store:s,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),transport:peer,config:{maxPerRun:100}}).syncOnce();const row=(await s.listOutbox()).find(x=>x.status==='retryable');assert(row);await createSyncEngine({store:s,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),transport:peer,clock:()=>Date.now()+3600000,config:{maxPerRun:100}}).syncOnce();for(const x of (await s.listOutbox()).filter(x=>x.status!=='conflict')){assert.equal(x.status,'synced');assert(await s.getMappingByTx(x.client_tx_id))}assert.equal(accepted.size,rows.length)});
+  await test('Cold reconciliation replaces driver/zone local aliases once; replay creates no duplicate',async()=>{r=renderer(s);await r.transport.reconcileCompatibilityProjections();const drivers=r.cache.get('offlineV2Drivers'),zones=r.cache.get('offlineV2Zones');assert(drivers.every(x=>!String(x.id).startsWith('offline-')));assert(zones.every(x=>!String(x.id).startsWith('offline-')));await r.transport.reconcileCompatibilityProjections();assert.equal(r.cache.get('offlineV2Drivers').length,drivers.length);assert.equal(r.cache.get('offlineV2Zones').length,zones.length)});
+  await test('Driver exact duplicate client_tx_id after ACK returns same ID; changed payload rejected',async()=>{const row=rows.find(x=>x.operation_type==='driver_save'),p=row.envelope.payload.rpc_payload;const rr=renderer(s);setup(rr);const input={name:p.p_name,branch_id:p.p_branch_id,phone:p.p_phone,active:p.p_active,client_tx_id:row.client_tx_id};const before=(await s.listOutbox()).length;const replay=await rr.ctx.__SharawlaPV2DeliverySettings.saveDriver(input,{withState:true});assert(replay.synced);assert.equal(replay.result,900);assert.equal((await s.listOutbox()).length,before);await assert.rejects(()=>rr.ctx.__SharawlaPV2DeliverySettings.saveDriver({...input,name:'changed'},{withState:true}),{code:'OFFLINE_V2_TX_PAYLOAD_MISMATCH'})});
+  await test('Old fulfillment ACK cannot overwrite newer server cache or resurrect completed kitchen order',async()=>{r.cache.set('cachedOrders',[{order:{id:43,branch_id:70007,status:'completed',updated_at:'2099-01-01T00:00:00Z'},items:[]}]);await r.transport.reconcileCompatibilityProjections();assert.equal(r.cache.get('cachedOrders')[0].order.status,'completed')});
+--- /dev/null
++++ b/scripts/check-batch1-final-gaps.js
+@@ -0,0 +1,58 @@
++'use strict';
++const h=require('./offline-reference-return-fixture');
++const {native,renderer,payload,clone,dbs,crypto,vm,assert,fs,path,root,work}=h;
++const {createSyncEngine}=require('../beta45-offline-v2-sync');const {spawnSync}=require('child_process');
++const tests=[];const close=()=>{for(const d of dbs.splice(0))d.close()};
++async function test(name,fn){await fn();tests.push({test:name,status:'PASS'})}
++const load=(r,name)=>vm.runInContext(fs.readFileSync(path.join(root,name),'utf8'),r.ctx);
++const worker=(s,peer,clock=()=>Date.now()+3600000)=>createSyncEngine({store:s,transport:peer,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),clock,random:()=>.5,config:{maxPerRun:100,jitterRatio:0,retryDelaysMs:[1]}});
++function ack(e,result,id){return {ok:true,acknowledged:true,client_tx_id:e.client_tx_id,protocol_version:2,payload_digest:e.payload_digest,server_event_id:'mock-'+e.client_tx_id,server_entity_id:String(id),server_version:'fixture',result}}
++function peer(){const receipts=new Map(),sent=[];let next=1000;return {receipts,sent,send:async e=>{sent.push(clone(e));if(receipts.has(e.client_tx_id)){const a=receipts.get(e.client_tx_id);assert.equal(a.payload_digest,e.payload_digest);return {...a,duplicate:true,acknowledged:false}}const p=clone(e.payload.rpc_payload),parent=e.depends_on_tx_id?receipts.get(e.depends_on_tx_id):null;if(e.depends_on_tx_id){assert(parent);assert.equal(e.dependency_mapping.server_id,parent.server_entity_id)}let id=parent?Number(parent.server_entity_id):++next,result;if(e.operation_type==='driver_save')result={driver_id:id};else if(e.operation_type==='zone_save')result={zone_id:id};else if(e.operation_type==='expense'||e.operation_type==='expense_update')result={id,amount:p.p_amount,description:p.p_description,shift_id:42};else if(e.operation_type==='order_status')result={ok:true,order:{id,status:p.p_target_status,branch_id:70007}};else if(e.operation_type==='sale')result={order:{...p.p_order,id,bon_number:id},items:p.p_items};else if(e.operation_type==='customer_update'||e.operation_type==='customer_create'){id=p.p_customer_id||id;result={customer_id:id,server_revision:'2026-10-02T08:00:00Z',canonical_entity:{id,name:p.p_name,phone:p.p_phone,updated_at:'2026-10-02T08:00:00Z'}}}else {id=p.p_address_id||id;result={ok:true,address_id:id,customer_id:p.p_customer_id,server_revision:'2026-10-02T08:00:00Z',canonical_entity:{id,customer_id:p.p_customer_id,address:p.p_address}}}const a=ack(e,result,id);receipts.set(e.client_tx_id,a);return a}}}
++async function run(){let s=native();await s.ready();let r=renderer(s);load(r,'permissions-v2-delivery-settings-routing.js');load(r,'permissions-v2-expense-edit-routing.js');load(r,'permissions-v2-order-fulfillment-routing.js');const p=peer();
++ const driver=await r.ctx.__SharawlaPV2DeliverySettings.saveDriver({name:'Parent',branch_id:70007});
++ await test('Online pending Driver edit/deactivate commits child with same owner/alias/dependency',async()=>{const out=await r.ctx.__SharawlaPV2DeliverySettings.saveDriver({id:driver,name:'Latest',active:false,branch_id:70007},{withState:true});assert(out.durable&&!out.synced);assert.equal(out.row.depends_on_tx_id,driver.slice(15));assert.equal(out.row.envelope.payload.rpc_payload.p_driver_id,driver);assert.equal(r.cache.get('offlineV2Drivers').length,1);assert.equal(r.cache.get('offlineV2Drivers')[0].name,'Latest')});
++ const zone=await r.ctx.__SharawlaPV2DeliverySettings.saveZone({name:'Parent',branch_id:70007});
++ await test('Online pending Zone edit/deactivate remains one durable projection',async()=>{await r.ctx.__SharawlaPV2DeliverySettings.saveZone({id:zone,name:'Latest Zone',delivery_fee:8,active:false,branch_id:70007});assert.equal(r.cache.get('offlineV2Zones').length,1);assert.equal(r.cache.get('offlineV2Zones')[0].delivery_fee,8)});
++ const et=crypto.randomUUID();await r.transport.commitRpcLocal('create_pos_expense_idempotent',{p_shift_id:42,p_description:'Old',p_amount:5,p_client_tx_id:et});
++ let expenseChild;
++ await test('Pending expense edit uses original alias and expected revision; no new create',async()=>{expenseChild=await r.ctx.__SharawlaPV2ExpenseEdit.updateExpense({id:'offline-exp-'+et,description:'New',amount:7,expected_amount:5,expected_description:'Old'},{withState:true});assert(expenseChild.durable&&!expenseChild.synced);assert.equal(expenseChild.row.operation_type,'expense_update');assert.equal(expenseChild.row.depends_on_tx_id,et);assert.equal(r.cache.get('offlineV2Expenses').length,1);assert.equal(r.cache.get('offlineV2Expenses')[0].amount,7)});
++ await test('Missing expense expected revision fails before durable write',async()=>{const n=(await s.listOutbox()).length;await assert.rejects(()=>r.ctx.__SharawlaPV2ExpenseEdit.updateExpense({id:43,description:'X',amount:7}),/النسخة الأصلية/);assert.equal((await s.listOutbox()).length,n)});
++ const st=crypto.randomUUID();await r.transport.commitRpcLocal('create_pos_order_atomic',payload(st));
++ await test('Online local-parent fulfillment queues before parent ACK without bigint cast',async()=>{const out=await r.ctx.__SharawlaPV2OrderFulfillment.transition('offline-'+st,'preparing',{withState:true});assert(out.durable&&!out.synced);assert.equal(out.row.depends_on_tx_id,st);assert.equal(out.row.envelope.payload.rpc_payload.p_order_id,'offline-'+st);assert.equal(r.cloudDirect(),0)});
++ const before=await s.listOutbox();
++ await test('Fresh OS process restart before ACK verifies durable SQLite child rows/digests',async()=>{const out=spawnSync(process.execPath,[__filename,'--probe',JSON.stringify(before.map(x=>[x.client_tx_id,x.payload_digest]))],{env:{...process.env,SHARAWLA_FIXTURE_REOPEN:work},encoding:'utf8'});assert.equal(out.status,0,out.stderr)});
++ let lost=true;await worker(s,{send:async e=>{const a=await p.send(e);if(lost){lost=false;throw new Error('ACK loss')}return a}}).syncOnce();
++ await test('ACK loss leaves parent retryable and blocks its child',async()=>{assert.equal((await s.getOutbox(before[0].client_tx_id)).status,'retryable');assert.equal((await s.getOutbox(before[1].client_tx_id)).status,'pending')});
++ await worker(s,p,()=>Date.now()+7200000).syncOnce();
++ await test('Reconnect/replay resolves children from parent ACK; immutable original envelopes',async()=>{for(const old of before){const row=await s.getOutbox(old.client_tx_id);assert.equal(row.status,'synced',JSON.stringify({operation:row.operation_type,code:row.last_error_code,message:row.last_error_message}));assert.equal(row.payload_digest,old.payload_digest);assert.deepEqual(clone(row.envelope.payload),clone(old.envelope.payload));assert(await s.getMappingByTx(row.client_tx_id))}assert.equal(p.receipts.size,before.length)});
++ r=renderer(s);await r.transport.reconcileCompatibilityProjections();
++ await test('Cold projection rebuild: Driver/Zone one canonical row each with latest deactivate',async()=>{for(const key of ['offlineV2Drivers','offlineV2Zones']){const rows=r.cache.get(key);assert.equal(rows.length,1);assert.equal(rows[0].active,false);assert(Number(rows[0].id)>0)}});
++ await test('Expense cold rebuild retains latest edit with canonical ID once',async()=>{const rows=r.cache.get('offlineV2Expenses');assert.equal(rows.length,1);assert.equal(rows[0].amount,7);assert.equal(rows[0]._offline,false)});
++ await test('Repeated ACK reconciliation does not resurrect local aliases',async()=>{await r.transport.reconcileCompatibilityProjections();assert.equal(r.cache.get('offlineV2Drivers').length,1);assert.equal(r.cache.get('offlineV2Zones').length,1);assert.equal(r.cache.get('offlineV2Expenses').length,1)});
++ await test('Expense exact duplicate TX returns ACK; changed payload fails native digest',async()=>{const old=before.find(x=>x.operation_type==='expense_update'),pp=clone(old.envelope.payload.rpc_payload);const out=await r.transport.commitRpcLocal('offline_expense_update_v1',pp);assert(out.synced);assert.equal(out.result.id,Number((await s.getOutbox(et)).server_ack.server_entity_id));await assert.rejects(()=>r.transport.commitRpcLocal('offline_expense_update_v1',{...pp,p_amount:9}),{code:'OFFLINE_V2_TX_PAYLOAD_MISMATCH'})});
++ await test('Negative expense dispatcher binding is rejected before SQLite commit',async()=>{const tx=crypto.randomUUID(),a=r.adapters.get('expense_update'),input=a.buildCommit({payload:{p_expense_id:43,p_description:'X',p_amount:7,p_expected_amount:5,p_expected_description:'Old',p_client_tx_id:tx},clientTx:tx,identity:{device_id:'fixture-device',business_id:'fixture-business'}});input.payload.rpc_name='expense_update_v2';await assert.rejects(()=>s.commitOperation(input),{code:'OFFLINE_V2_INVALID_COMMIT'});assert.equal(await s.getOutbox(tx),null)});
++ const ct=crypto.randomUUID();await r.transport.commitRpcLocal('offline_customer_update_v1',{p_customer_id:50,p_name:'Local old',p_phone:'01000000000',p_client_tx_id:ct});await worker(s,p).syncOnce();
++ await test('Newer Cloud revision survives synced retained local history',async()=>{await r.transport.mergeCanonicalCustomerRows('customer',[{id:50,name:'New Cloud',phone:'01000000000',updated_at:'2026-10-02T09:00:00Z'}]);await r.transport.reconcileCompatibilityProjections();assert.equal(r.cache.get('customersCache').find(x=>x.id===50).name,'New Cloud')});
++ const at=crypto.randomUUID();await r.transport.commitRpcLocal('offline_customer_address_save_v1',{p_address_id:60,p_customer_id:50,p_address:'Old Address',p_client_tx_id:at});await worker(s,p).syncOnce();
++ await test('Newer Inbox address revision survives older ACK history',async()=>{await r.transport.applyCanonicalCustomerEvent({entity_type:'customer_address',entity_id:'60',event_type:'customer_address.updated',created_at:'2026-10-02T09:00:00Z',event_id:'new',payload:{id:60,customer_id:50,address:'New Inbox'}});await r.transport.reconcileCompatibilityProjections();assert.equal(r.cache.get('customerAddressesCache').find(x=>x.id===60).address,'New Inbox')});
++ await test('Newer Inbox delete tombstone prevents retained save resurrection',async()=>{await r.transport.applyCanonicalCustomerEvent({entity_type:'customer_address',entity_id:'60',event_type:'customer_address.deleted',created_at:'2026-10-02T10:00:00Z',event_id:'del',payload:{id:60,customer_id:50}});await r.transport.reconcileCompatibilityProjections();assert(!r.cache.get('customerAddressesCache').some(x=>x.id===60))});
++ await test('Stale Inbox/Cloud snapshot cannot resurrect newer delete',async()=>{assert((await r.transport.applyCanonicalCustomerEvent({entity_type:'customer_address',entity_id:'60',event_type:'customer_address.updated',created_at:'2026-10-02T09:30:00Z',event_id:'stale',payload:{id:60,customer_id:50,address:'Stale'}})).stale);await r.transport.mergeCanonicalCustomerRows('customer_address',[{id:60,customer_id:50,address:'Unversioned stale'}]);assert(!r.cache.get('customerAddressesCache').some(x=>x.id===60))});
++ await test('Pending local overlay preserves newer canonical shadow without losing it',async()=>{const tx=crypto.randomUUID();await r.transport.commitRpcLocal('offline_customer_update_v1',{p_customer_id:50,p_name:'Pending',p_phone:'01000000000',p_client_tx_id:tx});await r.transport.applyCanonicalCustomerEvent({entity_type:'customer',entity_id:'50',event_type:'customer.updated',created_at:'2026-10-02T11:00:00Z',event_id:'newer',payload:{id:50,name:'Canonical Newest',phone:'01000000000'}});await r.transport.reconcileCompatibilityProjections();const c=r.cache.get('customersCache').find(x=>x.id===50);assert.equal(c.name,'Pending');assert.equal(c._canonical_shadow.payload.name,'Canonical Newest')});
++ // Real SQLite Inbox store, including durable applied flags and stale native upserts.
++ const ctx={module:{exports:{}},exports:{},require:n=>n==='electron'?{app:{getPath:()=>work,whenReady:async()=>{}},ipcMain:{handle(){}}}:n==='sqlite3'?{Database:dbs[0].constructor,OPEN_READWRITE:1,OPEN_CREATE:2}:require(n),console,Date,JSON,Promise,Map,Set};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'beta45-offline-v2-inbox-store.js'),'utf8'),ctx);const inbox=ctx.module.exports.installOfflineV2InboxStore();
++ await test('Native SQLite newer Inbox customer remains after older event application',async()=>{for(const [event_id,created_at,name] of [['latest','2026-10-02T12:00:00Z','Newest'],['late-old','2026-10-02T11:00:00Z','Old']]){await inbox.receive({event_id,created_at,event_type:'customer.updated',entity_type:'customer',entity_id:'80',payload:{id:80,name,phone:'01100000000'}});await inbox.apply(event_id)}assert.equal((await inbox.customerProjection({customer_id:80})).payload.name,'Newest')});
++ await test('Native Inbox address tombstone survives delayed save and duplicate replay',async()=>{for(const [event_id,created_at,event_type] of [['new-del','2026-10-02T12:00:00Z','customer_address.deleted'],['late-save','2026-10-02T11:00:00Z','customer_address.updated']]){await inbox.receive({event_id,created_at,event_type,entity_type:'customer_address',entity_id:'81',payload:{id:81,customer_id:80,address:'X'}});await inbox.apply(event_id)}await inbox.apply('late-save');assert.equal((await inbox.customerAddresses(80)).length,0)});
++ await test('Fresh process restart after ACK preserves native receipts/mappings and Inbox tombstone',async()=>{const code="const {DatabaseSync}=require('node:sqlite'),assert=require('assert');const d=new DatabaseSync(process.argv[1]);assert.equal(d.prepare(\"select deleted from offline_v2_customer_address_projection where server_address_id='81'\").get().deleted,1);assert.equal(JSON.parse(d.prepare(\"select payload_json from offline_v2_customer_projection where server_customer_id='80'\").get().payload_json).name,'Newest');assert(d.prepare(\"select count(*) n from offline_v2_outbox where status='synced'\").get().n>=8);d.close();";const result=spawnSync(process.execPath,['-e',code,path.join(work,'sharawla-offline-v2.sqlite')],{encoding:'utf8'});assert.equal(result.status,0,result.stderr)});
++ await test('Canonical revision/tombstone survives fresh renderer cache reopen without stale resurrection',async()=>{const {DatabaseSync}=require('node:sqlite');const kv=new DatabaseSync(path.join(work,'compatibility.sqlite'));kv.exec('create table if not exists kv(k text primary key,v text)');for(const k of ['customersCache','customerAddressesCache','offlineV2CustomerCanonicalRevisions'])kv.prepare('insert or replace into kv values(?,?)').run(k,JSON.stringify(r.cache.get(k)||null));const rr=renderer(s);rr.ctx.odbGet=async k=>JSON.parse(kv.prepare('select v from kv where k=?').get(k)?.v||'null');rr.ctx.odbSet=async(k,v)=>{kv.prepare('insert or replace into kv values(?,?)').run(k,JSON.stringify(v));return v};await rr.transport.reconcileCompatibilityProjections();assert(!(await rr.ctx.odbGet('customerAddressesCache')).some(x=>x.id===60));assert.equal((await rr.ctx.odbGet('offlineV2CustomerCanonicalRevisions'))['customer:50'].payload.name,'Canonical Newest');kv.close()});
++ const {classifyError}=require('../beta45-offline-v2-sync');
++ await test('Expense revision/closed shift rejection becomes Conflict; actor rejection blocks',async()=>{for(const message of ['EXPENSE_EDIT_REVISION_CONFLICT','EXPENSE_EDIT_CLOSED_SHIFT','EXPENSE_EDIT_SCOPE_CHANGED'])assert.equal(classifyError({code:'40001',message}).kind,'conflict');assert.equal(classifyError({code:'42501',message:'EXPENSE_EDIT_ACTOR_MISMATCH'}).kind,'blocked')});
++ await test('Actual Expense Edit UI click preserves pending over stale Cloud; cash remains unapproved',async()=>{const ui=renderer(s);load(ui,'permissions-v2-expense-edit-routing.js');const els=new Map(),toasts=[],prompts=['UI edit','9'];const $=k=>{if(!els.has(k))els.set(k,{value:'2026-10-02',innerHTML:'',textContent:'',disabled:false});return els.get(k)};Object.assign(ui.ctx,{$,localDateInput:()=>'2026-10-02',money:String,esc:String,fmtDate:String,offlineQueue:async()=>[],uiPrompt:async()=>prompts.shift(),toast:m=>toasts.push(m),isNetError:()=>false,rest:async()=>[{id:555,branch_id:70007,description:'Original',amount:5,created_at:'2026-10-02T08:00:00Z',shift_id:42}],getOpenShift:async()=>({id:42})});const app=fs.readFileSync(path.join(root,'app.js'),'utf8');vm.runInContext(app.slice(app.indexOf('async function renderExpenses(){'),app.indexOf('function catalogOrderValue(')),ui.ctx);await ui.ctx.renderExpenses();await new Promise(resolve=>setImmediate(resolve));await $('#expenseRows').onclick({target:{closest:()=>({dataset:{editExp:'555'},disabled:false})}});assert(toasts.some(m=>m.includes('بانتظار المزامنة')&&m.includes('غير معتمد')));assert($('#expenseRows').innerHTML.includes('UI edit'));assert.equal(ui.cloudDirect(),0)});
++ await test('Expense projection failure after commit returns saved-local/pending',async()=>{const rr=renderer(s);load(rr,'permissions-v2-expense-edit-routing.js');rr.ctx.odbSet=async()=>{throw new Error('cache unavailable')};const out=await rr.ctx.__SharawlaPV2ExpenseEdit.updateExpense({id:555,description:'Recovery',amount:8,expected_amount:5,expected_description:'Original'},{withState:true});assert(out.durable&&out.projection_pending);assert(await s.getOutbox(out.client_tx_id))});
++ await test('Expense child ACK loss/replay keeps one receipt and original digest',async()=>{const tx=crypto.randomUUID(),rr=renderer(s);await rr.transport.commitRpcLocal('offline_expense_update_v1',{...clone(expenseChild.row.envelope.payload.rpc_payload),p_client_tx_id:tx});let lost=false;await worker(s,{send:async e=>{const a=await p.send(e);if(e.client_tx_id===tx&&!lost){lost=true;throw new Error('lost expense ACK')}return a}}).syncOnce();assert.equal((await s.getOutbox(tx)).status,'retryable');const n=p.receipts.size;await worker(s,p,()=>Date.now()+7200000).syncOnce();assert.equal((await s.getOutbox(tx)).status,'synced');assert.equal(p.receipts.size,n)});
++ await test('Passive missing-BON capture reads envelope without sync/activation or credentials',async()=>{const n=(await s.listOutbox()).length,c=await r.transport.captureBatch1RuntimeEvidence(st,{displayed_bon:null,access_token:'NEVER_SAVE'});assert.equal((await s.listOutbox()).length,n);assert(c.root_cause.startsWith('UNDETERMINED'));assert(!JSON.stringify(c).includes('NEVER_SAVE'));assert.equal(c.bon_source_state.activation,'DORMANT — unchanged')});
++ await test('Server-order Return capture requires economic runtime proof; rejects local-parent',async()=>{const {inspectCapture}=require('./batch1-runtime-evidence-contract'),tx=crypto.randomUUID();await r.transport.commitRpcLocal('create_order_return_idempotent',{p_order_id:43,p_reason:'Test',p_items:[{order_item_id:63,quantity:1}],p_payments:[{method:'cash',amount:5}],p_client_tx_id:tx});const c=await r.transport.captureBatch1RuntimeEvidence(tx),report=inspectCapture(c);assert.equal(report.verdict,'NEEDS RUNTIME PROOF');assert(report.missing.includes('economic_before_after'));const bad=clone(c);bad.durable_row.envelope.payload.rpc_payload.p_order_id='offline-'+tx;assert.throws(()=>inspectCapture(bad),/SERVER_ORDER_RETURN_ONLY/)});
++ await test('Expense SQL source delegates only accepted writer; replay precedes shift/expense locks',async()=>{const {last}=require('./offline-reference-return-sql-contract'),sql=fs.readFileSync(path.join(root,'supabase-offline-v2-expense-edit-source.sql'),'utf8');const check=q=>{const d=last(q,'offline_expense_update_v1');assert(d.body.includes('result:=public.expense_update_v2('));assert(!/update public\.expenses|insert into public\.expenses/i.test(d.body));for(const guard of ['EXPENSE_EDIT_REPLAY_MISMATCH','EXPENSE_EDIT_PARENT_INVALID','EXPENSE_EDIT_REVISION_CONFLICT','EXPENSE_EDIT_CLOSED_SHIFT'])assert(d.body.includes(guard));assert(d.body.indexOf('if found then')<d.body.indexOf('select * into shift'));assert(d.body.indexOf('select * into shift')<d.body.indexOf('select * into expense'));};check(sql);assert.throws(()=>check(sql.replace('EXPENSE_EDIT_CLOSED_SHIFT','removed')))});
++ await test('Final SQL dispatcher maps bound parent after replay before canonical bigint owner',async()=>{const {last}=require('./offline-reference-return-sql-contract'),q=fs.readFileSync(path.join(root,'supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql'),'utf8'),d=last(q,'sharawla_offline_v2_apply_event_reference_v1');assert(d.body.indexOf('return jsonb_build_object(')<d.body.indexOf('OFFLINE_REFERENCE_PARENT_RECEIPT_INVALID'));assert(d.body.indexOf('OFFLINE_REFERENCE_PARENT_RECEIPT_INVALID')<d.body.indexOf("when 'order_status_apply_offline_v2'"));for(const field of ['auth_user_id','employee_id','branch_id','device_id','rpc_name'])assert(d.body.includes('v_customer_parent.'+field))});
++ const out={status:'PASS',tests,server:'MOCK protocol peer only; economic PostgreSQL tests NOT RUN in separate required harness',sqlite:'Actual native + Inbox source on real SQLite callback adapter',runtime_db_contacted:false};fs.writeFileSync(process.env.SHARAWLA_FINAL_GAP_RESULT||path.join(work,'final-gaps.json'),JSON.stringify(out,null,2));console.log(JSON.stringify({status:'PASS',tests:tests.length}));close();
++}
++if(process.argv[2]==='--probe'){(async()=>{const s=native();await s.ready();for(const [tx,digest]of JSON.parse(process.argv[3])){const r=await s.getOutbox(tx);assert.equal(r.payload_digest,digest);assert(await s.getRecord(r.entity_type,r.local_entity_id))}close()})().catch(e=>{console.error(e);close();process.exitCode=1})}else run().catch(e=>{console.error(e);close();process.exitCode=1});
+--- /dev/null
++++ b/scripts/check-batch1-final-postgres.py
+@@ -0,0 +1,86 @@
++#!/usr/bin/env python3
++"""Required PG16 economic component harness. Fresh cluster/private socket only.
++No URL/DSN/connection option, deployment, migration, existing DB or device access.
++Expense writer loaded verbatim from accepted source; Return reference is explicitly
++historical source, not proof of effective deployed Point4/Food composition.
++"""
++import argparse,json,os,pathlib,pwd,shutil,subprocess,tempfile
++ROOT=pathlib.Path(__file__).resolve().parent.parent
++ap=argparse.ArgumentParser();ap.add_argument('--pg-bin-dir');ap.add_argument('--result');args=ap.parse_args()
++bins={n:str(pathlib.Path(args.pg_bin_dir)/n) if args.pg_bin_dir else shutil.which(n) for n in ('initdb','pg_ctl','psql')}
++if any(not v or not os.path.isfile(v) for v in bins.values()):
++ out={'status':'NOT RUN','reason':'PG16 initdb/pg_ctl/psql unavailable','economic_proof':'NOT RUN','runtime_db_contacted':False}
++ if args.result:pathlib.Path(args.result).write_text(json.dumps(out,indent=2))
++ print(json.dumps(out));raise SystemExit(2)
++assert ' 16.' in subprocess.check_output([bins['initdb'],'--version'],text=True),'PG16 required'
++files=[('permissions-v2-owner-shifts-expenses.sql',['expense_update_v2']),('supabase-offline-v2-expense-edit-source.sql',['offline_expense_update_v1']),('supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql',['sharawla_offline_v2_apply_event_reference_v1','sharawla_offline_v2_apply_event']),('supabase-v10-4-6-final-stability.sql',['create_order_return'])]
++js="const s=require('./scripts/offline-reference-return-sql-contract'),fs=require('fs');let out={};for(const [f,names] of "+json.dumps(files)+"){for(const n of names)out[n]=s.last(fs.readFileSync(f,'utf8'),n).definition;}console.log(JSON.stringify(out));"
++defs=json.loads(subprocess.check_output(['node','-e',js],cwd=ROOT,text=True))
++work=pathlib.Path(tempfile.mkdtemp(prefix='sharawla-final-gap-pg16-'));work.chmod(0o700);uid=gid=None
++if os.geteuid()==0:
++ user=pwd.getpwnam('nobody');uid,gid=user.pw_uid,user.pw_gid;os.chown(work,uid,gid)
++def run(cmd,**kw):return subprocess.run(cmd,env={'PATH':os.environ.get('PATH','/usr/bin:/bin'),'LANG':'C.UTF-8'},user=uid,group=gid,text=True,capture_output=True,check=True,timeout=30,**kw)
++cluster=work/'cluster';sock=work/'socket';sock.mkdir()
++if uid is not None:os.chown(sock,uid,gid)
++run([bins['initdb'],'-D',str(cluster),'-U','fixture','-A','trust','--no-locale'])
++run([bins['pg_ctl'],'-D',str(cluster),'-l',str(work/'log'),'-o',f"-F -c listen_addresses='' -k {sock} -p 55441",'-w','start'])
++checks=[]
++def sql(q):return run([bins['psql'],'-X','-h',str(sock),'-p','55441','-U','fixture','-d','postgres','-v','ON_ERROR_STOP=1','-At'],input=q).stdout.strip()
++def call(e):return json.loads(sql("select sharawla_offline_v2_apply_event('"+json.dumps(e).replace("'","''")+"'::jsonb)::text;"))
++def reject(name,q,expected):
++ try:sql(q)
++ except subprocess.CalledProcessError as ex:assert expected in ex.stderr,(name,ex.stderr);checks.append({'test':name,'status':'PASS'});return
++ raise AssertionError(name+' accepted')
++def query(e):return "select sharawla_offline_v2_apply_event('"+json.dumps(e).replace("'","''")+"'::jsonb);"
++def ev(tx,**p):return {'client_tx_id':tx,'payload_digest':'digest-'+tx,'protocol_version':2,'operation_type':'expense_update','device_id':'fixture','device_sequence':1,'branch_id':70007,'employee_id':7,'payload':{'rpc_name':'offline_expense_update_v1','rpc_payload':{'p_expense_id':10,'p_description':'New','p_amount':7,'p_expected_amount':5,'p_expected_description':'Old','p_client_tx_id':tx,**p}}}
++try:
++ sql("""
++ create role anon;create role authenticated;create role service_role;create schema auth;
++ create function auth.uid() returns uuid language sql as $$select '11111111-1111-4111-8111-111111111111'::uuid$$;
++ create function current_employee_id() returns bigint language sql as $$select 7::bigint$$;
++ create function has_action_permission_v2(text) returns boolean language sql as $$select true$$;
++ create function has_branch_access(bigint) returns boolean language sql as $$select $1=70007$$;
++ create function is_admin() returns boolean language sql as $$select true$$;
++ create function has_permission(text) returns boolean language sql as $$select true$$;
++ create table audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb,created_at timestamptz default now());
++ create table offline_v2_server_receipts(client_tx_id text primary key,server_event_id text,protocol_version int,payload_digest text,operation_type text,rpc_name text,device_id text,device_sequence bigint,branch_id bigint,employee_id bigint,auth_user_id uuid,server_entity_id text,server_version text,result_json jsonb);
++ create table shifts(id bigint primary key,branch_id bigint,employee_id bigint,status text,opened_at timestamptz,closed_at timestamptz);
++ insert into shifts values(42,70007,7,'open',now(),null);
++ create table expenses(id bigint primary key,branch_id bigint,employee_id bigint,shift_id bigint,description text,amount numeric,created_at timestamptz);
++ insert into expenses values(10,70007,7,42,'Old',5,now());
++ create table customers(id bigint);create table customer_addresses(id bigint);
++ create table orders(id bigint primary key,branch_id bigint,employee_id bigint,shift_id bigint,status text,order_type text,delivered_at timestamptz,invoice_number bigint,bon_number bigint,subtotal numeric,discount numeric,tax_amount numeric,service_amount numeric);
++ create table order_items(id bigint primary key,order_id bigint,product_id bigint,product_name text,quantity numeric,total numeric);
++ create table app_settings(key text,value text);insert into app_settings values('returns_allow_closed_shifts','false');
++ create table branch_financial_settings(branch_id bigint,prices_include_tax boolean);
++ create table returns(id bigserial primary key,branch_id bigint,return_number bigint,order_id bigint,original_invoice_number bigint,original_bon_number bigint,employee_id bigint,shift_id bigint,reason text,notes text,subtotal numeric,discount_adjustment numeric,tax_adjustment numeric,service_adjustment numeric,total numeric);
++ create table return_items(return_id bigint,order_item_id bigint,product_id bigint,product_name text,quantity numeric,unit_refund numeric,total numeric);
++ create table return_payments(return_id bigint,method text,amount numeric);
++ create table branch_return_counters(branch_id bigint primary key,next_number bigint);
++ insert into orders values(43,70007,7,42,'completed','pickup',now(),1,1,10,0,0,0);
++ insert into order_items values(63,43,1,'Product',2,10);
++ """)
++ for n in ['expense_update_v2','offline_expense_update_v1','sharawla_offline_v2_apply_event_reference_v1','sharawla_offline_v2_apply_event','create_order_return']:sql(defs[n])
++ a=call(ev('edit'));assert a['result']['amount']==7;assert call(ev('edit'))['duplicate'];assert sql('select count(*) from audit_logs;')=='1';checks.append({'test':'canonical expense writer + receipt replay changes economic amount/audit once','status':'PASS'})
++ reject('expense stale revision conflict writes nothing',query(ev('stale')),'REVISION_CONFLICT')
++ bad=ev('edit');bad['payload_digest']='other';reject('expense duplicate digest conflict',query(bad),'REPLAY_MISMATCH')
++ bad=ev('actor');bad['employee_id']=8;reject('expense actor binding',query(bad),'ACTOR_MISMATCH')
++ bad=ev('branch');bad['branch_id']=70008;reject('expense branch binding',query(bad),'DENIED')
++ sql("update shifts set status='closed',closed_at=now();")
++ reject('closed shift blocks expense edit before cash economic change',query(ev('closed',p_expected_amount=7,p_expected_description='New')),'CLOSED_SHIFT');assert call(ev('edit'))['duplicate'];assert sql('select amount from expenses where id=10;')=='7';checks.append({'test':'closed-shift receipt replay has no new economic change','status':'PASS'})
++ sql("update shifts set status='open',closed_at=null;")
++ parent={"client_tx_id":"parent-exp","server_event_id":"parent-event","protocol_version":2,"payload_digest":"parent-digest","operation_type":"expense","rpc_name":"create_pos_expense_idempotent","device_id":"fixture","device_sequence":1,"branch_id":70007,"employee_id":7,"auth_user_id":"11111111-1111-4111-8111-111111111111","server_entity_id":"10","server_version":"fixture","result_json":{}}
++ sql("insert into offline_v2_server_receipts select * from jsonb_populate_record(null::offline_v2_server_receipts,'"+json.dumps(parent)+"'::jsonb);")
++ pending=ev('pending',p_expense_id='offline-exp-parent-exp',p_expense_parent_tx='parent-exp',p_expected_amount=7,p_expected_description='New',p_description='Pending Edited',p_amount=8);pending['depends_on_tx_id']='parent-exp';pending['dependency_mapping']={'client_tx_id':'parent-exp','server_id':'10'}
++ pa=call(pending);assert pa['result']['id']==10;assert pa['result']['amount']==8;checks.append({'test':'pending expense receipt mapping delegates same numeric owner, preserving original digest','status':'PASS'})
++ sql("delete from offline_v2_server_receipts where client_tx_id='parent-exp';")
++ assert call(pending)['duplicate'];checks.append({'test':'lost ACK exact replay requires no parent receipt/economic repost','status':'PASS'})
++ bad=ev('wrong-rpc');bad['payload']['rpc_name']='expense_update_v2';reject('negative final expense RPC binding',query(bad),'RPC_BINDING_INVALID')
++ assert sql("select count(*) from audit_logs where action='expenses.edit';")=='2';assert sql('select amount from expenses where id=10;')=='8'
++ for name,items,payments,expected in [('over-return','[{"order_item_id":63,"quantity":3}]','[{"method":"cash","amount":15}]','كمية المرتجع أكبر'),('wrong-item','[{"order_item_id":999,"quantity":1}]','[{"method":"cash","amount":5}]','صنف المرتجع غير موجود'),('refund-mismatch','[{"order_item_id":63,"quantity":1}]','[{"method":"cash","amount":6}]','إجمالي رد المبلغ')]:
++  reject('historical reference Return economic negative '+name,"select create_order_return(43,'Test',null,'"+items+"'::jsonb,'"+payments+"'::jsonb);",expected)
++ assert sql('select count(*) from returns;')=='0';assert sql('select count(*) from return_payments;')=='0';checks.append({'test':'negative Return economic guards create zero refunds','status':'PASS'})
++ out={'status':'PASS','tests':checks,'expense':'actual source owner/wrapper; synthetic auth/schema only','return':'historical economic reference only; effective deployed Food/Point4 Return remains NEEDS RUNTIME PROOF','runtime_db_contacted':False}
++ if args.result:pathlib.Path(args.result).write_text(json.dumps(out,indent=2))
++ print(json.dumps(out))
++finally:run([bins['pg_ctl'],'-D',str(cluster),'-m','immediate','-w','stop'])
+--- /dev/null
++++ b/scripts/check-batch1-final-review.js
+@@ -0,0 +1,23 @@
++'use strict';
++const h=require('./offline-reference-return-fixture');
++const {native,renderer,vm,assert,fs,path,root,work,dbs,crypto,clone}=h;
++const {DatabaseSync}=require('node:sqlite');const {spawnSync}=require('child_process');
++const tests=[];const close=()=>{for(const d of dbs.splice(0))d.close()};
++async function test(name,fn){await fn();tests.push({name,status:'PASS'})}
++function persistent(r){const db=new DatabaseSync(path.join(work,'compatibility-fixture.sqlite'));db.exec('CREATE TABLE IF NOT EXISTS kv(key TEXT PRIMARY KEY,value TEXT NOT NULL)');r.ctx.odbGet=async k=>{const row=db.prepare('SELECT value FROM kv WHERE key=?').get(k);return row?JSON.parse(row.value):null};r.ctx.odbSet=async(k,v)=>db.prepare('INSERT INTO kv VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k,JSON.stringify(v));return db}
++const event=(id,at,type='customer_address.updated',payload={id:60,customer_id:50,address:'canonical'})=>({entity_type:type.startsWith('customer_address.')?'customer_address':'customer',entity_id:String(id),event_type:type,created_at:at,event_id:crypto.randomUUID(),payload:{...payload,id}});
++async function run(){const s=native();await s.ready();const r=renderer(s),db=persistent(r),t=r.transport;
++ await test('Equal server timestamps cannot use UUID ordering to resurrect a delete',async()=>{await t.applyCanonicalCustomerEvent(event(60,'2026-10-02T10:00:00Z','customer_address.deleted'));const result=await t.applyCanonicalCustomerEvent(event(60,'2026-10-02T10:00:00Z'));assert(result.stale&&result.needs_refresh);assert(!(await r.ctx.odbGet('customerAddressesCache')).some(x=>x.id===60))});
++ await test('Deletion uses server event revision even with stale payload updated_at',async()=>{await t.applyCanonicalCustomerEvent(event(61,'2026-10-02T10:00:00Z'));await t.applyCanonicalCustomerEvent(event(61,'2026-10-02T11:00:00Z','customer_address.deleted',{customer_id:50,updated_at:'2026-10-02T09:00:00Z'}));assert(!(await r.ctx.odbGet('customerAddressesCache')).some(x=>x.id===61));assert((await t.applyCanonicalCustomerEvent(event(61,'2026-10-02T10:30:00Z'))).stale)});
++ await test('Unversioned Cloud snapshot cannot overwrite or resurrect a newer canonical tombstone',async()=>{await t.mergeCanonicalCustomerRows('customer_address',[{id:60,customer_id:50,address:'stale unversioned'}]);assert(!(await r.ctx.odbGet('customerAddressesCache')).some(x=>x.id===60))});
++ await test('Concurrent canonical writes keep both revisions in durable registry',async()=>{await Promise.all([t.applyCanonicalCustomerEvent(event(90,'2026-10-02T12:00:00Z','customer.updated',{name:'device B'})),t.applyCanonicalCustomerEvent(event(91,'2026-10-02T12:00:00Z','customer.updated',{name:'device C'}))]);const m=await r.ctx.odbGet('offlineV2CustomerCanonicalRevisions');assert(m['customer:90']&&m['customer:91'])});
++ await test('Duplicate canonical event after tombstone has no state change',async()=>{const e=event(62,'2026-10-02T12:00:00Z','customer_address.deleted');await t.applyCanonicalCustomerEvent(e);const before=clone(await r.ctx.odbGet('offlineV2CustomerCanonicalRevisions'));assert((await t.applyCanonicalCustomerEvent(e)).stale);assert.deepEqual(await r.ctx.odbGet('offlineV2CustomerCanonicalRevisions'),before)});
++ await test('Fresh-process restart retains revision registry and tombstones in real SQLite cache',async()=>{const result=spawnSync(process.execPath,[__filename,'--restart'],{env:{...process.env,SHARAWLA_FIXTURE_REOPEN:work},encoding:'utf8'});assert.equal(result.status,0,result.stderr)});
++ const tx=crypto.randomUUID(),identity={device_id:'fixture-device',business_id:'fixture-business'},createdAt=new Date().toISOString();const parent=r.adapters.get('driver_save').buildCommit({payload:{p_driver_id:null,p_branch_id:70007,p_name:'Parent',p_active:true,p_client_tx_id:tx},clientTx:tx,identity,createdAt});await s.commitOperation(parent);
++ for(const [label,change] of [['actor',{employee_id:8}],['branch',{branch_id:70008}],['device',{device_id:'other-device'}],['business',{business_id:'other-business'}]])await test('Native pending Driver '+label+' mismatch has zero durable writes',async()=>{const childTx=crypto.randomUUID(),child=r.adapters.get('driver_save').buildCommit({payload:{p_driver_id:'offline-driver-'+tx,p_driver_save_tx:tx,p_branch_id:70007,p_name:'Changed',p_client_tx_id:childTx},clientTx:childTx,identity,createdAt});Object.assign(child,change);await assert.rejects(()=>s.commitOperation(child),{code:'OFFLINE_V2_SCOPED_PARENT_INVALID'});assert.equal(await s.getOutbox(childTx),null)});
++ await test('Native pending Zone cannot map a Driver parent',async()=>{const childTx=crypto.randomUUID(),child=r.adapters.get('zone_save').buildCommit({payload:{p_zone_id:'offline-zone-'+tx,p_zone_save_tx:tx,p_branch_id:70007,p_name:'Changed',p_client_tx_id:childTx},clientTx:childTx,identity,createdAt});await assert.rejects(()=>s.commitOperation(child),{code:'OFFLINE_V2_SCOPED_PARENT_INVALID'});assert.equal(await s.getOutbox(childTx),null)});
++ await test('Native local fulfillment cannot map a Driver receipt as sale',async()=>{const childTx=crypto.randomUUID(),child=r.adapters.get('order_status').buildCommit({payload:{p_order_id:'offline-'+tx,p_target_status:'preparing',p_client_tx_id:childTx},clientTx:childTx,identity,createdAt});await assert.rejects(()=>s.commitOperation(child),{code:'OFFLINE_V2_SCOPED_PARENT_INVALID'})});
++ await test('Expense revision/closed-shift/auth errors have terminal conflict or blocked classification',async()=>{const {classifyError}=require('../beta45-offline-v2-sync');for(const message of ['EXPENSE_EDIT_REVISION_CONFLICT','EXPENSE_EDIT_CLOSED_SHIFT','EXPENSE_EDIT_SCOPE_CHANGED','EXPENSE_EDIT_AMOUNT_INVALID'])assert.equal(classifyError({code:'40001',http_status:400,message}).kind,'conflict');assert.equal(classifyError({code:'42501',http_status:400,message:'EXPENSE_EDIT_ACTOR_MISMATCH'}).kind,'blocked')});
++ const out={status:'PASS',tests,sqlite:'Real node:sqlite native and durable compatibility fixture, fresh OS process restart',canonical_server:'NOT EXECUTED; PostgreSQL harness required',runtime_contacted:false};fs.writeFileSync(process.env.SHARAWLA_REVIEW_RESULT||path.join(work,'review-results.json'),JSON.stringify(out,null,2));db.close();close();console.log(JSON.stringify({status:'PASS',tests:tests.length}));
++}
++if(process.argv[2]==='--restart'){(async()=>{const s=native();await s.ready();const r=renderer(s),db=persistent(r),m=await r.ctx.odbGet('offlineV2CustomerCanonicalRevisions');assert(m['customer_address:60'].deleted&&m['customer_address:61'].deleted);await r.transport.applyCanonicalCustomerEvent(event(60,'2026-10-02T09:00:00Z'));assert(!(await r.ctx.odbGet('customerAddressesCache')).some(x=>x.id===60));db.close();close()})().catch(e=>{console.error(e);close();process.exitCode=1})}else run().catch(e=>{console.error(e);close();process.exitCode=1});
+--- a/scripts/check-batch1-postgres.py
++++ b/scripts/check-batch1-postgres.py
+@@ -18,6 +18,7 @@
+  if args.result:pathlib.Path(args.result).write_text(json.dumps(result,indent=2))
+  print(json.dumps(result));raise SystemExit(2)
+ files=[('supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql',['sharawla_offline_v2_apply_event_reference_v1','sharawla_offline_v2_apply_event']),('supabase-beta54-shared-customer-foundation.sql',['customer_create_v2']),('permissions-v2-owner-customers-edit-address.sql',['customer_update_v2','customer_address_save_v2','customer_address_delete_v2']),('supabase-offline-v2-customer-delivery-owners-v1.sql',['offline_customer_create_v1','offline_customer_update_v1','offline_customer_address_save_v1','offline_customer_address_delete_v1']),('supabase-rc1-bon-numbering-policy-v1-source.sql',['pos_bon_business_date_v1','pos_bon_numbering_mode_v1']),('supabase-rc1-bon-numbering-policy-v1-online-migration-source.sql',['assign_order_numbers']),('supabase-rc1-bon-reservation-v2-scope-aware-source.sql',['pos_reserve_bon_range_v2','pos_consume_reserved_bon_v2']),('supabase-rc1-trusted-device-context-bon-v3-source.sql',['pos_verified_device_context_v1','pos_reserve_bon_range_v3','pos_consume_reserved_bon_v3'])]
++files.extend([('permissions-v2-owner-shifts-expenses.sql',['expense_update_v2']),('supabase-offline-v2-expense-edit-source.sql',['offline_expense_update_v1']),('permissions-v2-owner-delivery-settings.sql',['delivery_driver_save_v2','delivery_zone_save_v2']),('supabase-offline-v2-restaurant-reference-owners-v1.sql',['offline_delivery_driver_save_v1','offline_delivery_zone_save_v1']),('permissions-v2-owner-order-fulfillment.sql',['order_fulfillment_transition_v2']),('permissions-v2-offline-order-status-owner.sql',['order_status_apply_offline_v2'])])
+ js="const s=require('./scripts/offline-reference-return-sql-contract'),fs=require('fs');let out={};for(const [f,names] of "+json.dumps(files)+"){for(const name of names)out[name]=s.last(fs.readFileSync(f,'utf8'),name).definition;}console.log(JSON.stringify(out));"
+ defs=json.loads(subprocess.check_output(['node','-e',js],cwd=ROOT,text=True))
+ work=pathlib.Path(tempfile.mkdtemp(prefix='sharawla-pg-source-fixture-'));work.chmod(0o700);uid=gid=None
+@@ -67,6 +68,15 @@
+  for f in ['supabase-rc1-bon-reservation-v2-scope-aware-source.sql','supabase-rc1-trusted-device-context-bon-v3-source.sql']:
+   # Table/index/ACL prefixes only in the fresh fixture, no complete migration execution.
+   sql((ROOT/f).read_text().split('create or replace function')[0])
++ sql("""
++ create table expenses(id bigserial primary key,branch_id bigint,employee_id bigint,shift_id bigint,description text,amount numeric,created_at timestamptz);
++ insert into expenses(id,branch_id,employee_id,shift_id,description,amount) values(100,70007,7,42,'Old',5);
++ create table delivery_drivers(id bigserial primary key,branch_id bigint,name text,phone text,active boolean);
++ create table delivery_zones(id bigserial primary key,branch_id bigint,name text,delivery_fee numeric,active boolean);
++ create table offline_restaurant_reference_receipts_v1(client_tx_id text primary key,operation_type text,payload_digest text,entity_id bigint,result_json jsonb,created_at timestamptz default now());
++ create table offline_order_status_receipts_v2(client_tx_id text primary key,order_id bigint,target_status text,result_json jsonb,created_at timestamptz default now());
++ alter table orders add column status text;alter table orders add column order_type text;alter table orders add column payment_method text;alter table orders add column delivered_at timestamptz;
++ """)
+  for _,names in files:
+   for name in names:sql(defs[name])
+  sql('create trigger fixture_assign before insert on orders for each row execute function assign_order_numbers();')
+@@ -90,6 +100,56 @@
+  reject('Wrong operation/RPC rejected by final reference route',wrong,'operation/RPC')
+  badparent=event('fixture-parent-bad','customer_update','offline_customer_update_v1',{'p_customer_create_tx':'missing','p_name':'Bad'},7)
+  reject('Missing parent receipt rejected',badparent,'OFFLINE_CUSTOMER_PARENT_RECEIPT_REQUIRED')
++ # M0507: real accepted owner, actual final dispatcher, one receipt and one audit.
++ ex=event('fixture-expense-edit','expense_update','offline_expense_update_v1',{'p_expense_id':100,'p_description':'New','p_amount':7,'p_expected_amount':5,'p_expected_description':'Old'},20)
++ assert call(ex)['result']['id']==100
++ check('Expense edit one writer and cash expense delta 2',"(select sum(amount) from expenses)=7 and (select count(*) from audit_logs where action='expenses.edit')=1")
++ sql("update shifts set status='closed',closed_at=now() where id=42;")
++ assert call(ex)['duplicate'];check('Replay after shift-close has zero repeated economics',"(select sum(amount) from expenses)=7 and (select count(*) from audit_logs where action='expenses.edit')=1")
++ closed=event('fixture-closed-edit','expense_update','offline_expense_update_v1',{'p_expense_id':100,'p_description':'Newer','p_amount':8,'p_expected_amount':7,'p_expected_description':'New'},21)
++ reject('Closed-shift mutation rejected before writer',closed,'EXPENSE_EDIT_CLOSED_SHIFT')
++ check('Closed-shift failure leaves expense and receipt unchanged',"(select amount from expenses where id=100)=7 and not exists(select 1 from offline_v2_server_receipts where client_tx_id='fixture-closed-edit')")
++ sql("update shifts set status='open',closed_at=null where id=42;")
++ changed=json.loads(json.dumps(ex));changed['payload_digest']='CHANGED';changed['payload']['rpc_payload']['p_amount']=99
++ reject('Changed payload on duplicate TX rejected',changed,'EXPENSE_EDIT_REPLAY_MISMATCH')
++ stale=event('fixture-stale-edit','expense_update','offline_expense_update_v1',{'p_expense_id':100,'p_description':'Stale','p_amount':9,'p_expected_amount':5,'p_expected_description':'Old'},22)
++ reject('Stale economic revision rejected',stale,'EXPENSE_EDIT_REVISION_CONFLICT')
++ for amount in [0,-1,'NaN','Infinity']:
++  bad=event('fixture-bad-money-'+str(amount),'expense_update','offline_expense_update_v1',{'p_expense_id':100,'p_description':'Bad','p_amount':amount,'p_expected_amount':7,'p_expected_description':'New'},23)
++  reject('Invalid cash expense '+str(amount),bad,'EXPENSE_EDIT_AMOUNT_INVALID')
++ badactor=json.loads(json.dumps(ex));badactor['employee_id']=8
++ reject('Expense actor mismatch',badactor,'EXPENSE_EDIT_ACTOR_MISMATCH')
++ badbranch=event('fixture-exp-other-branch','expense_update','offline_expense_update_v1',{'p_expense_id':100,'p_description':'Bad','p_amount':8,'p_expected_amount':7,'p_expected_description':'New'},24);badbranch['branch_id']=70008
++ reject('Expense branch mismatch',badbranch,'EXPENSE_EDIT_DENIED')
++ # Seed only parent receipt; accepted expense-create economics remains outside this isolated component.
++ sql("insert into offline_v2_server_receipts(client_tx_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id) values('fixture-exp-parent',2,'parent','expense','create_pos_expense_idempotent','fixture',25,70007,7,auth.uid(),'100');")
++ pending=event('fixture-exp-pending','expense_update','offline_expense_update_v1',{'p_expense_id':'offline-exp-fixture-exp-parent','p_expense_parent_tx':'fixture-exp-parent','p_description':'Parent edit','p_amount':8,'p_expected_amount':7,'p_expected_description':'New'},26)
++ pending.update(depends_on_tx_id='fixture-exp-parent',dependency_mapping={'client_tx_id':'fixture-exp-parent','server_id':'100'})
++ assert call(pending)['result']['id']==100;assert call(pending)['duplicate']
++ check('Pending expense maps same entity, never creates another',"(select count(*) from expenses)=1 and (select amount from expenses where id=100)=8")
++ check('All expense negative economics and receipt rollback',"(select count(*) from audit_logs where action='expenses.edit')=2 and (select count(*) from offline_v2_server_receipts where operation_type='expense_update')=2")
++ # Actual Driver/Zone canonical owners and reference route.
++ for kind,field in [('driver','phone'),('zone','delivery_fee')]:
++  parent=event('fixture-'+kind,'driver_save' if kind=='driver' else 'zone_save','offline_delivery_'+kind+'_save_v1',{'p_'+kind+'_id':None,'p_branch_id':70007,'p_name':'Parent','p_'+field:'01000000000' if kind=='driver' else 5,'p_active':True},30)
++  id=call(parent)['result'][kind+'_id']
++  child=event('fixture-'+kind+'-edit',kind+'_save','offline_delivery_'+kind+'_save_v1',{'p_'+kind+'_id':'offline-'+kind+'-fixture-'+kind,'p_'+kind+'_save_tx':'fixture-'+kind,'p_branch_id':70007,'p_name':'Latest','p_'+field:'01000000000' if kind=='driver' else 8,'p_active':False},31)
++  child.update(depends_on_tx_id='fixture-'+kind,dependency_mapping={'client_tx_id':'fixture-'+kind,'server_id':str(id)})
++  assert call(child)['result'][kind+'_id']==id;assert call(child)['duplicate']
++  check(kind+' pending edit uses same canonical entity',"(select count(*) from delivery_"+kind+"s)=1 and (select active from delivery_"+kind+"s limit 1)=false")
++  for mismatch,value in [('employee_id',8),('branch_id',70008),('device_id','other-device')]:
++   bad=json.loads(json.dumps(child));bad['client_tx_id']+='-'+mismatch;bad['payload']['rpc_payload']['p_client_tx_id']=bad['client_tx_id'];bad[mismatch]=value
++   reject(kind+' parent '+mismatch+' rejected',bad,'مطابقة' if mismatch=='employee_id' else 'OFFLINE_REFERENCE_PARENT_RECEIPT_INVALID')
++ # Real fulfillment delegated owner; parent sale receipt is a fixture prerequisite, not sale economics proof.
++ sql("insert into orders(id,branch_id,employee_id,shift_id,status,order_type) values(999,70007,7,42,'new','pickup');")
++ sql("insert into offline_v2_server_receipts(client_tx_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id) values('fixture-sale-parent',2,'parent','sale','create_pos_order_atomic','fixture',40,70007,7,auth.uid(),'999');")
++ fulfillment=event('fixture-fulfillment','order_status','order_status_apply_offline_v2',{'p_order_id':'offline-fixture-sale-parent','p_target_status':'preparing'},41)
++ fulfillment.update(depends_on_tx_id='fixture-sale-parent',dependency_mapping={'client_tx_id':'fixture-sale-parent','server_id':'999'})
++ assert call(fulfillment)['result']['order']['status']=='preparing';assert call(fulfillment)['duplicate']
++ check('Fulfillment local mapping before cast, once through canonical owner',"(select status from orders where id=999)='preparing' and (select count(*) from audit_logs where action='orders.fulfillment.manage')=1")
++ sql("delete from orders where id=999;delete from offline_v2_server_receipts where client_tx_id='fixture-sale-parent';")
++ assert call(fulfillment)['duplicate']
++ # Leave numbering fixture empty for the unchanged sequential/concurrency gates.
++ sql('delete from orders;delete from shift_bon_counters;delete from branch_invoice_counters;')
+  # Actual numbering trigger: Online sequential inserts, independent sessions/concurrency.
+  for n in range(3):sql("insert into orders(client_tx_id,branch_id,employee_id,shift_id) values('online-"+str(n)+"',70007,7,42);")
+  check('Actual Online sequential allocation 1,2,3','(select array_agg(bon_number order by id) from orders)=array[1,2,3]')
+--- a/scripts/check-rc1-runtime-alignment-final-dispatcher.js
++++ b/scripts/check-rc1-runtime-alignment-final-dispatcher.js
+@@ -5,7 +5,7 @@
+ 
+ const registered=[...transport.matchAll(/registerOne\('([^']+)'/g)].map(m=>m[1]);
+ const ops=[...new Set(registered)];
+-assert.strictEqual(ops.length,59,'expected 59 current Offline V2 client operation types');
++assert.strictEqual(ops.length,60,'expected 60 current Offline V2 client operation types');
+ 
+ const finalMarker='create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)';
+ const finalAt=sql.lastIndexOf(finalMarker);
+--- /dev/null
++++ b/supabase-offline-v2-expense-edit-source.sql
+@@ -0,0 +1,90 @@
++-- Batch1 M0507 SOURCE ONLY. Load before the final dispatcher; no runtime deployment.
++-- No financial writer: the only expense mutation delegates expense_update_v2.
++begin;
++create or replace function public.offline_expense_update_v1(p_event jsonb)
++returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $expense_edit$
++declare
++ e jsonb:=p_event; p jsonb:=p_event#>'{payload,rpc_payload}';
++ tx text:=nullif(trim(e->>'client_tx_id'),''); d text:=nullif(trim(e->>'payload_digest'),'');
++ device text:=nullif(trim(e->>'device_id'),''); seq bigint:=(e->>'device_sequence')::bigint;
++ branch bigint:=(e->>'branch_id')::bigint; actor bigint:=(e->>'employee_id')::bigint;
++ parent_tx text:=nullif(trim(p->>'p_expense_parent_tx'),''); entity text:=p->>'p_expense_id';
++ r public.offline_v2_server_receipts%rowtype; parent public.offline_v2_server_receipts%rowtype;
++ expense public.expenses%rowtype; shift public.shifts%rowtype; shift_id bigint; result jsonb; event_id text;
++begin
++ if auth.uid() is null or public.current_employee_id() is distinct from actor then
++  raise exception using errcode='42501',message='EXPENSE_EDIT_ACTOR_MISMATCH';end if;
++ if coalesce((e->>'protocol_version')::integer,0)<>2 or tx is null or d is null or device is null
++  or coalesce(seq,0)<=0 or coalesce(branch,0)<=0 or coalesce(actor,0)<=0
++  or e->>'operation_type' is distinct from 'expense_update'
++  or e#>>'{payload,rpc_name}' is distinct from 'offline_expense_update_v1'
++  or p->>'p_client_tx_id' is distinct from tx then
++  raise exception using errcode='22023',message='EXPENSE_EDIT_ENVELOPE_INVALID';end if;
++ perform pg_advisory_xact_lock(hashtextextended('offline-v2:'||tx,0));
++ select * into r from public.offline_v2_server_receipts where client_tx_id=tx;
++ if found then
++  if r.payload_digest is distinct from d or r.operation_type is distinct from 'expense_update'
++   or r.rpc_name is distinct from 'offline_expense_update_v1' or r.device_id is distinct from device
++   or r.device_sequence is distinct from seq or r.branch_id is distinct from branch
++   or r.employee_id is distinct from actor or r.auth_user_id is distinct from auth.uid() then
++   raise exception using errcode='22000',message='EXPENSE_EDIT_REPLAY_MISMATCH';end if;
++  if r.result_json->'_offline_v2_expense_request' is distinct from p then
++   raise exception using errcode='22000',message='EXPENSE_EDIT_REPLAY_PAYLOAD_MISMATCH';end if;
++  return jsonb_build_object('ok',true,'acknowledged',false,'duplicate',true,'idempotent_replay',true,
++   'client_tx_id',tx,'protocol_version',2,'payload_digest',d,'server_event_id',r.server_event_id,
++   'server_entity_id',r.server_entity_id,'server_version',r.server_version,'result',r.result_json-'_offline_v2_expense_request');
++ end if;
++ if parent_tx is not null then
++  select * into parent from public.offline_v2_server_receipts where client_tx_id=parent_tx;
++  if not found or parent.operation_type not in ('expense','expense_update')
++   or (parent.operation_type='expense' and parent.rpc_name is distinct from 'create_pos_expense_idempotent')
++   or (parent.operation_type='expense_update' and parent.rpc_name is distinct from 'offline_expense_update_v1')
++   or parent.device_id is distinct from device or parent.branch_id is distinct from branch
++   or parent.employee_id is distinct from actor or parent.auth_user_id is distinct from auth.uid()
++   or coalesce(parent.server_entity_id,'') !~ '^[1-9][0-9]*$'
++   or e->>'depends_on_tx_id' is distinct from parent_tx
++   or e#>>'{dependency_mapping,client_tx_id}' is distinct from parent_tx
++   or e#>>'{dependency_mapping,server_id}' is distinct from parent.server_entity_id then
++   raise exception using errcode='22023',message='EXPENSE_EDIT_PARENT_INVALID';end if;
++  if entity is distinct from 'offline-exp-'||parent_tx and entity is distinct from parent.server_entity_id then
++   -- A chained edit uses the original expense alias, but the parent receipt owns the same entity.
++   if coalesce(entity,'') !~ '^offline-exp-' or parent.operation_type<>'expense_update' then
++    raise exception using errcode='22023',message='EXPENSE_EDIT_PARENT_ENTITY_MISMATCH';end if;
++   select * into r from public.offline_v2_server_receipts where client_tx_id=substr(entity,13);
++   if not found or r.operation_type is distinct from 'expense' or r.server_entity_id is distinct from parent.server_entity_id
++    or r.device_id is distinct from device or r.branch_id is distinct from branch or r.employee_id is distinct from actor
++    or r.auth_user_id is distinct from auth.uid() then raise exception using errcode='22023',message='EXPENSE_EDIT_ROOT_INVALID';end if;
++  end if;
++  entity:=parent.server_entity_id;
++ elsif e->>'depends_on_tx_id' is not null then
++  raise exception using errcode='22023',message='EXPENSE_EDIT_UNEXPECTED_DEPENDENCY';
++ end if;
++ if coalesce(entity,'') !~ '^[1-9][0-9]*$' then raise exception using errcode='22023',message='EXPENSE_EDIT_PARENT_REQUIRED';end if;
++ if not public.has_branch_access(branch) or not public.has_action_permission_v2('expenses.edit') then
++  raise exception using errcode='42501',message='EXPENSE_EDIT_DENIED';end if;
++ -- Serialize with the existing shift-close lock before locking the expense.
++ select x.shift_id into shift_id from public.expenses x where x.id=entity::bigint;
++ select * into shift from public.shifts where id=shift_id for update;
++ if not found or shift.branch_id is distinct from branch or shift.closed_at is not null or shift.status is distinct from 'open' then
++  raise exception using errcode='22023',message='EXPENSE_EDIT_CLOSED_SHIFT';end if;
++ select * into expense from public.expenses where id=entity::bigint for update;
++ if not found or expense.shift_id is distinct from shift.id or expense.branch_id is distinct from branch then
++  raise exception using errcode='22023',message='EXPENSE_EDIT_SCOPE_CHANGED';end if;
++ if not (p ? 'p_expected_amount') or not (p ? 'p_expected_description')
++  or expense.amount is distinct from (p->>'p_expected_amount')::numeric
++  or expense.description is distinct from p->>'p_expected_description' then
++  raise exception using errcode='40001',message='EXPENSE_EDIT_REVISION_CONFLICT';end if;
++ if coalesce((p->>'p_amount')::numeric,0)<=0 or (p->>'p_amount')::numeric::text in ('NaN','Infinity','-Infinity') then raise exception using errcode='P0001',message='EXPENSE_EDIT_AMOUNT_INVALID';end if;
++ -- Validation and audit of the actual mutation remain in the accepted owner.
++ result:=public.expense_update_v2(entity::bigint,p->>'p_description',(p->>'p_amount')::numeric);
++ if result->>'id' is distinct from entity then raise exception 'EXPENSE_EDIT_OWNER_ID_MISMATCH';end if;
++ event_id:='ov2-'||md5(tx||':'||d);
++ insert into public.offline_v2_server_receipts(client_tx_id,server_event_id,protocol_version,payload_digest,
++  operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id,server_version,result_json)
++ values(tx,event_id,2,d,'expense_update','offline_expense_update_v1',device,seq,branch,actor,auth.uid(),entity,'expense-edit-v1',result||jsonb_build_object('_offline_v2_expense_request',p));
++ return jsonb_build_object('ok',true,'acknowledged',true,'duplicate',false,'idempotent_replay',false,
++  'client_tx_id',tx,'protocol_version',2,'payload_digest',d,'server_event_id',event_id,
++  'server_entity_id',entity,'server_version','expense-edit-v1','result',result);
++end;$expense_edit$;
++revoke all on function public.offline_expense_update_v1(jsonb) from public,anon,authenticated,service_role;
++commit;
+--- a/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
++++ b/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
+@@ -15,7 +15,6 @@
+ -- inventory supply state transitions computed v_result without assigning v_entity_id.
+ 
+ begin;
+-
+ 
+ create or replace function public.sharawla_offline_v2_apply_event_reference_v1(p_event jsonb)
+ returns jsonb
+@@ -120,38 +119,8 @@
+     if nullif(trim(coalesce(v_payload->>'p_client_tx_id','')),'') is distinct from v_tx then
+       raise exception using errcode='22023', message='Offline V2 RPC client_tx_id mismatch';
+     end if;
+-    if v_operation='order_status' and (coalesce(nullif(v_payload->>'p_order_id','')::bigint,0)<=0 or nullif(trim(coalesce(v_payload->>'p_target_status','')),'') is null) then
+-      raise exception using errcode='22023', message='Offline V2 order status payload invalid';
+-    end if;
+     if v_operation='shift_open' and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+       raise exception using errcode='22023', message='Offline V2 shift branch mismatch';
+-    end if;
+-    if v_operation in ('driver_save','zone_save')
+-       and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+-      raise exception using errcode='22023', message='Offline V2 Delivery Settings branch mismatch';
+-    end if;
+-  end if;
+-
+-  if v_dep_tx is not null then
+-    if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
+-      raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
+-    end if;
+-    if v_operation='sale' then
+-      v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation in ('expense','shift_close') then
+-      v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation in ('return','order_status','delivery_assign_driver') then
+-      v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation='customer_update' then
+-      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation='customer_address_save' and nullif(trim(coalesce(v_payload->>'p_address_save_tx','')),'') is not null then
+-      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation='customer_address_save' then
+-      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation='customer_address_delete' then
+-      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
+-    elsif v_operation='ingredient_conversion_save' then
+-      v_payload := jsonb_set(v_payload,'{p_ingredient_id}',to_jsonb(v_dep_server_id::bigint),true);
+     end if;
+   end if;
+ 
+@@ -186,6 +155,59 @@
+     );
+   end if;
+ 
++  -- Mapping before bigint validation, after exact replay; same device/actor/branch/type receipt only.
++  if v_operation in ('order_status','driver_save','zone_save') and v_dep_tx is not null then
++    select * into v_customer_parent from public.offline_v2_server_receipts where client_tx_id=v_dep_tx;
++    if not found or v_customer_parent.operation_type is distinct from case when v_operation='order_status' then 'sale' else v_operation end
++     or v_customer_parent.device_id is distinct from v_device_id or v_customer_parent.branch_id is distinct from v_branch
++     or v_customer_parent.employee_id is distinct from v_employee or v_customer_parent.auth_user_id is distinct from auth.uid()
++     or v_customer_parent.server_entity_id is distinct from v_dep_server_id
++     or coalesce(v_dep_server_id,'') !~ '^[1-9][0-9]*$'
++     or (v_operation='order_status' and (v_payload->>'p_order_id' is distinct from 'offline-'||v_dep_tx
++         or v_customer_parent.rpc_name not in ('create_pos_order_atomic','create_food_pos_order_atomic_v1')))
++     or (v_operation='driver_save' and (v_payload->>'p_driver_save_tx' is distinct from v_dep_tx
++         or v_payload->>'p_driver_id' is distinct from 'offline-driver-'||v_dep_tx
++         or v_customer_parent.rpc_name is distinct from 'offline_delivery_driver_save_v1'))
++     or (v_operation='zone_save' and (v_payload->>'p_zone_save_tx' is distinct from v_dep_tx
++         or v_payload->>'p_zone_id' is distinct from 'offline-zone-'||v_dep_tx
++         or v_customer_parent.rpc_name is distinct from 'offline_delivery_zone_save_v1')) then
++      raise exception using errcode='22023',message='OFFLINE_REFERENCE_PARENT_RECEIPT_INVALID';
++    end if;
++  elsif v_operation in ('driver_save','zone_save') and
++    (v_payload->>'p_driver_save_tx' is not null or v_payload->>'p_zone_save_tx' is not null) then
++    raise exception using errcode='22023',message='OFFLINE_REFERENCE_DEPENDENCY_REQUIRED';
++  end if;
++  if v_dep_tx is not null then
++    if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
++      raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
++    end if;
++    if v_operation='sale' then
++      v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation in ('expense','shift_close') then
++      v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation in ('return','order_status','delivery_assign_driver') then
++      v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='driver_save' then
++      v_payload:=jsonb_set(v_payload,'{p_driver_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='zone_save' then
++      v_payload:=jsonb_set(v_payload,'{p_zone_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='customer_update' then
++      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='customer_address_save' and nullif(trim(coalesce(v_payload->>'p_address_save_tx','')),'') is not null then
++      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='customer_address_save' then+      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='customer_address_delete' then
++      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
++    elsif v_operation='ingredient_conversion_save' then
++      v_payload := jsonb_set(v_payload,'{p_ingredient_id}',to_jsonb(v_dep_server_id::bigint),true);
++    end if;
++  end if;
++
++    if v_operation='order_status' and (coalesce(nullif(v_payload->>'p_order_id','')::bigint,0)<=0 or nullif(trim(coalesce(v_payload->>'p_target_status','')),'') is null) then
++      raise exception using errcode='22023', message='Offline V2 order status payload invalid';
++    end if;
++  if v_operation='order_status' and not exists(select 1 from public.orders where id=(v_payload->>'p_order_id')::bigint and branch_id=v_branch) then raise exception using errcode='42501',message='OFFLINE_FULFILLMENT_BRANCH_MISMATCH';end if;
+   -- Customer references may have TWO parents (local customer + local address).
+   -- Resolve from accepted same-actor receipts, not the single client map. Original
+   -- event/digest/TX stay immutable; exact child replay above needs no parent reads.
+@@ -211,6 +233,12 @@
+ 
+   case v_rpc
+     -- OF-1: execute the existing idempotent reference owners, not a second writer.
++    when 'offline_delivery_driver_save_v1' then
++      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then raise exception 'OFFLINE_DELIVERY_BRANCH_MISMATCH';end if;
++      v_result:=public.offline_delivery_driver_save_v1(nullif(v_payload->>'p_driver_id','')::bigint,(v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',v_payload->>'p_phone',coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest);v_entity_id:=v_result->>'driver_id';
++    when 'offline_delivery_zone_save_v1' then
++      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then raise exception 'OFFLINE_DELIVERY_BRANCH_MISMATCH';end if;
++      v_result:=public.offline_delivery_zone_save_v1(nullif(v_payload->>'p_zone_id','')::bigint,(v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',(v_payload->>'p_delivery_fee')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest);v_entity_id:=v_result->>'zone_id';
+     when 'offline_restaurant_floor_save_v1' then
+       if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+         raise exception using errcode='22023',message='OFFLINE_RESTAURANT_REFERENCE_BRANCH_MISMATCH';
+@@ -306,12 +334,6 @@
+     when 'offline_food_supplier_save_v1' then
+       v_result := public.offline_food_supplier_save_v1(nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_email',v_payload->>'p_tax_no',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+       v_entity_id := nullif(v_result->>'supplier_id','');
+-    when 'offline_delivery_driver_save_v1' then
+-      v_result := public.offline_delivery_driver_save_v1(nullif(v_payload->>'p_driver_id','')::bigint,v_branch,v_payload->>'p_name',v_payload->>'p_phone',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+-      v_entity_id := nullif(v_result->>'driver_id','');
+-    when 'offline_delivery_zone_save_v1' then
+-      v_result := public.offline_delivery_zone_save_v1(nullif(v_payload->>'p_zone_id','')::bigint,v_branch,v_payload->>'p_name',(v_payload->>'p_delivery_fee')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+-      v_entity_id := nullif(v_result->>'zone_id','');
+     when 'offline_food_ingredient_save_v1' then
+       v_result := public.offline_food_ingredient_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_name',v_payload->>'p_base_unit_code',v_payload->>'p_purchase_unit_code',v_payload->>'p_sku',v_payload->>'p_barcode',coalesce((v_payload->>'p_cost_per_base_unit')::numeric,0),coalesce((v_payload->>'p_minimum_quantity')::numeric,0),coalesce((v_payload->>'p_track_inventory')::boolean,true),coalesce((v_payload->>'p_usable_yield_percent')::numeric,100),nullif(v_payload->>'p_shelf_life_minutes','')::integer,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
+       v_entity_id := nullif(v_result->>'ingredient_id','');
+@@ -365,6 +387,14 @@
+     raise exception using errcode='22000', message='Offline V2 backend result missing server entity id';
+   end if;
+ 
++  if v_operation in ('customer_create','customer_update','customer_address_save','customer_address_delete') then
++    v_result:=v_result||jsonb_build_object('server_revision',clock_timestamp());
++    if v_operation in ('customer_create','customer_update') then
++      v_result:=v_result||jsonb_build_object('canonical_entity',(select to_jsonb(c) from public.customers c where c.id=v_entity_id::bigint));
++    elsif v_operation='customer_address_save' then
++      v_result:=v_result||jsonb_build_object('canonical_entity',(select to_jsonb(a) from public.customer_addresses a where a.id=v_entity_id::bigint));
++    end if;
++  end if;
+   v_event_id := 'ov2-'||md5(v_tx||':'||v_digest);
+   insert into public.offline_v2_server_receipts(
+     client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,
+@@ -902,6 +932,11 @@
+   -- Restore the accepted Point-4 Outer preparation before entering Core.
+   -- This prepares frozen Food context + stock identities for sale/return while
+   -- keeping the Core authoritative for the actual base operation execution.
++  if v_operation='expense_update' then
++    if v_rpc is distinct from 'offline_expense_update_v1' then raise exception using errcode='22023',message='EXPENSE_EDIT_RPC_BINDING_INVALID';end if;
++    return public.offline_expense_update_v1(p_event);
++  end if;
++
+   if v_operation in ('sale','return','expense','shift_open')
+      or (v_operation='shift_close' and v_rpc='close_pos_shift_idempotent') then
+     return public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event);
+@@ -951,8 +986,6 @@
+ revoke all on function public.sharawla_offline_v2_apply_event_reference_v1(jsonb) from public,anon,authenticated;
+ revoke all on function public.sharawla_offline_v2_apply_event_modern_v1(jsonb) from public,anon,authenticated;
+ revoke all on function public.sharawla_offline_v2_apply_event_alignment_special_v1(jsonb) from public,anon,authenticated;
+-revoke all on function public.offline_delivery_driver_save_v1(bigint,bigint,text,text,boolean,text,text) from public,anon,authenticated;
+-revoke all on function public.offline_delivery_zone_save_v1(bigint,bigint,text,numeric,boolean,text,text) from public,anon,authenticated;
+ revoke all on function public.sharawla_offline_v2_apply_event(jsonb) from public,anon;
+ grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated;
+ 

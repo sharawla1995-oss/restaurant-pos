@@ -1,0 +1,514 @@
+--- a/beta45-offline-v2-transport-runtime.js
++++ b/beta45-offline-v2-transport-runtime.js
+@@ -536,6 +536,22 @@
+   let ingredientConversions=hasIngredientConversions?(clone(await global.odbGet('offlineV2IngredientConversions'))||[]):null;
+   let recipeVersions=hasRecipeDrafts?(clone(await global.odbGet('offlineV2RecipeVersions'))||[]):null;
+   let customersChanged=false,addressesChanged=false,ordersChanged=false,suppliersChanged=false,driversChanged=false,zonesChanged=false,floorsChanged=false,tablesChanged=false,sessionsChanged=false,sessionLinksChanged=false,ingredientsChanged=false,ingredientConversionsChanged=false,recipeVersionsChanged=false;
++  // OF-2: rebuild only Restaurant Returns originally committed against a local sale.
++  // Resolve the compatibility projection from acknowledged parent/child rows; never
++  // mutate the durable RPC payload/digest or the already-server Return route.
++  const parentSales=new Map(rows.filter(r=>text(r?.operation_type)==='sale').map(r=>[text(r.client_tx_id),r]));
++  for(const row of rows){
++    if(text(row?.operation_type)!=='return')continue;
++    const original=row?.envelope?.payload?.rpc_payload||{},parentTx=localOrderTx(original.p_order_id);
++    if(!parentTx||!['create_order_return_idempotent','create_food_order_return_idempotent_v1'].includes(text(row?.envelope?.payload?.rpc_name)))continue;
++    if(parentTx!==text(row.depends_on_tx_id))continue;
++    const payload={...clone(original),p_branch_id:row.branch_id},parent=parentSales.get(parentTx);
++    const parentId=parent?.server_ack?.result?.order?.id??parent?.server_ack?.server_entity_id;
++    if(parent?.status==='synced'&&parent.device_id===row.device_id&&parent.business_id===row.business_id
++       &&num(parent.branch_id)===num(row.branch_id)&&num(parent.employee_id)===num(row.employee_id)
++       &&numericServerId(parentId))payload.p_order_id=Number(parentId);
++    await projectDirectOperation('return',payload,text(row.client_tx_id),row);
++  }
+   for(const row of retailPurchasingRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+   for(const row of prepRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+   for(const row of foodPoRows){const type=text(row?.operation_type),tx=text(row?.client_tx_id),payload=row?.envelope?.payload?.rpc_payload||{};await projectDirectOperation(type,payload,tx,row)}
+--- a/beta55-restaurant-closure-ui.js
++++ b/beta55-restaurant-closure-ui.js
+@@ -105,10 +105,35 @@
+ async function tableSessionRowsLocalFirst(table,key,query,b){let cloud=[];try{cloud=await rest(table,query)}catch(e){if(navigator.onLine!==false)throw e}let local=[];try{local=typeof global.odbGet==='function'?(await global.odbGet(key)||[]):[]}catch{}local=local.filter(x=>Number(x.branch_id||b)===Number(b));const seen=new Set(local.map(x=>String(x.id)));return [...local,...cloud.filter(x=>!seen.has(String(x.id)))]}
+ function localSessionRef(v){const x=String(v||'');return x.startsWith('offline-table-session-')?{p_session_id:null,p_session_open_tx:x.slice('offline-table-session-'.length)}:{p_session_id:Number(x)||null,p_session_open_tx:null}}
+ function localOrderRef(v){const x=String(v||'');return x.startsWith('offline-')?{p_order_id:null,p_order_sale_tx:x.slice('offline-'.length)}:{p_order_id:Number(x)||null,p_order_sale_tx:null}}
+-async function renderTables(){const root=pageRoot(),b=branch(),[floors,tables,sessions,links,cloudOrders]=await Promise.all([restaurantConfigRowsLocalFirst('restaurant_floors','offlineV2RestaurantFloors',`select=*&branch_id=eq.${b}&order=sort_order,id`,b),restaurantConfigRowsLocalFirst('restaurant_tables','offlineV2RestaurantTables',`select=*&branch_id=eq.${b}&order=floor_id,id`,b),tableSessionRowsLocalFirst('restaurant_table_sessions','offlineV2RestaurantTableSessions',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=200`,b),tableSessionRowsLocalFirst('restaurant_table_session_orders','offlineV2RestaurantTableSessionOrders','select=*',b),rest('orders',`select=id,invoice_number,bon_number,total,status,created_at,order_type,client_tx_id&branch_id=eq.${b}&order_type=eq.dinein&order=created_at.desc&limit=100`).catch(()=>[])]);let localOrders=[];try{const bundles=typeof global.odbGet==='function'?(await global.odbGet('cachedOrders')||[]):[];localOrders=bundles.map(x=>x?.order).filter(o=>o&&Number(o.branch_id)===Number(b)&&o.order_type==='dinein')}catch{}const orderSeen=new Set(localOrders.map(o=>String(o.id))),orders=[...localOrders,...cloudOrders.filter(o=>!orderSeen.has(String(o.id)))],openByTable=new Map(sessions.filter(s=>s.status==='open').map(s=>[String(s.table_id),s])),fm=new Map(floors.map(f=>[String(f.id),f]));root.innerHTML=`<div class="panel"><div class="section-head"><div><h2>🪑 الصالات والترابيزات</h2><p class="muted">فتح جلسة، عدد ضيوف، ربط طلب صالة، ثم إغلاق الجلسة.</p></div><div><button class="secondary" data-floor>+ صالة</button> <button class="primary" data-table>+ ترابيزة</button></div></div><div class="restaurant-table-grid">${tables.map(t=>{const ss=openByTable.get(String(t.id)),count=ss?links.filter(x=>String(x.session_id)===String(ss.id)||String(x.session_id)===String(Number(ss.id))).length:0;return `<div class="restaurant-table-card ${ss?'is-occupied':''}"><small>${esc(fm.get(String(t.floor_id))?.name||'بدون صالة')}</small><h3>${esc(t.name)}</h3><div>${t.capacity} مقاعد • <span class="restaurant-status">${esc(t.status)}</span></div>${ss?`<p>جلسة #${ss.id} • ${ss.guest_count} ضيف • ${count} طلب</p><button class="secondary" data-attach="${ss.id}">ربط طلب</button> <button class="primary" data-close-session="${ss.id}">إغلاق الجلسة</button>`:`<button class="primary" data-open="${t.id}" ${t.active===false?'disabled':''}>فتح جلسة</button>`} <button class="secondary" data-edit-table="${t.id}">✏️</button></div>`}).join('')||'<div class="empty">أضف صالة وترابيزات للبدء</div>'}</div></div>`;root.querySelector('[data-floor]').onclick=()=>floorForm(null,()=>renderTables());root.querySelector('[data-table]').onclick=()=>tableForm(floors,null,()=>renderTables());root.querySelectorAll('[data-edit-table]').forEach(x=>x.onclick=()=>tableForm(floors,tables.find(t=>String(t.id)===x.dataset.editTable),()=>renderTables()));root.querySelectorAll('[data-open]').forEach(x=>x.onclick=()=>openSessionForm(x.dataset.open,()=>renderTables()));root.querySelectorAll('[data-close-session]').forEach(x=>x.onclick=async()=>{try{const payload={...localSessionRef(x.dataset.closeSession),p_notes:null,p_client_tx_id:tx()};{const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await t.commitOptionalTxRpc('restaurant_table_session_close_v1',payload)}toast('تم إغلاق الجلسة');renderTables()}catch(e){toast(e.message)}});root.querySelectorAll('[data-attach]').forEach(x=>x.onclick=()=>attachOrderForm(x.dataset.attach,orders,links,()=>renderTables()))}
++async function renderTables(){const root=pageRoot(),b=branch(),[floors,tables,sessions,links,cloudOrders]=await Promise.all([restaurantConfigRowsLocalFirst('restaurant_floors','offlineV2RestaurantFloors',`select=*&branch_id=eq.${b}&order=sort_order,id`,b),restaurantConfigRowsLocalFirst('restaurant_tables','offlineV2RestaurantTables',`select=*&branch_id=eq.${b}&order=floor_id,id`,b),tableSessionRowsLocalFirst('restaurant_table_sessions','offlineV2RestaurantTableSessions',`select=*&branch_id=eq.${b}&order=opened_at.desc&limit=200`,b),tableSessionRowsLocalFirst('restaurant_table_session_orders','offlineV2RestaurantTableSessionOrders','select=*',b),rest('orders',`select=id,invoice_number,bon_number,total,status,created_at,order_type,client_tx_id&branch_id=eq.${b}&order_type=eq.dinein&order=created_at.desc&limit=100`).catch(()=>[])]);let localOrders=[];try{const bundles=typeof global.odbGet==='function'?(await global.odbGet('cachedOrders')||[]):[];localOrders=bundles.map(x=>x?.order).filter(o=>o&&Number(o.branch_id)===Number(b)&&o.order_type==='dinein')}catch{}const orderSeen=new Set(localOrders.map(o=>String(o.id))),orders=[...localOrders,...cloudOrders.filter(o=>!orderSeen.has(String(o.id)))],openByTable=new Map(sessions.filter(s=>s.status==='open').map(s=>[String(s.table_id),s])),fm=new Map(floors.map(f=>[String(f.id),f]));root.innerHTML=`<div class="panel"><div class="section-head"><div><h2>🪑 الصالات والترابيزات</h2><p class="muted">فتح جلسة، عدد ضيوف، ربط طلب صالة، ثم إغلاق الجلسة.</p></div><div><button class="secondary" data-floor>+ صالة</button> <button class="primary" data-table>+ ترابيزة</button></div></div><div class="restaurant-table-grid">${tables.map(t=>{const ss=openByTable.get(String(t.id)),count=ss?links.filter(x=>String(x.session_id)===String(ss.id)||String(x.session_id)===String(Number(ss.id))).length:0;return `<div class="restaurant-table-card ${ss?'is-occupied':''}"><small>${esc(fm.get(String(t.floor_id))?.name||'بدون صالة')}</small><h3>${esc(t.name)}</h3><div>${t.capacity} مقاعد • <span class="restaurant-status">${esc(t.status)}</span>${t._offline?` <span class="restaurant-status">${['conflict','dead_letter'].includes(t._offline_sync_status)?'تعذر اعتماد المزامنة':'محفوظة محليًا — بانتظار المزامنة'}</span>`:''}</div>${ss?`<p>جلسة #${ss.id} • ${ss.guest_count} ضيف • ${count} طلب</p><button class="secondary" data-attach="${ss.id}">ربط طلب</button> <button class="primary" data-close-session="${ss.id}">إغلاق الجلسة</button>`:`<button class="primary" data-open="${t.id}" ${t.active===false?'disabled':''}>فتح جلسة</button>`} <button class="secondary" data-edit-table="${t.id}">✏️</button></div>`}).join('')||'<div class="empty">أضف صالة وترابيزات للبدء</div>'}</div></div>`;root.querySelector('[data-floor]').onclick=()=>floorForm(null,()=>renderTables());root.querySelector('[data-table]').onclick=()=>tableForm(floors,null,()=>renderTables());root.querySelectorAll('[data-edit-table]').forEach(x=>x.onclick=()=>tableForm(floors,tables.find(t=>String(t.id)===x.dataset.editTable),()=>renderTables()));root.querySelectorAll('[data-open]').forEach(x=>x.onclick=()=>openSessionForm(x.dataset.open,()=>renderTables()));root.querySelectorAll('[data-close-session]').forEach(x=>x.onclick=async()=>{try{const payload={...localSessionRef(x.dataset.closeSession),p_notes:null,p_client_tx_id:tx()};{const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await t.commitOptionalTxRpc('restaurant_table_session_close_v1',payload)}toast('تم إغلاق الجلسة');renderTables()}catch(e){toast(e.message)}});root.querySelectorAll('[data-attach]').forEach(x=>x.onclick=()=>attachOrderForm(x.dataset.attach,orders,links,()=>renderTables()))}
+ 
+-function floorForm(f,done){const m=modal(f?'تعديل صالة':'صالة جديدة',`<div class="restaurant-closure-grid"><label>الاسم<input data-name value="${esc(f?.name||'')}"></label><label>الترتيب<input data-sort type="number" value="${Number(f?.sort_order||100)}"></label></div><div class="modal-actions"><button class="primary" data-save>حفظ</button></div>`);m.querySelector('[data-save]').onclick=async()=>{try{const payload={p_floor_id:f?.id||null,p_branch_id:branch(),p_name:m.querySelector('[data-name]').value.trim(),p_sort_order:Number(m.querySelector('[data-sort]').value||100),p_active:true,p_client_tx_id:tx()};if(f?._offline)throw new Error('الصالة محفوظة محليًا وبانتظار المزامنة؛ التعديل متاح بعد تأكيد المزامنة');{const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await t.commitOptionalTxRpc('restaurant_floor_save_v1',payload)}m.remove();toast('تم حفظ الصالة');done()}catch(e){toast(e.message)}}}
+-function tableForm(floors,t,done){const m=modal(t?'تعديل ترابيزة':'ترابيزة جديدة',`<div class="restaurant-closure-grid"><label>الاسم<input data-name value="${esc(t?.name||'')}"></label><label>الكود<input data-code value="${esc(t?.code||'')}"></label><label>الصالة<select data-floor><option value="">بدون</option>${floors.filter(f=>f.active!==false).map(f=>`<option value="${f.id}" ${String(f.id)===String(t?.floor_id)?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label><label>عدد المقاعد<input data-capacity type="number" min="1" value="${Number(t?.capacity||2)}"></label></div><label class="inline-check"><input data-active type="checkbox" ${t?.active===false?'':'checked'}> فعالة</label><div class="modal-actions"><button class="primary" data-save>حفظ</button></div>`);m.querySelector('[data-save]').onclick=async()=>{try{const floorValue=m.querySelector('[data-floor]').value;if(floorValue&&String(floorValue).startsWith('offline-floor-'))throw new Error('زامن الصالة الجديدة أولًا قبل إضافة ترابيزة داخلها');if(t?._offline)throw new Error('الترابيزة محفوظة محليًا وبانتظار المزامنة؛ التعديل متاح بعد تأكيد المزامنة');const payload={p_table_id:t?.id||null,p_branch_id:branch(),p_floor_id:Number(floorValue)||null,p_name:m.querySelector('[data-name]').value.trim(),p_code:m.querySelector('[data-code]').value.trim()||null,p_capacity:Number(m.querySelector('[data-capacity]').value||2),p_active:m.querySelector('[data-active]').checked,p_client_tx_id:tx()};{const v=global.SharawlaOfflineV2Transport;if(typeof v?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await v.commitOptionalTxRpc('restaurant_table_save_v1',payload)}m.remove();toast('تم حفظ الترابيزة');done()}catch(e){toast(e.message)}}}
++// OF-3: these two forms complete on a durable local commit, including while Online.
++// A projection/read failure after the commit must never invite another create.
++async function saveRestaurantReferenceLocal(name,payload){
++ const transport=global.SharawlaOfflineV2Transport;
++ if(typeof transport?.commitRpcLocal!=='function')throw new Error('Offline V2 transport غير جاهز');
++ let existing=null;try{existing=await global.topBurgerDesktop?.offlineV2?.event?.(payload.p_client_tx_id)}catch{}
++ if(existing&&JSON.stringify(existing.envelope?.payload?.rpc_payload)!==JSON.stringify(payload)){
++  const error=new Error('نفس مرجع الحفظ موجود ببيانات مختلفة؛ راجع العملية المحفوظة');error.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw error;
++ }
++ try{
++  const result=await transport.commitRpcLocal(name,payload);
++  if(result?.durable!==true)throw new Error('لم يتم تأكيد الحفظ المحلي');
++  return result;
++ }catch(error){
++  let row=null;try{row=await global.topBurgerDesktop?.offlineV2?.event?.(payload.p_client_tx_id)}catch{}
++  const expected=name==='restaurant_floor_save_v1'?'floor_save':'table_save';
++  const terminal=['conflict','dead_letter'].includes(row?.status)||row?.last_error_code==='OFFLINE_V2_LEGACY_PRESERVED';
++  // Only an exact existing durable payload is success; TX/payload mismatch stays an error.
++  const samePayload=JSON.stringify(row?.envelope?.payload?.rpc_payload)===JSON.stringify(payload);
++  if(row?.operation_type===expected&&samePayload&&!terminal&&['pending','syncing','retryable','blocked','synced'].includes(row.status)){
++   return {durable:true,synced:row.status==='synced',status:row.status,client_tx_id:payload.p_client_tx_id,projection_pending:true};
++  }
++  throw error;
++ }
++}
++function floorForm(f,done){const m=modal(f?'تعديل صالة':'صالة جديدة',`<div class="restaurant-closure-grid"><label>الاسم<input data-name value="${esc(f?.name||'')}"></label><label>الترتيب<input data-sort type="number" value="${Number(f?.sort_order||100)}"></label></div><div class="modal-actions"><button class="primary" data-save>حفظ</button></div>`);const clientTx=tx(),saveButton=m.querySelector('[data-save]');let saving=false;saveButton.onclick=async()=>{if(saving||m.dataset.saved==='true')return;saving=true;saveButton.disabled=true;try{const payload={p_floor_id:f?.id||null,p_branch_id:branch(),p_name:m.querySelector('[data-name]').value.trim(),p_sort_order:Number(m.querySelector('[data-sort]').value||100),p_active:true,p_client_tx_id:clientTx};if(f?._offline)throw new Error('الصالة محفوظة محليًا وبانتظار المزامنة؛ التعديل متاح بعد تأكيد المزامنة');const saved=await saveRestaurantReferenceLocal('restaurant_floor_save_v1',payload);m.dataset.saved='true';m.remove();toast(saved.synced?'تم حفظ الصالة ومزامنتها':'تم حفظ الصالة محليًا — بانتظار المزامنة');try{await done()}catch{toast('تم الحفظ؛ تعذر تحديث العرض، أعد فتح الصفحة')}}catch(e){toast(e.message)}finally{saving=false;saveButton.disabled=false}}}
++function tableForm(floors,t,done){const m=modal(t?'تعديل ترابيزة':'ترابيزة جديدة',`<div class="restaurant-closure-grid"><label>الاسم<input data-name value="${esc(t?.name||'')}"></label><label>الكود<input data-code value="${esc(t?.code||'')}"></label><label>الصالة<select data-floor><option value="">بدون</option>${floors.filter(f=>f.active!==false).map(f=>`<option value="${f.id}" ${String(f.id)===String(t?.floor_id)?'selected':''}>${esc(f.name)}</option>`).join('')}</select></label><label>عدد المقاعد<input data-capacity type="number" min="1" value="${Number(t?.capacity||2)}"></label></div><label class="inline-check"><input data-active type="checkbox" ${t?.active===false?'':'checked'}> فعالة</label><div class="modal-actions"><button class="primary" data-save>حفظ</button></div>`);const clientTx=tx(),saveButton=m.querySelector('[data-save]');let saving=false;saveButton.onclick=async()=>{if(saving||m.dataset.saved==='true')return;saving=true;saveButton.disabled=true;try{const floorValue=m.querySelector('[data-floor]').value;if(floorValue&&String(floorValue).startsWith('offline-floor-'))throw new Error('زامن الصالة الجديدة أولًا قبل إضافة ترابيزة داخلها');if(t?._offline)throw new Error('الترابيزة محفوظة محليًا وبانتظار المزامنة؛ التعديل متاح بعد تأكيد المزامنة');const payload={p_table_id:t?.id||null,p_branch_id:branch(),p_floor_id:Number(floorValue)||null,p_name:m.querySelector('[data-name]').value.trim(),p_code:m.querySelector('[data-code]').value.trim()||null,p_capacity:Number(m.querySelector('[data-capacity]').value||2),p_active:m.querySelector('[data-active]').checked,p_client_tx_id:clientTx};const saved=await saveRestaurantReferenceLocal('restaurant_table_save_v1',payload);m.dataset.saved='true';m.remove();toast(saved.synced?'تم حفظ الترابيزة ومزامنتها':'تم حفظ الترابيزة محليًا — بانتظار المزامنة');try{await done()}catch{toast('تم الحفظ؛ تعذر تحديث العرض، أعد فتح الصفحة')}}catch(e){toast(e.message)}finally{saving=false;saveButton.disabled=false}}}
+ function openSessionForm(tableId,done){const m=modal('فتح جلسة ترابيزة',`<div class="restaurant-closure-grid"><label>عدد الضيوف<input data-guests type="number" min="1" value="2"></label><label>ملاحظات<input data-notes></label></div><div class="modal-actions"><button class="primary" data-save>فتح الجلسة</button></div>`);m.querySelector('[data-save]').onclick=async()=>{try{const payload={p_table_id:Number(tableId),p_guest_count:Number(m.querySelector('[data-guests]').value||1),p_notes:m.querySelector('[data-notes]').value.trim()||null,p_client_tx_id:tx()};{const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await t.commitOptionalTxRpc('restaurant_table_session_open_v1',payload)}m.remove();toast('تم فتح الجلسة');done()}catch(e){toast(e.message)}}}
+ function attachOrderForm(sessionId,orders,links,done){const used=new Set(links.map(x=>String(x.order_id))),available=orders.filter(o=>!used.has(String(o.id)));const m=modal('ربط طلب صالة',`<label>الطلب<select data-order><option value="">اختر طلب صالة</option>${available.map(o=>`<option value="${o.id}">${esc(o.bon_number||o.invoice_number||o.id)} — ${money(o.total)} — ${new Date(o.created_at).toLocaleString('ar-EG')}</option>`).join('')}</select></label><div class="modal-actions"><button class="primary" data-save>ربط</button></div>`);m.querySelector('[data-save]').onclick=async()=>{const value=m.querySelector('[data-order]').value;if(!value)return toast('اختر الطلب');try{const payload={...localSessionRef(sessionId),...localOrderRef(value),p_client_tx_id:tx()};{const t=global.SharawlaOfflineV2Transport;if(typeof t?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');await t.commitOptionalTxRpc('restaurant_table_session_attach_order_v1',payload)}m.remove();toast('تم ربط الطلب بالجلسة');done()}catch(e){toast(e.message)}}}
+ 
+--- /dev/null
++++ b/scripts/check-offline-reference-return-behavior.js
+@@ -0,0 +1,67 @@
++'use strict';
++// Synthetic SQLite + actual renderer/native/worker/form handlers. No live endpoints.
++const h=require('./offline-reference-return-fixture');
++const {root,work,native,renderer,payload,clone,dbs,notes,crypto,vm,assert,fs,path}=h;
++const {createSyncEngine}=require(path.join(root,'beta45-offline-v2-sync'));
++const {spawnSync}=require('child_process');
++const resultPath=process.env.SHARAWLA_FIXTURE_RESULT||path.join(work,'results.json');
++function close(){for(const d of dbs.splice(0))d.close()}
++function reopenProbe(txs,statuses){const child=spawnSync(process.execPath,[__filename,'--reopen',JSON.stringify(txs),JSON.stringify(statuses)],{env:{...process.env,SHARAWLA_FIXTURE_REOPEN:work},encoding:'utf8',timeout:20000});assert.equal(child.status,0,child.stderr);return JSON.parse(child.stdout)}
++function note(test,boundary='Actual source + synthetic SQLite fixture'){notes.push({test,status:'PASS',boundary})}
++function ack(e,id,duplicate=false){const result=e.operation_type==='floor_save'?{ok:true,floor_id:id}:e.operation_type==='table_save'?{ok:true,table_id:id}:e.operation_type==='sale'?{order:{id}}:{return_id:id};return {ok:true,acknowledged:!duplicate,duplicate,idempotent_replay:duplicate,client_tx_id:e.client_tx_id,protocol_version:2,payload_digest:e.payload_digest,server_event_id:'fixture-'+e.client_tx_id,server_entity_id:String(id),server_version:'fixture',result}}
++// Protocol peer is deliberately a fake, not claimed to execute the PostgreSQL owner.
++function peer(){const receipts=new Map(),sent=[];return {receipts,sent,send:async e=>{sent.push(clone(e));const old=receipts.get(e.client_tx_id);if(old){assert.equal(old.payload_digest,e.payload_digest);return {...old,acknowledged:false,duplicate:true,idempotent_replay:true}}const a=ack(e,1000+receipts.size);receipts.set(e.client_tx_id,a);return a}}}
++function engine(store,transport,clock=()=>Date.now()){return createSyncEngine({store,clock,random:()=>.5,identityProvider:async()=>({device_fingerprint:'fixture-fp'}),transport,config:{retryDelaysMs:[5],jitterRatio:0,maxPerRun:100}})}
++function dom(r){const modals=[],toasts=[];let reloads=0;
++ class Element{constructor(){this.dataset={};this.children=new Map();this.removed=false;this.value='';this.checked=true;this.disabled=false}
++ set innerHTML(html){this.html=html;for(const m of html.matchAll(/<(?:input|select|button)\b([^>]+)>/g)){const key=m[1].match(/\b(data-[a-z-]+)(?:=|\s|$)/)?.[1];if(key){const n=new Element();n.value=m[1].match(/value="([^"]*)"/)?.[1]||'';n.checked=/\bchecked\b/.test(m[1]);this.children.set('['+key+']',n)}}}
++ querySelector(s){return this.children.get(s)||null}addEventListener(){}remove(){this.removed=true}}
++ r.ctx.document={readyState:'loading',addEventListener(){},createElement:()=>new Element(),body:{appendChild:m=>modals.push(m)},querySelector:()=>null};r.ctx.toast=m=>toasts.push(m);r.ctx.rest=async()=>[];r.ctx.MutationObserver=class{observe(){}};
++ const source=fs.readFileSync(path.join(root,'beta55-restaurant-closure-ui.js'),'utf8');
++ // Expose lexical form functions solely for tests; handlers/bodies are unchanged.
++ vm.runInContext(source.replace('})(window);','global.__forms={floorForm,tableForm,saveRestaurantReferenceLocal,restaurantConfigRowsLocalFirst};})(window);'),r.ctx);
++ return {modals,toasts,form:r.ctx.__forms,done:async()=>{reloads++},reloads:()=>reloads};
++}
++async function run(){let s=native();await s.ready();let r=renderer(s);const ui=dom(r);
++ for(const kind of ['floor','table']){
++  const before=(await s.listOutbox()).length;
++  if(kind==='floor')ui.form.floorForm(null,ui.done);else ui.form.tableForm([],null,ui.done);
++  const m=ui.modals.at(-1);m.querySelector('[data-name]').value=kind+' fixture';if(kind==='table')m.querySelector('[data-active]').checked=true;
++  const button=m.querySelector('[data-save]');await Promise.all([button.onclick(),button.onclick()]);
++  assert(m.removed);assert.equal((await s.listOutbox()).length,before+1);assert(ui.toasts.at(-1).includes('محليًا'));assert.equal(r.cloudDirect(),0);
++  note(kind+' actual save-button handler Online → one durable Outbox → locally-saved UI; concurrent double click suppressed','Actual handler in VM DOM adapter, not browser rendering');
++ }
++ const rows=await s.listOutbox();const txs=rows.map(x=>x.client_tx_id);
++ for(const row of rows){assert(await s.getRecord(row.entity_type,row.local_entity_id));assert.equal(row.status,'pending')}
++ const readPending=await ui.form.restaurantConfigRowsLocalFirst('restaurant_tables','offlineV2RestaurantTables','',70007);assert.equal(readPending.length,1);assert.equal(readPending[0]._offline,true);note('Local durable record + Outbox + same screen read path for Table/Floor before network ACK');
++ close();reopenProbe(txs,['pending','pending']);note('fresh Node process restart BEFORE ACK recovers exact pending TXs');s=native();await s.ready();r=renderer(s);await r.transport.reconcileCompatibilityProjections();
++ assert.equal(r.cache.get('offlineV2RestaurantTables').length,1);assert.equal(r.cache.get('offlineV2RestaurantFloors').length,1);note('restarted renderer rebuilds same operational projections before ACK');
++ const srv=peer();let lost=true,clock=Date.now()+1000;const lossy={send:async e=>{const a=await srv.send(e);if(lost){lost=false;throw Object.assign(new Error('ACK loss'),{code:'ECONNRESET'})}return a}};
++ let out=await engine(s,lossy,()=>clock).syncOnce();assert.equal(out.retried,1);assert.equal(out.acked,1);close();reopenProbe(txs,['retryable','synced']);note('ACK loss persists retryable state across a fresh process restart');
++ s=native();await s.ready();r=renderer(s);clock+=10000;out=await engine(s,srv,()=>clock).syncOnce();assert.equal(out.acked,1);assert.equal(srv.receipts.size,2);assert.equal(srv.sent[0].client_tx_id,srv.sent.at(-1).client_tx_id);note('reconnect exact TX replay receives duplicate ACK without a second peer receipt','Mock server receipt, actual worker + native SQLite');
++ for(let n=0;n<3;n++)await r.transport.reconcileCompatibilityProjections();
++ for(const key of ['offlineV2RestaurantTables','offlineV2RestaurantFloors']){const rows=r.cache.get(key);assert.equal(rows.length,1);assert.equal(rows[0]._offline,false);assert(!String(rows[0].id).startsWith('offline-'))}
++ const readUI=dom(r);r.ctx.rest=async()=>clone(r.cache.get('offlineV2RestaurantTables'));const readAck=await readUI.form.restaurantConfigRowsLocalFirst('restaurant_tables','offlineV2RestaurantTables','',70007);assert.equal(readAck.length,1);assert.equal(readAck[0]._offline,false);note('ACK → native inbox/mapping → same screen read path removes local IDs; repeated reconciliation/cloud merge has no duplicates');
++ close();reopenProbe(txs,['synced','synced']);s=native();await s.ready();r=renderer(s);await r.transport.reconcileCompatibilityProjections();const quiet=await engine(s,srv).syncOnce();assert.equal(quiet.attempted,0);note('restart AFTER ACK: no Outbox re-send, no pending/OFF-* resurrection');
++ // Exact duplicate create after ACK must keep the existing row/projection.
++ for(const row of rows){const name=row.operation_type==='table_save'?'restaurant_table_save_v1':'restaurant_floor_save_v1';const p=clone(row.envelope.payload.rpc_payload);const out=await r.transport.commitRpcLocal(name,p);assert(out.synced);assert.equal((await s.listOutbox()).length,2);const replayUI=dom(r);await assert.rejects(()=>replayUI.form.saveRestaurantReferenceLocal(name,{...p,p_name:'different'}))}
++ note('same client_tx_id exact replay succeeds; changed payload is rejected, no second local row');
++ // Execute genuine durable-failure path in the form; UI must not close or say saved.
++ const failStore={...s,commitOperation:async()=>{throw new Error('SQLITE_IOERR fixture before commit')}};const fail=renderer(failStore),failed=dom(fail);failed.form.tableForm([],null,failed.done);const m=failed.modals.at(-1);m.querySelector('[data-name]').value='failed';await m.querySelector('[data-save]').onclick();assert(!m.removed);assert.equal(failed.reloads(),0);assert(failed.toasts.at(-1).includes('SQLITE_IOERR'));assert.equal((await s.listOutbox()).length,2);note('pre-commit SQLite failure keeps form open, shows error, creates no row','Injected I/O failure before actual native transaction');
++ // Projection error after commit still acknowledges local durable completion.
++ const pr=renderer(s),pui=dom(pr);pr.ctx.odbSet=async()=>{throw new Error('projection failure')};pui.form.floorForm(null,pui.done);const pm=pui.modals.at(-1);pm.querySelector('[data-name]').value='cache failure';await pm.querySelector('[data-save]').onclick();assert(pm.removed);assert(pui.toasts.at(-1).includes('محليًا'));assert.equal((await s.listOutbox()).length,3);note('projection failure AFTER commit is visibly saved locally, not a failed create');
++ // Terminal sync failure must remain an error, never masked as local success.
++ const tr=renderer(s),tui=dom(tr),terminalTx=crypto.randomUUID(),terminalPayload={p_floor_id:null,p_branch_id:70007,p_name:'terminal',p_sort_order:100,p_active:true,p_client_tx_id:terminalTx};await tr.transport.commitRpcLocal('restaurant_floor_save_v1',terminalPayload);await s.claimNextDue(new Date().toISOString()); // claim previous pending; drain it first
++ await s.recoverStaleSyncing(new Date(Date.now()+3600000).toISOString(),1);
++ await engine(s,{send:async e=>{if(e.client_tx_id===terminalTx)throw Object.assign(new Error('BUSINESS_CONFLICT fixture'),{kind:'business_conflict'});return ack(e,9000)}}).syncOnce();
++ await assert.rejects(()=>tui.form.saveRestaurantReferenceLocal('restaurant_floor_save_v1',terminalPayload));note('conflict remains an error despite existing durable row');
++ // Parent→child worker mapping; the Return original envelope and digest stay immutable.
++ const parent=crypto.randomUUID(),child=crypto.randomUUID(),sale=payload(parent);const documentId=crypto.randomUUID();Object.assign(sale.p_order,{document_uid:documentId,source_document_id:'uuid:'+documentId,point4_identity_contract:'sharawla.point4.identity.v1'});sale.p_items=[{product_id:59,quantity:2,total:10,line_uid:crypto.randomUUID()},{product_id:59,quantity:3,total:15,line_uid:crypto.randomUUID()}];sale.p_items.forEach(x=>x.effect_line_key='v1:stock:sale:'+x.line_uid);await tr.transport.commitRpcLocal('create_pos_order_atomic',sale);
++ const cp=payload(child);cp.p_order_id='offline-'+parent;cp.p_items=[{order_item_id:'offline-'+parent+'-line-'+sale.p_items[1].line_uid,quantity:1,source_order_item_index:2,source_sale_line_uid:sale.p_items[1].line_uid}];const returnLine=crypto.randomUUID();Object.assign(cp.p_items[0],{line_uid:returnLine,effect_line_key:'v1:stock:sale_return:'+returnLine,source_document_id:'uuid:'+crypto.randomUUID(),original_source_document_id:'uuid:'+documentId});await tr.transport.commitRpcLocal('create_order_return_idempotent',cp);const original=await s.getOutbox(child);assert.equal(original.depends_on_tx_id,parent);assert.equal(original.envelope.payload.rpc_payload.p_order_id,'offline-'+parent);close();reopenProbe([parent,child],['pending','pending']);s=native();await s.ready();note('pending Restaurant sale + Return survive fresh process restart before their ACKs');
++ let mapped=false;const deps=peer(),send=deps.send;deps.send=async e=>{if(e.client_tx_id===child){mapped=true;assert.equal(e.dependency_mapping.client_tx_id,parent);assert.equal(e.payload.rpc_payload.p_items[0].source_order_item_index,2);assert.equal(e.payload_digest,original.payload_digest)}return send(e)};assert.equal((await engine(s,deps).syncOnce()).acked,2);assert(mapped);const after=await s.getOutbox(child);assert.equal(after.payload_digest,original.payload_digest);assert.deepEqual(clone(after.envelope.payload),clone(original.envelope.payload));assert.equal(after.envelope.client_tx_id,original.envelope.client_tx_id);note('parent sale ACK gates child dispatch with parent mapping and distinct same-product line lineage; original digest/envelope unchanged','Worker/SQLite proof; server-side item rewrite is NOT proved by mock ACK');
++ close();reopenProbe([parent,child],['synced','synced']);s=native();await s.ready();r=renderer(s);await r.transport.reconcileCompatibilityProjections();await r.transport.reconcileCompatibilityProjections();const returns=r.cache.get('cachedReturns:70007')||[];assert.equal(returns.length,1,'pending Restaurant Return must recover its canonical projection after ACK/restart');assert.equal(returns[0]._offline,false);assert.equal(String(returns[0].order_id),String(deps.receipts.get(parent).server_entity_id));assert(!String(returns[0].return_number).startsWith('OFF-'));note('pending Restaurant Return ACK/restart reconciliation: canonical parent/return IDs, no duplicate or OFF-* resurrection');
++ // Wrong ACK must never be reconciled as accepted.
++ const wrong=ack(original,99);wrong.client_tx_id='wrong';assert.throws(()=>engine(s,deps).validateAck(original,wrong));note('ACK TX mismatch rejected before local reconciliation');
++ const result={tests:notes,sqlite:'real SQLite via Node callback adapter; actual native transaction source',server:'MOCK ACK — SQL tests have separate execution status',device_acceptance:'NOT RUN',reset_executed:false,fixture:work};fs.writeFileSync(resultPath,JSON.stringify(result,null,2));close();console.log(JSON.stringify(result));
++}
++if(process.argv[2]==='--reopen'){(async()=>{const s=native();await s.ready();const txs=JSON.parse(process.argv[3]),statuses=JSON.parse(process.argv[4]);for(let i=0;i<txs.length;i++){const row=await s.getOutbox(txs[i]);assert.equal(row.status,statuses[i]);assert(await s.getRecord(row.entity_type,row.local_entity_id))}console.log(JSON.stringify({verified:txs.length}));close()})().catch(e=>{console.error(e);process.exitCode=1})}else run().catch(e=>{console.error(e);close();process.exitCode=1});
+--- /dev/null
++++ b/scripts/check-offline-reference-return-postgres.py
+@@ -0,0 +1,87 @@
++#!/usr/bin/env python3
++"""Synthetic PostgreSQL cluster only: no DSN, URL, existing database or runtime writes.
++Tests actual final dispatcher, Table/Floor owners, Return payload resolution/Core.
++Return economic owner and auth are fixtures; production MD5 validity remains a gate.
++"""
++import argparse,json,os,pathlib,pwd,shutil,subprocess,tempfile
++ROOT=pathlib.Path(__file__).resolve().parent.parent
++ap=argparse.ArgumentParser();ap.add_argument('--pg-bin-dir');ap.add_argument('--result');ap.add_argument('--require-postgres',action='store_true');args=ap.parse_args()
++bins={n:str(pathlib.Path(args.pg_bin_dir)/n) if args.pg_bin_dir else shutil.which(n) for n in ('initdb','pg_ctl','psql')}
++missing=[n for n,v in bins.items() if not v or not os.path.isfile(v)]
++if missing:
++ result={'status':'NOT RUN','reason':'PostgreSQL fixture binaries unavailable: '+', '.join(missing),'runtime_db_contacted':False,'sql_proof':'NOT RUN, mock ACK is not PostgreSQL proof'}
++ if args.result:pathlib.Path(args.result).write_text(json.dumps(result,indent=2))
++ print(json.dumps(result));raise SystemExit(2 if args.require_postgres else 0)
++# Function extraction owns dollar-quoted boundaries; it never executes whole deployment files.
++files=[('supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql',['sharawla_offline_v2_apply_event_reference_v1','sharawla_offline_v2_resolve_pending_restaurant_return_v1','sharawla_offline_v2_apply_event_point4_outer_v1','sharawla_offline_v2_apply_event']),('supabase-beta55-restaurant-operations.sql',['restaurant_floor_save_v1','restaurant_table_save_v1']),('supabase-offline-v2-restaurant-reference-owners-v1.sql',['offline_restaurant_floor_save_v1','offline_restaurant_table_save_v1']),('supabase-point4-transitive-offline-same-context-v1.sql',['sharawla_offline_v2_prepare_stock_event_v1']),('supabase-beta56-1-runtime-acceptance-corrective.sql',['sharawla_offline_v2_apply_event_core_v1'])]
++js="const s=require('./scripts/offline-reference-return-sql-contract'),fs=require('fs');let out={};for(const [f,names] of "+json.dumps(files)+"){for(const name of names)out[name]=s.last(fs.readFileSync(f,'utf8'),name).definition;}console.log(JSON.stringify(out));"
++defs=json.loads(subprocess.check_output(['node','-e',js],cwd=ROOT,text=True))
++work=pathlib.Path(tempfile.mkdtemp(prefix='sharawla-pg-source-fixture-'));work.chmod(0o700);uid=gid=None
++if os.geteuid()==0:
++ user=pwd.getpwnam('nobody');uid,gid=user.pw_uid,user.pw_gid;os.chown(work,uid,gid)
++def run(cmd,**kw):return subprocess.run(cmd,env={'PATH':os.environ.get('PATH','/usr/bin:/bin'),'LANG':'C.UTF-8'},user=uid,group=gid,text=True,capture_output=True,check=True,timeout=30,**kw)
++cluster=work/'cluster';socket=work/'socket';socket.mkdir()
++if uid is not None:os.chown(socket,uid,gid)
++run([bins['initdb'],'-D',str(cluster),'-U','fixture','-A','trust','--no-locale'])
++run([bins['pg_ctl'],'-D',str(cluster),'-l',str(work/'postgres.log'),'-o',f"-F -c listen_addresses='' -k {socket} -p 55439",'-w','start'])
++checks=[]
++def sql(q):return run([bins['psql'],'-X','-h',str(socket),'-p','55439','-U','fixture','-d','postgres','-v','ON_ERROR_STOP=1','-At'],input=q).stdout.strip()
++def call(e):return json.loads(sql("select sharawla_offline_v2_apply_event('"+json.dumps(e).replace("'","''")+"'::jsonb)::text;"))
++def check(label,q):
++ assert sql('select ('+q+')::text;')=='true',label;checks.append({'test':label,'status':'PASS'})
++def reject(label,e,text):
++ try:call(e)
++ except subprocess.CalledProcessError as ex:
++  assert text in ex.stderr,(label,ex.stderr);checks.append({'test':label,'status':'PASS'});return
++ raise AssertionError(label+' unexpectedly accepted')
++def event(tx,op,rpc,p,seq=1):return {'client_tx_id':tx,'payload_digest':'d-'+tx,'protocol_version':2,'operation_type':op,'device_id':'fixture','device_sequence':seq,'branch_id':70007,'employee_id':7,'payload':{'rpc_name':rpc,'rpc_payload':{**p,'p_client_tx_id':tx}}}
++try:
++ sql("""
++ create role anon;create role authenticated;create role service_role;create schema auth;
++ create function auth.uid() returns uuid language sql as $$select '11111111-1111-4111-8111-111111111111'::uuid$$;
++ create function current_employee_id() returns bigint language sql as $$select 7::bigint$$;
++ create function has_action_permission_v2(text) returns boolean language sql as $$select true$$;
++ create function has_branch_access(bigint) returns boolean language sql as $$select $1=70007$$;
++ create table restaurant_floors(id bigserial primary key,branch_id bigint,name text,sort_order int,active boolean,updated_at timestamptz);
++ create table restaurant_tables(id bigserial primary key,branch_id bigint,floor_id bigint references restaurant_floors(id),name text,code text,capacity int,status text,active boolean,updated_at timestamptz);
++ create table audit_logs(employee_id bigint,branch_id bigint,action text,entity_type text,entity_id bigint,details jsonb);
++ create table offline_restaurant_reference_receipts_v1(client_tx_id text primary key,operation_type text,payload_digest text,entity_id bigint,result_json jsonb);
++ create table offline_v2_server_receipts(client_tx_id text primary key,server_event_id text,protocol_version int,payload_digest text,operation_type text,rpc_name text,device_id text,device_sequence bigint,branch_id bigint,employee_id bigint,auth_user_id uuid,server_entity_id text,server_version text,result_json jsonb);
++ create table order_items(id bigint primary key,order_id bigint,product_id bigint,variant_id bigint);
++ create table food_order_item_consumption_snapshots(order_item_id bigint,ingredient_id bigint);
++ create table stock_movements(reference_type text,reference_id bigint,ingredient_id bigint,movement_type text,quantity numeric);
++ create table fixture_returns(id bigserial primary key,order_id bigint,items jsonb);
++ create function create_pos_order_atomic(jsonb,jsonb,jsonb) returns jsonb language sql as $$select '{}'::jsonb$$;
++ create function create_food_pos_order_atomic_v1(jsonb,jsonb,jsonb) returns jsonb language sql as $$select '{}'::jsonb$$;
++ create function create_order_return(bigint,text,text,jsonb,jsonb) returns bigint language plpgsql as $$declare v bigint;begin insert into fixture_returns(order_id,items) values($1,$4) returning id into v;return v;end$$;
++ create function create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text) returns bigint language sql as $$select create_order_return($1,$2,$3,$4,$5)$$;
++ create function create_food_order_return_idempotent_v1(bigint,text,text,jsonb,jsonb,text) returns bigint language sql as $$select create_order_return($1,$2,$3,$4,$5)$$;
++ """)
++ for name in ['restaurant_floor_save_v1','restaurant_table_save_v1','offline_restaurant_floor_save_v1','offline_restaurant_table_save_v1','sharawla_offline_v2_apply_event_core_v1','sharawla_offline_v2_prepare_stock_event_v1','sharawla_offline_v2_apply_event_reference_v1','sharawla_offline_v2_resolve_pending_restaurant_return_v1','sharawla_offline_v2_apply_event_point4_outer_v1','sharawla_offline_v2_apply_event']:sql(defs[name])
++ floor=event('floor','floor_save','offline_restaurant_floor_save_v1',{'p_floor_id':None,'p_branch_id':70007,'p_name':'Floor','p_sort_order':10,'p_active':True});fa=call(floor);assert fa['acknowledged'];fid=int(fa['server_entity_id']);assert call(floor)['duplicate'];check('Floor canonical execution + replay once','(select count(*) from restaurant_floors)=1')
++ table=event('table','table_save','offline_restaurant_table_save_v1',{'p_table_id':None,'p_branch_id':70007,'p_floor_id':fid,'p_name':'Table','p_code':'T','p_capacity':4,'p_active':True},2);ta=call(table);assert ta['acknowledged'];assert call(table)['duplicate'];check('Table canonical execution + replay once','(select count(*) from restaurant_tables)=1')
++ bad=json.loads(json.dumps(table));bad['payload_digest']='changed';reject('changed duplicate digest',bad,'duplicate TX')
++ bad=event('branch','table_save','offline_restaurant_table_save_v1',{**table['payload']['rpc_payload'],'p_branch_id':70008},3);reject('payload/envelope branch mismatch',bad,'REFERENCE_BRANCH_MISMATCH')
++ bad=event('floor-missing','table_save','offline_restaurant_table_save_v1',{**table['payload']['rpc_payload'],'p_floor_id':999},4);reject('canonical missing floor',bad,'الصالة غير صالحة')
++ for rpc,template in [('offline_restaurant_floor_save_v1',floor),('offline_restaurant_table_save_v1',table)]:
++  ref=defs['sharawla_offline_v2_apply_event_reference_v1'];sql(ref.replace("when '"+rpc+"' then","when 'missing-case' then",1));bad=json.loads(json.dumps(template));bad['client_tx_id']='negative-'+rpc;bad['payload']['rpc_payload']['p_client_tx_id']=bad['client_tx_id'];bad['payload_digest']='negative';reject('removed CASE '+rpc,bad,'RPC');sql(ref)
++ parent="insert into offline_v2_server_receipts values('parent','parent-event',2,'parent-digest','sale','create_pos_order_atomic','fixture',10,70007,7,auth.uid(),'77','fixture','{}');insert into order_items values(101,77,9,null),(205,77,9,null);";sql(parent)
++ ret=event('ret','return','create_order_return_idempotent',{'p_order_id':'offline-parent','p_reason':'test','p_items':[{'order_item_id':'offline-line-2','quantity':1,'source_order_item_index':2,'source_sale_line_uid':'22222222-2222-4222-8222-222222222222','line_uid':'33333333-3333-4333-8333-333333333333'}],'p_payments':[]},11);ret['depends_on_tx_id']='parent';ret['dependency_mapping']={'client_tx_id':'parent','server_id':'77'}
++ reject('production MD5 guard rejects unverified fixture owners',ret,'LINE_CONTRACT_DRIFT')
++ # Test-only pin substitution, never written to source patch. Actual guard still executes.
++ resolver=defs['sharawla_offline_v2_resolve_pending_restaurant_return_v1']
++ for sig,pin in [('create_pos_order_atomic(jsonb,jsonb,jsonb)','a677482d9944aa8ae40003408506c7c1'),('create_food_pos_order_atomic_v1(jsonb,jsonb,jsonb)','c6de3f95f85c6bb2f9d4854c1d7c5a8c'),('create_order_return(bigint,text,text,jsonb,jsonb)','3fe18445ec4e05799bd8bebdeeb716c9'),('create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text)','8fb379d606004c895befb2b0f9787586')]:resolver=resolver.replace(pin,sql("select md5(pg_get_functiondef('public."+sig+"'::regprocedure));"))
++ sql(resolver);a=call(ret);assert a['acknowledged'];assert call(ret)['duplicate'];check('maps numeric parent + second same-product line before Core',"(select order_id=77 and (items->0->>'order_item_id')::bigint=205 and not(items->0 ? 'source_order_item_index') and items->0->>'line_uid'='33333333-3333-4333-8333-333333333333' from fixture_returns)");check('original digest receipt',"(select payload_digest='d-ret' from offline_v2_server_receipts where client_tx_id='ret')")
++ sql("delete from order_items;delete from offline_v2_server_receipts where client_tx_id='parent';");assert call(ret)['duplicate'];check('lost ACK replay after parent disappears posts no new Return','(select count(*) from fixture_returns)=1');sql(parent)
++ for label,mutate,message in [('missing-index',lambda p:p['p_items'][0].pop('source_order_item_index'),'LINEAGE_INVALID'),('out-of-range',lambda p:p['p_items'][0].update(source_order_item_index=3),'MAPPING_INCOMPLETE'),('duplicate-index',lambda p:p['p_items'].append(dict(p['p_items'][0])),'LINEAGE_DUPLICATE')]:
++  bad=json.loads(json.dumps(ret));bad['client_tx_id']=label;bad['payload_digest']=label;bad['payload']['rpc_payload']['p_client_tx_id']=label;mutate(bad['payload']['rpc_payload']);reject(label,bad,message)
++ food=json.loads(json.dumps(ret));food['client_tx_id']='food';food['payload_digest']='food';food['payload']['rpc_name']='create_food_order_return_idempotent_v1';food['payload']['rpc_payload']['p_client_tx_id']='food';assert call(food)['acknowledged'];checks.append({'test':'Food preparation receives resolved numeric IDs (fixture economic owner)','status':'PASS'})
++ outer=defs['sharawla_offline_v2_apply_event_point4_outer_v1'];sql(outer.replace('prepare_stock_event_v1(v_execution_event)','prepare_stock_event_v1(p_event)'));food['client_tx_id']='negative-food';food['payload_digest']='negative-food';food['payload']['rpc_payload']['p_client_tx_id']='negative-food';reject('negative stale preparation cast',food,'bigint');sql(outer)
++ sql('create or replace function create_pos_order_atomic(jsonb,jsonb,jsonb) returns jsonb language sql as $$select \'{"drift":true}\'::jsonb$$;');bad=json.loads(json.dumps(ret));bad['client_tx_id']='drift';bad['payload_digest']='drift';bad['payload']['rpc_payload']['p_client_tx_id']='drift';reject('changed insertion definition rejected',bad,'LINE_CONTRACT_DRIFT');assert call(ret)['duplicate']
++ result={'status':'PASS','tests':checks,'runtime_db_contacted':False,'boundary':'Isolated PostgreSQL; genuine Table/Floor owners + dispatcher/Core/prepare. Auth and Return economic owners are fixtures. Four fixture MD5 constants substituted only in tests. Production pins, live stock/economic finality and device acceptance NOT PROVEN.'}
++except Exception as ex:
++ result={'status':'FAIL','tests':checks,'error':str(ex),'runtime_db_contacted':False};raise
++finally:
++ run([bins['pg_ctl'],'-D',str(cluster),'-m','fast','-w','stop'])
++ if args.result:pathlib.Path(args.result).write_text(json.dumps(result,indent=2))
++print(json.dumps(result))
+--- a/scripts/check-rc1-pending-sale-return-v1.js
++++ b/scripts/check-rc1-pending-sale-return-v1.js
+@@ -1,43 +1,11 @@
+ 'use strict';
+-const fs=require('fs');
+-const app=fs.readFileSync('app.js','utf8');
+-const rt=fs.readFileSync('beta45-offline-v2-transport-runtime.js','utf8');
+-const sync=fs.readFileSync('beta45-offline-v2-sync.js','utf8');
+-const sql=fs.readFileSync('supabase-rc1-offline-outer-consolidated-v3.sql','utf8');
+-const must=(x,m)=>{if(!x)throw new Error(m)};
+-
+-must(app.includes('async function rc1PendingSaleLineIndexMap(order){'),'pending sale return line-map helper missing');
+-must(app.includes("['create_pos_order_atomic','create_food_pos_order_atomic_v1'].includes(rpcName)"),'Restaurant parent RPC scope missing');
+-must(app.includes('source_order_item_index:sourceIndex'),'return source index metadata missing');
+-must(app.includes('source_sale_line_uid:saleLineUid'),'return source line identity metadata missing');
+-must(app.includes("p_order_id:localPendingSale?String(o.id):Number(o.id)"),'local parent order id must remain textual before ACK');
+-must(app.includes("sourceOrderId=String(o?.id||'').startsWith('offline-')?String(o.id):Number(o.id)"),'offline return durable job must preserve local parent id');
+-must(!app.includes("if(String(o.id).startsWith('offline-'))throw new Error('مرتجع فاتورة أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا')"),'old generic pending-sale return hard block must be removed');
+-must(app.includes("if(localPendingSale&&profile!=='restaurant')return toast('مرتجع فاتورة Retail أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا')"),'Retail must remain fail-closed until separately proved');
+-
+-must(rt.includes("if(type==='return')return !numericServerId(payload?.p_order_id)&&!localOrderTx(payload?.p_order_id)"),'transport must accept dependency-identified local Restaurant return parent');
+-must(rt.includes("if(type==='return'||type==='order_status'||type==='delivery_assign_driver'||type==='delivery_mark_delivered')return localOrderTx(payload?.p_order_id)"),'return dependency TX extraction missing');
+-must(sync.includes('dependency_mapping:dependencyMapping?clone(dependencyMapping):null'),'parent ACK mapping must remain in outbound envelope');
+-
+-for(const [sig,md5] of [
+-  ['create_pos_order_atomic(jsonb,jsonb,jsonb)','a677482d9944aa8ae40003408506c7c1'],
+-  ['create_food_pos_order_atomic_v1(jsonb,jsonb,jsonb)','c6de3f95f85c6bb2f9d4854c1d7c5a8c'],
+-  ['create_order_return(bigint,text,text,jsonb,jsonb)','3fe18445ec4e05799bd8bebdeeb716c9'],
+-  ['create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text)','8fb379d606004c895befb2b0f9787586']
+-]){
+-  must(sql.includes(sig),`server dependency contract signature missing: ${sig}`);
+-  must(sql.includes(md5),`server dependency contract MD5 pin missing: ${sig}`);
+-}
+-must(sql.includes("r.operation_type='sale'"),'dependent return must bind to a sale receipt');
+-must(sql.includes("r.rpc_name in ('create_pos_order_atomic','create_food_pos_order_atomic_v1')"),'dependent return must bind only to proved Restaurant parent owners');
+-must(sql.includes("coalesce(x.item->>'source_order_item_index','') !~ '^[1-9][0-9]*$'"),'source index validation missing');
+-must(sql.includes("count(distinct (x.item->>'source_order_item_index')::integer)"),'duplicate source index guard missing');
+-must(sql.includes("row_number() over(order by oi.id)::integer as source_index"),'deterministic server line-index mapping missing');
+-must(sql.includes("x.item - 'source_order_item_index' - 'source_sale_line_uid'"),'transport-only return mapping metadata must be stripped before economic RPC');
+-must(sql.includes("v_payload := jsonb_set(v_payload,'{p_items}',v_rewritten_items,true)"),'rewritten server item ids must feed return owner');
+-const replay=sql.indexOf("'idempotent_replay',true"),mapping=sql.indexOf('RC1 pending-sale -> return line mapping');
+-must(replay>=0&&mapping>replay,'full replay must precede dependent return item remapping');
+-must(sql.indexOf("v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true)")<replay,'stable parent order-id dependency rewrite must remain before replay as existing Outer contract');
+-must(!sql.includes('CREATE OR REPLACE FUNCTION public.sharawla_offline_v2_apply_event_core_v1'),'Point4 Core must remain untouched');
+-
+-console.log('RC1 pending Offline sale -> Return dependency gate PASS');
++const fs=require('fs'),path=require('path'),assert=require('assert');
++const {check,root}=require('./offline-reference-return-sql-contract');
++const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
++assert(app.includes('source_order_item_index:sourceIndex'));
++assert(app.includes('source_sale_line_uid:saleLineUid'));
++const sql=fs.readFileSync(path.join(root,'supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql'),'utf8');
++check(sql);
++// Full executable durable parent/child suite is separately named to avoid rerunning it
++// within every static gate. PostgreSQL gate: check-offline-reference-return-postgres.py.
++console.log('Pending Restaurant Return EFFECTIVE final composition contract PASS; SQL execution is a separate gate');
+--- a/scripts/check-rc1-runtime-alignment-final-dispatcher.js
++++ b/scripts/check-rc1-runtime-alignment-final-dispatcher.js
+@@ -29,7 +29,9 @@
+ assert(outerStart>=0,'Point-4 Outer helper missing');
+ const outerEnd=sql.indexOf('create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)',outerStart);
+ const outer=sql.slice(outerStart,outerEnd);
+-assert(outer.includes('sharawla_offline_v2_prepare_stock_event_v1(p_event)'),'Point-4 Outer must prepare stock context');
++assert(outer.includes('sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event)'),'pending Restaurant resolver missing before preparation');
++assert(outer.indexOf('resolve_pending_restaurant_return_v1')<outer.indexOf('prepare_stock_event_v1'),'pending Return IDs must be resolved before stock preparation');
++assert(outer.includes('sharawla_offline_v2_prepare_stock_event_v1(v_execution_event)'),'Point-4 Outer must prepare stock context');
+ assert(outer.includes("v_prepared->'context_envelope'"),'Point-4 Outer must forward prepared context envelope');
+ assert(outer.includes("v_prepared->'stock_identities'"),'Point-4 Outer must forward prepared stock identities');
+ assert(outer.includes('sharawla_point4_assert_context_envelope_v1'),'Point-4 Outer must validate prepared context envelope');
+--- /dev/null
++++ b/scripts/offline-reference-return-fixture.js
+@@ -0,0 +1,23 @@
++'use strict';
++// Test-only fixture. Loads unchanged source into isolated VMs. No application,
++// Electron session, live DB, HTTP, device, retry endpoint or Reset endpoint.
++const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert'),crypto=require('crypto');
++const {DatabaseSync}=require('node:sqlite');
++const root=path.resolve(__dirname,'..'),fixtureBase=path.join(require('os').tmpdir(),'sharawla-source-fixtures');fs.mkdirSync(fixtureBase,{recursive:true});
++const work=process.env.SHARAWLA_FIXTURE_REOPEN?path.resolve(process.env.SHARAWLA_FIXTURE_REOPEN):fs.mkdtempSync(path.join(fixtureBase,'run-'));assert(work.startsWith(fixtureBase+path.sep),'fixture directory only');
++const {createSyncEngine}=require(path.join(root,'beta45-offline-v2-sync.js'));
++const clone=x=>x==null?x:JSON.parse(JSON.stringify(x));const notes=[],dbs=[];
++class SQLiteShim{
++ constructor(filename,flags,callback){assert(filename.startsWith(work+path.sep),'fixture path only');this.db=new DatabaseSync(filename);dbs.push(this);queueMicrotask(()=>callback(null))}
++ exec(sql,callback){try{this.db.exec(sql);queueMicrotask(()=>callback(null))}catch(e){queueMicrotask(()=>callback(e))}}
++ run(sql,params,callback){try{const r=this.db.prepare(sql).run(...params);queueMicrotask(()=>callback.call({changes:Number(r.changes),lastID:Number(r.lastInsertRowid)},null))}catch(e){queueMicrotask(()=>callback(e))}}
++ get(sql,params,callback){try{const r=this.db.prepare(sql).get(...params);queueMicrotask(()=>callback(null,r))}catch(e){queueMicrotask(()=>callback(e))}}
++ all(sql,params,callback){try{const r=this.db.prepare(sql).all(...params);queueMicrotask(()=>callback(null,r))}catch(e){queueMicrotask(()=>callback(e))}}
++ close(){this.db.close()}
++}
++function native(){const ctx={module:{exports:{}},exports:{},console,Date,JSON,Set,Map,Buffer,Promise,require:n=>n==='electron'?{app:{getPath:()=>work,whenReady:async()=>{}},ipcMain:{handle:()=>{}}}:n==='sqlite3'?{Database:SQLiteShim,OPEN_READWRITE:1,OPEN_CREATE:2}:require(n)};vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'beta45-offline-v2-native-store.js'),'utf8'),ctx);return vm.runInContext('({ready,commitOperation,getOutbox,listOutbox,getRecord,getMappingByTx,claimNextDue,recoverStaleSyncing,markRetryable,markConflict,markAcked,health})',ctx)}
++function renderer(store){const adapters=new Map(),cache=new Map();let cloudDirect=0;const api={takeoverState:async()=>({active:true,migration_verified:true,transport_ready:true}),event:store.getOutbox,commitOperation:store.commitOperation,outbox:store.listOutbox,syncNow:async()=>({ok:true,skipped:'fixture-separate-worker'}),bonContext:async()=>null};
++ const ctx={console,Date,JSON,Map,Set,Promise,URLSearchParams,crypto:{randomUUID:()=>crypto.randomUUID()},navigator:{onLine:true},document:{readyState:'complete'},addEventListener:()=>{},dispatchEvent:()=>{},CustomEvent:class{constructor(t,v){this.type=t;this.detail=v?.detail}},setInterval:()=>1,setTimeout:()=>1,clearInterval:()=>{},currentBranchId:()=>70007,state:{activeBranchId:70007,employee:{id:7}},loadLicenseState:async()=>({device_id:'fixture-device',business_id:'fixture-business',device_fingerprint:'fixture-fp'}),SharawlaRuntimeConfig:{current:()=>({pos_profile:'restaurant'})},SharawlaOfflineV2Takeover:{registerOperation:(t,a)=>{adapters.set(t,a);return true}},topBurgerDesktop:{offlineV2:api},localStorage:{getItem:key=>JSON.stringify(key==='sharawlaRuntimeConfigV1'?{pos_profile:'restaurant'}:{url:'fixture',key:'fixture'})},session:{access_token:'fixture-token'},odbGet:async k=>clone(cache.get(k)||null),odbSet:async(k,v)=>{cache.set(k,clone(v));return v},rpc:async()=>{cloudDirect++;throw new Error('CLOUD-DIRECT FORBIDDEN IN FIXTURE')}};ctx.window=ctx;ctx.globalThis=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'beta45-offline-v2-transport-runtime.js'),'utf8'),ctx);return {transport:ctx.SharawlaOfflineV2Transport,adapters,cache,ctx,cloudDirect:()=>cloudDirect}}
++function payload(tx){return {p_client_tx_id:tx,p_branch_id:70007,p_employee_id:7,p_shift_id:42,p_order_id:43,p_customer_id:44,p_address_id:45,p_driver_id:46,p_zone_id:47,p_floor_id:48,p_table_id:49,p_session_id:50,p_supplier_id:51,p_purchase_id:52,p_purchase_order_id:53,p_request_id:54,p_ingredient_id:55,p_recipe_version_id:56,p_prep_item_id:57,p_output_ingredient_id:58,p_product_id:59,p_transfer_id:60,p_production_batch_id:61,p_from_branch_id:70007,p_to_branch_id:70008,p_expected_receiving_shift_id:42,p_order_ids:[43],p_name:'Fixture',p_phone:'01000000000',p_capacity:2,p_active:true,p_target_status:'preparing',p_closing_cash:0,p_opening_cash:0,p_amount:5,p_description:'Fixture',p_quantity_delta:1,p_quantity:1,p_reason:'fixture',p_label:'fixture',p_lines:[{ingredient_id:55,quantity:1}],p_consumptions:[{ingredient_id:55,quantity:1}],p_items:[{ingredient_id:55,purchase_item_id:62,product_id:59,order_item_id:63,quantity:1,total:5}],p_payments:[{method:'cash',amount:5}],p_order:{client_tx_id:tx,branch_id:70007,employee_id:7,shift_id:42,total:5},p_cart:[],p_customer:{},p_financial:{},p_metrics:{}}}
++
++module.exports={root,work,native,renderer,payload,clone,dbs,notes,crypto,vm,assert,fs,path};
+--- /dev/null
++++ b/scripts/offline-reference-return-sql-contract.js
+@@ -0,0 +1,14 @@
++'use strict';
++const fs=require('fs'),path=require('path'),assert=require('assert');
++const root=path.resolve(__dirname,'..');
++function definitions(sql){const out=[];const re=/create\s+or\s+replace\s+function\s+(public\.[a-z0-9_]+)\s*\(/ig;let m;while((m=re.exec(sql))){const rest=sql.slice(m.index);const begin=/\bas\s+(\$[a-z0-9_]*\$)/i.exec(rest);assert(begin,'function body delimiter missing: '+m[1]);const from=begin.index+begin[0].length,end=rest.indexOf(begin[1],from);assert(end>=0,'unclosed body: '+m[1]);out.push({name:m[1],definition:rest.slice(0,end+begin[1].length)+';',body:rest.slice(from,end),header:rest.slice(0,begin.index)});re.lastIndex=m.index+end+begin[1].length}return out}
++function last(sql,name){const matches=definitions(sql).filter(x=>x.name==='public.'+name);assert(matches.length,'missing function '+name);return matches.at(-1)}
++function check(sql){const final=last(sql,'sharawla_offline_v2_apply_event'),ref=last(sql,'sharawla_offline_v2_apply_event_reference_v1'),outer=last(sql,'sharawla_offline_v2_apply_event_point4_outer_v1'),resolver=last(sql,'sharawla_offline_v2_resolve_pending_restaurant_return_v1');
++ for(const type of ['floor_save','table_save'])assert(final.body.includes("'"+type+"'"));assert(final.body.includes('apply_event_reference_v1(p_event)'));
++ for(const [kind,args,result]of [['floor',7,'floor_id'],['table',9,'table_id']]){const rpc='offline_restaurant_'+kind+'_save_v1';const match=ref.body.match(new RegExp("when '"+rpc+"' then([\\s\\S]*?)(?=\\n    when |\\n    else )"));assert(match,'missing execution CASE '+rpc);assert(match[1].includes('REFERENCE_BRANCH_MISMATCH'));const call=match[1].match(new RegExp('public\\.'+rpc+'\\(([\\s\\S]*?)\\);'));assert(call);const parts=call[1].split(/,(?![^()]*\))/);assert.equal(parts.length,args,rpc+' exact argument arity');assert(match[1].includes("v_result->>'"+result+"'"));const owner=last(fs.readFileSync(path.join(root,'supabase-offline-v2-restaurant-reference-owners-v1.sql'),'utf8'),rpc);const paramNames=[...owner.header.matchAll(/\bp_[a-z_]+\s+(?:bigint|integer|boolean|text)/g)];assert.equal(paramNames.length,args);assert(owner.body.includes('public.restaurant_'+kind+'_save_v1('))}
++ assert(outer.body.indexOf('resolve_pending_restaurant_return_v1')<outer.body.indexOf('prepare_stock_event_v1'));assert(outer.body.includes('prepare_stock_event_v1(v_execution_event)'));assert(outer.body.includes("if v_resolution ? 'replay_ack' then return v_resolution->'replay_ack'"));assert(outer.body.includes('      v_execution_event,'));
++ assert(resolver.body.indexOf("'replay_ack'")<resolver.body.indexOf('select * into v_parent'));assert(resolver.body.indexOf("'replay_ack'")<resolver.body.indexOf('pg_get_functiondef'));assert(resolver.body.includes("v_operation is distinct from 'return'"));assert(resolver.body.includes("coalesce(v_order,'') !~ '^offline-'"));assert(!resolver.body.includes("jsonb_set(p_event,'{payload_digest}'"));
++ return {route:'final public → reference owner or Point4 Outer → private resolver before prepare → existing Core',table_floor_signatures:'7 / 9 parameters match exact canonical wrappers',resolver:'private JSONB execution-only payload; original digest/TX; receipt replay before mapping/MD5 reads'};
++}
++if(require.main===module){const sql=fs.readFileSync(path.join(root,'supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql'),'utf8');const result=check(sql);for(const kind of ['table','floor']){const bad=sql.replace("when 'offline_restaurant_"+kind+"_save_v1' then","when 'MISSING_"+kind+"' then");assert.throws(()=>check(bad),'negative CASE mutation must fail')}const bad=sql.replace('prepare_stock_event_v1(v_execution_event)','prepare_stock_event_v1(p_event)');assert.throws(()=>check(bad),'negative stale composition must fail');console.log(JSON.stringify({status:'PASS',kind:'STRUCTURAL CONTRACT — not PL/pgSQL execution',...result,negative_cases:3}))}
++module.exports={definitions,last,check,root};
+--- a/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
++++ b/supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql
+@@ -178,6 +178,31 @@
+   end if;
+ 
+   case v_rpc
++    -- OF-1: execute the existing idempotent reference owners, not a second writer.
++    when 'offline_restaurant_floor_save_v1' then
++      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
++        raise exception using errcode='22023',message='OFFLINE_RESTAURANT_REFERENCE_BRANCH_MISMATCH';
++      end if;
++      v_result := public.offline_restaurant_floor_save_v1(
++        nullif(v_payload->>'p_floor_id','')::bigint,
++        (v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',
++        (v_payload->>'p_sort_order')::integer,
++        coalesce((v_payload->>'p_active')::boolean,true),
++        v_payload->>'p_client_tx_id',v_digest);
++      v_entity_id := nullif(v_result->>'floor_id','');
++    when 'offline_restaurant_table_save_v1' then
++      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
++        raise exception using errcode='22023',message='OFFLINE_RESTAURANT_REFERENCE_BRANCH_MISMATCH';
++      end if;
++      v_result := public.offline_restaurant_table_save_v1(
++        nullif(v_payload->>'p_table_id','')::bigint,
++        (v_payload->>'p_branch_id')::bigint,
++        nullif(v_payload->>'p_floor_id','')::bigint,
++        v_payload->>'p_name',v_payload->>'p_code',
++        (v_payload->>'p_capacity')::integer,
++        coalesce((v_payload->>'p_active')::boolean,true),
++        v_payload->>'p_client_tx_id',v_digest);
++      v_entity_id := nullif(v_result->>'table_id','');
+     when 'create_pos_order_atomic' then
+       v_result := public.create_pos_order_atomic(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments');
+       v_entity_id := nullif(v_result#>>'{order,id}','');
+@@ -641,6 +666,106 @@
+ end;
+ $$;
+ 
++-- OF-2 SOURCE ONLY: private execution-payload resolver; no new posting owner.
++-- The existing V3 accepted index bridge is valid only for its pinned definitions.
++-- Live signature/MD5 verification is a Beta deployment gate, not inferred here.
++create or replace function public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event jsonb)
++returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $return_map$
++declare
++ v_payload jsonb:=p_event#>'{payload,rpc_payload}';
++ v_operation text:=p_event->>'operation_type';v_rpc text:=p_event#>>'{payload,rpc_name}';
++ v_order text:=v_payload->>'p_order_id';v_tx text:=nullif(trim(p_event->>'client_tx_id'),'');
++ v_digest text:=nullif(trim(p_event->>'payload_digest'),'');v_dep text:=nullif(trim(p_event->>'depends_on_tx_id'),'');
++ v_device text:=nullif(trim(p_event->>'device_id'),'');v_branch bigint;v_employee bigint;v_sequence bigint;
++ v_parent_id text:=p_event#>>'{dependency_mapping,server_id}';
++ v_receipt public.offline_v2_server_receipts%rowtype;v_parent public.offline_v2_server_receipts%rowtype;
++ v_items jsonb;v_count integer;v_indices integer;v_uids integer;v_forward jsonb;
++ v_sale_md5 text;v_food_sale_md5 text;v_return_md5 text;v_return_idem_md5 text;
++begin
++ -- Already-server Returns and every other family retain their existing route.
++ if v_operation is distinct from 'return' or coalesce(v_order,'') !~ '^offline-' then
++  return jsonb_build_object('event',p_event);
++ end if;
++ if v_rpc not in ('create_order_return_idempotent','create_food_order_return_idempotent_v1')
++    or v_rpc is null then raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_RESTAURANT_ONLY';end if;
++ if auth.uid() is null then raise exception using errcode='42501',message='UNAUTHENTICATED';end if;
++ v_branch:=nullif(p_event->>'branch_id','')::bigint;v_employee:=nullif(p_event->>'employee_id','')::bigint;v_sequence:=nullif(p_event->>'device_sequence','')::bigint;
++ if coalesce((p_event->>'protocol_version')::integer,0)<>2 or v_tx is null or v_digest is null or v_device is null
++    or coalesce(v_branch,0)<=0 or coalesce(v_employee,0)<=0 or coalesce(v_sequence,0)<=0
++    or public.current_employee_id() is distinct from v_employee
++    or nullif(trim(v_payload->>'p_client_tx_id'),'') is distinct from v_tx then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_IDENTITY_INVALID';
++ end if;
++ perform pg_advisory_xact_lock(hashtextextended('offline-v2:'||v_tx,0));
++ select * into v_receipt from public.offline_v2_server_receipts where client_tx_id=v_tx;
++ if found then
++  if v_receipt.payload_digest is distinct from v_digest or v_receipt.rpc_name is distinct from v_rpc
++     or v_receipt.operation_type is distinct from v_operation or v_receipt.device_id is distinct from v_device
++     or v_receipt.device_sequence is distinct from v_sequence or v_receipt.branch_id is distinct from v_branch
++     or v_receipt.employee_id is distinct from v_employee or v_receipt.auth_user_id is distinct from auth.uid() then
++   raise exception using errcode='22000',message='Offline V2 duplicate TX payload/identity mismatch';
++  end if;
++  -- Exact existing receipt shape; no current parent, recipe or stock reads on replay.
++  return jsonb_build_object('replay_ack',jsonb_build_object(
++   'ok',true,'acknowledged',false,'duplicate',true,'idempotent_replay',true,
++   'client_tx_id',v_receipt.client_tx_id,'protocol_version',v_receipt.protocol_version,
++   'payload_digest',v_receipt.payload_digest,'server_event_id',v_receipt.server_event_id,
++   'server_entity_id',v_receipt.server_entity_id,'server_version',v_receipt.server_version,'result',v_receipt.result_json));
++ end if;
++ if v_dep is null or v_order is distinct from 'offline-'||v_dep
++    or p_event#>>'{dependency_mapping,client_tx_id}' is distinct from v_dep
++    or coalesce(v_parent_id,'') !~ '^[1-9][0-9]*$' then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_PARENT_MAPPING_REQUIRED';
++ end if;
++ select * into v_parent from public.offline_v2_server_receipts where client_tx_id=v_dep;
++ if not found or v_parent.operation_type is distinct from 'sale'
++    or v_parent.server_entity_id is distinct from v_parent_id
++    or v_parent.rpc_name not in ('create_pos_order_atomic','create_food_pos_order_atomic_v1')
++    or v_parent.device_id is distinct from v_device or v_parent.branch_id is distinct from v_branch
++    or v_parent.employee_id is distinct from v_employee or v_parent.auth_user_id is distinct from auth.uid() then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_PARENT_RECEIPT_INVALID';
++ end if;
++ -- Fail closed if the accepted insertion-order/Return contract has drifted.
++ select md5(pg_get_functiondef('public.create_pos_order_atomic(jsonb,jsonb,jsonb)'::regprocedure)) into v_sale_md5;
++ select md5(pg_get_functiondef('public.create_food_pos_order_atomic_v1(jsonb,jsonb,jsonb)'::regprocedure)) into v_food_sale_md5;
++ select md5(pg_get_functiondef('public.create_order_return(bigint,text,text,jsonb,jsonb)'::regprocedure)) into v_return_md5;
++ select md5(pg_get_functiondef('public.create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text)'::regprocedure)) into v_return_idem_md5;
++ if v_sale_md5 is distinct from 'a677482d9944aa8ae40003408506c7c1'
++    or v_food_sale_md5 is distinct from 'c6de3f95f85c6bb2f9d4854c1d7c5a8c'
++    or v_return_md5 is distinct from '3fe18445ec4e05799bd8bebdeeb716c9'
++    or v_return_idem_md5 is distinct from '8fb379d606004c895befb2b0f9787586' then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINE_CONTRACT_DRIFT';
++ end if;
++ if jsonb_typeof(v_payload->'p_items') is distinct from 'array' or jsonb_array_length(v_payload->'p_items')=0 then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_ITEMS_REQUIRED';
++ end if;
++ if exists(select 1 from jsonb_array_elements(v_payload->'p_items') x(item)
++   where coalesce(x.item->>'source_order_item_index','') !~ '^[1-9][0-9]*$'
++      or coalesce(x.item->>'source_sale_line_uid','') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINEAGE_INVALID';
++ end if;
++ select count(*),count(distinct (x.item->>'source_order_item_index')::integer),count(distinct x.item->>'source_sale_line_uid')
++ into v_count,v_indices,v_uids from jsonb_array_elements(v_payload->'p_items') x(item);
++ if v_count is distinct from v_indices or v_count is distinct from v_uids then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINEAGE_DUPLICATE';
++ end if;
++ select coalesce(jsonb_agg((x.item-'source_order_item_index'-'source_sale_line_uid')||jsonb_build_object('order_item_id',mapped.id) order by x.ord),'[]'::jsonb)
++ into v_items from jsonb_array_elements(v_payload->'p_items') with ordinality x(item,ord)
++ join lateral (
++  select q.id from (select oi.id,row_number() over(order by oi.id)::integer source_index
++   from public.order_items oi where oi.order_id=v_parent_id::bigint) q
++  where q.source_index=(x.item->>'source_order_item_index')::integer
++ ) mapped on true;
++ if jsonb_array_length(v_items) is distinct from v_count then
++  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_ITEM_MAPPING_INCOMPLETE';
++ end if;
++ v_payload:=jsonb_set(jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_parent_id::bigint),true),'{p_items}',v_items,true);
++ v_forward:=jsonb_set(p_event,'{payload,rpc_payload}',v_payload,false);
++ return jsonb_build_object('event',v_forward);
++end;$return_map$;
++revoke all on function public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(jsonb) from public,anon,authenticated,service_role;
++-- Called only by the SECURITY DEFINER final Point4 Outer under its existing owner.
++
+ create or replace function public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event jsonb)
+ returns jsonb
+ language plpgsql
+@@ -657,6 +782,8 @@
+   v_context jsonb;
+   v_identity record;
+   v_forward jsonb;
++  v_execution_event jsonb:=p_event;
++  v_resolution jsonb;
+ begin
+   if v_operation not in ('sale','return','expense','shift_open','shift_close') then
+     raise exception using errcode='22023',message='Offline V2 Point4 Outer operation غير مدعومة';
+@@ -665,9 +792,14 @@
+     raise exception using errcode='22023',message='Offline V2 Point4 Outer shift_close binding غير مدعومة';
+   end if;
+ 
+-  v_prepared:=public.sharawla_offline_v2_prepare_stock_event_v1(p_event);
++  -- OF-2: pending Restaurant IDs must be resolved before any stock preparation casts.
++  -- Full replay is returned under the original receipt lock, before current lineage reads.
++  v_resolution:=public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event);
++  if v_resolution ? 'replay_ack' then return v_resolution->'replay_ack'; end if;
++  v_execution_event:=v_resolution->'event';
++  v_prepared:=public.sharawla_offline_v2_prepare_stock_event_v1(v_execution_event);
+   if v_prepared->>'classification'='FULL_REPLAY' then
+-    return public.sharawla_offline_v2_apply_event_core_v1(p_event);
++    return public.sharawla_offline_v2_apply_event_core_v1(v_execution_event);
+   end if;
+   if v_prepared->>'classification'<>'EXECUTION_REQUIRED' then
+     raise exception 'Offline preparation classification غير صالحة';
+@@ -705,7 +837,7 @@
+ 
+   v_forward:=jsonb_set(
+     jsonb_set(
+-      p_event,
++      v_execution_event,
+       '{point4_context_envelope}',
+       coalesce(v_envelope,'null'::jsonb),
+       true
