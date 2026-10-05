@@ -181,6 +181,15 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 2) Driver settlement: same atomic owner, permission-based instead of Admin UI.
 -- ---------------------------------------------------------------------------
+alter table public.driver_settlements
+  add column if not exists client_tx_id text,
+  add column if not exists request_digest text,
+  add column if not exists order_ids bigint[];
+
+create unique index if not exists driver_settlements_client_tx_uidx
+  on public.driver_settlements(client_tx_id)
+  where client_tx_id is not null;
+
 create or replace function public.settle_driver_orders_v1(
   p_branch_id bigint,
   p_driver_id bigint,
