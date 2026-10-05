@@ -503,6 +503,7 @@ function hasFeaturePermission(key){
 function canAccessPage(page){
   if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
+  if(page==='approvals')return (isAdmin()||hasFeaturePermission('returnApprovals'))&&runtimeOperationalAllowsPage(page);
   if(page==='websiteManagement')return isAdmin()||allowed.has('branchProductAvailability')||allowed.has('websiteBranchSettings')||allowed.has('websiteAppearance')||allowed.has('financialSettings');
   if(page==='websiteBranchSettings')return isAdmin()||allowed.has('websiteBranchSettings');
   if(page==='websitePayments')return isAdmin()||allowed.has('financialSettings')||allowed.has('websiteAppearance');
@@ -537,6 +538,7 @@ function selectBranch(id){
   state.activeBranchId=bid;
   refreshBranchChrome();
   startWebsiteOrderWatch();
+  startReturnApprovalWatch();
   showPage('home');
 }
 function renderBranchPicker(){
@@ -675,7 +677,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
-  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();showPage('home')}else renderBranchPicker();
+  show('appView');if(state.activeBranchId){startWebsiteOrderWatch();startReturnApprovalWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
 
@@ -721,7 +723,7 @@ async function renderFoodRecipes(){
   if(!ui?.renderPage)throw new Error('واجهة الوصفات غير محملة');
   return ui.renderPage();
 }
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -735,6 +737,7 @@ async function renderHome(){
     ['deliveryOrders','🛵','طلبات الدليفري',`${activeDelivery.length} طلب نشط`,'amber'],
     ['orders','📋','الطلبات','متابعة وطباعة الطلبات','blue'],
     ['returns','↩️','المرتجعات','مرتجع كلي أو جزئي من الفاتورة','rose'],
+    ['approvals','✅','موافقات المدير','طلبات اعتماد المرتجعات','green'],
     ['customers','👤','العملاء','بحث وبيانات العملاء','violet'],
     ['shifts','🕘','الورديات',openShift?'الوردية مفتوحة 🟢':'لا توجد وردية مفتوحة','green'],
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
@@ -929,6 +932,7 @@ async function lookupCustomerByPhone(){
      const finalArea=preferred.area||fallbackArea||'';
      const finalAddress=preferred.address||fallbackAddress||'';
      $('#customerHint').innerHTML=`✅ عميل مسجل: <b>${esc(c.name||raw)}</b>${finalArea?` • ${esc(finalArea)}`:''}${finalAddress?` • ${esc(finalAddress)}`:''}`;
+     loadCustomerQuickSummary(c);
    }else{
      state.selectedCustomer=null; state.customerAddresses=[];
      if($('#customerName'))$('#customerName').value='';
@@ -1064,13 +1068,118 @@ function setLocalAutoPrint(branchId,type,value){try{localStorage.setItem(desktop
 function printCountKey(o,type){return `tb_print_count_${type}_${String(o?.id||o?.client_tx_id||o?.invoice_number||o?.bon_number||'unknown')}`}
 function getPrintCount(o,type){try{return Math.max(0,Number(localStorage.getItem(printCountKey(o,type))||0))}catch{return 0}}
 function setPrintCount(o,type,n){try{localStorage.setItem(printCountKey(o,type),String(Math.max(0,Number(n)||0)))}catch{}}
-async function printIsolated(html,paper='80',copies=1,opts={}){const old=document.getElementById('receiptPrintFrame');if(old)old.remove();const f=document.createElement('iframe');f.id='receiptPrintFrame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);const width=paper==='58'?'54mm':'78mm',page=paper==='58'?'58mm':'80mm';const n=Math.max(1,Math.min(5,Number(copies)||1));const body=Array.from({length:n},()=>`<div class="print-copy">${html}</div>`).join('');const doc=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>@page{size:${page} auto;margin:1mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;color:#000;direction:rtl;font-weight:700}small,td,th,p,span,div{font-weight:inherit}.receipt h1,.receipt h2,.receipt h3,.grand-print,.receipt-copy-mark,strong,b{font-weight:900}.print-copy{width:${width}}.print-copy:not(:last-child){page-break-after:always}.receipt{width:${width};font-size:13px;line-height:1.28}.receipt-copy-mark{text-align:center;font-size:18px;font-weight:900;border:2px solid #000;padding:2px 5px;margin:0 auto 4px;max-width:30mm}.receipt-logo{display:block;max-width:30mm;max-height:18mm;object-fit:contain;margin:1mm auto}.receipt h2{text-align:center;font-size:20px;margin:2px 0}.receipt h1{text-align:center;font-size:25px;line-height:1.1;margin:3px 0}.receipt h3,.receipt p{margin:2px 0}.receipt hr{border:0;border-top:1px dashed #000;margin:4px 0}.r-meta,.r-footer{text-align:center}.r-customer{line-height:1.35}.r-items>div,.r-totals>div{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin:3px 0}.r-items>div>span{flex:1;min-width:0}.r-items small{display:block;font-size:11px;line-height:1.2;margin-top:1px}.prep-item>span>b{font-size:15px}.prep-note{font-weight:700}.grand-print{font-size:17px;font-weight:900;border-top:1px dashed #000;padding-top:4px}.r-footer{font-size:11px;line-height:1.25}.shift-print{width:${width};font-size:11px}.shift-print h2,.shift-print h3{text-align:center;margin:4px 0}.shift-report-table{width:100%;border-collapse:collapse;font-size:10px}.shift-report-table th,.shift-report-table td{border-bottom:1px dashed #777;padding:3px 2px;text-align:right}.shift-report-table th:nth-child(n+2),.shift-report-table td:nth-child(n+2){text-align:left}.shift-report-table small{display:block;font-size:8px}</style></head><body>${body}</body></html>`;if(window.topBurgerDesktop?.print?.html){try{const r=await window.topBurgerDesktop.print.html(doc,{silent:true,deviceName:opts.deviceName||''});f.remove();if(!r?.ok){if(r?.error)toast('تعذر الطباعة: '+r.error);return false}return true}catch(e){f.remove();toast('تعذر الطباعة: '+e.message);return false}}const d=f.contentDocument;d.open();d.write(doc);d.close();setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}finally{setTimeout(()=>f.remove(),1200)}},150);return true}
+async function printIsolated(html,paper='80',copies=1,opts={}){const old=document.getElementById('receiptPrintFrame');if(old)old.remove();const f=document.createElement('iframe');f.id='receiptPrintFrame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:-9999px;border:0;opacity:0;pointer-events:none';document.body.appendChild(f);const width=paper==='58'?'54mm':'78mm',page=paper==='58'?'58mm':'80mm';const n=Math.max(1,Math.min(5,Number(copies)||1));const body=Array.from({length:n},()=>`<div class="print-copy">${html}</div>`).join('');const doc=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>@page{size:${page} auto;margin:1mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Tahoma,sans-serif;color:#000;direction:rtl;font-weight:700}small,td,th,p,span,div{font-weight:inherit}.receipt h1,.receipt h2,.receipt h3,.grand-print,.receipt-copy-mark,strong,b{font-weight:900}.print-copy{width:${width}}.print-copy:not(:last-child){page-break-after:always}.receipt{width:${width};font-size:13px;line-height:1.28}.receipt-copy-mark{text-align:center;font-size:18px;font-weight:900;border:2px solid #000;padding:2px 5px;margin:0 auto 4px;max-width:30mm}.receipt-logo{display:block;max-width:30mm;max-height:18mm;object-fit:contain;margin:1mm auto}.receipt h2{text-align:center;font-size:20px;margin:2px 0}.receipt h1{text-align:center;font-size:25px;line-height:1.1;margin:3px 0}.receipt h3,.receipt p{margin:2px 0}.receipt hr{border:0;border-top:1px dashed #000;margin:4px 0}.r-meta,.r-footer{text-align:center}.r-customer{line-height:1.35}.r-items>div,.r-totals>div{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin:3px 0}.r-items>div>span{flex:1;min-width:0}.r-items small{display:block;font-size:11px;line-height:1.2;margin-top:1px}.prep-item>span>b{font-size:15px}.prep-note{font-weight:700}.grand-print{font-size:17px;font-weight:900;border-top:1px dashed #000;padding-top:4px}.r-footer{font-size:11px;line-height:1.25}.shift-print{width:${width};font-size:12px;line-height:1.32;font-weight:700}.shift-print h2{font-size:18px;font-weight:900}.shift-print h3{font-size:14px;font-weight:900}.shift-print h2,.shift-print h3{text-align:center;margin:5px 0}.shift-report-table{width:100%;border-collapse:collapse;font-size:11px}.shift-report-table th,.shift-report-table td{border-bottom:1px dashed #777;padding:4px 2px;text-align:right}.shift-report-table th{font-weight:900}.shift-report-table td{font-weight:700}.shift-report-table th:nth-child(n+2),.shift-report-table td:nth-child(n+2){text-align:left}.shift-report-table small{display:block;font-size:9px;font-weight:600}</style></head><body>${body}</body></html>`;if(window.topBurgerDesktop?.print?.html){try{const r=await window.topBurgerDesktop.print.html(doc,{silent:true,deviceName:opts.deviceName||''});f.remove();if(!r?.ok){if(r?.error)toast('تعذر الطباعة: '+r.error);return false}return true}catch(e){f.remove();toast('تعذر الطباعة: '+e.message);return false}}const d=f.contentDocument;d.open();d.write(doc);d.close();setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}finally{setTimeout(()=>f.remove(),1200)}},150);return true}
 async function recordSuccessfulPrint(o,type,wasCopy){const prev=getPrintCount(o,type);setPrintCount(o,type,prev+1);if(wasCopy){await audit('reprint_order_receipt','order',o?.id||null,{print_type:type,print_count:prev+1,invoice_number:o?.invoice_number||null,bon_number:o?.bon_number||null})}}
 async function printReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'customer')>0,printable=await enrichOrderItemsWithModifiers(items);const ok=await printIsolated(receiptHTML(o,printable,isCopy),c.paper_size,c.customer_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'customer')});if(ok)await recordSuccessfulPrint(o,'customer',isCopy);return ok}
 function prepReceiptHTML(o,items,isCopy=false){const c=printCfg(o.branch_id);return `<div class="receipt">${receiptCopyMark(isCopy)}<div class="receipt-head"><h2>ريسيت التحضير</h2><h1>بون ${esc(bonDisplay(o))}</h1><p>${branchName(o.branch_id)} • ${fmtDate(o.created_at)}</p><p>${orderTypeLabel(o.order_type)}</p></div><hr>${customerInfoHTML(o)}<div class="r-items">${items.map(i=>`<div class="prep-item"><span><b>${i.quantity} × ${esc(i.product_name)}</b>${receiptModifierHTML(i,false)}${i.notes?`<small class="prep-note">📝 ${esc(i.notes)}</small>`:''}</span>${c.prep_show_prices!==false?`<b>${money(i.total)}</b>`:''}</div>`).join('')}</div><hr>${c.prep_show_prices!==false?`<div class="r-totals"><div><span>إجمالي الأصناف</span><b>${money(o.subtotal)}</b></div></div>`:''}</div>`}
 async function printPrepReceipt(o,items){const c=printCfg(o.branch_id),isCopy=getPrintCount(o,'prep')>0,printable=await enrichOrderItemsWithModifiers(items);const ok=await printIsolated(prepReceiptHTML(o,printable,isCopy),c.paper_size,c.prep_copies,{deviceName:selectedDesktopPrinter(o.branch_id,'prep')});if(ok)await recordSuccessfulPrint(o,'prep',isCopy);return ok}
 function autoPrintOrder(o,items){const c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer);if(autoPrep&&state.settings.enable_prep_receipt)setTimeout(()=>printPrepReceipt(o,items),250);if(autoCustomer&&state.settings.enable_receipt_print)setTimeout(()=>printReceipt(o,items),900)}
 async function showReceipt(o,items){const printable=await enrichOrderItemsWithModifiers(items),c=printCfg(o.branch_id),autoPrep=localAutoPrint(o.branch_id,'prep',c.auto_print_prep),autoCustomer=localAutoPrint(o.branch_id,'customer',c.auto_print_customer),didAuto=(autoCustomer&&state.settings.enable_receipt_print)||(autoPrep&&state.settings.enable_prep_receipt);autoPrintOrder(o,printable);if(didAuto)return;const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>تم حفظ بون ${esc(bonDisplay(o))}</h2>${receiptHTML(o,printable)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button>${state.settings.enable_prep_receipt?'<button class="secondary" data-prep>ريسيت التحضير</button>':''}${state.settings.enable_receipt_print?'<button class="primary" data-print>فاتورة العميل</button>':''}</div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print]'))printReceipt(o,printable);if(e.target.closest('[data-prep]'))printPrepReceipt(o,printable)}}
+let returnApprovalWatchTimer=null;
+let knownReturnApprovalIds=new Set();
+let returnApprovalWatchPrimed=false;
+async function fetchPendingReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!navigator.onLine)return [];
+ try{
+  const now=encodeURIComponent(new Date().toISOString());
+  return await rest('return_approval_requests',`select=*&status=eq.pending&expires_at=gt.${now}&order=created_at.desc&limit=100`);
+ }catch(e){console.warn('return approval watch',e);return []}
+}
+function updateReturnApprovalBadge(count){
+ const badge=$('#returnApprovalBadge');if(!badge)return;
+ badge.textContent=count>99?'99+':String(count||0);
+ badge.classList.toggle('hidden',!count);
+}
+async function refreshReturnApprovalWatch(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){updateReturnApprovalBadge(0);return}
+ const rows=await fetchPendingReturnApprovals();
+ const ids=new Set(rows.map(x=>String(x.id)));
+ if(returnApprovalWatchPrimed){
+  const fresh=rows.filter(x=>!knownReturnApprovalIds.has(String(x.id)));
+  if(fresh.length){
+   websiteOrderBeep();
+   const r=fresh[0];
+   toast(`طلب اعتماد مرتجع جديد • ${branchName(r.branch_id)||'فرع'} • ${money(r.expected_total)}`);
+  }
+ }else returnApprovalWatchPrimed=true;
+ knownReturnApprovalIds=ids;
+ updateReturnApprovalBadge(rows.length);
+}
+function stopReturnApprovalWatch(){
+ if(returnApprovalWatchTimer){clearInterval(returnApprovalWatchTimer);returnApprovalWatchTimer=null}
+ knownReturnApprovalIds=new Set();returnApprovalWatchPrimed=false;updateReturnApprovalBadge(0);
+}
+function startReturnApprovalWatch(){
+ stopReturnApprovalWatch();
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!state.employee)return;
+ refreshReturnApprovalWatch();
+ returnApprovalWatchTimer=setInterval(refreshReturnApprovalWatch,5000);
+}
+async function showApprovedReturnReceipt(returnId){
+ const [rr,ri,rp]=await Promise.all([
+  rest('returns',`select=*&id=eq.${returnId}`),
+  rest('return_items',`select=*&return_id=eq.${returnId}&order=id`),
+  rest('return_payments',`select=*&return_id=eq.${returnId}&order=id`)
+ ]);
+ if(!rr[0])return toast('تم الاعتماد لكن تعذر تحميل إيصال المرتجع');
+ const x=document.createElement('div');x.className='modal';
+ x.innerHTML=`<div class="modal-card"><h2>✅ تم اعتماد وتنفيذ المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;
+ document.body.appendChild(x);
+ x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)};
+}
+function waitForReturnApproval(requestId,expectedTotal,expiresAt){
+ const m=document.createElement('div');m.className='modal';
+ let stopped=false,timer=null;
+ const stop=()=>{stopped=true;if(timer)clearInterval(timer);timer=null};
+ m.innerHTML=`<div class="modal-card"><h2>⏳ في انتظار اعتماد المدير</h2><p>تم إرسال طلب الاعتماد داخل Sharawla للمديرين المصرح لهم على نفس الفرع.</p><div class="return-total-box">قيمة المرتجع <b>${money(expectedTotal)}</b><small>الطلب صالح حتى ${fmtDate(expiresAt)}</small></div><div id="returnApprovalState" class="empty">جاري انتظار قرار المدير…</div><div class="modal-actions"><button class="secondary" data-close>إغلاق والمتابعة لاحقًا</button></div></div>`;
+ document.body.appendChild(m);
+ const check=async()=>{
+  if(stopped)return;
+  try{
+   const rows=await rest('return_approval_requests',`select=id,status,return_id,approver_employee_id,decision_at,expires_at&id=eq.${requestId}&limit=1`);
+   const r=rows?.[0];if(!r)return;
+   const stateEl=m.querySelector('#returnApprovalState');
+   if(r.status==='approved'&&r.return_id){
+    stop();m.remove();toast('✅ تمت موافقة المدير وتنفيذ المرتجع');await showApprovedReturnReceipt(r.return_id);return;
+   }
+   if(r.status==='rejected'){
+    stop();if(stateEl)stateEl.textContent='❌ تم رفض طلب المرتجع';toast('تم رفض طلب المرتجع');return;
+   }
+   if(r.status==='expired'||new Date(r.expires_at).getTime()<Date.now()){
+    stop();if(stateEl)stateEl.textContent='⌛ انتهت صلاحية طلب الاعتماد';toast('انتهت صلاحية طلب الاعتماد');return;
+   }
+  }catch(e){if(!isNetError(e)){console.warn('return approval poll',e)}}
+ };
+ m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m){stop();m.remove()}};
+ check();timer=setInterval(check,2000);
+}
+async function renderReturnApprovals(){
+ if(!(isAdmin()||hasFeaturePermission('returnApprovals'))){toast('ليس لديك صلاحية اعتماد المرتجعات');return showPage('home')}
+ let rows=[];
+ try{rows=await rest('return_approval_requests','select=*&order=created_at.desc&limit=100')}catch(e){$('#page').innerHTML=`<div class="panel"><h2>✅ موافقات المدير</h2><div class="empty">${esc(e.message||'تعذر تحميل الطلبات')}</div></div>`;return}
+ const pending=rows.filter(r=>r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now());
+ updateReturnApprovalBadge(pending.length);
+ const statusLabel=s=>({pending:'⏳ في الانتظار',approved:'✅ تمت الموافقة',rejected:'❌ مرفوض',expired:'⌛ منتهي'}[s]||s);
+ $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>✅ موافقات المدير</h2><p>طلبات اعتماد المرتجعات التي أرسلها الموظفون. لا تحتاج لفتح وردية للمدير.</p></div><button id="refreshReturnApprovals" class="secondary">↻ تحديث</button></div><div class="approval-list">${rows.map(r=>`<div class="user-card ${r.status==='pending'?'':'muted'}"><div class="user-main"><b>مرتجع ${money(r.expected_total)} • ${esc(branchName(r.branch_id)||('فرع '+r.branch_id))}</b><small>بون ${r.order_bon_number||'-'} • فاتورة ${r.order_invoice_number||'-'} • بواسطة ${esc(r.requester_name||'موظف')} • ${fmtDate(r.created_at)}</small></div><div class="user-branch-tags"><span class="tag">${esc(r.reason||'')}</span><span class="tag">${statusLabel(r.status)}</span></div>${r.notes?`<p class="muted">${esc(r.notes)}</p>`:''}${r.status==='pending'&&new Date(r.expires_at).getTime()>Date.now()?`<div class="row-actions"><button class="primary" data-approve-return="${r.id}">✅ موافقة</button><button class="danger" data-reject-return="${r.id}">رفض</button></div>`:''}</div>`).join('')||'<div class="empty">لا توجد طلبات اعتماد</div>'}</div></div>`;
+ $('#refreshReturnApprovals').onclick=renderReturnApprovals;
+ $('#page').onclick=async e=>{
+  const approve=e.target.closest('[data-approve-return]'),reject=e.target.closest('[data-reject-return]');
+  if(!approve&&!reject)return;
+  const id=Number((approve||reject).dataset[approve?'approveReturn':'rejectReturn']);
+  let note=null;
+  if(reject){note=await uiPrompt('سبب الرفض (اختياري)');if(note===null)return}
+  if(approve&&!await uiConfirm('تأكيد اعتماد المرتجع؟ سيتم تنفيذ المرتجع فورًا على وردية الموظف الذي طلبه.',{title:'اعتماد المرتجع',okText:'موافقة'}))return;
+  const btn=approve||reject;btn.disabled=true;
+  try{
+   const result=await rpc('decide_order_return_approval_v1',{p_request_id:id,p_decision:approve?'approve':'reject',p_note:note,p_client_tx_id:uuid()});
+   if(result?.status==='approved')toast('تم اعتماد وتنفيذ المرتجع');
+   else if(result?.status==='rejected')toast('تم رفض طلب المرتجع');
+   else if(result?.status==='expired')toast('انتهت صلاحية طلب الاعتماد');
+   else toast('تم تحديث الطلب');
+   await refreshReturnApprovalWatch();renderReturnApprovals();
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
+}
 async function openReturnForOrder(o,items){
  if(!canAccessPage('returns'))return toast('ليس لديك صلاحية المرتجعات');
  const sh=await getOpenShift();if(!sh)return toast('افتح وردية أولًا قبل عمل المرتجع');
@@ -1079,10 +1188,46 @@ async function openReturnForOrder(o,items){
  const available=items.map(i=>({...i,_available:Math.max(0,Number(i.quantity||0)-Number(used[String(i.id)]||0))})).filter(i=>i._available>0);
  if(!available.length)return toast('تم إرجاع كل أصناف الفاتورة بالفعل');
  const pays=branchPaymentList(o.branch_id);const defaultPay=pays.find(x=>x.is_default)||pays[0];
- const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card return-modal"><h2>↩️ مرتجع من بون ${esc(bonDisplay(o))}</h2><p>فاتورة داخلية ${esc(invoiceDisplay(o))} • ${fmtDate(o.created_at)}</p><div class="table-wrap"><table style="min-width:0"><thead><tr><th>الصنف</th><th>المتاح</th><th>كمية المرتجع</th></tr></thead><tbody>${available.map(i=>`<tr><td>${esc(i.product_name)}</td><td>${i._available}</td><td><input class="return-qty" data-ri="${i.id}" type="number" min="0" max="${i._available}" step="1" value="0"></td></tr>`).join('')}</tbody></table></div><div class="form-grid"><label>سبب المرتجع<select id="retReason"><option value="">اختر السبب</option><option>خطأ في الطلب</option><option>جودة المنتج</option><option>طلب العميل</option><option>تكرار الطلب</option><option>أخرى</option></select></label><label>طريقة رد المبلغ<select id="retMethod">${pays.map(x=>`<option value="${esc(x.code)}" ${defaultPay&&String(x.id)===String(defaultPay.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="span-2">ملاحظات<textarea id="retNotes" rows="2" placeholder="اختياري"></textarea></label></div><div class="return-total-box">المبلغ المتوقع للمرتجع <b id="retEstimate">${money(0)}</b><small>رسوم الدليفري لا تُرد تلقائيًا</small></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="secondary" data-full-return>↩️ مرتجع الأوردر بالكامل</button><button class="danger" data-submit-return>تنفيذ المرتجع</button></div></div>`;document.body.appendChild(m);
+ const canExecute=isAdmin()||hasFeaturePermission('returnExecute');
+ const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card return-modal"><h2>↩️ مرتجع من بون ${esc(bonDisplay(o))}</h2><p>فاتورة داخلية ${esc(invoiceDisplay(o))} • ${fmtDate(o.created_at)}</p><div class="table-wrap"><table style="min-width:0"><thead><tr><th>الصنف</th><th>المتاح</th><th>كمية المرتجع</th></tr></thead><tbody>${available.map(i=>`<tr><td>${esc(i.product_name)}</td><td>${i._available}</td><td><input class="return-qty" data-ri="${i.id}" type="number" min="0" max="${i._available}" step="1" value="0"></td></tr>`).join('')}</tbody></table></div><div class="form-grid"><label>سبب المرتجع<select id="retReason"><option value="">اختر السبب</option><option>خطأ في الطلب</option><option>جودة المنتج</option><option>طلب العميل</option><option>تكرار الطلب</option><option>أخرى</option></select></label><label>طريقة رد المبلغ<select id="retMethod">${pays.map(x=>`<option value="${esc(x.code)}" ${defaultPay&&String(x.id)===String(defaultPay.id)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><label class="span-2">ملاحظات<textarea id="retNotes" rows="2" placeholder="اختياري"></textarea></label></div><div class="return-total-box">المبلغ المتوقع للمرتجع <b id="retEstimate">${money(0)}</b><small>رسوم الدليفري لا تُرد تلقائيًا</small></div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="secondary" data-full-return>↩️ مرتجع الأوردر بالكامل</button><button class="${canExecute?'danger':'primary'}" data-submit-return>${canExecute?'تنفيذ المرتجع':'📲 طلب اعتماد مدير'}</button></div></div>`;document.body.appendChild(m);
  const calc=()=>{let sub=0;for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));const q=Math.min(i._available,Math.max(0,Number(inp.value||0)));sub+=(Number(i.total||0)/Number(i.quantity||1))*q}const ratio=Number(o.subtotal||0)>0?Math.min(1,sub/Number(o.subtotal)):0;const f=financialCfg(o.branch_id),taxPart=Number(o.tax_amount||0)*ratio;const total=Math.max(0,sub-Number(o.discount||0)*ratio+(f.prices_include_tax?0:taxPart)+Number(o.service_amount||0)*ratio);m.querySelector('#retEstimate').textContent=money(total);return Math.round(total*100)/100};
  m.oninput=e=>{if(e.target.matches('.return-qty'))calc()};
- m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}if(e.target.closest('[data-full-return]')){for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));inp.value=i?i._available:0}calc();toast('تم تحديد كل الكميات المتاحة للمرتجع');return}if(!e.target.closest('[data-submit-return]'))return;const selected=[...m.querySelectorAll('.return-qty')].map(inp=>{const item=available.find(x=>String(x.id)===String(inp.dataset.ri));const quantity=Math.min(Number(item?._available||0),Math.max(0,Math.floor(Number(inp.value||0)||0)));inp.value=quantity;return {order_item_id:Number(inp.dataset.ri),quantity}}).filter(x=>x.quantity>0);if(!selected.length)return toast('حدد كمية مرتجع لصنف واحد على الأقل');const reason=m.querySelector('#retReason').value;if(!reason)return toast('اختر سبب المرتجع');const total=calc();if(total<=0)return toast('قيمة المرتجع غير صحيحة');if(!await uiConfirm(`تأكيد مرتجع ${money(total)}؟\nالعملية لن تمسح الفاتورة الأصلية.`,{title:'تأكيد المرتجع',danger:true,okText:'تنفيذ المرتجع'}))return;const btn=m.querySelector('[data-submit-return]');btn.disabled=true;try{let rr,ri,rp,rid;try{rid=Number(await rpc('create_order_return_idempotent',{p_order_id:Number(o.id),p_reason:reason,p_notes:m.querySelector('#retNotes').value.trim()||null,p_items:selected,p_payments:[{method:m.querySelector('#retMethod').value,amount:total}],p_client_tx_id:uuid()}));[rr,ri,rp]=await Promise.all([rest('returns',`select=*&id=eq.${rid}`),rest('return_items',`select=*&return_id=eq.${rid}&order=id`),rest('return_payments',`select=*&return_id=eq.${rid}&order=id`)])}catch(netErr){if(!isNetError(netErr))throw netErr;if(String(o.id).startsWith('offline-'))throw new Error('مرتجع فاتورة أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا');const saved=await saveOfflineReturn(o,selected,reason,m.querySelector('#retNotes').value.trim()||null,m.querySelector('#retMethod').value,total,available);rr=[saved.r];ri=saved.items;rp=saved.payments;rid=saved.r.id}m.remove();toast(rr[0]?._offline?'تم حفظ المرتجع أوفلاين وسيُزامن تلقائيًا':`تم تسجيل مرتجع #${rr[0]?.return_number||rid}`);const x=document.createElement('div');x.className='modal';x.innerHTML=`<div class="modal-card"><h2>تم تسجيل المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;document.body.appendChild(x);x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)}}catch(err){btn.disabled=false;toast(err.message)}};
+ m.onclick=async e=>{
+  if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
+  if(e.target.closest('[data-full-return]')){for(const inp of m.querySelectorAll('.return-qty')){const i=available.find(x=>String(x.id)===String(inp.dataset.ri));inp.value=i?i._available:0}calc();toast('تم تحديد كل الكميات المتاحة للمرتجع');return}
+  if(!e.target.closest('[data-submit-return]'))return;
+  const selected=[...m.querySelectorAll('.return-qty')].map(inp=>{const item=available.find(x=>String(x.id)===String(inp.dataset.ri));const quantity=Math.min(Number(item?._available||0),Math.max(0,Math.floor(Number(inp.value||0)||0)));inp.value=quantity;return {order_item_id:Number(inp.dataset.ri),quantity}}).filter(x=>x.quantity>0);
+  if(!selected.length)return toast('حدد كمية مرتجع لصنف واحد على الأقل');
+  const reason=m.querySelector('#retReason').value;if(!reason)return toast('اختر سبب المرتجع');
+  const notes=m.querySelector('#retNotes').value.trim()||null;
+  const total=calc();if(total<=0)return toast('قيمة المرتجع غير صحيحة');
+  const payments=[{method:m.querySelector('#retMethod').value,amount:total}];
+  const btn=m.querySelector('[data-submit-return]');btn.disabled=true;
+  if(!canExecute){
+   try{
+    if(!navigator.onLine)throw new Error('طلب اعتماد المدير يحتاج اتصال بالإنترنت');
+    const result=await rpc('request_order_return_approval_v1',{p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:payments,p_client_tx_id:uuid()});
+    m.remove();
+    toast('تم إرسال طلب الاعتماد للمدير');
+    waitForReturnApproval(Number(result.request_id),Number(result.expected_total||total),result.expires_at);
+   }catch(err){btn.disabled=false;toast(err.message)}
+   return;
+  }
+  if(!await uiConfirm(`تأكيد مرتجع ${money(total)}؟\nالعملية لن تمسح الفاتورة الأصلية.`,{title:'تأكيد المرتجع',danger:true,okText:'تنفيذ المرتجع'})){btn.disabled=false;return}
+  try{
+   let rr,ri,rp,rid;
+   try{
+    rid=Number(await rpc('create_order_return_idempotent',{p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:payments,p_client_tx_id:uuid()}));
+    [rr,ri,rp]=await Promise.all([rest('returns',`select=*&id=eq.${rid}`),rest('return_items',`select=*&return_id=eq.${rid}&order=id`),rest('return_payments',`select=*&return_id=eq.${rid}&order=id`)]);
+   }catch(netErr){
+    if(!isNetError(netErr))throw netErr;
+    if(String(o.id).startsWith('offline-'))throw new Error('مرتجع فاتورة أوفلاين جديدة يتم بعد مزامنة الفاتورة أولًا');
+    const saved=await saveOfflineReturn(o,selected,reason,notes,m.querySelector('#retMethod').value,total,available);rr=[saved.r];ri=saved.items;rp=saved.payments;rid=saved.r.id;
+   }
+   m.remove();toast(rr[0]?._offline?'تم حفظ المرتجع أوفلاين وسيُزامن تلقائيًا':`تم تسجيل مرتجع #${rr[0]?.return_number||rid}`);
+   const x=document.createElement('div');x.className='modal';x.innerHTML=`<div class="modal-card"><h2>تم تسجيل المرتجع</h2>${returnReceiptHTML(rr[0],ri,rp)}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-return>🖨️ طباعة إيصال المرتجع</button></div></div>`;document.body.appendChild(x);x.onclick=z=>{if(z.target.closest('[data-close]')||z.target===x)x.remove();if(z.target.closest('[data-print-return]'))printReturnReceipt(rr[0],ri,rp)};
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
 }
 async function renderReturns(){
  let rows=[];try{rows=await rest('returns',`select=*&branch_id=eq.${currentBranchId()}&order=created_at.desc&limit=200`);await odbSet(`cachedReturns:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet(`cachedReturns:${currentBranchId()}`))||[];const q=await offlineQueue();rows=[...q.filter(x=>x.type==='return'&&Number(x.local_return?.branch_id)===currentBranchId()).map(x=>x.local_return),...rows]}
@@ -1141,11 +1286,57 @@ async function openCustomerImport(){
  input.onchange=async()=>{btn.disabled=true;summary.textContent='جاري فحص الملفات...';try{let raw=[];for(const f of [...input.files])raw.push(...await readCustomerImportFile(f));const mapped=raw.map(normalizeImportedCustomer),valid=mapped.filter(x=>validEgyptMobile(x.phone));const unique=new Map();for(const c of valid){const old=unique.get(c.phone);if(!old)unique.set(c.phone,c);else unique.set(c.phone,{name:old.name||c.name,phone:c.phone,area:old.area||c.area,address:old.address||c.address})}const existing=await fetchAll('customers','select=id,name,phone,area,address');const byPhone=new Map(existing.map(c=>[normalizePhone(c.phone),c]));prepared=[...unique.values()].map(c=>({data:c,existing:byPhone.get(c.phone)||null}));const newCount=prepared.filter(x=>!x.existing).length,dup=prepared.length-newCount,invalid=mapped.length-valid.length,fileDup=valid.length-unique.size;summary.innerHTML=`إجمالي الصفوف: <b>${mapped.length}</b><br>أرقام صالحة وفريدة: <b>${unique.size}</b><br>جديد: <b>${newCount}</b><br>موجود بالفعل: <b>${dup}</b><br>تكرار داخل الملفات: <b>${fileDup}</b><br>أرقام غير صالحة: <b>${invalid}</b>`;btn.disabled=!prepared.length}catch(e){summary.textContent='تعذر قراءة الملف: '+e.message}};
  m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}if(!e.target.closest('[data-import]'))return;btn.disabled=true;try{let added=0,updated=0,skipped=0;const inserts=[];for(const x of prepared){if(!x.existing){inserts.push(x.data);continue}const patch={};if(!x.existing.name&&x.data.name)patch.name=x.data.name;if(!x.existing.area&&x.data.area)patch.area=x.data.area;if(!x.existing.address&&x.data.address)patch.address=x.data.address;if(Object.keys(patch).length){patch.updated_at=new Date().toISOString();await rest('customers',`id=eq.${x.existing.id}`,{method:'PATCH',body:JSON.stringify(patch)});updated++}else skipped++}for(let i=0;i<inserts.length;i+=100){const part=inserts.slice(i,i+100);await rest('customers','',{method:'POST',body:JSON.stringify(part)});added+=part.length}toast(`تم الاستيراد: ${added} جديد، ${updated} تحديث، ${skipped} موجود`);m.remove();renderCustomers()}catch(err){btn.disabled=false;toast('تعذر الاستيراد: '+err.message)}};
 }
+function customer360Date(v){return v?new Date(v).toLocaleString('ar-EG'):'—'}
+function customer360Method(v){return paymentLabel(v)||v||'—'}
+async function fetchCustomer360(customerId,branchId=null,from=null,to=null){
+ if(navigator.onLine===false)throw new Error('ملف العميل الكامل يحتاج اتصالًا بالإنترنت');
+ return rpc('customer_360_v1',{
+   p_customer_id:Number(customerId),
+   p_branch_id:branchId?Number(branchId):null,
+   p_from:from?new Date(from+'T00:00:00').toISOString():null,
+   p_to:to?new Date(new Date(to+'T00:00:00').getTime()+86400000).toISOString():null
+ });
+}
+async function loadCustomerQuickSummary(customer){
+ const hint=$('#customerHint');if(!hint||!customer?.id||navigator.onLine===false)return;
+ try{
+  const d=await fetchCustomer360(customer.id,null,null,null),s=d?.summary||{};
+  const parts=[\`\${Number(s.orders_count||0)} طلب\`,\`إجمالي \${money(s.sales_total||0)}\`,s.last_order_at?\`آخر طلب \${customer360Date(s.last_order_at)}\`:''].filter(Boolean);
+  if(parts.length)hint.insertAdjacentHTML('beforeend',\`<small class="customer-quick-summary"> • \${esc(parts.join(' • '))} <button type="button" class="link-btn" id="openSelectedCustomer360">ملف العميل</button></small>\`);
+  const btn=$('#openSelectedCustomer360');if(btn)btn.onclick=()=>openCustomer360(customer);
+ }catch(e){console.warn('customer quick summary',e)}
+}
+async function openCustomer360(customer){
+ if(!customer?.id)return toast('العميل غير موجود');
+ const m=document.createElement('div');m.className='modal';
+ const branches=allowedBranches();
+ m.innerHTML=\`<div class="modal-card customer-360-modal"><div class="section-head"><div><h2>👤 ملف العميل — \${esc(customer.name||customer.phone||('#'+customer.id))}</h2><p class="muted">Customer 360 • تعاملات تشغيلية عبر الفروع المصرح لك بها</p></div><button class="secondary" data-close>إغلاق</button></div><div class="form-grid"><label>الفرع<select data-c360-branch><option value="">كل الفروع</option>\${branches.map(b=>\`<option value="\${b.id}">\${esc(b.name)}</option>\`).join('')}</select></label><label>من<input type="date" data-c360-from></label><label>إلى<input type="date" data-c360-to></label><label>&nbsp;<button class="primary" type="button" data-c360-run>عرض</button></label></div><div data-c360-out><div class="empty">جاري تحميل ملف العميل…</div></div></div>\`;
+ document.body.appendChild(m);
+ const render=async()=>{
+  const out=m.querySelector('[data-c360-out]');out.innerHTML='<div class="empty">جاري التحميل…</div>';
+  try{
+   const d=await fetchCustomer360(customer.id,m.querySelector('[data-c360-branch]').value||null,m.querySelector('[data-c360-from]').value||null,m.querySelector('[data-c360-to]').value||null);
+   const s=d?.summary||{},adds=d?.addresses||[],branchRows=d?.branches||[],pays=d?.payments||[],products=d?.top_products||[],mods=d?.top_modifiers||[],timeline=d?.timeline||[];
+   out.innerHTML=\`<div class="customer-360-kpis"><div><small>عدد الطلبات</small><b>\${Number(s.orders_count||0)}</b></div><div><small>إجمالي المشتريات</small><b>\${money(s.sales_total||0)}</b></div><div><small>متوسط الأوردر</small><b>\${money(s.average_order||0)}</b></div><div><small>المرتجعات</small><b>\${money(s.returns_total||0)}</b></div><div><small>الإلغاءات</small><b>\${Number(s.cancelled_count||0)}</b></div><div><small>آخر طلب</small><b>\${customer360Date(s.last_order_at)}</b></div></div>
+   <div class="customer-360-grid">
+    <section><h3>📍 العناوين</h3>\${adds.map(a=>\`<div class="manage-row"><span><b>\${esc(a.label||a.area||'عنوان')}</b><small>\${esc(a.address||'')}</small></span></div>\`).join('')||'<div class="empty">لا توجد عناوين</div>'}</section>
+    <section><h3>🏪 الفروع</h3>\${branchRows.map(x=>\`<div class="manage-row"><span><b>\${esc(x.branch_name)}</b><small>\${Number(x.orders_count||0)} طلب</small></span><b>\${money(x.sales_total||0)}</b></div>\`).join('')||'<div class="empty">لا توجد تعاملات</div>'}</section>
+    <section><h3>🍔 الأكثر طلبًا</h3>\${products.map(x=>\`<div class="manage-row"><span>\${esc(x.product_name)}</span><b>\${Number(x.qty||0)}</b></div>\`).join('')||'<div class="empty">لا توجد بيانات</div>'}</section>
+    <section><h3>➕ الإضافات المفضلة</h3>\${mods.map(x=>\`<div class="manage-row"><span>\${esc(x.modifier_name)}</span><b>\${Number(x.qty||0)}</b></div>\`).join('')||'<div class="empty">لا توجد إضافات</div>'}</section>
+    <section><h3>💳 طرق الدفع</h3>\${pays.map(x=>\`<div class="manage-row"><span>\${esc(customer360Method(x.method))}</span><b>\${money(x.amount||0)}</b></div>\`).join('')||'<div class="empty">لا توجد مدفوعات</div>'}</section>
+   </div>
+   <h3>🕓 Timeline</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>المستند</th><th>الفرع</th><th>القيمة</th><th>الدفع</th><th>الموظف</th></tr></thead><tbody>\${timeline.map(x=>\`<tr><td>\${customer360Date(x.event_at)}</td><td>\${x.event_type==='return'?'مرتجع':(x.status==='cancelled'?'ملغي':'بيع')}</td><td>\${esc(x.document_no||x.document_id)}</td><td>\${esc(x.branch_name||'')}</td><td>\${money(x.amount||0)}</td><td>\${esc(customer360Method(x.payment_method))}</td><td>\${esc(x.employee_name||'')}</td></tr>\`).join('')||'<tr><td colspan="7">لا توجد تعاملات</td></tr>'}</tbody></table></div>\`;
+  }catch(err){out.innerHTML=\`<div class="empty">\${esc(err.message||'تعذر تحميل ملف العميل')}</div>\`}
+ };
+ m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove();else if(e.target.closest('[data-c360-run]'))render()};
+ render();
+}
+
 async function renderCustomers(){
  let rows=[];try{rows=await fetchAll('customers','select=*&order=created_at.desc');await odbSet('customersCache',rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet('customersCache'))||[]}
  $('#page').innerHTML=`<div class="panel"><div class="toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
- const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>`<tr><td>${esc(c.name||'')}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td><button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button> <button class="secondary" data-addresses="${c.id}">📍 العناوين</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};$('#customerSearch').oninput=draw;draw();$('#importCustomers').onclick=openCustomerImport;
- $('#customersBody').onclick=async e=>{const eb=e.target.closest('[data-edit-customer]'),ab=e.target.closest('[data-addresses]');if(eb){const c=rows.find(x=>String(x.id)===eb.dataset.editCustomer);const name=await uiPrompt('اسم العميل',c.name||'');if(name===null)return;const phone=await uiPrompt('رقم الموبايل',c.phone||'');if(phone===null)return;const area=await uiPrompt('المنطقة',c.area||'');if(area===null)return;const address=await uiPrompt('العنوان',c.address||'');if(address===null)return;const dup=rows.find(x=>x.id!==c.id&&normalizePhone(x.phone)===normalizePhone(phone));if(dup)return toast('رقم الموبايل مسجل لعميل آخر');await rest('customers',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim(),phone:phone.trim(),area:area.trim()||null,address:address.trim()||null,updated_at:new Date().toISOString()})});toast('تم تعديل العميل');renderCustomers();return;}if(ab){openCustomerAddresses(Number(ab.dataset.addresses));}};
+ const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>`<tr><td>${esc(c.name||'')}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td><button class="secondary" data-customer-file="${c.id}">📁 ملف العميل</button> <button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button> <button class="secondary" data-addresses="${c.id}">📍 العناوين</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};$('#customerSearch').oninput=draw;draw();$('#importCustomers').onclick=openCustomerImport;
+ $('#customersBody').onclick=async e=>{const fb=e.target.closest('[data-customer-file]'),eb=e.target.closest('[data-edit-customer]'),ab=e.target.closest('[data-addresses]');if(fb){const customer=rows.find(x=>String(x.id)===fb.dataset.customerFile);if(customer)return openCustomer360(customer)}if(eb){const c=rows.find(x=>String(x.id)===eb.dataset.editCustomer);const name=await uiPrompt('اسم العميل',c.name||'');if(name===null)return;const phone=await uiPrompt('رقم الموبايل',c.phone||'');if(phone===null)return;const area=await uiPrompt('المنطقة',c.area||'');if(area===null)return;const address=await uiPrompt('العنوان',c.address||'');if(address===null)return;const dup=rows.find(x=>x.id!==c.id&&normalizePhone(x.phone)===normalizePhone(phone));if(dup)return toast('رقم الموبايل مسجل لعميل آخر');await rest('customers',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim(),phone:phone.trim(),area:area.trim()||null,address:address.trim()||null,updated_at:new Date().toISOString()})});toast('تم تعديل العميل');renderCustomers();return;}if(ab){openCustomerAddresses(Number(ab.dataset.addresses));}};
 }
 async function openCustomerAddresses(customerId){const rows=await rest('customer_addresses',`select=*&customer_id=eq.${customerId}&order=is_default.desc,id.desc`);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>عناوين العميل</h2><div class="option-list">${rows.map(a=>`<div class="manage-row"><span>${esc(a.label||a.area||'عنوان')} — ${esc(a.address||'')}</span><span><button class="secondary" data-edit-address="${a.id}">✏️</button><button class="danger" data-delete-address="${a.id}">🗑️</button></span></div>`).join('')||'<div class="empty">لا توجد عناوين</div>'}</div><button class="secondary" data-add-address>+ إضافة عنوان</button><div class="modal-actions"><button class="primary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}const add=e.target.closest('[data-add-address]');if(add){const label=await uiPrompt('اسم العنوان','المنزل');if(label===null)return;const area=await uiPrompt('المنطقة','');if(area===null)return;const address=await uiPrompt('العنوان بالتفصيل','');if(address===null||!address.trim())return;await rest('customer_addresses','',{method:'POST',body:JSON.stringify([{customer_id:customerId,label,area,address,is_default:rows.length===0}])});m.remove();openCustomerAddresses(customerId);return}const ed=e.target.closest('[data-edit-address]');if(ed){const a=rows.find(x=>String(x.id)===ed.dataset.editAddress);const label=await uiPrompt('اسم العنوان',a.label||'');if(label===null)return;const area=await uiPrompt('المنطقة',a.area||'');if(area===null)return;const address=await uiPrompt('العنوان',a.address||'');if(address===null)return;await rest('customer_addresses',`id=eq.${a.id}`,{method:'PATCH',body:JSON.stringify({label,area,address})});m.remove();openCustomerAddresses(customerId);return}const del=e.target.closest('[data-delete-address]');if(del&&await uiConfirm('حذف هذا العنوان؟')){await rest('customer_addresses',`id=eq.${del.dataset.deleteAddress}`,{method:'DELETE'});m.remove();openCustomerAddresses(customerId)}}}
 
@@ -1242,12 +1433,16 @@ async function shiftReportData(shift){
  };
  validItems.forEach(i=>addProduct(i,1));returnItems.forEach(i=>addProduct(i,-1));
  const productRowsNet=[...products.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>a.category.localeCompare(b.category,'ar')||b.qty-a.qty);
+ const isExtraCategoryName=name=>['إضافات','الإضافات','الاضافات'].includes(String(name||'').trim())||/extra/i.test(String(name||''));
+ const standaloneExtraRows=productRowsNet.filter(p=>isExtraCategoryName(p.category));
+ const reportProductRows=productRowsNet.filter(p=>!isExtraCategoryName(p.category));
 
  const categories=new Map();
- for(const p of productRowsNet){const x=categories.get(p.category)||{name:p.category,qty:0,total:0,products:[]};x.qty+=p.qty;x.total+=p.total;x.products.push(p);categories.set(p.category,x)}
+ for(const p of reportProductRows){const x=categories.get(p.category)||{name:p.category,qty:0,total:0,products:[]};x.qty+=p.qty;x.total+=p.total;x.products.push(p);categories.set(p.category,x)}
  const categoryStats=[...categories.values()].sort((a,b)=>b.total-a.total);
 
  const itemById=new Map(validItems.map(i=>[String(i.id),i])),modsByItem=new Map(),modifierStats=new Map();
+ for(const p of standaloneExtraRows){const name=p.name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty+=Number(p.qty||0);x.total+=Number(p.total||0);modifierStats.set(name,x)}
  for(const m of (mods||[])){const k=String(m.order_item_id);if(!modsByItem.has(k))modsByItem.set(k,[]);modsByItem.get(k).push(m);const item=itemById.get(k);if(!item)continue;const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty+=Number(item.quantity||0);x.total+=Number(m.price||0)*Number(item.quantity||0);modifierStats.set(name,x)}
  for(const r of returnItems){const originalMods=modsByItem.get(String(r.order_item_id))||[];for(const m of originalMods){const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty-=Number(r.quantity||0);x.total-=Number(m.price||0)*Number(r.quantity||0);modifierStats.set(name,x)}}
  const modifierRows=[...modifierStats.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
@@ -1280,13 +1475,13 @@ function shiftReportHTML(sh,employees,mtr,data){
  const paymentTable=data.paymentStats.map(x=>`<tr><td>${esc(methodName(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مدفوعات</td></tr>';
  const orderTypeTable=data.orderTypeStats.map(x=>`<tr><td>${esc(orderTypeLabel(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد طلبات</td></tr>';
  const categoryTable=data.categories.map(cat=>`<tr><td><b>${esc(cat.name)}</b></td><td><b>${cat.qty}</b></td><td><b>${money(cat.total)}</b></td></tr>${cat.products.map(p=>`<tr><td>↳ ${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.total)}</td></tr>`).join('')}`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>';
- const modifierTable=data.modifiers.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات داخلية</td></tr>';
+ const modifierTable=data.modifiers.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات</td></tr>';
  return `<div class="shift-print"><h2>${esc(businessName())}</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
  <div class="r-totals"><div><span>صافي المبيعات بعد المرتجعات</span><b>${money(sales)}</b></div>${Number(data.returnTotal||0)?`<div><span>المرتجعات</span><b>-${money(data.returnTotal)}</b></div>`:''}<div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div><div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>مبيعات الدليفري</span><b>${money(data.deliverySales)}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
  <h3>طرق الدفع</h3><table class="shift-report-table"><thead><tr><th>الطريقة</th><th>العمليات</th><th>القيمة</th></tr></thead><tbody>${paymentTable}</tbody></table><hr>
  <h3>طرق الطلب</h3><table class="shift-report-table"><thead><tr><th>النوع</th><th>الأوردرات</th><th>القيمة</th></tr></thead><tbody>${orderTypeTable}</tbody></table><hr>
  <h3>مبيعات التصنيفات والأصناف</h3><table class="shift-report-table"><thead><tr><th>التصنيف / الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${categoryTable}</tbody></table><hr>
- <h3>مبيعات الإضافات الداخلية</h3><small>تحليل فقط — قيمة الإضافات داخلة بالفعل في إجمالي الصنف ولا تُجمع مرة ثانية.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>${modifierTable}</tbody></table><hr>
+ <h3>مبيعات الإضافات</h3><small>يشمل الإضافة المباعة كصنف والإضافة المختارة داخل الصنف. الإضافة الداخلية تحليل لقيمتها داخل إجمالي الصنف ولا تُجمع مرة ثانية على صافي المبيعات.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>${modifierTable}</tbody></table><hr>
  <h3>المصروفات</h3><table class="shift-report-table"><thead><tr><th>البيان</th><th>المبلغ</th></tr></thead><tbody>${data.expenses.map(x=>`<tr><td>${esc(x.description||'مصروف')}<small>${fmtDate(x.created_at)}</small></td><td>${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</tbody></table><div class="r-totals"><div><span>إجمالي المصروفات</span><b>${money(exp)}</b></div></div><hr>
  <div class="r-totals"><div><span>افتتاحية الخزنة</span><b>${money(sh.opening_cash)}</b></div><div><span>الكاش المتوقع</span><b>${money(expected)}</b></div>${sh.closed_at?`<div><span>الكاش الفعلي</span><b>${money(sh.closing_cash)}</b></div><div class="grand-print"><span>العجز / الزيادة</span><b>${money(sh.cash_difference||0)}</b></div>`:''}</div><hr><div class="r-footer">تقرير الوردية • ${new Date().toLocaleString('ar-EG')}</div></div>`;
 }
@@ -1376,7 +1571,7 @@ async function renderProducts(){
  <div id="pExtrasBox"><h3>الإضافات المتاحة لهذا الصنف</h3><p class="muted">اختر كل الإضافات أو حدد الإضافات التي تريد ظهورها مع الصنف.</p>${modifierPickerHTML('p',[],true)}</div>
  <div id="pVariantsBox" class="variant-builder hidden"><div class="variant-builder-head"><div><h3>اختيارات الصنف</h3><p class="muted">أضف أي اختيارات تريدها: سينجل، دبل، تريبل أو أي اسم آخر.</p></div><button type="button" id="addNewVariant" class="secondary">+ إضافة اختيار</button></div>${variantBuilderHTML()}</div>
  <button id="addProduct" class="primary">إضافة الصنف</button></div>
- <div class="panel"><h2>الإضافات (Extras)</h2><div class="form-grid"><label>اسم الإضافة<input id="mName" placeholder="Extra Cheese"></label><label>السعر<input id="mPrice" type="number" value="0"></label></div><button id="addModifier" class="primary">إضافة</button><div class="chips">${state.modifiers.map(m=>`<span class="chip">${esc(m.name)} • ${money(m.price)}</span>`).join('')||'لا توجد إضافات'}</div></div>
+ <div class="panel extras-source-panel"><h2>➕ الإضافات</h2><p class="muted">مصدر الإضافات الآن هو الأصناف داخل تصنيف «إضافات». أضف أو عدّل الإضافة كصنف عادي، وسيتم مزامنة الاسم والسعر والحالة تلقائيًا مع اختيارات الساندوتشات مع الحفاظ على الفواتير القديمة.</p><div class="chips">${state.modifiers.filter(m=>m.active!==false).map(m=>`<span class="chip">${esc(m.name)} • ${money(m.price)}</span>`).join('')||'لا توجد إضافات مفعلة'}</div></div>
  <div class="panel"><div class="section-head"><h2>الأصناف</h2></div><div class="table-wrap"><table><thead><tr><th>ترتيب</th><th>الصورة</th><th>الصنف</th><th>السعر</th><th>الاختيارات / الأحجام</th><th>الإضافات المتاحة</th><th>إجراء</th></tr></thead><tbody>${sortedActiveCategories().flatMap(c=>sortedActiveProducts(c.id)).map((p,idx,all)=>{const same=all.filter(x=>String(x.category_id)===String(p.category_id));const pos=same.findIndex(x=>String(x.id)===String(p.id));return `<tr><td class="sort-cell"><button class="secondary sort-arrow" data-product-up="${p.id}" ${pos===0?'disabled':''}>↑</button><button class="secondary sort-arrow" data-product-down="${p.id}" ${pos===same.length-1?'disabled':''}>↓</button></td><td>${p.image_url?`<img class="admin-product-img" src="${esc(p.image_url)}">`:'🍔'}</td><td>${esc(p.name)}</td><td>${money(p.price)}</td><td>${productVariantList(p).map(x=>`${esc(x.name)} ${money(x.price)}`).join('، ')||'-'}</td><td>${productModifierList(p).map(x=>esc(x.name)).join('، ')||'-'}</td><td><button class="secondary" data-image-product="${p.id}">🖼️ صورة</button> <button class="secondary" data-edit-product="${p.id}">✏️ تعديل</button> <button class="secondary" data-config="${p.id}">خيارات</button> <button class="danger" data-delete-product="${p.id}">🗑️ حذف</button></td></tr>`}).join('')}</tbody></table></div></div>`;
  bindVariantBuilder($('#page'),'#pHasVariants','#pVariantsBox','#addNewVariant');
  bindModifierPicker($('#page'),'#pExtras','#pExtrasBox','p');
@@ -1395,7 +1590,7 @@ async function renderProducts(){
    toast('تمت إضافة الصنف');renderProducts();
   }catch(err){toast(err.message||'تعذر إضافة الصنف')}
  };
- $('#addModifier').onclick=async()=>{const name=$('#mName').value.trim(),price=Number($('#mPrice').value||0);if(!name)return toast('اكتب اسم الإضافة');if(!Number.isFinite(price)||price<0)return toast('سعر الإضافة غير صحيح');await rest('modifiers','',{method:'POST',body:JSON.stringify([{name,price,active:true}])});toast('تمت إضافة الإضافة');renderProducts()};
+
  $('#addCategory').onclick=async()=>{const name=$('#newCategory').value.trim();if(!name)return toast('اكتب اسم التصنيف');await rest('categories','',{method:'POST',body:JSON.stringify([{name,active:true,website_visible:true,sort_order:(sortedActiveCategories().length+1)*10,website_sort_order:(sortedActiveCategories().length+1)*10}])});toast('تمت إضافة التصنيف');await reloadCatalog();renderProducts()};
  $('#page').onclick=async e=>{const cu=e.target.closest('[data-cat-up]');if(cu)return moveCategoryOrder(cu.dataset.catUp,-1);const cd=e.target.closest('[data-cat-down]');if(cd)return moveCategoryOrder(cd.dataset.catDown,1);const pu=e.target.closest('[data-product-up]');if(pu)return moveProductOrder(pu.dataset.productUp,-1);const pd=e.target.closest('[data-product-down]');if(pd)return moveProductOrder(pd.dataset.productDown,1);const ip=e.target.closest('[data-image-product]');if(ip){const p=state.products.find(x=>String(x.id)===ip.dataset.imageProduct);if(p)return openProductImage(p)}const cfg=e.target.closest('[data-config]');if(cfg)return openProductConfig(state.products.find(p=>String(p.id)===String(cfg.dataset.config)));const ep=e.target.closest('[data-edit-product]');if(ep){const p=state.products.find(x=>String(x.id)===ep.dataset.editProduct);if(p)return openEditProductModal(p)}const tp=e.target.closest('[data-delete-product]');if(tp){const p=state.products.find(x=>String(x.id)===tp.dataset.deleteProduct);if(!p)return;if(!await uiConfirm(`حذف الصنف ${p.name}؟\nسيختفي من الكاشير والإدارة مع الاحتفاظ به داخل الفواتير القديمة.`))return;await rest('products',`id=eq.${p.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});toast('تم حذف الصنف');return renderProducts()}const ec=e.target.closest('[data-edit-cat]');if(ec){const c=state.categories.find(x=>String(x.id)===ec.dataset.editCat);const name=await uiPrompt('اسم التصنيف',c.name);if(name===null||!name.trim())return toast('اكتب اسم التصنيف');await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim()})});await reloadCatalog();return renderProducts()}const tc=e.target.closest('[data-delete-cat]');if(tc){const c=state.categories.find(x=>String(x.id)===tc.dataset.deleteCat);if(!c)return;const linked=state.products.filter(p=>p.active!==false&&String(p.category_id)===String(c.id));const extra=linked.length?`\nوسيتم حذف ${linked.length} صنف تابع له من القوائم الحالية.`:'';if(!await uiConfirm(`حذف التصنيف ${c.name}؟${extra}\nالفواتير القديمة ستظل محفوظة.`))return;if(linked.length)await rest('products',`category_id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await rest('categories',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({active:false,website_visible:false})});await reloadCatalog();toast('تم حذف التصنيف');return renderProducts()}};
 }
@@ -2029,6 +2224,35 @@ async function settleDeliveryOrders(orderIds,driverId,branchId){
  return rpc('settle_driver_orders_v1',{p_branch_id:Number(branchId),p_driver_id:Number(driverId),p_order_ids:ids,p_client_tx_id:uuid()});
 }
 function isDeliveryCashUnsettled(o){return o?.order_type==='delivery'&&o?.status==='delivered'&&String(o?.payment_method||'').toLowerCase()==='cash'&&!o?.driver_settled_at&&Number.isFinite(Number(o?.driver_id))}
+function canChangeDeliveryPayment(o){
+ return !!o
+   && o.order_type==='delivery'
+   && o.status!=='cancelled'
+   && !o.driver_settled_at
+   && (isAdmin()||hasFeaturePermission('deliveryPaymentCorrection'));
+}
+async function openDeliveryPaymentChange(o,onDone){
+ if(!canChangeDeliveryPayment(o))return toast('ليس لديك صلاحية تعديل طريقة دفع هذا الأوردر');
+ const methods=branchPaymentList(o.branch_id).filter(x=>String(x.code)!=='mixed');
+ if(!methods.length)return toast('لا توجد طرق دفع متاحة لهذا الفرع');
+ const m=document.createElement('div');m.className='modal';
+ m.innerHTML=\`<div class="modal-card"><h2>💳 تعديل طريقة دفع بون \${esc(bonDisplay(o))}</h2><p>القيمة: <b>\${money(o.total)}</b></p><label>طريقة الدفع<select id="deliveryPaymentMethod">\${methods.map(x=>\`<option value="\${esc(x.code)}" \${String(x.code)===String(o.payment_method)?'selected':''}>\${esc(x.name)}</option>\`).join('')}</select></label><p class="muted">متاح قبل تسوية المندوب فقط. التغيير يُحدّث حركة الدفع والتقارير والكاش المتوقع ويُسجل في Audit.</p><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-payment-change>حفظ طريقة الدفع</button></div></div>\`;
+ document.body.appendChild(m);
+ m.onclick=async e=>{
+  if(e.target===m||e.target.closest('[data-close]'))return m.remove();
+  if(!e.target.closest('[data-save-payment-change]'))return;
+  const next=m.querySelector('#deliveryPaymentMethod')?.value;
+  if(!next)return toast('اختر طريقة الدفع');
+  if(String(next)===String(o.payment_method)){m.remove();return}
+  const btn=m.querySelector('[data-save-payment-change]');btn.disabled=true;
+  try{
+   const result=await rpc('change_delivery_order_payment_v1',{p_order_id:Number(o.id),p_new_method:next,p_client_tx_id:uuid()});
+   o.payment_method=result?.new_method||next;
+   m.remove();toast('تم تعديل طريقة الدفع');
+   if(onDone)await onDone(result);
+  }catch(err){btn.disabled=false;toast(err.message)}
+ };
+}
 async function renderDeliveryOrders(){
   $('#page').innerHTML='<div class="panel"><h2>📦 متابعة الطلبات</h2><div class="empty">جاري التحميل...</div></div>';
   const [recentOrders,unsettledOrders,drivers,webOrders,settlements]=await Promise.all([
@@ -2050,7 +2274,7 @@ async function renderDeliveryOrders(){
   for(const o of unsettled){const k=String(o.driver_id),x=unsettledByDriver.get(k)||{driver_id:Number(o.driver_id),orders:[],amount:0};x.orders.push(o);x.amount+=Number(o.total||0);unsettledByDriver.set(k,x)}
   const counts={new:all.filter(o=>o.status==='new').length,preparing:all.filter(o=>o.status==='preparing').length,ready:all.filter(o=>o.status==='ready').length,out:all.filter(o=>o.status==='out_for_delivery').length,delivered:all.filter(o=>o.status==='delivered').length};
   const websitePanel=(webOrders||[]).length?`<div class="panel website-orders-panel"><div class="delivery-toolbar"><h2>🌐 طلبات الموقع الجديدة <span class="status-pill">${webOrders.length}</span></h2></div><div class="delivery-rows">${webOrders.map(w=>`<div class="delivery-row website-pending"><span class="delivery-row-id"><b>WEB-${String(w.id).padStart(5,'0')} • ${w.order_type==='pickup'?'🏪 استلام فرع':'🛵 دليفري'}</b><small>${fmtDate(w.created_at)}</small></span><span class="delivery-row-customer"><b>${esc(w.customer_name)}</b><small>${esc(w.customer_phone)}</small><small class="web-pending-address">${w.order_type==='pickup'?'🏪 استلام من الفرع':`📍 ${esc(w.customer_address||w.delivery_address||'العنوان غير مسجل')}`}</small><small>${esc(w.payment_method_name||paymentLabel(w.payment_method_code||'cash'))}${w.payment_reference?` • مرجع: ${esc(w.payment_reference)}`:''}</small>${paymentStatusHTML(w.payment_status)}</span><strong>${money(w.total)}</strong><span><button class="secondary" data-web-details="${w.id}">📋 التفاصيل والعنوان</button> ${w.payment_receipt_path?`<button class="secondary" data-web-receipt="${esc(w.payment_receipt_path)}">🧾 الإيصال</button> `:''}<button class="primary" data-web-accept="${w.id}">✅ استلام</button> <button class="danger" data-web-reject="${w.id}">رفض</button></span></div>`).join('')}</div></div>`:'';
-  const settlementPanel=unsettled.length?`<div class="panel delivery-settlement-panel"><div class="section-head"><div><h2>💰 تحصيلات دليفري في انتظار التسوية</h2><p>${unsettled.length} طلب • ${money(unsettledAmount)}</p></div></div><div class="manage-list">${[...unsettledByDriver.values()].map(x=>`<div class="manage-row"><span><b>${esc(driverName(x.driver_id)||'مندوب')}</b><small>${x.orders.length} طلب • ${money(x.amount)}</small></span>${state.employee?.role==='admin'?`<button class="primary" data-settle-driver="${x.driver_id}">تسوية الكل</button>`:'<span class="tag">تحتاج مدير</span>'}</div>`).join('')}</div></div>`:'';
+  const settlementPanel=unsettled.length?`<div class="panel delivery-settlement-panel"><div class="section-head"><div><h2>💰 تحصيلات دليفري في انتظار التسوية</h2><p>${unsettled.length} طلب • ${money(unsettledAmount)}</p></div></div><div class="manage-list">${[...unsettledByDriver.values()].map(x=>`<div class="manage-row"><span><b>${esc(driverName(x.driver_id)||'مندوب')}</b><small>${x.orders.length} طلب • ${money(x.amount)}</small></span>${(isAdmin()||hasFeaturePermission('deliverySettlement'))?`<button class="primary" data-settle-driver="${x.driver_id}">تسوية الكل</button>`:'<span class="tag">تحتاج مدير</span>'}</div>`).join('')}</div></div>`:'';
   const settlementHistoryPanel=(settlements||[]).length?`<div class="panel delivery-settlement-history"><h2>🧾 آخر التسويات</h2><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>المندوب</th><th>الطلبات</th><th>المبلغ</th></tr></thead><tbody>${settlements.map(x=>`<tr><td>${fmtDate(x.created_at)}</td><td>${esc(driverName(x.driver_id)||'مندوب')}</td><td>${Number(x.orders_count||0)}</td><td>${money(x.amount)}</td></tr>`).join('')}</tbody></table></div></div>`:'';
   $('#page').innerHTML=`${websitePanel}${settlementPanel}${settlementHistoryPanel}<div class="delivery-mini-kpis"><div><b>${counts.new}</b><span>جديد</span></div><div><b>${counts.out}</b><span>مع المندوب</span></div><div><b>${active.length}</b><span>نشط</span></div><div><b>${unsettled.length}</b><span>غير مسوّى</span></div></div>
   <div class="panel delivery-queue-panel"><div class="delivery-toolbar"><div class="delivery-filter" id="deliveryFilter"><button class="active" data-filter="active">النشط</button><button data-filter="new">تم الاستلام</button><button data-filter="preparing">جاري التجهيز</button><button data-filter="ready">جاهز</button><button data-filter="out_for_delivery">مع المندوب</button><button data-filter="delivered">تم التسليم</button><button data-filter="unsettled">💰 غير مسوّى</button><button data-filter="all">الكل</button></div><input id="deliverySearch" placeholder="🔎 رقم الأوردر أو العميل أو الموبايل"></div><div class="delivery-rows" id="deliveryRows"></div></div>`;
@@ -2090,12 +2314,14 @@ async function openDeliveryOrderDetails(id){
        :o.status==='out_for_delivery'
          ?'<button class="primary" data-delivered>✅ تم التسليم</button>'
          :'';
- const settlementAction=isDeliveryCashUnsettled(o)?(state.employee?.role==='admin'?'<button class="primary" data-settle-order>💰 تسوية هذا الأوردر</button>':'<span class="tag">التسوية تحتاج مدير</span>'):(o.order_type==='delivery'&&o.status==='delivered'&&String(o.payment_method||'').toLowerCase()==='cash'&&o.driver_settled_at?'<span class="tag">✅ تمت التسوية</span>':'');
- m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(bonDisplay(o))}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}${receiptModifierHTML(i,false)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div>${o.source==='website'?`<div class="payment-review-box"><h3>💳 حالة الدفع</h3><p>${paymentStatusHTML(o.payment_status)}</p><p><b>الطريقة:</b> ${esc(paymentLabel(o.payment_method))}${o.payment_reference?` • <b>المرجع:</b> ${esc(o.payment_reference)}`:''}</p><div class="payment-review-actions">${o.payment_receipt_path?'<button class="secondary" data-view-payment-receipt>🧾 عرض الإيصال</button>':''}<button class="primary" data-payment-confirm>✅ تأكيد الدفع</button><button class="danger" data-payment-reject>رفض الإثبات</button><button class="secondary" data-payment-unpaid>غير مدفوع</button></div></div>`:''}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${action}${settlementAction}</div></div>`;
+ const settlementAction=isDeliveryCashUnsettled(o)?((isAdmin()||hasFeaturePermission('deliverySettlement'))?'<button class="primary" data-settle-order>💰 تسوية هذا الأوردر</button>':'<span class="tag">التسوية تحتاج مدير</span>'):(o.order_type==='delivery'&&o.status==='delivered'&&String(o.payment_method||'').toLowerCase()==='cash'&&o.driver_settled_at?'<span class="tag">✅ تمت التسوية</span>':'');
+ const paymentChangeAction=canChangeDeliveryPayment(o)?'<button class="secondary" data-change-payment>💳 تعديل طريقة الدفع</button>':'';
+ m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(bonDisplay(o))}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}${receiptModifierHTML(i,false)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div>${o.source==='website'?`<div class="payment-review-box"><h3>💳 حالة الدفع</h3><p>${paymentStatusHTML(o.payment_status)}</p><p><b>الطريقة:</b> ${esc(paymentLabel(o.payment_method))}${o.payment_reference?` • <b>المرجع:</b> ${esc(o.payment_reference)}`:''}</p><div class="payment-review-actions">${o.payment_receipt_path?'<button class="secondary" data-view-payment-receipt>🧾 عرض الإيصال</button>':''}<button class="primary" data-payment-confirm>✅ تأكيد الدفع</button><button class="danger" data-payment-reject>رفض الإثبات</button><button class="secondary" data-payment-unpaid>غير مدفوع</button></div></div>`:''}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${action}${paymentChangeAction}${settlementAction}</div></div>`;
  document.body.appendChild(m);
  m.onclick=async e=>{
    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
+   if(e.target.closest('[data-change-payment]')){return openDeliveryPaymentChange(o,async()=>{m.remove();await renderDeliveryOrders()})}
    if(e.target.closest('[data-settle-order]')){if(!await uiConfirm(`تسوية بون ${bonDisplay(o)} بإجمالي ${money(o.total)}؟`))return;try{await settleDeliveryOrders([o.id],o.driver_id,o.branch_id);await audit('driver_settlement','order',o.id,{orders_count:1,amount:Number(o.total||0),driver_id:o.driver_id});m.remove();toast('تمت تسوية الأوردر');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
    if(e.target.closest('[data-preparing]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});await audit('mark_preparing','order',o.id,{});m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
    if(e.target.closest('[data-ready]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'ready'})});await audit('mark_ready','order',o.id,{});m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
