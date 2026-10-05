@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
   "version": "10.5.13",
-  "description": "Sharawla POS V10.5.13 Candidate - operations polish batch",
+  "description": "Sharawla POS V10.5.13 Candidate - operations polish + HR Staff port",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node --check app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-ops-polish.js",
+    "check": "node scripts/check-version.js && node --check app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-ops-polish.js && node scripts/check-v10-5-13-hr-staff-port.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
