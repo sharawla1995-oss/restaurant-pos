@@ -879,6 +879,21 @@ begin
     values(v_return_id,trim(v_pay->>'method'),(v_pay->>'amount')::numeric);
   end loop;
 
+  -- Stable 10.5.12 restores recipe stock via the return_items trigger.
+  -- Advanced Beta/Point-4 runtimes use the authoritative food return owner
+  -- instead. Never run both paths for the same return.
+  if not exists(
+       select 1 from pg_trigger
+       where tgrelid='public.return_items'::regclass
+         and tgname='trg_recipe_return_item_fail_open_v1'
+         and not tgisinternal
+     )
+     and to_regprocedure('public.food_apply_return_consumption_v1(bigint,bigint,jsonb,text)') is not null then
+    execute 'select public.food_apply_return_consumption_v1($1,$2,$3,$4)'
+      using v_return_id,p_order_id,p_items,
+            'return-approval-food:'||p_approval_request_id::text;
+  end if;
+
   return v_return_id;
 end;
 $$;
@@ -1124,6 +1139,18 @@ begin
   end if;
 
   v_id:=public.create_order_return(p_order_id,p_reason,p_notes,p_items,p_payments);
+
+  if not exists(
+       select 1 from pg_trigger
+       where tgrelid='public.return_items'::regclass
+         and tgname='trg_recipe_return_item_fail_open_v1'
+         and not tgisinternal
+     )
+     and to_regprocedure('public.food_apply_return_consumption_v1(bigint,bigint,jsonb,text)') is not null then
+    execute 'select public.food_apply_return_consumption_v1($1,$2,$3,$4)'
+      using v_id,p_order_id,p_items,'direct-return-food:'||v_key;
+  end if;
+
   update public.returns set client_tx_id=v_key,request_digest=v_digest where id=v_id;
   return v_id;
 end;
