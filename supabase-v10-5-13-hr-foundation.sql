@@ -4,10 +4,24 @@
 
 begin;
 
-create or replace function public.has_action_permission_v2(p_action_code text)
-returns boolean language sql stable security definer set search_path=public as $
-  select public.has_permission(p_action_code);
-$;
+do $$
+begin
+  if to_regprocedure('public.has_action_permission_v2(text)') is null then
+    execute $fn$
+      create function public.has_action_permission_v2(p_action_code text)
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path=public
+      as $body$
+        select public.has_permission(p_action_code);
+      $body$
+    $fn$;
+  end if;
+end
+$$;
+
 revoke all on function public.has_action_permission_v2(text) from public,anon;
 grant execute on function public.has_action_permission_v2(text) to authenticated,service_role;
 
