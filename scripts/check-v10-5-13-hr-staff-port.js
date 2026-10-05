@@ -49,7 +49,7 @@ test('disabled Staff Account rejection',()=>{assert.throws(()=>d.authorizeStaffS
 test('source contract and standalone PWA security',()=>{
  const sql=read('supabase-v10-5-13-hr-attendance-extension.sql'),pwa=read('staff/app.js'),html=read('staff/index.html'),manifest=JSON.parse(read('staff/manifest.webmanifest')),edge=read('supabase/functions/hr-staff-api/index.ts');
  for(const token of ['hr_work_schedules','hr_employee_schedule_assignments','hr_branch_geofences','hr_staff_accounts','hr_attendance_devices','hr_attendance_events','hr_attendance_daily_summary','hr_attendance_adjustments','hr_deduction_rules','hr_deduction_rule_assignments','hr_leave_requests'])assert(sql.includes(token),`missing ${token}`);
- assert(sql.includes("crypt(p_new_pin,gen_salt('bf',10))"));assert(sql.includes('hr_attendance_events_immutable_v1'));assert(sql.includes('source_identity'));assert(sql.includes('hr_payroll_item_lines'));
+ assert(sql.includes("extensions.crypt(p_new_pin,extensions.gen_salt('bf',10))"));assert(sql.includes('hr_attendance_events_immutable_v1'));assert(sql.includes('source_identity'));assert(sql.includes('hr_payroll_item_lines'));
  assert(sql.includes('hr_payroll_run_attendance_v1'));assert(sql.includes('hr_payroll_pay_attendance_v1'));assert(sql.includes('approval_status'));
  assert(sql.includes("ds.id is null or ds.verification_status<>'approved'"));assert(sql.includes("l.request_type in ('leave','sick_leave','unpaid_leave')"));assert(sql.includes("if p.status='paid' then return true"));
  assert(sql.includes('revoke all on function public.hr_attendance_recalculate_day_v1(bigint,date) from public,anon,authenticated'));
