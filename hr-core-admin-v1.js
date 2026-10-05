@@ -23,7 +23,7 @@ async function rpc(name,payload={}){if(typeof global.rpc!=='function')throw new 
 async function rest(table,query=''){if(typeof global.rest!=='function')throw new Error('الاتصال غير جاهز');return global.rest(table,query)}
 function branchId(){try{return Number(typeof global.currentBranchId==='function'?global.currentBranchId():0)||0}catch{return 0}}
 function has(code){return perms[code]===true}
-async function permission(code){try{return (await rpc('has_action_permission_v2',{p_action_code:code}))===true}catch{return false}}
+async function permission(code){try{return (await rpc('has_permission',{p_permission:code}))===true}catch{return false}}
 async function refreshPermissions(){const values=await Promise.all(PERMISSION_CODES.map(permission));PERMISSION_CODES.forEach((c,i)=>perms[c]=values[i])}
 function appVisible(){const v=document.querySelector('#appView');return !!v&&!v.classList.contains('hidden')}
 function injectStyle(){if(document.querySelector('#beta54CoreStyle'))return;const s=document.createElement('style');s.id='beta54CoreStyle';s.textContent=`
