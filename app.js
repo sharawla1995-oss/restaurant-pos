@@ -1301,8 +1301,8 @@ async function loadCustomerQuickSummary(customer){
  const hint=$('#customerHint');if(!hint||!customer?.id||navigator.onLine===false)return;
  try{
   const d=await fetchCustomer360(customer.id,null,null,null),s=d?.summary||{};
-  const parts=[\`\${Number(s.orders_count||0)} طلب\`,\`إجمالي \${money(s.sales_total||0)}\`,s.last_order_at?\`آخر طلب \${customer360Date(s.last_order_at)}\`:''].filter(Boolean);
-  if(parts.length)hint.insertAdjacentHTML('beforeend',\`<small class="customer-quick-summary"> • \${esc(parts.join(' • '))} <button type="button" class="link-btn" id="openSelectedCustomer360">ملف العميل</button></small>\`);
+  const parts=[`${Number(s.orders_count||0)} طلب`,`إجمالي ${money(s.sales_total||0)}`,s.last_order_at?`آخر طلب ${customer360Date(s.last_order_at)}`:''].filter(Boolean);
+  if(parts.length)hint.insertAdjacentHTML('beforeend',`<small class="customer-quick-summary"> • ${esc(parts.join(' • '))} <button type="button" class="link-btn" id="openSelectedCustomer360">ملف العميل</button></small>`);
   const btn=$('#openSelectedCustomer360');if(btn)btn.onclick=()=>openCustomer360(customer);
  }catch(e){console.warn('customer quick summary',e)}
 }
@@ -1310,23 +1310,23 @@ async function openCustomer360(customer){
  if(!customer?.id)return toast('العميل غير موجود');
  const m=document.createElement('div');m.className='modal';
  const branches=allowedBranches();
- m.innerHTML=\`<div class="modal-card customer-360-modal"><div class="section-head"><div><h2>👤 ملف العميل — \${esc(customer.name||customer.phone||('#'+customer.id))}</h2><p class="muted">Customer 360 • تعاملات تشغيلية عبر الفروع المصرح لك بها</p></div><button class="secondary" data-close>إغلاق</button></div><div class="form-grid"><label>الفرع<select data-c360-branch><option value="">كل الفروع</option>\${branches.map(b=>\`<option value="\${b.id}">\${esc(b.name)}</option>\`).join('')}</select></label><label>من<input type="date" data-c360-from></label><label>إلى<input type="date" data-c360-to></label><label>&nbsp;<button class="primary" type="button" data-c360-run>عرض</button></label></div><div data-c360-out><div class="empty">جاري تحميل ملف العميل…</div></div></div>\`;
+ m.innerHTML=`<div class="modal-card customer-360-modal"><div class="section-head"><div><h2>👤 ملف العميل — ${esc(customer.name||customer.phone||('#'+customer.id))}</h2><p class="muted">Customer 360 • تعاملات تشغيلية عبر الفروع المصرح لك بها</p></div><button class="secondary" data-close>إغلاق</button></div><div class="form-grid"><label>الفرع<select data-c360-branch><option value="">كل الفروع</option>${branches.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select></label><label>من<input type="date" data-c360-from></label><label>إلى<input type="date" data-c360-to></label><label>&nbsp;<button class="primary" type="button" data-c360-run>عرض</button></label></div><div data-c360-out><div class="empty">جاري تحميل ملف العميل…</div></div></div>`;
  document.body.appendChild(m);
  const render=async()=>{
   const out=m.querySelector('[data-c360-out]');out.innerHTML='<div class="empty">جاري التحميل…</div>';
   try{
    const d=await fetchCustomer360(customer.id,m.querySelector('[data-c360-branch]').value||null,m.querySelector('[data-c360-from]').value||null,m.querySelector('[data-c360-to]').value||null);
    const s=d?.summary||{},adds=d?.addresses||[],branchRows=d?.branches||[],pays=d?.payments||[],products=d?.top_products||[],mods=d?.top_modifiers||[],timeline=d?.timeline||[];
-   out.innerHTML=\`<div class="customer-360-kpis"><div><small>عدد الطلبات</small><b>\${Number(s.orders_count||0)}</b></div><div><small>إجمالي المشتريات</small><b>\${money(s.sales_total||0)}</b></div><div><small>متوسط الأوردر</small><b>\${money(s.average_order||0)}</b></div><div><small>المرتجعات</small><b>\${money(s.returns_total||0)}</b></div><div><small>الإلغاءات</small><b>\${Number(s.cancelled_count||0)}</b></div><div><small>آخر طلب</small><b>\${customer360Date(s.last_order_at)}</b></div></div>
+   out.innerHTML=`<div class="customer-360-kpis"><div><small>عدد الطلبات</small><b>${Number(s.orders_count||0)}</b></div><div><small>إجمالي المشتريات</small><b>${money(s.sales_total||0)}</b></div><div><small>متوسط الأوردر</small><b>${money(s.average_order||0)}</b></div><div><small>المرتجعات</small><b>${money(s.returns_total||0)}</b></div><div><small>الإلغاءات</small><b>${Number(s.cancelled_count||0)}</b></div><div><small>آخر طلب</small><b>${customer360Date(s.last_order_at)}</b></div></div>
    <div class="customer-360-grid">
-    <section><h3>📍 العناوين</h3>\${adds.map(a=>\`<div class="manage-row"><span><b>\${esc(a.label||a.area||'عنوان')}</b><small>\${esc(a.address||'')}</small></span></div>\`).join('')||'<div class="empty">لا توجد عناوين</div>'}</section>
-    <section><h3>🏪 الفروع</h3>\${branchRows.map(x=>\`<div class="manage-row"><span><b>\${esc(x.branch_name)}</b><small>\${Number(x.orders_count||0)} طلب</small></span><b>\${money(x.sales_total||0)}</b></div>\`).join('')||'<div class="empty">لا توجد تعاملات</div>'}</section>
-    <section><h3>🍔 الأكثر طلبًا</h3>\${products.map(x=>\`<div class="manage-row"><span>\${esc(x.product_name)}</span><b>\${Number(x.qty||0)}</b></div>\`).join('')||'<div class="empty">لا توجد بيانات</div>'}</section>
-    <section><h3>➕ الإضافات المفضلة</h3>\${mods.map(x=>\`<div class="manage-row"><span>\${esc(x.modifier_name)}</span><b>\${Number(x.qty||0)}</b></div>\`).join('')||'<div class="empty">لا توجد إضافات</div>'}</section>
-    <section><h3>💳 طرق الدفع</h3>\${pays.map(x=>\`<div class="manage-row"><span>\${esc(customer360Method(x.method))}</span><b>\${money(x.amount||0)}</b></div>\`).join('')||'<div class="empty">لا توجد مدفوعات</div>'}</section>
+    <section><h3>📍 العناوين</h3>${adds.map(a=>`<div class="manage-row"><span><b>${esc(a.label||a.area||'عنوان')}</b><small>${esc(a.address||'')}</small></span></div>`).join('')||'<div class="empty">لا توجد عناوين</div>'}</section>
+    <section><h3>🏪 الفروع</h3>${branchRows.map(x=>`<div class="manage-row"><span><b>${esc(x.branch_name)}</b><small>${Number(x.orders_count||0)} طلب</small></span><b>${money(x.sales_total||0)}</b></div>`).join('')||'<div class="empty">لا توجد تعاملات</div>'}</section>
+    <section><h3>🍔 الأكثر طلبًا</h3>${products.map(x=>`<div class="manage-row"><span>${esc(x.product_name)}</span><b>${Number(x.qty||0)}</b></div>`).join('')||'<div class="empty">لا توجد بيانات</div>'}</section>
+    <section><h3>➕ الإضافات المفضلة</h3>${mods.map(x=>`<div class="manage-row"><span>${esc(x.modifier_name)}</span><b>${Number(x.qty||0)}</b></div>`).join('')||'<div class="empty">لا توجد إضافات</div>'}</section>
+    <section><h3>💳 طرق الدفع</h3>${pays.map(x=>`<div class="manage-row"><span>${esc(customer360Method(x.method))}</span><b>${money(x.amount||0)}</b></div>`).join('')||'<div class="empty">لا توجد مدفوعات</div>'}</section>
    </div>
-   <h3>🕓 Timeline</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>المستند</th><th>الفرع</th><th>القيمة</th><th>الدفع</th><th>الموظف</th></tr></thead><tbody>\${timeline.map(x=>\`<tr><td>\${customer360Date(x.event_at)}</td><td>\${x.event_type==='return'?'مرتجع':(x.status==='cancelled'?'ملغي':'بيع')}</td><td>\${esc(x.document_no||x.document_id)}</td><td>\${esc(x.branch_name||'')}</td><td>\${money(x.amount||0)}</td><td>\${esc(customer360Method(x.payment_method))}</td><td>\${esc(x.employee_name||'')}</td></tr>\`).join('')||'<tr><td colspan="7">لا توجد تعاملات</td></tr>'}</tbody></table></div>\`;
-  }catch(err){out.innerHTML=\`<div class="empty">\${esc(err.message||'تعذر تحميل ملف العميل')}</div>\`}
+   <h3>🕓 Timeline</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>النوع</th><th>المستند</th><th>الفرع</th><th>القيمة</th><th>الدفع</th><th>الموظف</th></tr></thead><tbody>${timeline.map(x=>`<tr><td>${customer360Date(x.event_at)}</td><td>${x.event_type==='return'?'مرتجع':(x.status==='cancelled'?'ملغي':'بيع')}</td><td>${esc(x.document_no||x.document_id)}</td><td>${esc(x.branch_name||'')}</td><td>${money(x.amount||0)}</td><td>${esc(customer360Method(x.payment_method))}</td><td>${esc(x.employee_name||'')}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد تعاملات</td></tr>'}</tbody></table></div>`;
+  }catch(err){out.innerHTML=`<div class="empty">${esc(err.message||'تعذر تحميل ملف العميل')}</div>`}
  };
  m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove();else if(e.target.closest('[data-c360-run]'))render()};
  render();
@@ -2236,7 +2236,7 @@ async function openDeliveryPaymentChange(o,onDone){
  const methods=branchPaymentList(o.branch_id).filter(x=>String(x.code)!=='mixed');
  if(!methods.length)return toast('لا توجد طرق دفع متاحة لهذا الفرع');
  const m=document.createElement('div');m.className='modal';
- m.innerHTML=\`<div class="modal-card"><h2>💳 تعديل طريقة دفع بون \${esc(bonDisplay(o))}</h2><p>القيمة: <b>\${money(o.total)}</b></p><label>طريقة الدفع<select id="deliveryPaymentMethod">\${methods.map(x=>\`<option value="\${esc(x.code)}" \${String(x.code)===String(o.payment_method)?'selected':''}>\${esc(x.name)}</option>\`).join('')}</select></label><p class="muted">متاح قبل تسوية المندوب فقط. التغيير يُحدّث حركة الدفع والتقارير والكاش المتوقع ويُسجل في Audit.</p><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-payment-change>حفظ طريقة الدفع</button></div></div>\`;
+ m.innerHTML=`<div class="modal-card"><h2>💳 تعديل طريقة دفع بون ${esc(bonDisplay(o))}</h2><p>القيمة: <b>${money(o.total)}</b></p><label>طريقة الدفع<select id="deliveryPaymentMethod">${methods.map(x=>`<option value="${esc(x.code)}" ${String(x.code)===String(o.payment_method)?'selected':''}>${esc(x.name)}</option>`).join('')}</select></label><p class="muted">متاح قبل تسوية المندوب فقط. التغيير يُحدّث حركة الدفع والتقارير والكاش المتوقع ويُسجل في Audit.</p><div class="modal-actions"><button class="secondary" data-close>إلغاء</button><button class="primary" data-save-payment-change>حفظ طريقة الدفع</button></div></div>`;
  document.body.appendChild(m);
  m.onclick=async e=>{
   if(e.target===m||e.target.closest('[data-close]'))return m.remove();
