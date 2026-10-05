@@ -1,6 +1,6 @@
 -- Sharawla HR Attendance & Payroll Extension V1 — Stable 10.5.13 Port
 -- SOURCE ONLY. Additive extension of the 10.5.13 HR foundation.
--- Authorization uses Stable employee_permissions through has_action_permission_v2().
+-- Authorization uses Stable employee_permissions through public.has_permission().
 
 begin;
 
