@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+ <meta name="theme-color" content="#0b3b35">
+ <meta name="apple-mobile-web-app-capable" content="yes">
+ <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <meta name="apple-mobile-web-app-title" content="Sharawla Staff">
+ <title>Sharawla Staff</title>
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+ <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+ <div id="toast" role="status" aria-live="polite"></div>
+ <main id="shell">
+  <header class="topbar">
+   <div class="brand"><img src="icon.svg" alt=""><div><strong>Sharawla Staff</strong><small id="employeeName">تطبيق الموظفين</small></div></div>
+   <div class="status"><span id="networkDot"></span><span id="networkText">متصل</span></div>
+  </header>
+
+  <section id="setupView" class="view auth-view hidden">
+   <div class="auth-card"><h1>ربط تطبيق الموظفين</h1><p>أدخل إعداد الاتصال التي يوفرها مدير Sharawla. المفتاح المطلوب Publishable فقط.</p>
+    <form id="setupForm"><label>Supabase Project URL<input id="backendUrl" inputmode="url" placeholder="https://xxxx.supabase.co" required></label><label>Publishable key<textarea id="backendKey" rows="3" required></textarea></label><button class="primary" type="submit">حفظ الاتصال</button></form>
+   </div>
+  </section>
+
+  <section id="loginView" class="view auth-view hidden">
+   <div class="auth-card"><img class="hero-icon" src="icon.svg" alt=""><h1>دخول الموظف</h1><p>استخدم كود الموظف أو رقم الموبايل والـPIN المؤقت.</p>
+    <form id="loginForm"><label>كود الموظف أو الموبايل<input id="identity" autocomplete="username" required></label><label>PIN من 6 أرقام<input id="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="current-password" required></label><button class="primary" type="submit">دخول</button></form>
+    <button id="changeConnection" class="link-btn" type="button">تغيير إعداد الاتصال</button>
+   </div>
+  </section>
+
+  <section id="pinView" class="view auth-view hidden">
+   <div class="auth-card"><h1>تغيير PIN لأول مرة</h1><p>اختر PIN جديدًا من 6 أرقام. ستسجّل الدخول مجددًا بعد التغيير.</p>
+    <form id="pinForm"><label>PIN الحالي<input id="currentPin" type="password" inputmode="numeric" maxlength="6" required></label><label>PIN الجديد<input id="newPin" type="password" inputmode="numeric" maxlength="6" required></label><label>تأكيد PIN<input id="confirmPin" type="password" inputmode="numeric" maxlength="6" required></label><button class="primary" type="submit">حفظ PIN</button></form>
+   </div>
+  </section>
+
+  <section id="appView" class="view hidden">
+   <div id="offlineBanner" class="offline-banner hidden">أنت غير متصل — الحركات ستُحفظ على الجهاز</div>
+   <div id="page" class="page"></div>
+   <nav class="bottom-nav" aria-label="التنقل">
+    <button data-page="home" class="active"><span>⌂</span>الرئيسية</button>
+    <button data-page="history"><span>◷</span>الحضور</button>
+    <button data-page="schedule"><span>▦</span>الجدول</button>
+    <button data-page="summary"><span>≡</span>الملخص</button>
+    <button data-page="sync"><span>↻</span><b id="pendingBadge" class="badge hidden">0</b>المزامنة</button>
+   </nav>
+  </section>
+ </main>
+
+ <div id="cameraModal" class="camera-modal hidden" role="dialog" aria-modal="true">
+  <div class="camera-card"><h2 id="cameraTitle">تسجيل الحضور</h2><p>سيلفي مباشر من الكاميرا — لا يوجد اختيار من المعرض.</p><video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" class="hidden"></canvas><div id="gpsState" class="gps-state">سيتم التقاط الموقع عند الضغط.</div><div class="camera-actions"><button id="cancelCamera" type="button">إلغاء</button><button id="captureAttendance" class="primary" type="button">التقاط وتسجيل</button></div></div>
+ </div>
+
+ <script src="hr-staff-domain.js"></script>
+ <script src="hr-staff-store.js"></script>
+ <script src="app.js"></script>
+</body>
+</html>
