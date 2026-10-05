@@ -74,6 +74,8 @@ assert(stableCore.includes('__SharawlaHrCoreAdminV1'));
 assert(stableCore.includes("rpc('has_permission',{p_permission:code})"));
 for(const file of ['supabase-v10-5-13-hr-foundation.sql','supabase-v10-5-13-hr-payroll-runtime.sql','supabase-v10-5-13-hr-ui-support.sql','supabase-v10-5-13-hr-attendance-extension.sql'])assert(!read(file).includes('has_action_permission_v2'));
 assert(stableAdmin.includes('__SharawlaHrCoreAdminV1'));
+assert(stableAdmin.includes("rpc('has_permission',{p_permission:code})"));
+assert(!stableAdmin.includes('has_action_permission_v2'));
 assert(stableIndex.includes('hr-core-admin-v1.js?v=10.5.13'));
 assert(stableIndex.includes('hr-attendance-admin-v1.js?v=10.5.13'));
 for(const code of ['hr.attendance.view','hr.staff_accounts.manage','hr.payroll.pay'])assert(stableEngine.includes(code));
