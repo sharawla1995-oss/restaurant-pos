@@ -69,6 +69,7 @@ const stableEngine=read('restaurant-engine.js');
 const stableIndex=read('index.html');
 const hrStaffApi=read('supabase/functions/hr-staff-api/index.ts');
 const hrPrivilegeHardening=read('supabase-v10-5-13-hr-privilege-hardening.sql');
+const hrStaffBetaHost=read('supabase/functions/hr-staff-app-beta/index.ts');
 
 assert(!stableFoundation.includes('has_action_permission_v2'));
 assert(!stableFoundation.includes('permission_actions_v2(code'));
@@ -98,6 +99,16 @@ for(const fn of ['hr_employee_create_v1','hr_employee_compensation_set_v1','hr_a
   assert(hrPrivilegeHardening.includes('revoke all on function public.'+fn));
 }
 
+assert(hrStaffBetaHost.includes('Beta-only static host for Sharawla Staff'));
+assert(hrStaffBetaHost.includes('window.SHARAWLA_STAFF_CONFIG'));
+assert(hrStaffBetaHost.includes('sb_publishable_'));
+assert(hrStaffBetaHost.includes('manifest.scope="./"'));
+assert(hrStaffBetaHost.includes('manifest.start_url="./?source=pwa"'));
+assert(!hrStaffBetaHost.includes('SUPABASE_SERVICE_ROLE_KEY'));
+assert(!hrStaffBetaHost.includes('sb_secret_'));
+assert(hrStaffBetaHost.trim().endsWith('});'));
+
 console.log('V10.5.13_HR_STABLE_PORT_STATIC_PASS');
 console.log('V10.5.13_HR_EDGE_SOURCE_PASS');
 console.log('V10.5.13_HR_PRIVILEGE_HARDENING_PASS');
+console.log('V10.5.13_HR_BETA_STATIC_HOST_PASS');
