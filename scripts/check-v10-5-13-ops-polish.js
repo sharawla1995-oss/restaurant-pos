@@ -52,6 +52,7 @@ must(sql,'sync_extra_product_modifier_v1','extras sync owner');
 must(sql,'trg_sync_extra_category_products_v1','extras category rename sync');
 must(sql,"public.has_permission('deliverySettlement')",'server settlement permission');
 must(sql,'change_delivery_order_payment_v1','atomic delivery payment RPC');
+must(sql,'drop constraint if exists order_payments_method_check','legacy payment check removed for dynamic methods');
 must(sql,'for update;','row lock contracts');
 must(sql,'public.order_payments','payment ledger updated');
 must(sql,'delivery_payment_method_changed','payment change audit');
