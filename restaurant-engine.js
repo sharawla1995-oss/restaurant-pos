@@ -72,7 +72,19 @@
     ['printingSettings','🖨️ إعدادات الطباعة'],
     ['financialSettings','💳 طرق الدفع والضريبة والخدمة'],
     ['websiteAppearance','🌐 تصميم وإعدادات الموقع'],
-    ['discount','🏷️ السماح بالخصم']
+    ['discount','🏷️ السماح بالخصم'],
+    ['hr.employees.view','HR • عرض الموظفين'],['hr.employees.create','HR • إضافة موظف'],['hr.employees.edit','HR • تعديل موظف'],
+    ['hr.salary.view','HR • عرض الرواتب'],['hr.salary.manage','HR • تعديل الرواتب'],
+    ['hr.attendance.view','HR • عرض الحضور'],['hr.attendance.manage','HR • اعتماد الحضور'],['hr.attendance.adjust','HR • تصحيح الحضور'],
+    ['hr.schedules.view','HR • عرض الجداول'],['hr.schedules.manage','HR • إدارة الجداول'],
+    ['hr.geofence.manage','HR • إدارة نطاق الفرع'],['hr.staff_accounts.manage','HR • حسابات تطبيق الموظفين'],
+    ['hr.leave.view','HR • عرض الإجازات'],['hr.leave.manage','HR • اعتماد الإجازات'],
+    ['hr.deduction_rules.view','HR • عرض قواعد الخصم'],['hr.deduction_rules.manage','HR • إدارة قواعد الخصم'],
+    ['hr.advances.view','HR • عرض السلف'],['hr.advances.create','HR • إنشاء سلفة'],['hr.advances.approve','HR • اعتماد سلفة'],['hr.advances.disburse','HR • صرف سلفة'],
+    ['hr.adjustments.view','HR • عرض الخصومات والمكافآت'],['hr.adjustments.manage','HR • إدارة الخصومات والمكافآت'],
+    ['hr.payroll.view','HR • عرض المرتبات'],['hr.payroll.run','HR • إعداد المرتبات'],['hr.payroll.approve','HR • اعتماد المرتبات'],['hr.payroll.pay','HR • صرف المرتبات'],
+    ['hr.reports.view','HR • التقارير'],['hr.settings.manage','HR • الإعدادات'],
+    ['treasury.post','الخزنة • تسجيل حركة']
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
@@ -81,7 +93,8 @@
     ['🚚 التشغيل',['deliverySettings','deliverySettlement','deliveryPaymentCorrection','kitchen','inventory']],
     ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
     ['🏪 الفروع',['branchManagement']],
-    ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']]
+    ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']],
+    ['👥 الموارد البشرية',["hr.employees.view","hr.employees.create","hr.employees.edit","hr.salary.view","hr.salary.manage","hr.attendance.view","hr.attendance.manage","hr.attendance.adjust","hr.schedules.view","hr.schedules.manage","hr.geofence.manage","hr.staff_accounts.manage","hr.leave.view","hr.leave.manage","hr.deduction_rules.view","hr.deduction_rules.manage","hr.advances.view","hr.advances.create","hr.advances.approve","hr.advances.disburse","hr.adjustments.view","hr.adjustments.manage","hr.payroll.view","hr.payroll.run","hr.payroll.approve","hr.payroll.pay","hr.reports.view","hr.settings.manage","treasury.post"]]
   ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
 
   const OPERATIONAL_FLAGS=Object.freeze({
