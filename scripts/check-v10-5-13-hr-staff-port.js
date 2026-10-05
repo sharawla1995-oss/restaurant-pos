@@ -67,6 +67,7 @@ const stableCore=read('hr-core-admin-v1.js');
 const stableAdmin=read('hr-attendance-admin-v1.js');
 const stableEngine=read('restaurant-engine.js');
 const stableIndex=read('index.html');
+const hrStaffApi=read('supabase/functions/hr-staff-api/index.ts');
 assert(!stableFoundation.includes('has_action_permission_v2'));
 assert(!stableFoundation.includes('permission_actions_v2(code'));
 assert(!read('supabase-v10-5-13-hr-attendance-extension.sql').includes('permission_actions_v2(code'));
@@ -103,3 +104,10 @@ assert(stableIndex.includes('hr-attendance-admin-v1.js?v=10.5.13'));
 for(const code of ['hr.attendance.view','hr.staff_accounts.manage','hr.payroll.pay'])assert(stableEngine.includes(code));
 for(const forbidden of ['beta36-integration-loader.js','check-point4-stock-v2','canonical stock'])assert(!stableCore.toLowerCase().includes(forbidden.toLowerCase()));
 console.log('V10.5.13_HR_STABLE_PORT_STATIC_PASS');
+
+assert(hrStaffApi.includes('Deno.serve(async (request:Request)=>{'));
+assert(hrStaffApi.trim().endsWith('});'));
+assert(!hrStaffApi.trim().endsWith('}));'));
+assert(hrStaffApi.includes('x-staff-session'));
+assert(hrStaffApi.includes('SUPABASE_SERVICE_ROLE_KEY'));
+console.log('V10.5.13_HR_EDGE_SOURCE_PASS');
