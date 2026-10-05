@@ -125,3 +125,12 @@ assert(privilegeHardening.includes("grant execute on function public.sharawla_be
 assert(privilegeHardening.includes('do $hr$'));
 assert(privilegeHardening.includes('$hr$;'));
 assert(!privilegeHardening.includes('\ndo $\nbegin'));
+
+const hrTablePrivileges=read('supabase-v10-5-13-hr-table-privilege-hardening.sql');
+assert(hrTablePrivileges.includes('revoke all on table public.%I from public,anon,authenticated'));
+assert(hrTablePrivileges.includes('hr_staff_selfie_uploads'));
+assert(hrTablePrivileges.includes('hr_staff_sessions'));
+assert(hrTablePrivileges.includes('grant select('));
+assert(hrTablePrivileges.includes('on public.hr_staff_accounts to authenticated'));
+assert(hrTablePrivileges.includes("c.relkind='S'"));
+assert(!stableAdmin.includes("rest('hr_staff_accounts',`select=*"));
