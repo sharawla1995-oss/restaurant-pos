@@ -116,3 +116,8 @@ console.log('V10.5.13_HR_STABLE_PORT_STATIC_PASS');
 console.log('V10.5.13_HR_EDGE_SOURCE_PASS');
 console.log('V10.5.13_HR_PRIVILEGE_HARDENING_PASS');
 console.log('V10.5.13_HR_BETA_STATIC_HOST_PASS');
+
+const privilegeHardening=read('supabase-v10-5-13-hr-privilege-hardening.sql');
+assert(privilegeHardening.includes("to_regprocedure('public.sharawla_beta54_hr_acceptance_cleanup_v1(text)')"));
+assert(privilegeHardening.includes("revoke all on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) from public,anon"));
+assert(privilegeHardening.includes("grant execute on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) to service_role"));
