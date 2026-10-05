@@ -1,0 +1,29 @@
+name: V10.5.13 HR Port Work
+
+on:
+  push:
+    branches:
+      - candidate/v10.5.13-hr-port-work
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-gates:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Install
+        run: npm install
+      - name: Full candidate checks
+        run: npm run check
+      - name: Build x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+      - name: Build ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
