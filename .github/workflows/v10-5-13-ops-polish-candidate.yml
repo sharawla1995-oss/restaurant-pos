@@ -1,0 +1,52 @@
+name: V10.5.13 Ops Polish Candidate
+
+on:
+  push:
+    branches:
+      - candidate/v10.5.13-ops-polish-batch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    if: github.ref_name == 'candidate/v10.5.13-ops-polish-batch'
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Install dependencies
+        run: npm install
+      - name: Static and regression gates
+        run: npm run check
+      - name: Build Windows x64
+        shell: pwsh
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save x64 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "x64 installer not found" }
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.13-x64.exe"
+      - name: Build Windows ia32
+        shell: pwsh
+        run: npm run dist -- --win --ia32 --publish never
+      - name: Save ia32 installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $exe) { throw "ia32 installer not found" }
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.13-ia32.exe"
+      - name: Upload candidate installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.13-ops-polish-candidate
+          path: |
+            Sharawla-POS-Setup-10.5.13-x64.exe
+            Sharawla-POS-Setup-10.5.13-ia32.exe
+          if-no-files-found: error
