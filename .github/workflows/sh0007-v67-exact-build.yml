@@ -28,6 +28,24 @@ jobs:
           set -euo pipefail
           git merge-base --is-ancestor 2d174feff680c4ffc0dd6972036590d259f75626 HEAD
           test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.32"
+      - name: Restore byte-safe V67 materialization payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .v67/payload.part-* > /tmp/v67-payload.b64
+          base64 -d /tmp/v67-payload.b64 > /tmp/V67_BUILD_PAYLOAD.tar.xz
+          echo "f6a87a5ca4afce9254609ffbb60d965e31deaf380ffb4d5c9f75c36177235e86  /tmp/V67_BUILD_PAYLOAD.tar.xz" | sha256sum -c -
+          rm -rf /tmp/v67payload
+          mkdir -p /tmp/v67payload
+          tar -xJf /tmp/V67_BUILD_PAYLOAD.tar.xz -C /tmp/v67payload
+          test "$(wc -l < /tmp/v67payload/V67_CANDIDATE_SHA256SUMS.txt)" -eq 1036
+          cp /tmp/v67payload/V67_CANDIDATE_SHA256SUMS.txt .v67/V67_CANDIDATE_SHA256SUMS.txt
+          cp /tmp/v67payload/patches/*.patch .v67/patches/
+          git apply --stat .v67/patches/01-three-fixes.patch >/dev/null
+          git apply --stat .v67/patches/02-offline-closure-batch1.patch >/dev/null
+          git apply --stat .v67/patches/03-final-source-gaps.patch >/dev/null
+          git apply --stat .v67/patches/04-v65-dispatcher-case.patch >/dev/null
+          echo V67_PAYLOAD_SHA256_PASS
       - name: Materialize exact V67 candidate overlay
         shell: bash
         run: |
