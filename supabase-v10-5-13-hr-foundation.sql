@@ -4,28 +4,6 @@
 
 begin;
 
-do $$
-begin
-  if to_regprocedure('public.has_action_permission_v2(text)') is null then
-    execute $fn$
-      create function public.has_action_permission_v2(p_action_code text)
-      returns boolean
-      language sql
-      stable
-      security definer
-      set search_path=public
-      as $body$
-        select public.has_permission(p_action_code);
-      $body$
-    $fn$;
-  end if;
-end
-$$;
-
-revoke all on function public.has_action_permission_v2(text) from public,anon;
-grant execute on function public.has_action_permission_v2(text) to authenticated,service_role;
-
-
 create table if not exists public.hr_employees(
  id bigserial primary key,
  login_employee_id bigint unique references public.employees(id) on delete set null,
@@ -159,31 +137,31 @@ alter table public.treasury_movements enable row level security;
 
 drop policy if exists hr_employees_read_v1 on public.hr_employees;
 create policy hr_employees_read_v1 on public.hr_employees for select to authenticated using(
- public.has_action_permission_v2('hr.employees.view') and public.has_branch_access(home_branch_id)
+ public.has_permission('hr.employees.view') and public.has_branch_access(home_branch_id)
 );
 drop policy if exists hr_employee_compensation_read_v1 on public.hr_employee_compensation;
 create policy hr_employee_compensation_read_v1 on public.hr_employee_compensation for select to authenticated using(
- public.has_action_permission_v2('hr.salary.view') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id))
+ public.has_permission('hr.salary.view') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id))
 );
 drop policy if exists hr_employee_advances_read_v1 on public.hr_employee_advances;
 create policy hr_employee_advances_read_v1 on public.hr_employee_advances for select to authenticated using(
- public.has_action_permission_v2('hr.advances.view') and public.has_branch_access(branch_id)
+ public.has_permission('hr.advances.view') and public.has_branch_access(branch_id)
 );
 drop policy if exists hr_employee_adjustments_read_v1 on public.hr_employee_adjustments;
 create policy hr_employee_adjustments_read_v1 on public.hr_employee_adjustments for select to authenticated using(
- (public.has_action_permission_v2('hr.payroll.view') or public.has_action_permission_v2('hr.adjustments.manage')) and public.has_branch_access(branch_id)
+ (public.has_permission('hr.payroll.view') or public.has_permission('hr.adjustments.manage')) and public.has_branch_access(branch_id)
 );
 drop policy if exists hr_payroll_periods_read_v1 on public.hr_payroll_periods;
 create policy hr_payroll_periods_read_v1 on public.hr_payroll_periods for select to authenticated using(
- public.has_action_permission_v2('hr.payroll.view') and (branch_id is null or public.has_branch_access(branch_id))
+ public.has_permission('hr.payroll.view') and (branch_id is null or public.has_branch_access(branch_id))
 );
 drop policy if exists hr_payroll_items_read_v1 on public.hr_payroll_items;
 create policy hr_payroll_items_read_v1 on public.hr_payroll_items for select to authenticated using(
- public.has_action_permission_v2('hr.payroll.view') and exists(select 1 from public.hr_payroll_periods p where p.id=payroll_period_id and (p.branch_id is null or public.has_branch_access(p.branch_id)))
+ public.has_permission('hr.payroll.view') and exists(select 1 from public.hr_payroll_periods p where p.id=payroll_period_id and (p.branch_id is null or public.has_branch_access(p.branch_id)))
 );
 drop policy if exists treasury_movements_read_v1 on public.treasury_movements;
 create policy treasury_movements_read_v1 on public.treasury_movements for select to authenticated using(
- public.has_action_permission_v2('treasury.view') and public.has_branch_access(branch_id)
+ public.has_permission('treasury.view') and public.has_branch_access(branch_id)
 );
 
 grant select on public.hr_employees,public.hr_employee_compensation,public.hr_employee_advances,public.hr_employee_adjustments,public.hr_payroll_periods,public.hr_payroll_items,public.treasury_movements to authenticated;
@@ -203,7 +181,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');nm text:=nullif(trim(coalesce(p_name,'')),'');begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.employees.create') then raise exception 'ليس لديك صلاحية إضافة موظف';end if;
+ if not public.has_permission('hr.employees.create') then raise exception 'ليس لديك صلاحية إضافة موظف';end if;
  if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if nm is null then raise exception 'اسم الموظف مطلوب';end if;
  if k is null then raise exception 'معرف الحركة مطلوب';end if;
@@ -223,7 +201,7 @@ returns boolean language plpgsql security definer set search_path=public
 as $$
 declare h public.hr_employees%rowtype;e bigint;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.salary.manage') then raise exception 'ليس لديك صلاحية تعديل الرواتب';end if;
+ if not public.has_permission('hr.salary.manage') then raise exception 'ليس لديك صلاحية تعديل الرواتب';end if;
  select * into h from public.hr_employees where id=p_employee_id and active=true;if not found then raise exception 'الموظف غير موجود';end if;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_salary_basis not in ('monthly','daily','hourly') or coalesce(p_base_salary,-1)<0 then raise exception 'بيانات الراتب غير صحيحة';end if;
@@ -240,7 +218,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare h public.hr_employees%rowtype;idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.advances.create') then raise exception 'ليس لديك صلاحية إنشاء سلفة';end if;
+ if not public.has_permission('hr.advances.create') then raise exception 'ليس لديك صلاحية إنشاء سلفة';end if;
  select * into h from public.hr_employees where id=p_employee_id and active=true;if not found then raise exception 'الموظف غير موجود';end if;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if coalesce(p_amount,0)<=0 or p_repayment_mode not in ('one_time','installments') then raise exception 'بيانات السلفة غير صحيحة';end if;
@@ -260,7 +238,7 @@ returns boolean language plpgsql security definer set search_path=public
 as $$
 declare a public.hr_employee_advances%rowtype;e bigint;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.advances.approve') then raise exception 'ليس لديك صلاحية اعتماد السلف';end if;
+ if not public.has_permission('hr.advances.approve') then raise exception 'ليس لديك صلاحية اعتماد السلف';end if;
  select * into a from public.hr_employee_advances where id=p_advance_id for update;if not found then raise exception 'السلفة غير موجودة';end if;
  if not public.has_branch_access(a.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if a.status<>'draft' then raise exception 'السلفة ليست في حالة مسودة';end if;
@@ -275,7 +253,7 @@ returns bigint language plpgsql security definer set search_path=public
 as $$
 declare a public.hr_employee_advances%rowtype;mid bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.advances.disburse') or not public.has_action_permission_v2('treasury.post') then raise exception 'ليس لديك صلاحية صرف السلفة من الخزنة';end if;
+ if not public.has_permission('hr.advances.disburse') or not public.has_permission('treasury.post') then raise exception 'ليس لديك صلاحية صرف السلفة من الخزنة';end if;
  select * into a from public.hr_employee_advances where id=p_advance_id for update;if not found then raise exception 'السلفة غير موجودة';end if;
  if not public.has_branch_access(a.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if a.status='active' then select id into mid from public.treasury_movements where entity_type='hr_advance' and entity_id=a.id limit 1;return mid;end if;
