@@ -385,3 +385,28 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar nav{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:8px;scrollbar-width:thin}
 .sidebar nav::-webkit-scrollbar{width:7px}.sidebar nav::-webkit-scrollbar-thumb{background:#ffffff2b;border-radius:999px}.sidebar nav::-webkit-scrollbar-track{background:transparent}
 .sidebar-foot{flex:0 0 auto;margin-top:0}
+
+
+/* V10.5.13 Candidate — Ops polish readability + Customer 360 */
+#returnApprovalBadge{
+  display:inline-flex;min-width:20px;height:20px;padding:0 5px;border-radius:999px;
+  align-items:center;justify-content:center;font-size:11px;font-weight:900;
+  background:#dc2626;color:#fff;margin-inline-start:6px
+}
+#returnApprovalBadge.hidden{display:none}
+.customer-quick-summary{display:block;margin-top:5px;font-weight:700;line-height:1.45}
+.customer-360-modal{width:min(1120px,96vw);max-height:94vh;overflow:auto}
+.customer-360-kpis{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:14px 0}
+.customer-360-kpis>div{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}
+.customer-360-kpis small{display:block;color:#6b7280;font-weight:700}
+.customer-360-kpis b{display:block;margin-top:4px;font-size:17px;font-weight:900}
+.customer-360-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.customer-360-grid>section{border:1px solid #e5e7eb;border-radius:12px;padding:12px;min-width:0}
+.customer-360-grid h3{margin-top:0;font-weight:900}
+.extras-source-panel h2,.report-summary-list b,.shift-current strong,.shift-pay-grid b{font-weight:900}
+.shift-detail h2,.shift-title h2,.receipt h1,.receipt h2,.receipt h3{font-weight:900}
+.shift-detail .report-summary-list>div{font-weight:700}
+@media(max-width:800px){
+  .customer-360-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-360-grid{grid-template-columns:1fr}
+}
