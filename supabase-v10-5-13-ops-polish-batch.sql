@@ -17,6 +17,34 @@ create unique index if not exists modifiers_source_product_uidx
   on public.modifiers(source_product_id)
   where source_product_id is not null;
 
+create or replace function public.sync_product_extra_links_v1(p_product_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path=public
+as $
+declare
+  v_product public.products%rowtype;
+begin
+  select * into v_product from public.products where id=p_product_id;
+  if not found then return; end if;
+
+  if coalesce(v_product.allow_extras,true)=false or coalesce(v_product.active,true)=false then
+    return;
+  end if;
+
+  insert into public.product_modifiers(product_id,modifier_id)
+  select v_product.id,m.id
+  from public.modifiers m
+  where m.active=true
+    and m.source_product_id is not null
+    and m.source_product_id<>v_product.id
+  on conflict do nothing;
+end;
+$;
+
+revoke all on function public.sync_product_extra_links_v1(bigint) from public,anon,authenticated;
+
 create or replace function public.sync_extra_product_modifier_v1(p_product_id bigint)
 returns bigint
 language plpgsql
@@ -76,9 +104,25 @@ begin
     update public.modifiers set active=false where id=v_modifier_id;
   end if;
 
+  if v_is_extra and v_modifier_id is not null then
+    -- A new/updated extra becomes available to every currently active product
+    -- that allows extras. Existing explicit links remain untouched.
+    insert into public.product_modifiers(product_id,modifier_id)
+    select p.id,v_modifier_id
+    from public.products p
+    where p.active=true
+      and coalesce(p.allow_extras,true)=true
+      and p.id<>v_product.id
+    on conflict do nothing;
+  end if;
+
+  -- If this row is a normal product that allows extras, make sure it receives
+  -- all current extra-source modifiers as well.
+  perform public.sync_product_extra_links_v1(v_product.id);
+
   return v_modifier_id;
 end;
-$$;
+$;
 
 revoke all on function public.sync_extra_product_modifier_v1(bigint) from public,anon,authenticated;
 
@@ -98,7 +142,7 @@ revoke all on function public.sync_extra_product_modifier_trigger_v1() from publ
 
 drop trigger if exists trg_sync_extra_product_modifier_v1 on public.products;
 create trigger trg_sync_extra_product_modifier_v1
-after insert or update of name,price,active,category_id on public.products
+after insert or update of name,price,active,category_id,allow_extras on public.products
 for each row execute function public.sync_extra_product_modifier_trigger_v1();
 
 create or replace function public.sync_extra_category_products_trigger_v1()
