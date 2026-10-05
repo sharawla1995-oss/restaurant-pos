@@ -22,7 +22,7 @@ returns void
 language plpgsql
 security definer
 set search_path=public
-as $
+as $links$
 declare
   v_product public.products%rowtype;
 begin
@@ -41,7 +41,7 @@ begin
     and m.source_product_id<>v_product.id
   on conflict do nothing;
 end;
-$;
+$links$;
 
 revoke all on function public.sync_product_extra_links_v1(bigint) from public,anon,authenticated;
 
@@ -50,7 +50,7 @@ returns bigint
 language plpgsql
 security definer
 set search_path=public
-as $$
+as $modifier$
 declare
   v_product public.products%rowtype;
   v_category_name text;
@@ -122,7 +122,7 @@ begin
 
   return v_modifier_id;
 end;
-$;
+$modifier$;
 
 revoke all on function public.sync_extra_product_modifier_v1(bigint) from public,anon,authenticated;
 
@@ -150,7 +150,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=public
-as $
+as $category$
 declare r record;
 begin
   if old.name is distinct from new.name then
@@ -160,7 +160,7 @@ begin
   end if;
   return new;
 end;
-$;
+$category$;
 
 revoke all on function public.sync_extra_category_products_trigger_v1() from public,anon,authenticated;
 drop trigger if exists trg_sync_extra_category_products_v1 on public.categories;
