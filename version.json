@@ -1,12 +1,12 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.12",
-  "channel": "stable",
+  "version": "10.5.13",
+  "channel": "candidate",
   "source": "github",
   "windows": {
     "supported": "Windows 7 x64 / ia32",
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production 10.5.12 candidate. Fixes branch opening crash caused by calling forEach on querySelector result in navActive(). Runtime/UI otherwise matches 10.5.11 emergency restore (certified 10.5.9 runtime). No DB, checkout, delivery, Recipe, Offline, licensing, fingerprint, Reset/Rebind, Point 4 or Canonical Stock changes."
+  "notes": "Candidate only. Unified extras source, permission-based driver settlement, Customer 360, stronger print readability, atomic delivery payment correction before settlement, and manager return approval/notification. Based on certified 10.5.12 branch-open runtime. No Production publish/deploy and no Point 4/Canonical Stock activation."
 }
