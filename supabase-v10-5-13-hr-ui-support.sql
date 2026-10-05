@@ -8,7 +8,7 @@ on conflict(code) do update set name_ar=excluded.name_ar,domain=excluded.domain,
 
 drop policy if exists hr_employee_adjustments_read_v1 on public.hr_employee_adjustments;
 create policy hr_employee_adjustments_read_v1 on public.hr_employee_adjustments for select to authenticated using(
- (public.has_action_permission_v2('hr.adjustments.view') or public.has_action_permission_v2('hr.payroll.view') or public.has_action_permission_v2('hr.adjustments.manage'))
+ (public.has_permission('hr.adjustments.view') or public.has_permission('hr.payroll.view') or public.has_permission('hr.adjustments.manage'))
  and public.has_branch_access(branch_id)
 );
 
@@ -28,7 +28,7 @@ returns boolean language plpgsql security definer set search_path=public
 as $$
 declare h public.hr_employees%rowtype;e bigint;nm text:=nullif(trim(coalesce(p_name,'')),'');beforev jsonb;begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
- if not public.has_action_permission_v2('hr.employees.edit') then raise exception 'ليس لديك صلاحية تعديل الموظفين';end if;
+ if not public.has_permission('hr.employees.edit') then raise exception 'ليس لديك صلاحية تعديل الموظفين';end if;
  select * into h from public.hr_employees where id=p_employee_id for update;if not found then raise exception 'الموظف غير موجود';end if;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if nm is null then raise exception 'اسم الموظف مطلوب';end if;
