@@ -50,6 +50,8 @@ must(eng,"foodRecipes:'food.recipes'",'Recipe feature gate preserved');
 must(sql,'source_product_id bigint references public.products','extras source product link');
 must(sql,'sync_extra_product_modifier_v1','extras sync owner');
 must(sql,'trg_sync_extra_category_products_v1','extras category rename sync');
+must(sql,'sync_product_extra_links_v1','eligible products receive unified extras');
+must(sql,'and coalesce(p.allow_extras,true)=true','new extras auto-link only to eligible products');
 must(sql,"public.has_permission('deliverySettlement')",'server settlement permission');
 must(sql,'change_delivery_order_payment_v1','atomic delivery payment RPC');
 must(sql,'drop constraint if exists order_payments_method_check','legacy payment check removed for dynamic methods');
