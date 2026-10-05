@@ -53,6 +53,9 @@ must(sql,'trg_sync_extra_category_products_v1','extras category rename sync');
 must(sql,'sync_product_extra_links_v1','eligible products receive unified extras');
 must(sql,'and coalesce(p.allow_extras,true)=true','new extras auto-link only to eligible products');
 must(sql,"public.has_permission('deliverySettlement')",'server settlement permission');
+must(sql,'add column if not exists request_digest text','driver_settlements request_digest/order_ids compatibility');
+must(sql,'add column if not exists order_ids bigint[]','driver_settlements request_digest/order_ids compatibility');
+must(sql,'create unique index if not exists driver_settlements_client_tx_uidx','driver settlement idempotency index');
 must(sql,'change_delivery_order_payment_v1','atomic delivery payment RPC');
 must(sql,'drop constraint if exists order_payments_method_check','legacy payment check removed for dynamic methods');
 must(sql,'for update;','row lock contracts');
@@ -75,3 +78,7 @@ if(count(app,'startReturnApprovalWatch()')<2)throw new Error('FAIL approval watc
 
 console.log('V10.5.13_OPS_POLISH_STATIC_PASS');
 console.log('Six-scope contract gate PASS');
+
+if(/\bas \$\s*$/m.test(sql))throw new Error('FAIL malformed single-dollar function opener');
+if(/^\$;\s*$/m.test(sql))throw new Error('FAIL malformed single-dollar function closer');
+if(((sql.match(/\$\$/g)||[]).length%2)!==0)throw new Error('FAIL unbalanced SQL dollar quoting');
