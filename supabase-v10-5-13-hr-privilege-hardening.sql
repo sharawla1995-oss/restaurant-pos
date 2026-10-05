@@ -1,6 +1,5 @@
--- Sharawla POS 10.5.13 Candidate — HR privilege hardening
--- SOURCE ONLY. Restrict legacy Beta54 HR/Payroll SECURITY DEFINER RPCs
--- so they are never directly executable by anon/public.
+-- Sharawla POS 10.5.13 — Production Stable HR privilege hardening
+-- Restrict HR/Payroll SECURITY DEFINER RPCs so they are never directly executable by anon/public.
 
 begin;
 
@@ -37,14 +36,5 @@ grant execute on function public.treasury_manual_post_v1(bigint,text,numeric,tex
 revoke all on function public.hr_employee_update_v1(bigint,text,text,text,text,text,date,text,text,boolean) from public,anon;
 grant execute on function public.hr_employee_update_v1(bigint,text,text,text,text,text,date,text,text,boolean) to authenticated,service_role;
 
-
-do $hr$
-begin
-  if to_regprocedure('public.sharawla_beta54_hr_acceptance_cleanup_v1(text)') is not null then
-    execute 'revoke all on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) from public,anon';
-    execute 'grant execute on function public.sharawla_beta54_hr_acceptance_cleanup_v1(text) to service_role';
-  end if;
-end
-$hr$;
 
 commit;
