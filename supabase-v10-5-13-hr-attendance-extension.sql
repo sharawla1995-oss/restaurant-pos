@@ -353,33 +353,33 @@ do $$declare t text;begin
 end$$;
 
 drop policy if exists hr_settings_admin_read_v1 on public.hr_settings;
-create policy hr_settings_admin_read_v1 on public.hr_settings for select to authenticated using(public.has_action_permission_v2('hr.settings.manage') and public.has_branch_access(branch_id));
+create policy hr_settings_admin_read_v1 on public.hr_settings for select to authenticated using(public.has_permission('hr.settings.manage') and public.has_branch_access(branch_id));
 drop policy if exists hr_work_schedules_read_v1 on public.hr_work_schedules;
-create policy hr_work_schedules_read_v1 on public.hr_work_schedules for select to authenticated using(public.has_action_permission_v2('hr.schedules.view') and public.has_branch_access(branch_id));
+create policy hr_work_schedules_read_v1 on public.hr_work_schedules for select to authenticated using(public.has_permission('hr.schedules.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_schedule_assignments_read_v1 on public.hr_employee_schedule_assignments;
-create policy hr_schedule_assignments_read_v1 on public.hr_employee_schedule_assignments for select to authenticated using(public.has_action_permission_v2('hr.schedules.view') and public.has_branch_access(branch_id));
+create policy hr_schedule_assignments_read_v1 on public.hr_employee_schedule_assignments for select to authenticated using(public.has_permission('hr.schedules.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_geofences_read_v1 on public.hr_branch_geofences;
-create policy hr_geofences_read_v1 on public.hr_branch_geofences for select to authenticated using((public.has_action_permission_v2('hr.attendance.view') or public.has_action_permission_v2('hr.geofence.manage')) and public.has_branch_access(branch_id));
+create policy hr_geofences_read_v1 on public.hr_branch_geofences for select to authenticated using((public.has_permission('hr.attendance.view') or public.has_permission('hr.geofence.manage')) and public.has_branch_access(branch_id));
 drop policy if exists hr_staff_accounts_read_v1 on public.hr_staff_accounts;
-create policy hr_staff_accounts_read_v1 on public.hr_staff_accounts for select to authenticated using(public.has_action_permission_v2('hr.staff_accounts.manage') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)));
+create policy hr_staff_accounts_read_v1 on public.hr_staff_accounts for select to authenticated using(public.has_permission('hr.staff_accounts.manage') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)));
 drop policy if exists hr_attendance_devices_read_v1 on public.hr_attendance_devices;
-create policy hr_attendance_devices_read_v1 on public.hr_attendance_devices for select to authenticated using(public.has_action_permission_v2('hr.staff_accounts.manage') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)));
+create policy hr_attendance_devices_read_v1 on public.hr_attendance_devices for select to authenticated using(public.has_permission('hr.staff_accounts.manage') and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)));
 drop policy if exists hr_attendance_events_read_v1 on public.hr_attendance_events;
-create policy hr_attendance_events_read_v1 on public.hr_attendance_events for select to authenticated using(public.has_action_permission_v2('hr.attendance.view') and public.has_branch_access(branch_id));
+create policy hr_attendance_events_read_v1 on public.hr_attendance_events for select to authenticated using(public.has_permission('hr.attendance.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_attendance_summary_read_v1 on public.hr_attendance_daily_summary;
-create policy hr_attendance_summary_read_v1 on public.hr_attendance_daily_summary for select to authenticated using((public.has_action_permission_v2('hr.attendance.view') or public.has_action_permission_v2('hr.payroll.view')) and public.has_branch_access(branch_id));
+create policy hr_attendance_summary_read_v1 on public.hr_attendance_daily_summary for select to authenticated using((public.has_permission('hr.attendance.view') or public.has_permission('hr.payroll.view')) and public.has_branch_access(branch_id));
 drop policy if exists hr_attendance_adjustments_read_v1 on public.hr_attendance_adjustments;
-create policy hr_attendance_adjustments_read_v1 on public.hr_attendance_adjustments for select to authenticated using(public.has_action_permission_v2('hr.attendance.view') and public.has_branch_access(branch_id));
+create policy hr_attendance_adjustments_read_v1 on public.hr_attendance_adjustments for select to authenticated using(public.has_permission('hr.attendance.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_deduction_rules_read_v1 on public.hr_deduction_rules;
-create policy hr_deduction_rules_read_v1 on public.hr_deduction_rules for select to authenticated using(public.has_action_permission_v2('hr.deduction_rules.view') and (branch_id is null or public.has_branch_access(branch_id)));
+create policy hr_deduction_rules_read_v1 on public.hr_deduction_rules for select to authenticated using(public.has_permission('hr.deduction_rules.view') and (branch_id is null or public.has_branch_access(branch_id)));
 drop policy if exists hr_rule_assignments_read_v1 on public.hr_deduction_rule_assignments;
-create policy hr_rule_assignments_read_v1 on public.hr_deduction_rule_assignments for select to authenticated using(public.has_action_permission_v2('hr.deduction_rules.view') and ((branch_id is not null and public.has_branch_access(branch_id)) or (employee_id is not null and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)))));
+create policy hr_rule_assignments_read_v1 on public.hr_deduction_rule_assignments for select to authenticated using(public.has_permission('hr.deduction_rules.view') and ((branch_id is not null and public.has_branch_access(branch_id)) or (employee_id is not null and exists(select 1 from public.hr_employees h where h.id=employee_id and public.has_branch_access(h.home_branch_id)))));
 drop policy if exists hr_leave_requests_read_v1 on public.hr_leave_requests;
-create policy hr_leave_requests_read_v1 on public.hr_leave_requests for select to authenticated using(public.has_action_permission_v2('hr.leave.view') and public.has_branch_access(branch_id));
+create policy hr_leave_requests_read_v1 on public.hr_leave_requests for select to authenticated using(public.has_permission('hr.leave.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_recurring_adjustments_read_v1 on public.hr_recurring_adjustments;
-create policy hr_recurring_adjustments_read_v1 on public.hr_recurring_adjustments for select to authenticated using(public.has_action_permission_v2('hr.deduction_rules.view') and public.has_branch_access(branch_id));
+create policy hr_recurring_adjustments_read_v1 on public.hr_recurring_adjustments for select to authenticated using(public.has_permission('hr.deduction_rules.view') and public.has_branch_access(branch_id));
 drop policy if exists hr_payroll_item_lines_read_v1 on public.hr_payroll_item_lines;
-create policy hr_payroll_item_lines_read_v1 on public.hr_payroll_item_lines for select to authenticated using(public.has_action_permission_v2('hr.payroll.view') and exists(select 1 from public.hr_payroll_items i join public.hr_payroll_periods p on p.id=i.payroll_period_id where i.id=payroll_item_id and (p.branch_id is null or public.has_branch_access(p.branch_id))));
+create policy hr_payroll_item_lines_read_v1 on public.hr_payroll_item_lines for select to authenticated using(public.has_permission('hr.payroll.view') and exists(select 1 from public.hr_payroll_items i join public.hr_payroll_periods p on p.id=i.payroll_period_id where i.id=payroll_item_id and (p.branch_id is null or public.has_branch_access(p.branch_id))));
 
 grant select on public.hr_settings,public.hr_work_schedules,public.hr_employee_schedule_assignments,
  public.hr_branch_geofences,public.hr_attendance_devices,
@@ -596,7 +596,7 @@ declare c record;begin select * into c from public.hr_staff_session_context_v1(p
 create or replace function public.hr_staff_account_create_or_reset_v1(p_employee_id bigint,p_reset_existing boolean default false)
 returns jsonb language plpgsql security definer set search_path=public as $$
 declare h public.hr_employees%rowtype;a public.hr_staff_accounts%rowtype;e bigint;pin text;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
+ if auth.uid() is null or not public.has_permission('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
  select * into h from public.hr_employees where id=p_employee_id for update;if not found or not h.active then raise exception 'الموظف غير موجود أو موقوف';end if;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  select * into a from public.hr_staff_accounts where employee_id=p_employee_id for update;
@@ -614,7 +614,7 @@ end;$$;
 create or replace function public.hr_staff_account_set_active_v1(p_staff_account_id bigint,p_active boolean)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare a public.hr_staff_accounts%rowtype;h public.hr_employees%rowtype;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
+ if auth.uid() is null or not public.has_permission('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
  select * into a from public.hr_staff_accounts where id=p_staff_account_id for update;if not found then raise exception 'الحساب غير موجود';end if;select * into h from public.hr_employees where id=a.employee_id;
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  update public.hr_staff_accounts set active=p_active,disabled_at=case when p_active then null else now() end,disabled_by_employee_id=case when p_active then null else e end,token_version=case when p_active then token_version else token_version+1 end,updated_at=now() where id=a.id;
@@ -625,7 +625,7 @@ end;$$;
 create or replace function public.hr_staff_logout_all_v1(p_staff_account_id bigint)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare a public.hr_staff_accounts%rowtype;h public.hr_employees%rowtype;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
+ if auth.uid() is null or not public.has_permission('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة حسابات الموظفين';end if;
  select * into a from public.hr_staff_accounts where id=p_staff_account_id for update;if not found then raise exception 'الحساب غير موجود';end if;select * into h from public.hr_employees where id=a.employee_id;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  update public.hr_staff_accounts set token_version=token_version+1,updated_at=now() where id=a.id;update public.hr_staff_sessions set revoked_at=now() where staff_account_id=a.id and revoked_at is null;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,h.home_branch_id,'hr_staff_logout_all','hr_staff_account',a.id,'{}'::jsonb);return true;
@@ -634,7 +634,7 @@ end;$$;
 create or replace function public.hr_staff_device_revoke_v1(p_device_id bigint)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare d public.hr_attendance_devices%rowtype;h public.hr_employees%rowtype;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة أجهزة الموظفين';end if;
+ if auth.uid() is null or not public.has_permission('hr.staff_accounts.manage') then raise exception 'ليس لديك صلاحية إدارة أجهزة الموظفين';end if;
  select * into d from public.hr_attendance_devices where id=p_device_id for update;if not found then raise exception 'الجهاز غير موجود';end if;select * into h from public.hr_employees where id=d.employee_id;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  update public.hr_attendance_devices set active=false,revoked_at=now(),revoked_by_employee_id=e where id=d.id;update public.hr_staff_sessions set revoked_at=now() where device_id=d.id and revoked_at is null;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,h.home_branch_id,'hr_staff_device_revoke','hr_attendance_device',d.id,jsonb_build_object('staff_account_id',d.staff_account_id));return true;
@@ -643,7 +643,7 @@ end;$$;
 create or replace function public.hr_work_schedule_save_v1(p_id bigint,p_branch_id bigint,p_name text,p_work_days smallint[],p_start time,p_end time,p_grace_minutes integer,p_break_minutes integer,p_overtime_after_minutes integer,p_early_leave_grace_minutes integer,p_overnight boolean,p_effective_from date,p_effective_to date,p_timezone text default 'Africa/Cairo')
 returns bigint language plpgsql security definer set search_path=public as $$
 declare idv bigint;e bigint;beforev jsonb;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.schedules.manage') then raise exception 'ليس لديك صلاحية إدارة الجداول';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ if auth.uid() is null or not public.has_permission('hr.schedules.manage') then raise exception 'ليس لديك صلاحية إدارة الجداول';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if nullif(trim(coalesce(p_name,'')),'') is null or p_effective_to<p_effective_from or (not p_overnight and p_end<=p_start) then raise exception 'بيانات الجدول غير صحيحة';end if;e:=public.current_employee_id();
  if p_id is null then insert into public.hr_work_schedules(branch_id,name,work_days,scheduled_start,scheduled_end,grace_minutes,break_minutes,overtime_after_minutes,early_leave_grace_minutes,overnight,effective_from,effective_to,timezone,created_by_employee_id) values(p_branch_id,trim(p_name),p_work_days,p_start,p_end,greatest(p_grace_minutes,0),greatest(p_break_minutes,0),greatest(p_overtime_after_minutes,0),greatest(p_early_leave_grace_minutes,0),p_overnight,p_effective_from,p_effective_to,coalesce(nullif(trim(p_timezone),''),'Africa/Cairo'),e) returning id into idv;
  else select to_jsonb(x) into beforev from public.hr_work_schedules x where x.id=p_id and x.branch_id=p_branch_id for update;if not found then raise exception 'الجدول غير موجود';end if;update public.hr_work_schedules set name=trim(p_name),work_days=p_work_days,scheduled_start=p_start,scheduled_end=p_end,grace_minutes=greatest(p_grace_minutes,0),break_minutes=greatest(p_break_minutes,0),overtime_after_minutes=greatest(p_overtime_after_minutes,0),early_leave_grace_minutes=greatest(p_early_leave_grace_minutes,0),overnight=p_overnight,effective_from=p_effective_from,effective_to=p_effective_to,timezone=coalesce(nullif(trim(p_timezone),''),'Africa/Cairo'),updated_at=now() where id=p_id returning id into idv;end if;
@@ -653,7 +653,7 @@ end;$$;
 create or replace function public.hr_schedule_assign_v1(p_employee_id bigint,p_schedule_id bigint,p_effective_from date,p_effective_to date default null)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare h public.hr_employees%rowtype;s public.hr_work_schedules%rowtype;idv bigint;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.schedules.manage') then raise exception 'ليس لديك صلاحية إدارة الجداول';end if;select * into h from public.hr_employees where id=p_employee_id;if not found then raise exception 'الموظف غير موجود';end if;select * into s from public.hr_work_schedules where id=p_schedule_id and active=true;if not found or s.branch_id<>h.home_branch_id then raise exception 'الجدول غير صالح للفرع';end if;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ if auth.uid() is null or not public.has_permission('hr.schedules.manage') then raise exception 'ليس لديك صلاحية إدارة الجداول';end if;select * into h from public.hr_employees where id=p_employee_id;if not found then raise exception 'الموظف غير موجود';end if;select * into s from public.hr_work_schedules where id=p_schedule_id and active=true;if not found or s.branch_id<>h.home_branch_id then raise exception 'الجدول غير صالح للفرع';end if;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if exists(select 1 from public.hr_employee_schedule_assignments a where a.employee_id=p_employee_id and a.active=true and daterange(a.effective_from,coalesce(a.effective_to,'infinity'::date),'[]') && daterange(p_effective_from,coalesce(p_effective_to,'infinity'::date),'[]')) then raise exception 'يوجد جدول متداخل لنفس الموظف';end if;e:=public.current_employee_id();
  insert into public.hr_employee_schedule_assignments(employee_id,schedule_id,branch_id,effective_from,effective_to,created_by_employee_id) values(p_employee_id,p_schedule_id,h.home_branch_id,p_effective_from,p_effective_to,e) returning id into idv;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,h.home_branch_id,'hr_schedule_assign','hr_employee_schedule_assignment',idv,jsonb_build_object('hr_employee_id',p_employee_id,'schedule_id',p_schedule_id));return idv;
@@ -662,7 +662,7 @@ end;$$;
 create or replace function public.hr_geofence_set_v1(p_branch_id bigint,p_latitude double precision,p_longitude double precision,p_allowed_radius_m numeric,p_minimum_accuracy_m numeric,p_active boolean default true)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare idv bigint;e bigint;beforev jsonb;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.geofence.manage') then raise exception 'ليس لديك صلاحية إدارة نطاق الفرع';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ if auth.uid() is null or not public.has_permission('hr.geofence.manage') then raise exception 'ليس لديك صلاحية إدارة نطاق الفرع';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  select to_jsonb(g) into beforev from public.hr_branch_geofences g where branch_id=p_branch_id;e:=public.current_employee_id();
  insert into public.hr_branch_geofences(branch_id,latitude,longitude,allowed_radius_m,minimum_accuracy_m,active,created_by_employee_id) values(p_branch_id,p_latitude,p_longitude,p_allowed_radius_m,p_minimum_accuracy_m,p_active,e)
  on conflict(branch_id) do update set latitude=excluded.latitude,longitude=excluded.longitude,allowed_radius_m=excluded.allowed_radius_m,minimum_accuracy_m=excluded.minimum_accuracy_m,active=excluded.active,updated_at=now() returning id into idv;
@@ -672,7 +672,7 @@ end;$$;
 create or replace function public.hr_settings_set_v1(p_branch_id bigint,p_timezone text,p_outside_policy text,p_poor_accuracy_policy text,p_require_selfie boolean,p_selfie_retention_days integer)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare e bigint;beforev jsonb;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.settings.manage') then raise exception 'ليس لديك صلاحية إدارة إعدادات HR';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ if auth.uid() is null or not public.has_permission('hr.settings.manage') then raise exception 'ليس لديك صلاحية إدارة إعدادات HR';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_outside_policy not in ('reject','pending_review') or p_poor_accuracy_policy not in ('reject','pending_review') or p_selfie_retention_days not between 1 and 3650 then raise exception 'إعدادات HR غير صحيحة';end if;
  select to_jsonb(s) into beforev from public.hr_settings s where branch_id=p_branch_id;e:=public.current_employee_id();
  insert into public.hr_settings(branch_id,timezone,outside_geofence_policy,poor_accuracy_policy,require_selfie,selfie_retention_days,updated_by_employee_id,updated_at)
@@ -684,7 +684,7 @@ end;$$;
 create or replace function public.hr_leave_decide_v1(p_leave_request_id bigint,p_approve boolean,p_manager_note text default null)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare l public.hr_leave_requests%rowtype;e bigint;d date;tz text;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.leave.manage') then raise exception 'ليس لديك صلاحية إدارة الإجازات';end if;select * into l from public.hr_leave_requests where id=p_leave_request_id for update;if not found or l.status<>'pending' then raise exception 'طلب الإجازة غير صالح للقرار';end if;if not public.has_branch_access(l.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
+ if auth.uid() is null or not public.has_permission('hr.leave.manage') then raise exception 'ليس لديك صلاحية إدارة الإجازات';end if;select * into l from public.hr_leave_requests where id=p_leave_request_id for update;if not found or l.status<>'pending' then raise exception 'طلب الإجازة غير صالح للقرار';end if;if not public.has_branch_access(l.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  update public.hr_leave_requests set status=case when p_approve then 'approved' else 'rejected' end,manager_note=nullif(trim(coalesce(p_manager_note,'')),''),decided_by_employee_id=e,decided_at=now(),updated_at=now() where id=l.id;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,l.branch_id,case when p_approve then 'hr_leave_approve' else 'hr_leave_reject' end,'hr_leave_request',l.id,jsonb_build_object('type',l.request_type,'starts_at',l.starts_at,'ends_at',l.ends_at,'note',p_manager_note));
  if p_approve then tz:=coalesce((select timezone from public.hr_settings where branch_id=l.branch_id),'Africa/Cairo');d:=(l.starts_at at time zone tz)::date;while d<=(l.ends_at at time zone tz)::date loop perform public.hr_attendance_recalculate_day_v1(l.employee_id,d);d:=d+1;end loop;end if;return true;
@@ -693,7 +693,7 @@ end;$$;
 create or replace function public.hr_attendance_adjust_v1(p_employee_id bigint,p_work_date date,p_original_event_id bigint,p_before jsonb,p_after jsonb,p_reason text,p_client_tx_id text)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare h public.hr_employees%rowtype;sid bigint;idv bigint;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.attendance.adjust') then raise exception 'ليس لديك صلاحية تصحيح الحضور';end if;select * into h from public.hr_employees where id=p_employee_id;if not found then raise exception 'الموظف غير موجود';end if;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;select id into sid from public.hr_attendance_daily_summary where employee_id=p_employee_id and work_date=p_work_date;
+ if auth.uid() is null or not public.has_permission('hr.attendance.adjust') then raise exception 'ليس لديك صلاحية تصحيح الحضور';end if;select * into h from public.hr_employees where id=p_employee_id;if not found then raise exception 'الموظف غير موجود';end if;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;select id into sid from public.hr_attendance_daily_summary where employee_id=p_employee_id and work_date=p_work_date;
  if nullif(trim(coalesce(p_reason,'')),'') is null or nullif(trim(coalesce(p_client_tx_id,'')),'') is null then raise exception 'سبب ومعرف التصحيح مطلوبان';end if;perform pg_advisory_xact_lock(hashtextextended('hr-attendance-adjust:'||p_client_tx_id,0));select id into idv from public.hr_attendance_adjustments where client_tx_id=p_client_tx_id;if found then return idv;end if;e:=public.current_employee_id();
  insert into public.hr_attendance_adjustments(employee_id,branch_id,original_event_id,summary_id,before_value,after_value,reason,status,adjusted_by_employee_id,approved_by_employee_id,approved_at,client_tx_id) values(p_employee_id,h.home_branch_id,p_original_event_id,sid,coalesce(p_before,'{}'::jsonb),coalesce(p_after,'{}'::jsonb),trim(p_reason),'approved',e,e,now(),p_client_tx_id) returning id into idv;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,h.home_branch_id,'hr_attendance_adjust','hr_attendance_adjustment',idv,jsonb_build_object('original_event_id',p_original_event_id,'summary_id',sid,'before',p_before,'after',p_after,'reason',p_reason));perform public.hr_attendance_recalculate_day_v1(p_employee_id,p_work_date);return idv;
@@ -702,7 +702,7 @@ end;$$;
 create or replace function public.hr_attendance_summary_approve_v1(p_summary_id bigint,p_approve boolean,p_note text default null)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare s public.hr_attendance_daily_summary%rowtype;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.attendance.manage') then raise exception 'ليس لديك صلاحية اعتماد الحضور';end if;select * into s from public.hr_attendance_daily_summary where id=p_summary_id for update;if not found then raise exception 'ملخص الحضور غير موجود';end if;if not public.has_branch_access(s.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
+ if auth.uid() is null or not public.has_permission('hr.attendance.manage') then raise exception 'ليس لديك صلاحية اعتماد الحضور';end if;select * into s from public.hr_attendance_daily_summary where id=p_summary_id for update;if not found then raise exception 'ملخص الحضور غير موجود';end if;if not public.has_branch_access(s.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  update public.hr_attendance_daily_summary set verification_status=case when p_approve then 'approved' else 'rejected' end,approved_by_employee_id=e,approved_at=now(),metadata=metadata||jsonb_build_object('approval_note',p_note),updated_at=now() where id=s.id;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details) values(e,s.branch_id,case when p_approve then 'hr_attendance_summary_approve' else 'hr_attendance_summary_reject' end,'hr_attendance_daily_summary',s.id,jsonb_build_object('work_date',s.work_date,'note',p_note));return true;
 end;$$;
@@ -710,7 +710,7 @@ end;$$;
 create or replace function public.hr_apply_attendance_rules_v1(p_employee_id bigint,p_work_date date)
 returns integer language plpgsql security definer set search_path=public as $$
 declare s public.hr_attendance_daily_summary%rowtype;h public.hr_employees%rowtype;r record;amountv numeric;typev text;reasonv text;keyv text;createdv int:=0;e bigint;countv integer;bucketv text;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية تطبيق قواعد الحضور';end if;select * into s from public.hr_attendance_daily_summary where employee_id=p_employee_id and work_date=p_work_date and verification_status='approved';if not found then raise exception 'ملخص الحضور غير معتمد';end if;select * into h from public.hr_employees where id=p_employee_id;if not public.has_branch_access(s.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
+ if auth.uid() is null or not public.has_permission('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية تطبيق قواعد الحضور';end if;select * into s from public.hr_attendance_daily_summary where employee_id=p_employee_id and work_date=p_work_date and verification_status='approved';if not found then raise exception 'ملخص الحضور غير معتمد';end if;select * into h from public.hr_employees where id=p_employee_id;if not public.has_branch_access(s.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  for r in select distinct dr.* from public.hr_deduction_rules dr left join public.hr_deduction_rule_assignments ra on ra.rule_id=dr.id and ra.active=true where dr.active=true and p_work_date between dr.effective_from and coalesce(dr.effective_to,p_work_date) and ((dr.scope='all') or (dr.scope='branch' and (dr.branch_id=s.branch_id or ra.branch_id=s.branch_id)) or (dr.scope='employee' and ra.employee_id=p_employee_id)) loop
   amountv:=0;typev:='deduction';reasonv:=r.name;
   bucketv:=case r.frequency when 'weekly' then to_char(p_work_date,'IYYY-IW') when 'monthly' then to_char(p_work_date,'YYYY-MM') when 'one_time' then 'once' else p_work_date::text end;
@@ -733,7 +733,7 @@ end;$$;
 create or replace function public.hr_recurring_adjustments_generate_v1(p_branch_id bigint,p_effective_date date)
 returns integer language plpgsql security definer set search_path=public as $$
 declare r record;keyv text;createdv int:=0;e bigint;periodv text;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية توليد الخصومات الدورية';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
+ if auth.uid() is null or not public.has_permission('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية توليد الخصومات الدورية';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  for r in select * from public.hr_recurring_adjustments where branch_id=p_branch_id and status='active' and start_date<=p_effective_date and (end_date is null or end_date>=p_effective_date) and (occurrences_limit is null or occurrences_applied<occurrences_limit) for update loop
   periodv:=case r.frequency when 'weekly' then to_char(p_effective_date,'IYYY-IW') when 'monthly' then to_char(p_effective_date,'YYYY-MM') else p_effective_date::text end;keyv:='recurring:'||r.id||':'||periodv;
   insert into public.hr_employee_adjustments(employee_id,branch_id,adjustment_type,amount,effective_date,reason,client_tx_id,created_by_employee_id,source_identity,source_detail) values(r.employee_id,r.branch_id,r.adjustment_type,r.amount,p_effective_date,r.reason,keyv,e,keyv,jsonb_build_object('recurring_adjustment_id',r.id,'period',periodv)) on conflict(source_identity) where source_identity is not null do nothing;
@@ -744,7 +744,7 @@ end;$$;
 create or replace function public.hr_deduction_rule_save_v1(p_id bigint,p_name text,p_rule_type text,p_scope text,p_branch_id bigint,p_threshold numeric,p_amount numeric,p_formula jsonb,p_frequency text,p_effective_from date,p_effective_to date,p_active boolean)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare idv bigint;e bigint;beforev jsonb;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة قواعد الخصومات';end if;
+ if auth.uid() is null or not public.has_permission('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة قواعد الخصومات';end if;
  if p_branch_id is not null and not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if nullif(trim(coalesce(p_name,'')),'') is null or p_rule_type not in ('late_fixed','late_minutes','late_count','absence_day','early_leave','fixed_deduction','fixed_bonus','overtime_bonus','attendance_bonus') or p_scope not in ('all','branch','employee') or p_frequency not in ('per_event','daily','weekly','monthly','threshold_count','one_time') then raise exception 'بيانات القاعدة غير صحيحة';end if;
  e:=public.current_employee_id();
@@ -761,7 +761,7 @@ end;$$;
 create or replace function public.hr_recurring_adjustment_save_v1(p_employee_id bigint,p_adjustment_type text,p_amount numeric,p_frequency text,p_start_date date,p_end_date date,p_occurrences_limit integer,p_reason text)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare h public.hr_employees%rowtype;idv bigint;e bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة الخصومات الدورية';end if;
+ if auth.uid() is null or not public.has_permission('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة الخصومات الدورية';end if;
  select * into h from public.hr_employees where id=p_employee_id and active=true;if not found then raise exception 'الموظف غير موجود';end if;if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_adjustment_type not in ('deduction','bonus') or coalesce(p_amount,0)<=0 or p_frequency not in ('weekly','monthly','scheduled') or nullif(trim(coalesce(p_reason,'')),'') is null or (p_end_date is not null and p_end_date<p_start_date) then raise exception 'بيانات الحركة الدورية غير صحيحة';end if;e:=public.current_employee_id();
  insert into public.hr_recurring_adjustments(employee_id,branch_id,adjustment_type,amount,frequency,start_date,end_date,occurrences_limit,reason,created_by_employee_id)
@@ -772,7 +772,7 @@ end;$$;
 create or replace function public.hr_deduction_rule_assign_v1(p_rule_id bigint,p_employee_id bigint,p_branch_id bigint,p_active boolean default true)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare r public.hr_deduction_rules%rowtype;h public.hr_employees%rowtype;idv bigint;e bigint;target_branch bigint;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة قواعد الخصومات';end if;select * into r from public.hr_deduction_rules where id=p_rule_id;if not found then raise exception 'القاعدة غير موجودة';end if;
+ if auth.uid() is null or not public.has_permission('hr.deduction_rules.manage') then raise exception 'ليس لديك صلاحية إدارة قواعد الخصومات';end if;select * into r from public.hr_deduction_rules where id=p_rule_id;if not found then raise exception 'القاعدة غير موجودة';end if;
  if p_employee_id is not null then select * into h from public.hr_employees where id=p_employee_id;if not found then raise exception 'الموظف غير موجود';end if;target_branch:=h.home_branch_id;else target_branch:=p_branch_id;end if;if target_branch is null or not public.has_branch_access(target_branch) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;e:=public.current_employee_id();
  select id into idv from public.hr_deduction_rule_assignments where rule_id=p_rule_id and employee_id is not distinct from p_employee_id and branch_id is not distinct from (case when p_employee_id is null then p_branch_id else null end) for update;
  if found then update public.hr_deduction_rule_assignments set active=coalesce(p_active,true) where id=idv;
@@ -783,7 +783,7 @@ end;$$;
 create or replace function public.hr_payroll_run_attendance_v1(p_branch_id bigint,p_period_start date,p_period_end date,p_notes text,p_client_tx_id text)
 returns bigint language plpgsql security definer set search_path=public as $$
 declare pid bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');r record;basev numeric;daysv numeric;minutesv numeric;bonusv numeric;otv numeric;dedv numeric;advv numeric;grossv numeric;netv numeric;iid bigint;a record;unresolvedv bigint;unresolved_dates text;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.payroll.run') then raise exception 'ليس لديك صلاحية إعداد مسير المرتبات';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;if p_period_start is null or p_period_end<p_period_start or k is null then raise exception 'فترة أو معرف المرتب غير صحيح';end if;
+ if auth.uid() is null or not public.has_permission('hr.payroll.run') then raise exception 'ليس لديك صلاحية إعداد مسير المرتبات';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;if p_period_start is null or p_period_end<p_period_start or k is null then raise exception 'فترة أو معرف المرتب غير صحيح';end if;
  perform pg_advisory_xact_lock(hashtextextended('hr-payroll-run:'||k,0));select id into pid from public.hr_payroll_periods where client_tx_id=k;if found then return pid;end if;if exists(select 1 from public.hr_payroll_periods where branch_id=p_branch_id and status<>'cancelled' and daterange(period_start,period_end,'[]')&&daterange(p_period_start,p_period_end,'[]')) then raise exception 'يوجد مسير مرتبات متداخل لنفس الفرع';end if;e:=public.current_employee_id();
  insert into public.hr_payroll_periods(branch_id,period_start,period_end,notes,client_tx_id,created_by_employee_id) values(p_branch_id,p_period_start,p_period_end,nullif(trim(coalesce(p_notes,'')),''),k,e) returning id into pid;
  for r in select h.id,h.name,coalesce(c.salary_basis,'monthly') salary_basis,coalesce(c.base_salary,0) base_salary from public.hr_employees h left join public.hr_employee_compensation c on c.employee_id=h.id where h.home_branch_id=p_branch_id and h.active=true and h.employment_status='active' order by h.id loop
@@ -831,7 +831,7 @@ end;$$;
 create or replace function public.hr_payroll_pay_attendance_v1(p_payroll_period_id bigint,p_method text,p_reference text,p_shift_id bigint,p_client_tx_id text)
 returns boolean language plpgsql security definer set search_path=public as $$
 declare p public.hr_payroll_periods%rowtype;i record;a record;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');remain numeric;takev numeric;begin
- if auth.uid() is null or not public.has_action_permission_v2('hr.payroll.pay') or not public.has_action_permission_v2('treasury.post') then raise exception 'ليس لديك صلاحية صرف المرتبات';end if;
+ if auth.uid() is null or not public.has_permission('hr.payroll.pay') or not public.has_permission('treasury.post') then raise exception 'ليس لديك صلاحية صرف المرتبات';end if;
  select * into p from public.hr_payroll_periods where id=p_payroll_period_id for update;if not found then raise exception 'مسير المرتبات غير موجود';end if;if p.branch_id is not null and not public.has_branch_access(p.branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;if p.status='paid' then return true;end if;if p.status<>'approved' then raise exception 'يجب اعتماد مسير المرتبات قبل الصرف';end if;if k is null then raise exception 'معرف الحركة مطلوب';end if;e:=public.current_employee_id();
  for i in select * from public.hr_payroll_items where payroll_period_id=p.id order by id loop
   if i.net_amount>0 then insert into public.treasury_movements(branch_id,shift_id,direction,movement_type,amount,method,entity_type,entity_id,reference,notes,client_tx_id,employee_id) values(p.branch_id,p_shift_id,'out','payroll',i.net_amount,coalesce(nullif(trim(coalesce(p_method,'')),''),'cash'),'hr_payroll_item',i.id,nullif(trim(coalesce(p_reference,'')),''),'صرف مرتب موظف',k||':employee:'||i.employee_id,e) on conflict(client_tx_id) do nothing;end if;
@@ -845,7 +845,7 @@ end;$$;
 create or replace function public.hr_employee_attendance_presence_v1(p_employee_id bigint,p_branch_id bigint,p_at timestamptz default now())
 returns jsonb language plpgsql stable security definer set search_path=public as $$
 declare in_event record;out_at timestamptz;begin
- if auth.uid() is null or not (public.has_action_permission_v2('hr.attendance.view') or public.current_employee_id()=(select login_employee_id from public.hr_employees where id=p_employee_id)) then raise exception 'غير مصرح';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ if auth.uid() is null or not (public.has_permission('hr.attendance.view') or public.current_employee_id()=(select login_employee_id from public.hr_employees where id=p_employee_id)) then raise exception 'غير مصرح';end if;if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  select id,captured_at_device into in_event from public.hr_attendance_events where employee_id=p_employee_id and branch_id=p_branch_id and event_type='check_in' and verification_status in ('verified','verified_after_sync') and captured_at_device between p_at-interval '36 hours' and p_at order by captured_at_device desc limit 1;
  if not found then return jsonb_build_object('present',false,'reason','no_check_in');end if;select max(captured_at_device) into out_at from public.hr_attendance_events where employee_id=p_employee_id and branch_id=p_branch_id and event_type='check_out' and verification_status in ('verified','verified_after_sync') and captured_at_device>=in_event.captured_at_device;
  return jsonb_build_object('present',out_at is null,'check_in_at',in_event.captured_at_device,'check_out_at',out_at,'attendance_is_cash_shift',false);
