@@ -432,7 +432,7 @@ begin
    where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id)
    group by coalesce(op.method,o.payment_method,'unknown')
   )x),'[]'::jsonb),
-  'hourly',coalesce((select jsonb_agg(to_jsonb(x) order by hour) from (
+  'hourly',coalesce((select jsonb_agg(to_jsonb(x) order by sale_hour) from (
    select extract(hour from o.created_at)::int as sale_hour,count(*) as orders,round(sum(o.total),2) as sales from public.orders o
    where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id)
    group by extract(hour from o.created_at)
