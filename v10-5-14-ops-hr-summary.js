@@ -17,7 +17,7 @@ function clearActiveNav(){$$('#nav button').forEach(b=>b.classList.remove('activ
 function money(v){try{return global.money(v)}catch{return Number(v||0).toFixed(2)}}
 
 async function refreshNotifications(){
- if(!global.state?.employee||!navigator.onLine)return;
+ if(!navigator.onLine)return;
  try{
   const rows=await global.rest('app_notifications_v1','select=id,kind,title,body,entity_type,entity_id,action_page,read_at,created_at&order=created_at.desc&limit=100');
   const count=(rows||[]).filter(x=>!x.read_at).length,b=$('#v14NotificationBadge');
