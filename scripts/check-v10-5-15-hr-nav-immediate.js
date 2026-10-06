@@ -31,12 +31,12 @@ ok(app.includes('الإضافات الخارجية'),'shift close must separate 
 const helperStart=app.indexOf('function modifierCount(md');
 const helperEnd=app.indexOf('function openItemOptions(p)',helperStart);
 ok(helperStart>=0&&helperEnd>helperStart,'modifier pricing helper block must exist');
-const helpers=new Function(app.slice(helperStart,helperEnd)+';return {cartItemLineTotal,expandedItemModifiers};')();
+const helpers=new Function(app.slice(helperStart,helperEnd)+';return {cartItemLineTotal,payloadItemModifiers};')();
 const sample={base_price:85,price:85,qty:3,modifiers:[{id:12,name:'بطاطس',price:20,qty:1},{id:1,name:'روز بيف',price:15,qty:2}]};
 ok(Math.abs(helpers.cartItemLineTotal(sample)-305)<0.001,'3 sandwiches + potato x1 + roast beef x2 must total 305, not multiply extras by sandwich count');
-const expanded=helpers.expandedItemModifiers(sample);
-ok(expanded.filter(x=>x.id===12).length===1,'potato quantity must persist as exactly 1');
-ok(expanded.filter(x=>x.id===1).length===2,'roast beef quantity must persist as exactly 2');
+const payload=helpers.payloadItemModifiers(sample);
+ok(payload.find(x=>x.id===12)?.qty===1,'potato quantity must persist as exactly 1');
+ok(payload.find(x=>x.id===1)?.qty===2,'roast beef quantity must persist as exactly 2');
 ok(app.includes("internalModifiers:internalModifierRows,externalExtras:externalExtraRows"),'shift close must separate internal and external extras');
 ok(app.includes('<h3>الإضافات الداخلية</h3>'),'shift print must have internal extras section');
 ok(app.includes('<h3>الإضافات الخارجية</h3>'),'shift print must have external extras section');
