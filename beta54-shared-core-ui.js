@@ -194,19 +194,12 @@ function openPayrollPay(id){
 async function renderTreasury(){
  if(!ensureAllowed('treasury'))return;
  setPage('treasury','<div class="beta54-muted">جاري تحميل الخزنة…</div>');
- const bid=branchId();const offline=global.navigator?.onLine===false;let rows=[];
- try{
-  rows=await rest('treasury_movements',`select=id,branch_id,shift_id,direction,movement_type,amount,method,entity_type,entity_id,reference,notes,created_at&branch_id=eq.${bid}&order=created_at.desc,id.desc&limit=300`);
- }catch(error){
-  if(!offline)throw error;
-  rows=[];
- }
+ const bid=branchId();const rows=await rest('treasury_movements',`select=id,branch_id,shift_id,direction,movement_type,amount,method,entity_type,entity_id,reference,notes,created_at&branch_id=eq.${bid}&order=created_at.desc,id.desc&limit=300`);
  const incoming=(rows||[]).filter(x=>x.direction==='in').reduce((s,x)=>s+Number(x.amount||0),0),out=(rows||[]).filter(x=>x.direction==='out').reduce((s,x)=>s+Number(x.amount||0),0);
- const add=!offline&&has('treasury.post')?button('➕ حركة خزنة','data-add-treasury','primary'):'';
+ const add=has('treasury.post')?button('➕ حركة خزنة','data-add-treasury','primary'):'';
  const labels={cash_in:'إيداع/دخول',cash_out:'سحب/خروج',employee_advance:'سلفة موظف',payroll:'مرتبات',supplier_payment:'دفعة مورد',customer_collection:'تحصيل عميل',driver_settlement:'تسوية مندوب',merchant_settlement:'تسوية تاجر',transfer:'تحويل'};
  const trs=(rows||[]).map(r=>`<tr><td>${date(r.created_at)}</td><td>${esc(labels[r.movement_type]||r.movement_type)}</td><td>${r.direction==='in'?'داخل':'خارج'}</td><td>${money(r.amount)}</td><td>${esc(r.method)}</td><td>${esc(r.reference||'—')}</td><td>${esc(r.notes||'—')}</td></tr>`).join('');
- const offlineNote=offline?`<div class="beta54-card" data-treasury-offline="1"><b>وضع أوفلاين — قراءة فقط.</b><div class="beta54-muted">${rows.length?'تم عرض آخر نسخة خزنة محفوظة على الجهاز.':'لا توجد نسخة خزنة محفوظة على هذا الجهاز بعد.'}</div></div>`:'';
- setPage('treasury',`${offlineNote}<div class="beta54-toolbar">${add}</div><div class="beta54-grid" style="margin-bottom:12px"><div class="beta54-card"><div class="beta54-muted">إجمالي الداخل</div><div class="beta54-kpi">${money(incoming)}</div></div><div class="beta54-card"><div class="beta54-muted">إجمالي الخارج</div><div class="beta54-kpi">${money(out)}</div></div><div class="beta54-card"><div class="beta54-muted">صافي الحركة</div><div class="beta54-kpi">${money(incoming-out)}</div></div></div><div class="beta54-card beta54-table-wrap"><table class="beta54-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>الاتجاه</th><th>القيمة</th><th>الطريقة</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>${trs||'<tr><td colspan="7">لا توجد حركات.</td></tr>'}</tbody></table></div>`);
+ setPage('treasury',`<div class="beta54-toolbar">${add}</div><div class="beta54-grid" style="margin-bottom:12px"><div class="beta54-card"><div class="beta54-muted">إجمالي الداخل</div><div class="beta54-kpi">${money(incoming)}</div></div><div class="beta54-card"><div class="beta54-muted">إجمالي الخارج</div><div class="beta54-kpi">${money(out)}</div></div><div class="beta54-card"><div class="beta54-muted">صافي الحركة</div><div class="beta54-kpi">${money(incoming-out)}</div></div></div><div class="beta54-card beta54-table-wrap"><table class="beta54-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>الاتجاه</th><th>القيمة</th><th>الطريقة</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>${trs||'<tr><td colspan="7">لا توجد حركات.</td></tr>'}</tbody></table></div>`);
  document.querySelector('#page [data-add-treasury]')?.addEventListener('click',openTreasuryPost);
 }
 function openTreasuryPost(){

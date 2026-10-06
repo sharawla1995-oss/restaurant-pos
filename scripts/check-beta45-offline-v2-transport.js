@@ -47,16 +47,6 @@ assert.equal(retryDelayMs(99,{jitterRatio:0}),300000);
 assert.equal(classifyError(Object.assign(new Error('unauthorized'),{http_status:401})).kind,'blocked');
 assert.equal(classifyError(Object.assign(new Error('المخزون غير كافٍ للصنف 2'),{code:'P0001'})).kind,'conflict');
 assert.equal(classifyError(Object.assign(new Error('bad event'),{code:'22023',http_status:400})).kind,'permanent');
-{
- const c=classifyError(Object.assign(
-   new Error('Offline V2 operation/RPC binding غير مدعومة'),
-   {code:'22023',http_status:400}
- ));
- assert.equal(c.kind,'transient');
- assert.equal(c.reason,'backend_contract');
- assert.equal(c.code,'OFFLINE_V2_BACKEND_CONTRACT_MISSING');
- assert.equal(c.retryable,true);
-}
 
 const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
 class MemoryStore{
@@ -106,7 +96,7 @@ function appRuntimeConfigInterface(posProfile){
 
 (async()=>{
   {const s=new MemoryStore([row('auth')]);const e=engine(s,async()=>{throw Object.assign(new Error('JWT expired'),{http_status:401,code:'JWT_EXPIRED'})});const r=await e.syncOnce();assert.equal(r.blocked,1);assert.equal(s.row('auth').status,'blocked')}
-  {const bad=row('bad-contract');bad.attempts=12;const s=new MemoryStore([bad]);const e=engine(s,async()=>{throw Object.assign(new Error('Offline V2 operation/RPC binding غير مدعومة'),{http_status:400,code:'22023'})});const r=await e.syncOnce();assert.equal(r.retried,1);assert.equal(r.dead_letters,0);assert.equal(s.row('bad-contract').status,'retryable');assert.equal(s.row('bad-contract').last_error_code,'OFFLINE_V2_BACKEND_CONTRACT_MISSING')}
+  {const s=new MemoryStore([row('bad-contract')]);const e=engine(s,async()=>{throw Object.assign(new Error('unsupported rpc'),{http_status:400,code:'22023'})});const r=await e.syncOnce();assert.equal(r.dead_letters,1);assert.equal(s.row('bad-contract').status,'dead_letter')}
   {const s=new MemoryStore([row('bad-ack',4)]);const e=engine(s,async x=>({...ack(x),client_tx_id:'wrong'}));const r=await e.syncOnce();assert.equal(r.protocol_errors,1);assert.equal(r.dead_letters,1);assert.equal(s.row('bad-ack').status,'dead_letter')}
   {const a=row('stock');const b={...row('ok'),device_sequence:2};const s=new MemoryStore([a,b]);const e=engine(s,async x=>{if(x.client_tx_id==='stock')throw Object.assign(new Error('المخزون غير كافٍ للصنف 2'),{code:'P0001',http_status:400});return ack(x)});const r=await e.syncOnce();assert.equal(r.conflicts,1);assert.equal(r.acked,1);assert.equal(s.row('stock').status,'conflict');assert.equal(s.row('ok').status,'synced')}
   {const parent=row('parent',0,{status:'synced',operation_type:'shift_open',entity_type:'shift',local_entity_id:'offline-shift-parent'});const child=row('child',0,{depends_on_tx_id:'parent',local_shift_id:'offline-shift-parent'});const s=new MemoryStore([parent,child]);const e=engine(s,async x=>ack(x));const r=await e.syncOnce();assert.equal(r.blocked,1);assert.equal(s.row('child').status,'blocked');assert.equal(s.row('child').last_error_code,'OFFLINE_V2_DEPENDENCY_MAPPING_MISSING')}

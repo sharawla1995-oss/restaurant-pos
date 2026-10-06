@@ -115,6 +115,7 @@ async function applyUnsafe(serverEventId){
     }
     if(row.status!=='received')throw Object.assign(new Error(`Offline V2 Inbox apply rejected from ${row.status}`),{code:'OFFLINE_V2_INBOX_STATE_REJECTED'});
     const event=parseJson(row.payload_json,null),meta=validateEvent(event),payload=clone(event.payload||{});
+    if(['customer','customer_address'].includes(meta.entityType)&&!Number.isFinite(Date.parse(event.created_at)))throw Object.assign(new Error('Canonical customer server revision required'),{code:'OFFLINE_V2_CUSTOMER_REVISION_REQUIRED'});
 
     if(meta.entityType==='order'){
       const branchId=event.branch_id==null?num(payload.branch_id,0):num(event.branch_id,0);
@@ -128,14 +129,14 @@ async function applyUnsafe(serverEventId){
     }else if(meta.entityType==='customer'){
       await run(`INSERT INTO offline_v2_customer_projection(server_customer_id,normalized_phone,payload_json,last_server_event_id,updated_at)
         VALUES(?,?,?,?,?) ON CONFLICT(server_customer_id) DO UPDATE SET
-          normalized_phone=excluded.normalized_phone,payload_json=excluded.payload_json,last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at`,
+          normalized_phone=excluded.normalized_phone,payload_json=excluded.payload_json,last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at WHERE julianday(excluded.updated_at)>julianday(offline_v2_customer_projection.updated_at)`,
         [meta.entityId,normalizePhone(payload.phone)||null,JSON.stringify(payload),id,text(event.created_at)||now]);
     }else if(meta.entityType==='customer_address'){
       const deleted=meta.type==='customer_address.deleted'?1:0;
       await run(`INSERT INTO offline_v2_customer_address_projection(server_address_id,server_customer_id,deleted,payload_json,last_server_event_id,updated_at)
         VALUES(?,?,?,?,?,?) ON CONFLICT(server_address_id) DO UPDATE SET
           server_customer_id=excluded.server_customer_id,deleted=excluded.deleted,payload_json=excluded.payload_json,
-          last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at`,
+          last_server_event_id=excluded.last_server_event_id,updated_at=excluded.updated_at WHERE julianday(excluded.updated_at)>julianday(offline_v2_customer_address_projection.updated_at)`,
         [meta.entityId,text(payload.customer_id)||null,deleted,JSON.stringify(payload),id,text(event.created_at)||now]);
     }else{
       // Unknown future event types remain durable and can be consumed by a later
