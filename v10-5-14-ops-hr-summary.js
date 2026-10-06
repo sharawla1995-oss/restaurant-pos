@@ -75,7 +75,7 @@ async function renderSummary(){
    const types=(data?.order_types||[]).map(x=>`<tr><td>${esc(global.orderTypeLabel?.(x.order_type)||x.order_type)}</td><td>${Number(x.orders||0)}</td><td>${money(x.sales)}</td></tr>`).join('');
    const pays=(data?.payments||[]).map(x=>`<tr><td>${esc(global.paymentLabel?.(x.method)||x.method)}</td><td>${Number(x.orders||0)}</td><td>${money(x.amount)}</td></tr>`).join('');
    const products=(data?.top_products||[]).map(x=>`<tr><td>${esc(x.product_name)}</td><td>${Number(x.qty||0)}</td><td>${money(x.sales)}</td></tr>`).join('');
-   const hours=(data?.hourly||[]).map(x=>`<tr><td>${String(x.hour).padStart(2,'0')}:00</td><td>${Number(x.orders||0)}</td><td>${money(x.sales)}</td></tr>`).join('');
+   const hours=(data?.hourly||[]).map(x=>`<tr><td>${String(x.sale_hour).padStart(2,'0')}:00</td><td>${Number(x.orders||0)}</td><td>${money(x.sales)}</td></tr>`).join('');
    const branches=(data?.branches||[]).map(x=>`<tr><td>${esc(x.branch_name)}</td><td>${Number(x.orders||0)}</td><td>${money(x.sales)}</td></tr>`).join('');
    const latest=(data?.latest_orders||[]).map(x=>`<tr><td>${esc(x.bon_number||x.invoice_number||x.id)}</td><td>${fmt(x.created_at)}</td><td>${esc(x.customer_name||x.customer_phone||'—')}</td><td>${esc(global.orderTypeLabel?.(x.order_type)||x.order_type||'—')}</td><td>${money(x.total)}</td></tr>`).join('');
    const branchLabel=branchValue?(global.branchName?.(Number(branchValue))||'الفرع الحالي'):'كل الفروع المصرح بها';
