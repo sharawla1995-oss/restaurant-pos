@@ -122,7 +122,9 @@ jobs:
           $tagExists = git tag --list $tag
           if ($tagExists) { throw "Stable tag $tag already exists and is immutable." }
 
-          $releaseExists = gh release list --limit 100 --json tagName --jq ".[] | select(.tagName == \"$tag\") | .tagName"
+          $releaseListJson = gh release list --limit 100 --json tagName
+          if ($LASTEXITCODE -ne 0) { throw "Unable to inspect existing GitHub releases." }
+          $releaseExists = ($releaseListJson | ConvertFrom-Json) | Where-Object { $_.tagName -eq $tag }
           if ($releaseExists) { throw "Stable release $tag already exists and is immutable." }
 
           Write-Host "No existing stable tag/release for $tag"
