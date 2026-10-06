@@ -1,7 +1,7 @@
 (function(global){
   'use strict';
 
-  // Sharawla POS V10.5.3 — Multi-Industry Runtime Core.
+  // Sharawla POS V10.5.2 — Multi-Industry Runtime Core.
   // Industry-specific navigation, permissions and operational page rules are
   // supplied by the installed profile engine. The Core stays industry-neutral.
   const engines=new Map();
@@ -41,14 +41,10 @@
   function resolveEngine(config){
     const exact=getEngine(config?.pos_profile);
     if(exact)return exact;
-    // During bootstrap there may be no Runtime Config yet. Prefer the one engine
-    // explicitly marked as the bootstrap compatibility default. This keeps the
-    // Core industry-neutral even when multiple profile engines are installed.
-    if(!config){
-      const defaults=[...engines.values()].filter(engine=>engine.bootstrapDefault===true);
-      if(defaults.length===1)return defaults[0];
-      if(engines.size===1)return [...engines.values()][0];
-    }
+    // During bootstrap there may be no Runtime Config yet. If this build only
+    // contains one implemented engine, using it for static UI metadata is safe
+    // and avoids hardcoding an industry name in app.js.
+    if(!config && engines.size===1)return [...engines.values()][0];
     return null;
   }
 
@@ -61,6 +57,8 @@
     const configured=raw.modules_configured===true;
     const requested=normalizeModules(raw.enabled_modules);
     const enabled=normalizeModules(engine.resolveModules(requested,configured,raw));
+    const featuresConfigured=raw.features_configured===true;
+    const enabledFeatures=normalizeModules(raw.enabled_features);
 
     return {
       business_id:String(raw.business_id||''),
@@ -71,6 +69,9 @@
       modules_configured:configured,
       legacy_profile_compat:!configured,
       enabled_modules:enabled,
+      features_configured:featuresConfigured,
+      enabled_features:enabledFeatures,
+      capability_version:Number(raw.capability_version||1),
       updated_at:new Date().toISOString()
     };
   }
@@ -98,6 +99,13 @@
     const wanted=normalizeCode(code);
     if(!wanted)return true;
     return normalizeModules(config.enabled_modules).includes(wanted);
+  }
+
+  function featureEnabled(config,code){
+    if(!config)return false;
+    const wanted=normalizeCode(code);
+    if(!wanted)return true;
+    return normalizeModules(config.enabled_features).includes(wanted);
   }
 
   function pageAllowed(config,page){
@@ -160,6 +168,7 @@
     saveCache,
     loadCache,
     moduleEnabled,
+    featureEnabled,
     pageAllowed,
     pageOperationalAllowed,
     pageTitle,
