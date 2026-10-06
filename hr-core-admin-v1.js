@@ -24,7 +24,13 @@ async function rest(table,query=''){if(typeof global.rest!=='function')throw new
 function branchId(){try{return Number(typeof global.currentBranchId==='function'?global.currentBranchId():0)||0}catch{return 0}}
 function has(code){return perms[code]===true}
 async function permission(code){try{return (await rpc('has_permission',{p_permission:code}))===true}catch{return false}}
-async function refreshPermissions(){const values=await Promise.all(PERMISSION_CODES.map(permission));PERMISSION_CODES.forEach((c,i)=>perms[c]=values[i])}
+function localPermission(code){try{if(typeof global.isAdmin==='function'&&global.isAdmin())return true;if(typeof global.hasFeaturePermission==='function')return global.hasFeaturePermission(code)===true}catch{}return null}
+async function refreshPermissions(){
+ const local=PERMISSION_CODES.map(localPermission);
+ if(local.some(v=>v!==null))PERMISSION_CODES.forEach((c,i)=>perms[c]=local[i]===true);
+ if(!appVisible())return;
+ const values=await Promise.all(PERMISSION_CODES.map(permission));PERMISSION_CODES.forEach((c,i)=>perms[c]=values[i])
+}
 function appVisible(){const v=document.querySelector('#appView');return !!v&&!v.classList.contains('hidden')}
 function injectStyle(){if(document.querySelector('#beta54CoreStyle'))return;const s=document.createElement('style');s.id='beta54CoreStyle';s.textContent=`
 .beta54-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
@@ -209,7 +215,7 @@ async function render(key){
 }
 function start(){
  if(started)return;started=true;injectStyle();
- refreshPermissions();refreshTimer=setInterval(refreshPermissions,8000);
+ refreshPermissions();addEventListener('sharawla:auth-ready',refreshPermissions);refreshTimer=setInterval(refreshPermissions,8000);
  global.__SharawlaHrCoreAdminV1=Object.freeze({version:VERSION,refreshPermissions,render,permissionCodes:[...PERMISSION_CODES]});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
