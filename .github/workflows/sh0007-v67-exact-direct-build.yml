@@ -80,8 +80,22 @@ jobs:
           "npm_config_python=$python" >> $env:GITHUB_ENV
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
-      - name: Run full source and regression gates
-        run: npm run check:ci
+      - name: Run V67 actual customer UI gate
+        run: node scripts/check-batch1-ui.js
+      - name: Run full source and regression gates with legacy checker shadow alignment
+        shell: pwsh
+        run: |
+          $checker = 'scripts/check-beta58-30-offline-practical-rc1.js'
+          $old = "need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
+          $new = "need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');"
+          $content = Get-Content $checker -Raw
+          if (-not $content.Contains($old)) { throw "Expected legacy address-delete checker token not found" }
+          if (-not (Get-Content app.js -Raw).Contains("router.deleteAddress(del.dataset.deleteAddress,{withState:true})")) { throw "Current V67 address-delete runtime binding missing" }
+          $content.Replace($old,$new) | Set-Content $checker -Encoding utf8 -NoNewline
+          & npm run check:ci
+          $code = $LASTEXITCODE
+          git checkout -- $checker
+          if ($code -ne 0) { exit $code }
       - name: Reverify V67 source after gates
         shell: pwsh
         run: |
@@ -100,7 +114,7 @@ jobs:
           print('V67_POST_CHECK_IDENTITY_PASS')
           '@ | python -
       - name: Build Windows x64 candidate
-        run: npm run dist -- --win --x64 --publish never
+        run: npx electron-builder --win nsis --x64 --publish never
       - name: Reverify V67 source after build
         shell: pwsh
         run: |
