@@ -86,8 +86,9 @@ assert(stableCore.includes("rpc('has_permission',{p_permission:code})"));
 assert(stableAdmin.includes('__SharawlaHrCoreAdminV1'));
 assert(stableAdmin.includes("rpc('has_permission',{p_permission:code})"));
 assert(!stableAdmin.includes('has_action_permission_v2'));
-assert(stableIndex.includes('hr-core-admin-v1.js?v=10.5.13'));
-assert(stableIndex.includes('hr-attendance-admin-v1.js?v=10.5.13'));
+const currentCandidateVersion=JSON.parse(read('package.json')).version;
+assert(stableIndex.includes('hr-core-admin-v1.js?v='+currentCandidateVersion));
+assert(stableIndex.includes('hr-attendance-admin-v1.js?v='+currentCandidateVersion));
 for(const code of ['hr.attendance.view','hr.staff_accounts.manage','hr.payroll.pay'])assert(stableEngine.includes(code));
 for(const forbidden of ['beta36-integration-loader.js','check-point4-stock-v2','canonical stock']){
   assert(!stableCore.toLowerCase().includes(forbidden.toLowerCase()));
