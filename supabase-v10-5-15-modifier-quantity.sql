@@ -17,8 +17,31 @@ set quantity=1
 where quantity is null;
 
 alter table public.order_item_modifiers
-  alter column quantity set default 1,
+  alter column quantity drop default,
   alter column quantity set not null;
+
+create or replace function public.order_item_modifier_quantity_default_v15()
+returns trigger
+language plpgsql
+set search_path=public
+as $
+begin
+  if new.quantity is null then
+    select greatest(1,round(coalesce(oi.quantity,1))::integer)
+    into new.quantity
+    from public.order_items oi
+    where oi.id=new.order_item_id;
+  end if;
+  new.quantity:=coalesce(new.quantity,1);
+  return new;
+end;
+$;
+
+drop trigger if exists trg_order_item_modifier_quantity_default_v15
+on public.order_item_modifiers;
+create trigger trg_order_item_modifier_quantity_default_v15
+before insert on public.order_item_modifiers
+for each row execute function public.order_item_modifier_quantity_default_v15();
 
 do $$
 begin
