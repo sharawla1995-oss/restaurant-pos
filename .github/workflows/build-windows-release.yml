@@ -1,6 +1,9 @@
 name: Build Windows Release
 
 on:
+  push:
+    branches:
+      - release/v10.5.13-production-prep
   workflow_dispatch:
 
 permissions:
@@ -44,13 +47,30 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify version
+      - name: Verify pinned candidate source
         run: npm run check
+
+      - name: Stamp production package metadata
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "10.5.13") { throw "Unexpected package version: $($pkg.version)" }
+          $pkg.description = "Sharawla POS V10.5.13 Production - operations polish + HR Staff"
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding UTF8
+
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ($ver.version -ne "10.5.13") { throw "Unexpected version.json version: $($ver.version)" }
+          $ver.channel = "production"
+          $ver.notes = "Top Burger Production stable 10.5.13. Operations polish + HR/Staff runtime."
+          $ver | ConvertTo-Json -Depth 100 | Set-Content version.json -Encoding UTF8
+
+          $verify = Get-Content version.json -Raw | ConvertFrom-Json
+          if ($verify.channel -ne "production") { throw "Production metadata stamp failed" }
 
       - name: Build Windows x64
         shell: pwsh
         run: |
-          npm run dist -- --win --x64 --publish never
+          npx electron-builder --win nsis --x64 --publish never
 
       - name: Save x64 installer
         shell: pwsh
@@ -69,7 +89,7 @@ jobs:
       - name: Build Windows ia32
         shell: pwsh
         run: |
-          npm run dist -- --win --ia32 --publish never
+          npx electron-builder --win nsis --ia32 --publish never
 
       - name: Save ia32 installer
         shell: pwsh
