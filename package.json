@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
   "version": "10.5.13",
-  "description": "Sharawla POS V10.5.13 Production - operations polish + HR Staff",
+  "description": "Sharawla POS V10.5.13 Candidate - operations polish + HR Staff port",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
