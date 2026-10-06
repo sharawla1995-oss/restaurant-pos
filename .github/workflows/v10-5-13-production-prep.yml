@@ -1,9 +1,6 @@
 name: V10.5.13 Production Prep Build
 
 on:
-  push:
-    branches:
-      - release/v10.5.13-production-prep
   workflow_dispatch:
 
 permissions:
@@ -13,17 +10,11 @@ jobs:
   validate-and-build:
     runs-on: windows-2022
     steps:
-      - name: Checkout exact production-prep source
+      - name: Checkout certified 10.5.13 candidate
         uses: actions/checkout@v4
-
-      - name: Verify pinned candidate source metadata
-        shell: pwsh
-        run: |
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $ver = Get-Content version.json -Raw | ConvertFrom-Json
-          if ($pkg.version -ne "10.5.13") { throw "Unexpected package version: $($pkg.version)" }
-          if ($ver.version -ne "10.5.13") { throw "Unexpected version.json version: $($ver.version)" }
-          if ($ver.channel -ne "candidate") { throw "Expected candidate source channel, got: $($ver.channel)" }
+        with:
+          ref: 54490d9ae1c8ca7de0cf20b852d77b97d326c7a7
+          fetch-depth: 1
 
       - uses: actions/setup-node@v4
         with:
@@ -32,44 +23,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run source checks
+      - name: Run certified source checks
         run: npm run check
 
       - name: Build Windows x64
         run: npm run dist -- --win --x64 --publish never
 
-      - name: Preserve x64 installer
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem dist -Filter *.exe | Where-Object { $_.Name -notmatch "ia32|x86" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $exe) { throw "x64 installer not found" }
-          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.13-x64.exe"
-
       - name: Build Windows ia32
         run: npm run dist -- --win --ia32 --publish never
-
-      - name: Preserve ia32 installer
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          if (-not $exe) { throw "ia32 installer not found" }
-          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.13-ia32.exe"
-
-      - name: Generate SHA256 manifest
-        shell: pwsh
-        run: |
-          $x64=(Get-FileHash "Sharawla-POS-Setup-10.5.13-x64.exe" -Algorithm SHA256).Hash.ToLower()
-          $ia32=(Get-FileHash "Sharawla-POS-Setup-10.5.13-ia32.exe" -Algorithm SHA256).Hash.ToLower()
-          "Sharawla-POS-Setup-10.5.13-x64.exe  $x64" | Set-Content production-v10.5.13-sha256.txt -Encoding ascii
-          "Sharawla-POS-Setup-10.5.13-ia32.exe  $ia32" | Add-Content production-v10.5.13-sha256.txt -Encoding ascii
-          Get-Content production-v10.5.13-sha256.txt
-
-      - name: Upload production-prep installers
-        uses: actions/upload-artifact@v4
-        with:
-          name: sharawla-pos-10.5.13-production-prep
-          if-no-files-found: error
-          path: |
-            Sharawla-POS-Setup-10.5.13-x64.exe
-            Sharawla-POS-Setup-10.5.13-ia32.exe
-            production-v10.5.13-sha256.txt
