@@ -56,3 +56,42 @@ jobs:
             Sharawla-POS-Setup-10.5.14-ia32.exe
             candidate-v10.5.14-sha256.txt
           if-no-files-found: error
+
+  postgres-contract:
+    if: github.ref_name == 'feature/v10.5.14-ops-hr-summary-v1'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sharawla_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sharawla_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Load production-contract fixture
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f scripts/fixtures/v10-5-14-prod-contract.sql
+      - name: Apply V10.5.14 migration in ephemeral PostgreSQL
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f supabase-v10-5-14-ops-hr-notifications-summary.sql
+      - name: Runtime contract smoke
+        run: |
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 <<'SQL'
+          select public.business_summary_v2(1,now()-interval '1 day',now()+interval '1 day');
+          select public.branch_hr_finance_queue_v1(1);
+          select public.hr_adjustment_create_v1(1,'deduction',25,current_date,'test','CI-ADJ-1');
+          select public.hr_adjustment_create_v1(1,'deduction',25,current_date,'test','CI-ADJ-1');
+          select public.hr_adjustment_decide_v2(1,true,'ci');
+          select public.hr_staff_advance_request_v1('ci-session',100,'one_time',null,null,'test','CI-ADV-1');
+          select public.hr_staff_advance_request_v1('ci-session',100,'one_time',null,null,'test','CI-ADV-1');
+          select public.hr_staff_self_snapshot_v1('ci-session',current_date-1,current_date+1);
+          select count(*) as notifications from public.app_notifications_v1;
+          SQL
