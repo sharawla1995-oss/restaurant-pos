@@ -500,6 +500,13 @@ function hasFeaturePermission(key){
   }
   return false;
 }
+window.sharawlaHasPermissionLocal=function(key){
+  if(isAdmin())return true;
+  if(Array.isArray(state.userPermissions)&&state.userPermissions.length){
+    return state.userPermissions.some(x=>x.permission_key===key&&x.allowed!==false);
+  }
+  return runtimeRolePages(state.employee?.role).includes(key);
+};
 function canAccessPage(page){
   if(!runtimeAllowsPage(page))return false;
   const allowed=effectivePermissionSet();
