@@ -78,6 +78,19 @@ Deno.serve(async (request:Request)=>{
    const {data,error}=await server.rpc("hr_staff_leave_request_v1",{p_session_token:staffSession,p_request_type:String(body?.request_type||""),p_starts_at:body?.starts_at,p_ends_at:body?.ends_at,p_reason:String(body?.reason||""),p_client_tx_id:String(body?.client_tx_id||"")});
    if(error)throw error;return json(200,{ok:true,leave_request_id:data});
   }
+  if(action==="advance-request"){
+   const {data,error}=await server.rpc("hr_staff_advance_request_v1",{
+    p_session_token:staffSession,p_amount:Number(body?.amount||0),p_repayment_mode:String(body?.repayment_mode||""),
+    p_installment_amount:body?.installment_amount==null?null:Number(body.installment_amount),
+    p_installments_count:body?.installments_count==null?null:Number(body.installments_count),
+    p_reason:String(body?.reason||""),p_client_tx_id:String(body?.client_tx_id||"")
+   });
+   if(error)throw error;return json(200,{ok:true,advance_request_id:data});
+  }
+  if(action==="notification-read"){
+   const {data,error}=await server.rpc("hr_staff_notification_read_v1",{p_session_token:staffSession,p_notification_id:Number(body?.notification_id||0)});
+   if(error)throw error;return json(200,{ok:data===true});
+  }
   if(action==="sync-state"){
    const {data,error}=await server.rpc("hr_staff_sync_state_v1",{p_session_token:staffSession,p_pending_count:Number(body?.pending_count||0),p_last_error:body?.last_error?String(body.last_error):null});
    if(error)throw error;return json(200,{ok:data===true});
