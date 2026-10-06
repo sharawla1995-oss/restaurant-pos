@@ -1,0 +1,4226 @@
+[
+  {
+    "path": ".github/beta51-build-trigger.txt",
+    "blob_sha": "790417a38d31b27a6d4ada0915a56c2c85a5331b"
+  },
+  {
+    "path": ".github/beta56-runtime-snapshot-trigger.txt",
+    "blob_sha": "49ddb119a20ea44c44ce8a48b064de88042f36c6"
+  },
+  {
+    "path": ".github/workflows/beta42-check.yml",
+    "blob_sha": "43ca1156dc578acfe5434398b7f8699997b27f03"
+  },
+  {
+    "path": ".github/workflows/beta43-build-windows-release.yml",
+    "blob_sha": "9d726ea5e6fc014047d22beec482209ce6d83fc7"
+  },
+  {
+    "path": ".github/workflows/beta43-check.yml",
+    "blob_sha": "5492cee95499ce75a06971256137a069b6b00fdf"
+  },
+  {
+    "path": ".github/workflows/beta44-build-windows-release.yml",
+    "blob_sha": "8d39ea693a5640cd8a8776397b3236f08a713b54"
+  },
+  {
+    "path": ".github/workflows/beta44-check.yml",
+    "blob_sha": "a714e849d07233dc30e4a010f0abc8a1c4da29a2"
+  },
+  {
+    "path": ".github/workflows/beta45-build-windows-release.yml",
+    "blob_sha": "511b5f22421c1e469e1048906a04b80e0c517fd5"
+  },
+  {
+    "path": ".github/workflows/beta45-check.yml",
+    "blob_sha": "217c19ebc0b0b6edf4c8bec13631955a8704d389"
+  },
+  {
+    "path": ".github/workflows/beta45-native-sqlite-arch-check.yml",
+    "blob_sha": "87cfcb4447d168c747a2f874584719b8750f5b73"
+  },
+  {
+    "path": ".github/workflows/beta46-build-windows-release.yml",
+    "blob_sha": "3463d08d81ba38366fbcee46919db9fc9cb1dc93"
+  },
+  {
+    "path": ".github/workflows/beta46-universal-diagnostics-check.yml",
+    "blob_sha": "9cbef88231f3f719a43718881ab2b8a2dca17d06"
+  },
+  {
+    "path": ".github/workflows/beta47-build-windows-release.yml",
+    "blob_sha": "99b22ae9ef75eca7bbb4b1578e7f12347bca600d"
+  },
+  {
+    "path": ".github/workflows/beta47-check.yml",
+    "blob_sha": "7c5585adaa2c727247f05e024f632c8cd3f61332"
+  },
+  {
+    "path": ".github/workflows/beta48-build-windows-release.yml",
+    "blob_sha": "04d9e3da779df128a4d98d954b7891d9f13dcbed"
+  },
+  {
+    "path": ".github/workflows/beta48-check.yml",
+    "blob_sha": "4b17fd11f07d9b903fd29bfb3666c3a45f08f5cb"
+  },
+  {
+    "path": ".github/workflows/beta49-build-windows-release.yml",
+    "blob_sha": "cd6699424ff86592d532f978ad6795c130b0651a"
+  },
+  {
+    "path": ".github/workflows/beta49-check.yml",
+    "blob_sha": "de968091e17ea6e84581d5395f37f65ddceb4fb0"
+  },
+  {
+    "path": ".github/workflows/beta50-build-windows-release.yml",
+    "blob_sha": "66a753c9e915f9adf46812764262bd575c35ea3b"
+  },
+  {
+    "path": ".github/workflows/beta50-source-sync.yml",
+    "blob_sha": "1464ef50a9221e734a6e07dfaae8523cd77747a9"
+  },
+  {
+    "path": ".github/workflows/beta51-build-windows-release.yml",
+    "blob_sha": "58acfd194f198fdba974920633d25acd45d22286"
+  },
+  {
+    "path": ".github/workflows/beta52-build-windows-release.yml",
+    "blob_sha": "b0650021baa962a63906627492457dd1bc05769d"
+  },
+  {
+    "path": ".github/workflows/beta52-source-sync.yml",
+    "blob_sha": "89a27cf387dab700e8fedf97e0a13c521c7b5d0a"
+  },
+  {
+    "path": ".github/workflows/beta53-build-windows-release.yml",
+    "blob_sha": "f80407dfe3d8bcac572cdde354232b835d8af3a7"
+  },
+  {
+    "path": ".github/workflows/beta53-source-sync-v2.yml",
+    "blob_sha": "326613026b9614328b655dc816dea176447cf7da"
+  },
+  {
+    "path": ".github/workflows/beta53-source-sync.yml",
+    "blob_sha": "575c734051a6bb1b5a4a92c6b2259fd5cddea72b"
+  },
+  {
+    "path": ".github/workflows/beta54-build-windows-release.yml",
+    "blob_sha": "9f616eced25c23689e6050c22d0fc0a05fa81bdb"
+  },
+  {
+    "path": ".github/workflows/beta54-source-sync.yml",
+    "blob_sha": "864fd045e24bbc1291a368414acdb9223522bc6e"
+  },
+  {
+    "path": ".github/workflows/beta55-1-runtime-snapshot-build.yml",
+    "blob_sha": "6d64e57e2a33cb4b23950307173c24393bc90226"
+  },
+  {
+    "path": ".github/workflows/beta55-build-windows-release.yml",
+    "blob_sha": "0f9a88b49fce708e21761b8736596ca548b4d7f0"
+  },
+  {
+    "path": ".github/workflows/beta55-delivery-settlement-validate.yml",
+    "blob_sha": "338f48911ea3136e53dcff375c09c2418092e3db"
+  },
+  {
+    "path": ".github/workflows/beta55-print-order-type-validate.yml",
+    "blob_sha": "32f14458c5cd82c2ec3f460cacc28b7eeb661d98"
+  },
+  {
+    "path": ".github/workflows/beta55-v2-validate.yml",
+    "blob_sha": "6c2d8627bde6f3f11e34eba41c3ed3818b48b48d"
+  },
+  {
+    "path": ".github/workflows/beta56-manual-windows-prerelease.yml",
+    "blob_sha": "bce1badbd303c9697e6e3ddf5c8b9d08af0c4ead"
+  },
+  {
+    "path": ".github/workflows/beta56-runtime-snapshot-consumer-check.yml",
+    "blob_sha": "e6e6dd006b4bc0f12bfe8b3d96599ee17925fe8a"
+  },
+  {
+    "path": ".github/workflows/build-windows-release.yml",
+    "blob_sha": "7411c559ff79023bdc9edae03abc84268db9f761"
+  },
+  {
+    "path": ".github/workflows/export-restaurant-schema.yml",
+    "blob_sha": "d6f2cd7def4f73eec12bd7f4494ba05176da6af3"
+  },
+  {
+    "path": ".github/workflows/point4-batch1-effective-definition-proof.yml",
+    "blob_sha": "263b56df45cefaf4bcf64a28a6644e828762430a"
+  },
+  {
+    "path": ".github/workflows/point4-batch1-effective-digest-proof.yml",
+    "blob_sha": "bdb2ef47bbc34fbe4b03ad51cb6598f4a48363f6"
+  },
+  {
+    "path": ".github/workflows/point4-batch1-postgres-compile.yml",
+    "blob_sha": "57f12055bb45c4c009b0971ba2ced0e943dcbf50"
+  },
+  {
+    "path": ".github/workflows/point4-batch1-token-semantic-proof.yml",
+    "blob_sha": "8954482d07ce2f498034759499b216398f090263"
+  },
+  {
+    "path": ".github/workflows/point4-batch10-postgres-compile.yml",
+    "blob_sha": "de463d1315ac6d96fb12dd57eb902662712d5619"
+  },
+  {
+    "path": ".github/workflows/point4-batch11-postgres-compile.yml",
+    "blob_sha": "fb56a4cb329e54effbbf490e5c43f42f87625416"
+  },
+  {
+    "path": ".github/workflows/point4-batch12-postgres-compile.yml",
+    "blob_sha": "7e0926b47c8a982893425fea82ead983fa72dd10"
+  },
+  {
+    "path": ".github/workflows/point4-batch13-postgres-compile.yml",
+    "blob_sha": "c4de5e0dcccec4cc829b8bc4afd3f3e1f3e14edb"
+  },
+  {
+    "path": ".github/workflows/point4-batch14-postgres-compile.yml",
+    "blob_sha": "e95412d217846cab09ee9ff4e4a2feae7039cf4b"
+  },
+  {
+    "path": ".github/workflows/point4-batch15-postgres-compile.yml",
+    "blob_sha": "f34109ceb388c8d7e20b378131a5bb1908040ca7"
+  },
+  {
+    "path": ".github/workflows/point4-batch2-contract46-token-proof.yml",
+    "blob_sha": "3398029b1944b0958742dce82b30788198e9f1c1"
+  },
+  {
+    "path": ".github/workflows/point4-batch2-postgres-compile.yml",
+    "blob_sha": "67e6e361f2683472d2c4802b7fb0e5ab6b284d86"
+  },
+  {
+    "path": ".github/workflows/point4-batch2-token-semantic-proof.yml",
+    "blob_sha": "e4e1738f8a29ead672161d01c47ee35fcaabfb1e"
+  },
+  {
+    "path": ".github/workflows/point4-batch3-postgres-compile.yml",
+    "blob_sha": "a72b3f1da4fc1d624566fc0810bb9a9836650e5c"
+  },
+  {
+    "path": ".github/workflows/point4-batch4-postgres-compile.yml",
+    "blob_sha": "79e2e2b2c9bb96c4391b1048749c247734ee6a1b"
+  },
+  {
+    "path": ".github/workflows/point4-batch5-postgres-compile.yml",
+    "blob_sha": "3f660b341e9e981df84643e2d945dbb31174f721"
+  },
+  {
+    "path": ".github/workflows/point4-batch6-postgres-compile.yml",
+    "blob_sha": "1973d3832bed984a513832201a5b1e5679a63ce1"
+  },
+  {
+    "path": ".github/workflows/point4-batch7-postgres-compile.yml",
+    "blob_sha": "055c80b7c829f791f421012e19d5884aa0e92449"
+  },
+  {
+    "path": ".github/workflows/point4-batch8-postgres-compile.yml",
+    "blob_sha": "82a89b148a8a2c3b59cd333d4f355a879b269eca"
+  },
+  {
+    "path": ".github/workflows/point4-batch9-postgres-compile.yml",
+    "blob_sha": "fe818532e159ab6b4dbfb8d123e2b3489ed98b0e"
+  },
+  {
+    "path": ".github/workflows/point4-deployment-manifest.yml",
+    "blob_sha": "a0a24ed6ff6932af8c06e136fc878de98c2fda22"
+  },
+  {
+    "path": ".github/workflows/point4-fast-track-factory.yml",
+    "blob_sha": "dc4e4cec59af074735be11c5a978bb28badad0d2"
+  },
+  {
+    "path": ".github/workflows/point4-ft10-acceptance-cleanup-v2.yml",
+    "blob_sha": "0b4202606322f4f89fedacf76704f16756af4b42"
+  },
+  {
+    "path": ".github/workflows/point4-ft11-acceptance-cleanup-v3.yml",
+    "blob_sha": "714c4cef0500198dda24a0351a907ba3df314383"
+  },
+  {
+    "path": ".github/workflows/point4-ft6-retail-mixed-postgres-compile.yml",
+    "blob_sha": "846dbac530eadec1b3cb048efd8505f5873523aa"
+  },
+  {
+    "path": ".github/workflows/point4-ft7-food-order-consumption.yml",
+    "blob_sha": "460250dd07fb8ad96e0b76703ea2a876a9f7b049"
+  },
+  {
+    "path": ".github/workflows/point4-ft8-food-return-consumption.yml",
+    "blob_sha": "9312c7c897d4288e6ba68e7f185c0673165759b4"
+  },
+  {
+    "path": ".github/workflows/point4-ft9-acceptance-cleanup-v1.yml",
+    "blob_sha": "bbb1089639871a42db0c0723a7ceedb74e764471"
+  },
+  {
+    "path": ".github/workflows/point4-runtime-recovery-integrity.yml",
+    "blob_sha": "e5e42caf6d341f70925d1604a0f5fb65b9132c0e"
+  },
+  {
+    "path": ".github/workflows/point4b2-genuine-concurrency.yml",
+    "blob_sha": "8335706844b5f39a942bde4d94e55b65be041118"
+  },
+  {
+    "path": ".github/workflows/purchasing-attachments-v1-check.yml",
+    "blob_sha": "55e65dd04a36f113cbe0691649ce5c6173fc9e08"
+  },
+  {
+    "path": ".github/workflows/rc1-beta58-31-materialize-build.yml",
+    "blob_sha": "1f9296ebb11f7893797341ccfad5aedb6edf3c54"
+  },
+  {
+    "path": ".github/workflows/rc1-beta58-32-performance-hotfix-build.yml",
+    "blob_sha": "2bacc414e150c4605326f20cac961cf0e51bb7ee"
+  },
+  {
+    "path": ".github/workflows/rc1-practical-acceptance-source-check.yml",
+    "blob_sha": "f75ed90971acd247a5fae3bad9d0987af4b76f2b"
+  },
+  {
+    "path": "advanced-purchasing-runtime-bridge.js",
+    "blob_sha": "8d7ca15acb1e132af9a8ac98090f3ee3460e20dc"
+  },
+  {
+    "path": "advanced-purchasing-v1.js",
+    "blob_sha": "4732de49647396eee7b79413c8413fe84bcc77f9"
+  },
+  {
+    "path": "app.js",
+    "blob_sha": "c65e99c9c35c763ca4ea4ab0daf53b5df6066785"
+  },
+  {
+    "path": "beta-self-test.js",
+    "blob_sha": "0b27d7238eefd07b91caefbb41f4545e3960e51b"
+  },
+  {
+    "path": "beta22-runtime-fixes.js",
+    "blob_sha": "70b7cc8cf8732fa7135a8de5dc8782717c8f876c"
+  },
+  {
+    "path": "beta23-acceptance-suite.js",
+    "blob_sha": "4215aa3ff2f92cff618def929b7aa2112077b7f8"
+  },
+  {
+    "path": "beta23-full-retail.js",
+    "blob_sha": "56a1fa031878797e16ae355b0536ad362b9747fe"
+  },
+  {
+    "path": "beta26-ui-delivery-acceptance.js",
+    "blob_sha": "44bb00a6d3cacc9aa28ecb10906933c5a198d096"
+  },
+  {
+    "path": "beta28-runtime-fixes.js",
+    "blob_sha": "920d0f7d3cef149af708263bfd721680cddaddd9"
+  },
+  {
+    "path": "beta29-retail-functional-finalization.js",
+    "blob_sha": "a3e8b1241acbde8fe09debb72d7df5a47dc8d7c1"
+  },
+  {
+    "path": "beta34-feature-ui.js",
+    "blob_sha": "d2146effd4081f93e176b88bf53aac0b6828cebe"
+  },
+  {
+    "path": "beta35-feature-behavior.js",
+    "blob_sha": "a9638cfa1f957a2d1364d53a1ce54fb5448764dc"
+  },
+  {
+    "path": "beta36-integration-loader.js",
+    "blob_sha": "813fdb5155fc86ba32b5ed7108344bf3ad9e6860"
+  },
+  {
+    "path": "beta36-offline-v2.js",
+    "blob_sha": "608b939696521e224e9d9bf36501e9641be1a200"
+  },
+  {
+    "path": "beta43-offline-core.js",
+    "blob_sha": "0c81389c434389310329312cd2e23967f66ca75c"
+  },
+  {
+    "path": "beta44-finance-b2b-inject-shim.js",
+    "blob_sha": "3e9a4cb686bb095542fa73222d678e1a142e9a9a"
+  },
+  {
+    "path": "beta44-offline-storage-recovery.js",
+    "blob_sha": "7a0b047bded702c5c1d9ff9f2e6163ab27f3a220"
+  },
+  {
+    "path": "beta45-offline-v2-diagnostics.js",
+    "blob_sha": "2d1aaffc1c34a4cc0c338ff548419742e2b16c96"
+  },
+  {
+    "path": "beta45-offline-v2-foundation.js",
+    "blob_sha": "6d127a4e01c7a4ae9a1a586de7445d73a47b1a09"
+  },
+  {
+    "path": "beta45-offline-v2-inbox-runtime.js",
+    "blob_sha": "11d2f0c167ad07d4a69031d4b96e6699ad42e21f"
+  },
+  {
+    "path": "beta45-offline-v2-inbox-store.js",
+    "blob_sha": "68cc7508c09151f9d6a5cb7b7287b0f56169dd62"
+  },
+  {
+    "path": "beta45-offline-v2-inventory-runtime.js",
+    "blob_sha": "1efea6b25e5b38418521ce745bfd0a7f498206cd"
+  },
+  {
+    "path": "beta45-offline-v2-inventory-store.js",
+    "blob_sha": "7bc00a852e4fd0c2e721ac0d706761c0f08a5725"
+  },
+  {
+    "path": "beta45-offline-v2-native-store.js",
+    "blob_sha": "e84ecb9e4b2277fbc797fa880d580fa107ef70a9"
+  },
+  {
+    "path": "beta45-offline-v2-runtime-takeover.js",
+    "blob_sha": "b9609380ce95c9c730853e54a09d93941ed5fa5e"
+  },
+  {
+    "path": "beta45-offline-v2-safety-runtime.js",
+    "blob_sha": "5c8406cf0cedce09ac8691c8633225174321b9d8"
+  },
+  {
+    "path": "beta45-offline-v2-safety.js",
+    "blob_sha": "9b5abf7c205bb9d0711a11f1769f8ba064a17279"
+  },
+  {
+    "path": "beta45-offline-v2-sync.js",
+    "blob_sha": "3ff39b0119dc4112731566caf56a413e6df372c6"
+  },
+  {
+    "path": "beta45-offline-v2-takeover-manager.js",
+    "blob_sha": "cd4ca30772e13b215dccb3c20cfa7477257cae64"
+  },
+  {
+    "path": "beta45-offline-v2-transport-runtime.js",
+    "blob_sha": "6d81cc6232568797633442579b919559b77858ef"
+  },
+  {
+    "path": "beta45-offline-v2-transport.js",
+    "blob_sha": "24682de78c88e673c89ec89f164e9df04a7f0732"
+  },
+  {
+    "path": "beta46-acceptance-advanced-main.js",
+    "blob_sha": "a573f9a1372321e18970706c6eb3f8bca075d343"
+  },
+  {
+    "path": "beta46-acceptance-network-main.js",
+    "blob_sha": "b04086617a69cd563c7b0a2fec5b2eb39d4b7c12"
+  },
+  {
+    "path": "beta46-acceptance-recovery-main.js",
+    "blob_sha": "c2b1bc07db3295074e517d4a97348149dc485ce0"
+  },
+  {
+    "path": "beta47-performance-sync-hotfix.js",
+    "blob_sha": "501c04dc54ae6250139a1117b5752572f3b5e55a"
+  },
+  {
+    "path": "beta49-takeover-activation-safety.js",
+    "blob_sha": "4a7359b9b78127c07ef83982a666f7e8fc153451"
+  },
+  {
+    "path": "beta51-final-offline-acceptance-fix.js",
+    "blob_sha": "92e212cebbcd8634dc2ada8474c26817c0e08f08"
+  },
+  {
+    "path": "beta54-shared-core-ui.js",
+    "blob_sha": "e07cc81dab401e3b8fc182d5f55c2d32f27c19ad"
+  },
+  {
+    "path": "beta55-4-runtime-recovery.js",
+    "blob_sha": "95f24a9426cd8fdbd101afa2a506934d91fc55d1"
+  },
+  {
+    "path": "beta55-5-runtime-hardening.js",
+    "blob_sha": "7e7d915f102b74e6d628395cab797867443044ff"
+  },
+  {
+    "path": "beta55-central-warehouse-ui.js",
+    "blob_sha": "d8d35827cea7f82aada82d16f58ace84042495ae"
+  },
+  {
+    "path": "beta55-central-warehouse-v2.js",
+    "blob_sha": "6c5eb08586511fe64698a36b77eb4227b6bcdc08"
+  },
+  {
+    "path": "beta55-delivery-settlement-shift-cash.js",
+    "blob_sha": "6d052aaff3835a55ee311eac17de8412d690d182"
+  },
+  {
+    "path": "beta55-emergency-permission-hardening.js",
+    "blob_sha": "4dbfa3c2cd3133e508310ca8dcd2b9dcd233abfe"
+  },
+  {
+    "path": "beta55-navigation-parity.js",
+    "blob_sha": "96bcfdda95438e64facec756f4c8dd856c36c9ce"
+  },
+  {
+    "path": "beta55-print-order-type.js",
+    "blob_sha": "1a4ea0a431de52dc87c2075e236b2a0590717bc3"
+  },
+  {
+    "path": "beta55-restaurant-closure-ui.js",
+    "blob_sha": "a0b0bc6459a5db6bad206437ad831c696b3d3f44"
+  },
+  {
+    "path": "beta55-ui-hardening.js",
+    "blob_sha": "21ab94533ba55bc8ff79e234794dcab82df00e77"
+  },
+  {
+    "path": "beta55-ui-workflow-fixes.js",
+    "blob_sha": "3aedb0595df17acc8ed1efd089d6b746986c823f"
+  },
+  {
+    "path": "beta56-runtime-snapshot-consumer.js",
+    "blob_sha": "3cfba84b99f5c1776a0f47e9d092f5946f5eaeaa"
+  },
+  {
+    "path": "beta56-runtime-snapshot-main.js",
+    "blob_sha": "ecc0af66c6a6eeb74b95aad6558d07c79d9411b1"
+  },
+  {
+    "path": "commerce-orders-v2-ui.js",
+    "blob_sha": "b2d3799a0ded4b21cc0389f45a182362d940b4b3"
+  },
+  {
+    "path": "contracts/point4-deployment-manifest.v1.json",
+    "blob_sha": "f31cd92f9ab322d8af5337ed2773777eb32e36a2"
+  },
+  {
+    "path": "contracts/point4-fast-track-remaining.v1.json",
+    "blob_sha": "6f262edc7d9edb9a7c327fdc840ef1009cda8720"
+  },
+  {
+    "path": "contracts/point4-pre-cutover-46-guard-contracts.v1.json",
+    "blob_sha": "ccb19f03f0d8558f9b537ed00a874cad70fcdc0f"
+  },
+  {
+    "path": "docs/ACTION-LOCATION-AUTHORIZATION-X3-DESIGN.md",
+    "blob_sha": "7b996814e93d77bd93f41a72d06c91175706423f"
+  },
+  {
+    "path": "docs/BETA36-RC-ACCEPTANCE.md",
+    "blob_sha": "e2604f88f3d7c4c7d6ede9cde0326705aacb3b77"
+  },
+  {
+    "path": "docs/BETA38-VARIANTS-RUNTIME-HOTFIX.md",
+    "blob_sha": "7b052c507a8f866676490059394b896c10ab23d9"
+  },
+  {
+    "path": "docs/BETA56-CORRECTIVE-FULL-SANDBOX-ACCEPTANCE-EVIDENCE-2026-09-23.md",
+    "blob_sha": "54f3b281ae0246e2643aff2d74e91a36c70e0012"
+  },
+  {
+    "path": "docs/BON-DAILY-BRANCH-RESET-CONTRACT.md",
+    "blob_sha": "f72c249f43b12d3073d3f421fb97b639bef65108"
+  },
+  {
+    "path": "docs/BON-FINAL-DEFINITION-CHAIN.md",
+    "blob_sha": "da273319a5acab29156adf6b025800eebe6d3f32"
+  },
+  {
+    "path": "docs/BON-NATIVE-V24-SCOPE-MIGRATION.md",
+    "blob_sha": "58402407503b3fc778e02788f79c2791c24de261"
+  },
+  {
+    "path": "docs/BON-NUMBERING-POLICY-V1.md",
+    "blob_sha": "b73faf84a0da4174eefc86c9e1303fde363f63ae"
+  },
+  {
+    "path": "docs/BON-RUNTIME-POLICY-READ.md",
+    "blob_sha": "7b0f81b3f6dd72c63363dce7ef5b64550de543cf"
+  },
+  {
+    "path": "docs/BON-SOURCE-CLOSURE-RC1.md",
+    "blob_sha": "6adf4b266bbc7262044d595aff3a02057da74719"
+  },
+  {
+    "path": "docs/BON-V3-BASE-SALE-OWNER-CLOSURE.md",
+    "blob_sha": "9f3cac0b330e6669ab429da9f3c4a73843961a60"
+  },
+  {
+    "path": "docs/BON-V3-FINAL-SALE-INTEGRATION.md",
+    "blob_sha": "7327d8198892faf9808f424db1cd4d8f93e7184f"
+  },
+  {
+    "path": "docs/BON-V3-SQL-DEPLOYABILITY-REVIEW.md",
+    "blob_sha": "905d8df16c094f9f54559501c3b9f57f31e76b18"
+  },
+  {
+    "path": "docs/BON-V3-TRANSPORT-INTEGRATION.md",
+    "blob_sha": "caa3affb54a564ac75a0861536e86c39788ba430"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-ACL-CLASSIFICATION-X1.md",
+    "blob_sha": "68355740e29e4de5434e16bdd295f8359cdd8243"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-BACKEND-AUTHORIZATION-AUDIT.md",
+    "blob_sha": "f5244941039b2a032dc4c9b10a14e3410689affc"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-ENTRYPOINT-SUPPLEMENT-X0A.md",
+    "blob_sha": "a2d5c21d22768e322d87940639d31ffb3bcdd0a2"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-NEGATIVE-MATRIX-X4.md",
+    "blob_sha": "dcf4a4db05a9855c39ce3bc1367250df3c8f1600"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-OWNER-INVENTORY-X0.md",
+    "blob_sha": "bf4e574b37bc332bca71b20bf55b3786e2dcaf97"
+  },
+  {
+    "path": "docs/CROSS-PROFILE-TRUSTED-PROFILE-BINDING-X2.md",
+    "blob_sha": "0208c6e6c88afbc0daa4a5c002909473b494c9fa"
+  },
+  {
+    "path": "docs/MARKETPLACE_INTEGRATION_ARCHITECTURE.md",
+    "blob_sha": "bd36f8172feaf239b569ffdf835818427f862223"
+  },
+  {
+    "path": "docs/OFFLINE-BON-ATOMIC-LOCAL-ALLOCATION.md",
+    "blob_sha": "c688999d893a0b29c644f3375594b2f3f78433c5"
+  },
+  {
+    "path": "docs/OFFLINE-BON-BUSINESS-DATE-BINDING.md",
+    "blob_sha": "7abac648e60081ddc5743f8049bff5cd364009cc"
+  },
+  {
+    "path": "docs/OFFLINE-BON-LOCAL-RECORD-CONSISTENCY.md",
+    "blob_sha": "a48e5cfc0dda94790a8592840c59c27627cb5b68"
+  },
+  {
+    "path": "docs/OFFLINE-BON-REPLAY-DIGEST.md",
+    "blob_sha": "4a34840feb16e158f4f6d31286e946055fdf30c0"
+  },
+  {
+    "path": "docs/OFFLINE-BON-RESERVATION-V1.md",
+    "blob_sha": "a9e0dd28aff37d091001c7e1f2f7273871843325"
+  },
+  {
+    "path": "docs/OFFLINE-CROSS-PROFILE-SCOPE-2026-09-26.md",
+    "blob_sha": "bc5a62c0b2600776f7879aeda4b2da49e106ae31"
+  },
+  {
+    "path": "docs/OFFLINE-SYNC-FINAL-CLOSURE-EVIDENCE-MATRIX-2026-09-26.md",
+    "blob_sha": "3ec1f9dacdd3d6bd96491ae985801f5ed6beb889"
+  },
+  {
+    "path": "docs/OFFLINE-UNIVERSAL-OPERATION-CONTRACT-V1.md",
+    "blob_sha": "8a58278e98dd7fb389e184f12ecb980ce45f4f6c"
+  },
+  {
+    "path": "docs/OFFLINE-V2-ACCEPTANCE-BETA51.md",
+    "blob_sha": "1a7e9ad26f27a10738cccfc2388b64f1f43f4d18"
+  },
+  {
+    "path": "docs/OFFLINE-V2-CUSTOMER-DELIVERY-BETA-DEPLOYMENT-PLAN.md",
+    "blob_sha": "b40763bbe75b88b32b0455551038f5c6dc055879"
+  },
+  {
+    "path": "docs/OFFLINE-V2-CUSTOMER-DELIVERY-DURABLE-OWNER-DESIGN.md",
+    "blob_sha": "733bb24cbd7796f69c621215e9b841a72cbf2a72"
+  },
+  {
+    "path": "docs/ONLINE-TO-OFFLINE-ORDER-CONTINUATION-PROOF.md",
+    "blob_sha": "6661bb4698c9286b1d4db523029ca8e2e25820e2"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-BETA-PREDEPLOYMENT-GATE.md",
+    "blob_sha": "5f993ad2b563cf719b3ed5704f26b8b1a2a28ee3"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-CONTROLLED-BETA-DEPLOYMENT-ORDER.md",
+    "blob_sha": "263af22ef132c68dbcee4cd8c12602b2ff770bab"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-F5-ORDER-LIFECYCLE-AUDIT.md",
+    "blob_sha": "1fe9e158b8f013b0ce1701d73fe0ae216ebed665"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-F5C-DELIVERY-COMPLETION-PROOF.md",
+    "blob_sha": "91c71f1f93c8329b0dc3309ac3a095644a7772f5"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-F5C-DELIVERY-COMPLETION-SEMANTIC-FREEZE.md",
+    "blob_sha": "b4c6b941ea429b811e8c98467564e5a65454009d"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-F5E-ORDERS-CLOSURE-READINESS.md",
+    "blob_sha": "b3c9b3f4f17b6330f9f6615233eb1a3e0684384e"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-IMPLEMENTATION-BATCH-PLAN.md",
+    "blob_sha": "915a5306e2db01affe9b6874a7d267e4fa594f3b"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-LOCATION-PRINTER-AI-SUPPORT-DESIGN.md",
+    "blob_sha": "3a20d576073b43e91d122e417f370afadd74e526"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-OFFLINE-ORDER-STATUS-CONTRACT.md",
+    "blob_sha": "39fb46dc6f872f43e6b7b1566c169ff41c15bfba"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-OFFLINE-ORDER-STATUS-REPLAY-PROOF.md",
+    "blob_sha": "a83bde7dd722aeb0771405978e28478bea9889d3"
+  },
+  {
+    "path": "docs/PERMISSIONS-V2-PROFILE-FEATURE-APPLICABILITY-CLOSURE.md",
+    "blob_sha": "82be3ef3c9ba9a8d44d2445a3c8f5ce5eaa0ecb9"
+  },
+  {
+    "path": "docs/PHARMACY-ACCEPTANCE-V2-DESIGN.md",
+    "blob_sha": "04e2f275aa91b38cfc59af1851471073692a1751"
+  },
+  {
+    "path": "docs/PHARMACY-BETA-ENVIRONMENT-PROVISIONING-PLAN.md",
+    "blob_sha": "61cbf148fdcac90138152fc006d6e140b8340f6a"
+  },
+  {
+    "path": "docs/PHARMACY-CLOSURE-AUDIT-2026-09-24.md",
+    "blob_sha": "767e148a739f6722128d638a9be6f176586310b7"
+  },
+  {
+    "path": "docs/PHARMACY-COSTING-REPORTS-V1-CONTRACT.md",
+    "blob_sha": "d491d25356c39ed877831bbc72a461bbedccb419"
+  },
+  {
+    "path": "docs/PHARMACY-MENU-UX-CLEANUP-DESIGN.md",
+    "blob_sha": "71e6cde6a517da4b38326212242e4f2663e7359d"
+  },
+  {
+    "path": "docs/PHARMACY-OFFLINE-SUPPORT-MATRIX.md",
+    "blob_sha": "76b47595090c379c103fd0612436403b536b9a70"
+  },
+  {
+    "path": "docs/PHARMACY-PERMISSIONS-ACTION-MATRIX.md",
+    "blob_sha": "0d353dcc8c04ea2289ed5dcb5dbee613c17e8dd6"
+  },
+  {
+    "path": "docs/PHARMACY-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md",
+    "blob_sha": "3986c90e7ce2aab1c5221e80593442c03c75af80"
+  },
+  {
+    "path": "docs/PHARMACY-SALE-RETURN-INTEGRITY-CONTRACT.md",
+    "blob_sha": "2c9f50ea0fd95512ee5d7f239d8db86e8c72cfb5"
+  },
+  {
+    "path": "docs/PHARMACY-V1-IMPLEMENTATION-BATCH-PLAN.md",
+    "blob_sha": "1d2fb2ca9483cdb67c491cac3eb08f8a4b25046f"
+  },
+  {
+    "path": "docs/PHARMACY-V1-OFFICIAL-31-GATE-ROADMAP.md",
+    "blob_sha": "e3c288a053d389c2857fe3688323c8c0d542b224"
+  },
+  {
+    "path": "docs/POINT4-BATCH4-V2-PREDEPLOYMENT-ACCEPTANCE-PLAN.md",
+    "blob_sha": "d10e0925b06aa5065ca7c7cb39ad1ebbf3ae42dc"
+  },
+  {
+    "path": "docs/POINT4-BATCH4B-RESERVATION-IDENTITY-V1-DESIGN.md",
+    "blob_sha": "8250f8f980cd46452b58850e3b5fb5d3ff64ce81"
+  },
+  {
+    "path": "docs/POINT4-COLLISION-SCAN-SCOPE-CORRECTION.md",
+    "blob_sha": "5b862bb2bbf92473d5791c34acd7779de7b31b0d"
+  },
+  {
+    "path": "docs/POINT4-MANIFEST-TRIGGER-SCOPE.md",
+    "blob_sha": "d0969e6856b1707ee40aa4cf0a96f50fb2706d40"
+  },
+  {
+    "path": "docs/POINT4-OFFICIAL-CONTINUATION-CHECKPOINT-2026-09-22.md",
+    "blob_sha": "0525ed33563a043b19e7090810f7bc1b53c2b7f3"
+  },
+  {
+    "path": "docs/POINT4-OFFICIAL-CONTINUATION-CHECKPOINT-2026-09-23.md",
+    "blob_sha": "50dc63bb861ead3a750bf25a48a5714f7cea3706"
+  },
+  {
+    "path": "docs/POST-58-26-IMPLEMENTATION-GATES.md",
+    "blob_sha": "e0ddfac67970deb4eecdef38aae8cb7c54609a82"
+  },
+  {
+    "path": "docs/PRODUCTION-MIGRATION-PLAN-V1.md",
+    "blob_sha": "83d3ce91598e7f2d03bd769f1342b4007e8625c2"
+  },
+  {
+    "path": "docs/PRODUCTION-V1-FREEZE-CHECKLIST.md",
+    "blob_sha": "9a379d1f2e3cfbf92844d8ba5861d1a20c31c3ee"
+  },
+  {
+    "path": "docs/PROFILE_PRIMARY_WORKFLOWS.md",
+    "blob_sha": "567e71a0322ce3a8c955aed5974c133a30670e76"
+  },
+  {
+    "path": "docs/PURCHASING-ATTACHMENTS-V1.md",
+    "blob_sha": "8b2ca70b9cecc6e4de59efd2caf22432fef71d50"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-INTENTIONALLY-ONLINE-ONLY-2026-09-26.md",
+    "blob_sha": "ff64131c14157eb67b5434b532891ce620ba00b5"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-OFFLINE-ACTION-MATRIX-2026-09-26.md",
+    "blob_sha": "153bc46a21c067912dbc0abee72ab132334fef6c"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-OFFLINE-AUDIT-RESULT-2026-09-26.md",
+    "blob_sha": "194b2d6eac7b66315b31be701db24706bd14a231"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-OFFLINE-DEFECT-LEDGER-2026-09-26.md",
+    "blob_sha": "ee9d8b082be3636edfd0bef3aff9b6fbfbe59291"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-OFFLINE-FINAL-VERDICTS-2026-09-26.md",
+    "blob_sha": "17dbedd13acec19554e3b59a6d03b8d207c22536"
+  },
+  {
+    "path": "docs/RESTAURANT-RC1-SH0007-PRACTICAL-OFFLINE-ACCEPTANCE-2026-09-26.md",
+    "blob_sha": "2105a70042a53e14fe58d967838a87fd329896cc"
+  },
+  {
+    "path": "docs/RESTAURANT-UNIVERSAL-OFFLINE-AUDIT-V2-2026-09-28.md",
+    "blob_sha": "6da6cc264dfd169d61581fece4efb1621e4b5679"
+  },
+  {
+    "path": "docs/RETAIL-ACCEPTANCE-V2-DESIGN.md",
+    "blob_sha": "f2d8870d06783e33a04a75eaddaf2eebea3bb0eb"
+  },
+  {
+    "path": "docs/RETAIL-BETA-ENVIRONMENT-PROVISIONING-PLAN.md",
+    "blob_sha": "36d21fce1f9c1dbb8813d77ca824f9f4adb61478"
+  },
+  {
+    "path": "docs/RETAIL-CLOSURE-AUDIT-2026-09-24.md",
+    "blob_sha": "77bf1ea35d77d24553e4ee52e069c138143718f3"
+  },
+  {
+    "path": "docs/RETAIL-MENU-UX-CLEANUP-DESIGN.md",
+    "blob_sha": "4c0aa5b14e4e09ece0aa7dc93386de731c9556ef"
+  },
+  {
+    "path": "docs/RETAIL-OFFLINE-SUPPORT-MATRIX.md",
+    "blob_sha": "e493168b559366bd9a5a2bc2444d4c5a17658f91"
+  },
+  {
+    "path": "docs/RETAIL-PERMISSIONS-ACTION-MATRIX.md",
+    "blob_sha": "c2c073a6d49c9bc9a0b7a0dddfc835124e330b38"
+  },
+  {
+    "path": "docs/RETAIL-PRODUCT-MAP-CAPABILITY-ALIGNMENT.md",
+    "blob_sha": "81f5ad01e1312e17426553b1330e0db30cf6bd95"
+  },
+  {
+    "path": "docs/RETAIL-REPORTS-V1-CONTRACT.md",
+    "blob_sha": "ab3a4b3751a8fcb46cdbe8d07ad9bee1c297682a"
+  },
+  {
+    "path": "docs/RETAIL-SUSPEND-RESUME-LOCAL-FIRST-V1.md",
+    "blob_sha": "72ee741e1f1499df9627e4f653f314cc8f8213a1"
+  },
+  {
+    "path": "docs/RETAIL-SUSPEND-RESUME-RC1-AUDIT.md",
+    "blob_sha": "f8a975a30690f98651178791e52416026311f9e8"
+  },
+  {
+    "path": "docs/RETAIL-V1-IMPLEMENTATION-BATCH-PLAN.md",
+    "blob_sha": "31daa34e3631681312965269164fa42ce6eae4e0"
+  },
+  {
+    "path": "docs/RETAIL-V1-OFFICIAL-CLOSURE-ROADMAP.md",
+    "blob_sha": "f791d52c43469bdf7caec9ca5e3ad185abf340fc"
+  },
+  {
+    "path": "docs/SH0007-58-26-RUNTIME-OPERATOR-CHECKLIST.md",
+    "blob_sha": "28f3287ffafcc3cb3e64de3f575386c45a5e3e60"
+  },
+  {
+    "path": "docs/SH0007-58-29-G0-FULL-ACCEPTANCE-EVIDENCE-2026-09-25.md",
+    "blob_sha": "ddd3b1cb4468d61979ac3df477dba1e2058df1a7"
+  },
+  {
+    "path": "docs/SH0007-58-29-G1-SHARED-ROUTES-EVIDENCE-2026-09-25.md",
+    "blob_sha": "4b1499be180ec4fd8481e9eb3f3ae105068e7d65"
+  },
+  {
+    "path": "docs/SH0007-58-29-G3-MENU-CLEANUP-EVIDENCE-2026-09-25.md",
+    "blob_sha": "be34603b3a667a891b31961c2697df055b1c66d4"
+  },
+  {
+    "path": "docs/SHARAWLA_MASTER_HANDOFF_2026-09-30.md",
+    "blob_sha": "6c628ae383d79f75b95d761b988924cb37a31f14"
+  },
+  {
+    "path": "docs/SHARAWLA-ADMIN-ENTITLEMENT-CONTROL-DESIGN.md",
+    "blob_sha": "291844260484d70705095b60f78276227b1fdb30"
+  },
+  {
+    "path": "docs/SHARAWLA-ADVANCED-PURCHASING-V1.md",
+    "blob_sha": "95b9c64dd38fcbbb0071aa60d4b0bfc82dea47e3"
+  },
+  {
+    "path": "docs/SHARAWLA-CAPABILITY-PLATFORM-V2.md",
+    "blob_sha": "6c9342b9fb81735debc97c85973010050f1222fb"
+  },
+  {
+    "path": "docs/SHARAWLA-CLOUD-CAPABILITIES-V1.md",
+    "blob_sha": "5ddbcf7c13a496c6c2ce752aef70bf74a32e6e0a"
+  },
+  {
+    "path": "docs/SHARAWLA-FUNCTIONAL-BLUEPRINT-V1.md",
+    "blob_sha": "468e50a1f43a97011f2d01138b7da4a8b0218612"
+  },
+  {
+    "path": "docs/SHARAWLA-HR-ATTENDANCE-PAYROLL-EXTENSION-V1-CONTRACT.md",
+    "blob_sha": "bbff1babf9c1a43b29a0acf2e0718ba5d0313199"
+  },
+  {
+    "path": "docs/SHARAWLA-MASTER-CAPABILITY-MAP-V3.md",
+    "blob_sha": "69a8d0fc11cb918cbcedc15a333bf68d91ff7593"
+  },
+  {
+    "path": "docs/SHARAWLA-MASTER-CHECKPOINT-2026-09-28-OFFLINE-UNIVERSAL-HANDOFF-V3.md",
+    "blob_sha": "cd9270221c8184591ef30deb45edd7492d7b4daf"
+  },
+  {
+    "path": "docs/SHARAWLA-MASTER-CHECKPOINT-2026-09-28-OFFLINE-UNIVERSAL-HANDOFF.md",
+    "blob_sha": "a449898203ed6b0a8bcaff462b66835e8089245f"
+  },
+  {
+    "path": "docs/SHARAWLA-MASTER-CHECKPOINT-2026-09-29-HANDOFF.md",
+    "blob_sha": "3356c7dcbed09b8027e69fb18f7c1e2f1581e751"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-OFFICIAL-CONTINUATION-2026-09-30.md",
+    "blob_sha": "d67e441c218cfb0c210a5d933395c0ff8013449b"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-ROOT-CAUSE-STABILIZATION-CONTRACT-2026-09-30.md",
+    "blob_sha": "2c0374da8a68b33d6db870a8d0342cb406cd50e5"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-ROOT-CAUSE-STABILIZATION-PRACTICAL-MATRIX-2026-09-30.md",
+    "blob_sha": "ceff1335c30a2d991399bf65463ce41340339dd5"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-RUNTIME-ALIGNMENT-2026-09-30.md",
+    "blob_sha": "1366d073dbf33a9981135c03a643807dccd4ab7f"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-RUNTIME-ALIGNMENT-BETA-DEPLOYMENT-MANIFEST.json",
+    "blob_sha": "d4d75911c6ac1e9a55f321fc1a80e6e55174614f"
+  },
+  {
+    "path": "docs/SHARAWLA-RECIPE-ADVANCED-V1.md",
+    "blob_sha": "e3fa98c9936ee9ed4b5d3f5cab84ebbb0aaaa52b"
+  },
+  {
+    "path": "docs/SHARAWLA-RECIPE-BASIC-V1.md",
+    "blob_sha": "bbdb7139a3acccbd1d68f5085710d0184a300370"
+  },
+  {
+    "path": "docs/SHARAWLA-V1-EXECUTION-TRACKER.md",
+    "blob_sha": "3741616a7512a43c79ea919d75a962f65bb8d2e4"
+  },
+  {
+    "path": "docs/SHARAWLA-VARIANTS-ENGINE-V1.md",
+    "blob_sha": "d79517ec4a152c7b2849894b2d7f86e2c5b3f260"
+  },
+  {
+    "path": "docs/SUPPORT-RECOVERY-GUIDE-V1.md",
+    "blob_sha": "0ba466873fedec5bb1e0faffcb0e3a247eabd32f"
+  },
+  {
+    "path": "docs/TRUSTED-DEVICE-ACQUISITION-BOUNDARY.md",
+    "blob_sha": "3f8ea0ecdb096df065bd876a3fd952b0b70293f1"
+  },
+  {
+    "path": "docs/TRUSTED-DEVICE-ASSERTION-V1.md",
+    "blob_sha": "a661035b5eed0cf21172147dff4b8b10c864e3ad"
+  },
+  {
+    "path": "docs/TRUSTED-DEVICE-BRIDGE-EDGE-SOURCE.md",
+    "blob_sha": "9a809d37e43e21857895198363393ffcc5534e61"
+  },
+  {
+    "path": "docs/TRUSTED-DEVICE-BRIDGE-V1.md",
+    "blob_sha": "18953013d5f07a0f007d6c35d1089c791d1482bc"
+  },
+  {
+    "path": "docs/UNIFIED-NAVIGATION-REGISTRY-1D-B-RUNTIME-AUDIT-DESIGN.md",
+    "blob_sha": "c27c9a68852ceb08c4d168d779af41599f281ac8"
+  },
+  {
+    "path": "docs/UNIFIED-NAVIGATION-REGISTRY-V1-CONTRACT.md",
+    "blob_sha": "b47f522818f9b2d723773c8f9dc8cd24776c8af0"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-ACCEPTANCE.md",
+    "blob_sha": "09116842136d8583480856f9adbf7842b108fd75"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-ARCHITECTURE.md",
+    "blob_sha": "961ca2388a7f8c022da7d4cd75bea90ce7f8873d"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-CURRENT-RC1-PORT.md",
+    "blob_sha": "17a4dd591a9031c9419a6fdea0281fd17b41ce49"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-DATA-MAP.md",
+    "blob_sha": "a7cf246706985efe5243d65af3684d920c543233"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-OFFLINE-BEHAVIOR.md",
+    "blob_sha": "94bace790cd5400915a8db1786ef0c86625a65ef"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-PERMISSIONS.md",
+    "blob_sha": "ea9e816e54b6423cd4b1de02415091365f9c03cb"
+  },
+  {
+    "path": "docs/UNIVERSAL-DASHBOARD-V1-WIDGET-REGISTRY.md",
+    "blob_sha": "401dd8e9526ed9231dcce20b6440a9d7fe45cbf3"
+  },
+  {
+    "path": "evidence/POINT4-PRE-CUTOVER-SOURCE-ACCEPTANCE-CLOSURE-2026-09-22.md",
+    "blob_sha": "1533f330f84323b1cca824be0621c284d4574efe"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/11-food_apply_order_consumption_v1.sql",
+    "blob_sha": "e8c3e4ca64a746f1b656c6822804c4d6513617a9"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/11-lineage-callsite-reconciliation.md",
+    "blob_sha": "cd224cadc188e8f5cec7fba8191e9920a44ffbda"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/12-food_apply_return_consumption_v1.sql",
+    "blob_sha": "3a2a007445dce20b25eb80492d8c7595b64e7066"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/12-lineage-callsite-reconciliation.md",
+    "blob_sha": "faa2f009009c1f2092c33bce1d5d466379050110"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/35-lineage-callsite-reconciliation.md",
+    "blob_sha": "61d9ef3ee5be5a8ec9727acc62c615b6ba952015"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/35-sharawla_acceptance_cleanup_v1.sql",
+    "blob_sha": "e0650c1486b767852e5f16c2660ce4e489c8316f"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/36-lineage-callsite-reconciliation.md",
+    "blob_sha": "6fcb73669006b8518fb14c2e2aef0b5211dc96ac"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/36-sharawla_acceptance_cleanup_v2.sql",
+    "blob_sha": "c9aded7e3d3e3026f76a6ccf4d8edd0ba235b384"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/37-lineage-callsite-reconciliation.md",
+    "blob_sha": "d20bca35130dd92fdaf8d703cb7fb52cab21b922"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/37-sharawla_acceptance_cleanup_v3.sql",
+    "blob_sha": "2d20c2557c29447b2b7a889835b3a712d16936c7"
+  },
+  {
+    "path": "evidence/point4-runtime-recovery-2026-09-22/manifest.json",
+    "blob_sha": "5977bb16f994a47da2523a171d3b3a813d9621c0"
+  },
+  {
+    "path": "finance-b2b-ui.js",
+    "blob_sha": "bc77167a05ee3400e3cedb399f13f966b2687d3e"
+  },
+  {
+    "path": "food-advanced-ui-v1.js",
+    "blob_sha": "6be999fdd94e6e6286dd3c1b2c902f3f22e4dd4f"
+  },
+  {
+    "path": "food-recipe-runtime-bridge.js",
+    "blob_sha": "65dc29e0e968961d88afde447b5be2a2c64fe5bb"
+  },
+  {
+    "path": "food-recipe-ui-v1.js",
+    "blob_sha": "3d2d7b8aaadedb16b96a291894a01270201c6760"
+  },
+  {
+    "path": "hr-attendance-admin-v1.js",
+    "blob_sha": "2deb07bf259e064fe63edd6dc3c6e936617c08a2"
+  },
+  {
+    "path": "hr-employee-profile-model-v1.js",
+    "blob_sha": "324f0f268c6cdc13c3cb613acb883088d33dcd06"
+  },
+  {
+    "path": "icon-192.png",
+    "blob_sha": "7c03c71adc2e3de5b1784a725d93428ffc628ea6"
+  },
+  {
+    "path": "icon-512.png",
+    "blob_sha": "d51643ee28ef26bb7035c13ace128da9c6f67394"
+  },
+  {
+    "path": "index.html",
+    "blob_sha": "619e0744f392744db67e410e9d513d90e3f6e01a"
+  },
+  {
+    "path": "inventory-overview-v1.js",
+    "blob_sha": "bab9b270a240c1d5304ea7da0ba328ba49e1ebe5"
+  },
+  {
+    "path": "landed-cost-posting-v1.js",
+    "blob_sha": "22132f66cbff92e03f04c3aee2fd17860e64a733"
+  },
+  {
+    "path": "logistics-engine.js",
+    "blob_sha": "e41569b7023e71c71e1ad95eb3a9a252a927d466"
+  },
+  {
+    "path": "logistics-v1-ui.js",
+    "blob_sha": "f20083a48abdc3c533cf6ea55a26060e24a716c2"
+  },
+  {
+    "path": "main-beta23.js",
+    "blob_sha": "4c498b1f2c76b5fb0848a9d4256933b96ba3579b"
+  },
+  {
+    "path": "main-beta44.js",
+    "blob_sha": "0e2b0eb32bb947660a943c58f31d0bb58b46ceb3"
+  },
+  {
+    "path": "main.js",
+    "blob_sha": "dce7d8a0078599285eb6dc1352ae3ca5c7defdc8"
+  },
+  {
+    "path": "manifest.json",
+    "blob_sha": "1943b18a73db8ad0e67702ee3d99049db0fb040d"
+  },
+  {
+    "path": "membership-engine.js",
+    "blob_sha": "f1e3b8150f1d701972846ee7487ccbf0d34f4e6b"
+  },
+  {
+    "path": "membership-v1-ui.js",
+    "blob_sha": "81e94ffb3c30f4df1b668cd31e50783ec3907f20"
+  },
+  {
+    "path": "owner-acceptance-advanced-v4.js",
+    "blob_sha": "3e4a995b8874714596ae85e2536963775f50fc1d"
+  },
+  {
+    "path": "owner-acceptance-beta55-delivery-settlement-v55.js",
+    "blob_sha": "b880ee5362042e6e23c082afd4f503605cbbb8ad"
+  },
+  {
+    "path": "owner-acceptance-beta55-navigation-v55.js",
+    "blob_sha": "106adb8c11429245b260dd0fd2164744ea837392"
+  },
+  {
+    "path": "owner-acceptance-beta55-permissions-v55.js",
+    "blob_sha": "b3595a1e206d2f9ce83e4f37cfee9842ef79178e"
+  },
+  {
+    "path": "owner-acceptance-beta55-print-v55.js",
+    "blob_sha": "165c7ed8bc02a470a52b40208d33244405d7b9b0"
+  },
+  {
+    "path": "owner-acceptance-beta55-restaurant-compat-v55.js",
+    "blob_sha": "08dc341f819f7f2d6b0c72bccb101439401ea777"
+  },
+  {
+    "path": "owner-acceptance-beta55-restaurant-v55.js",
+    "blob_sha": "d936a7e72dc92f56e81b73d993df94596f6972df"
+  },
+  {
+    "path": "owner-acceptance-beta55-v55.js",
+    "blob_sha": "a2ed75746589e1b18fe42c33b1eef07e1ec73162"
+  },
+  {
+    "path": "owner-acceptance-e2e-v3.js",
+    "blob_sha": "424c840ca3fc5c5366860fa18e102d1ac3e10650"
+  },
+  {
+    "path": "owner-acceptance-lazy-loader-v47.js",
+    "blob_sha": "c6758e1dfe263071787aea4e20b3d3a4d86f6a9e"
+  },
+  {
+    "path": "owner-acceptance-network-lab.js",
+    "blob_sha": "d9f4c82378afbae8013ccf876adb673750396fb3"
+  },
+  {
+    "path": "owner-acceptance-offline-core-ops-v58.js",
+    "blob_sha": "d18ba16c37a080035606b4fd2b43b599702954ad"
+  },
+  {
+    "path": "owner-acceptance-offline-customer-delivery-v58.js",
+    "blob_sha": "cda760bb491245e78311c7a34865f690d5a81c39"
+  },
+  {
+    "path": "owner-acceptance-offline-http503-v58.js",
+    "blob_sha": "8bd83399c4de70fc61ba225574a81da12e545baa"
+  },
+  {
+    "path": "owner-acceptance-offline-order-status-v58.js",
+    "blob_sha": "880959971e34edc0e3e473c1e3f324f23dcc9dea"
+  },
+  {
+    "path": "owner-acceptance-offline-shift-v58.js",
+    "blob_sha": "1298a3230aaa197697058ba69d783be4c9c0b7c7"
+  },
+  {
+    "path": "owner-acceptance-profile-packs-v3.js",
+    "blob_sha": "72859317dabecad29528fa76f4176cec1b2fdf44"
+  },
+  {
+    "path": "owner-acceptance-purchasing-attachments-v54.js",
+    "blob_sha": "2e2edec631bb163f00b6c4bb40ce832670317b47"
+  },
+  {
+    "path": "owner-acceptance-recovery-permissions-v5.js",
+    "blob_sha": "56ea8394b2fe2f5368587900dcb371a746a71753"
+  },
+  {
+    "path": "owner-acceptance-registry-v3.js",
+    "blob_sha": "9d2079fe0541c3a15a1acbf13c38143a013654a5"
+  },
+  {
+    "path": "owner-acceptance-registry-v55.js",
+    "blob_sha": "05be6f27034d60ea34ce438dde9cbfd09f1033c9"
+  },
+  {
+    "path": "owner-acceptance-retail-coverage-v53.js",
+    "blob_sha": "fb5d9030cf0fcd94ec22c7bf2e6f76ec231b78bb"
+  },
+  {
+    "path": "owner-acceptance-runtime-snapshot-anti-rollback-v58.js",
+    "blob_sha": "bb5a0c38f38a200c65f060dbea15e700e8149f9e"
+  },
+  {
+    "path": "owner-acceptance-sh0007-readonly-preflight-v58.js",
+    "blob_sha": "bc4dc5108ca53a259387a0a037c039d1e7fc751e"
+  },
+  {
+    "path": "owner-acceptance-shared-core-extra-v54.js",
+    "blob_sha": "71b6153582773e9514e2b4c3a48be52ad5b368bd"
+  },
+  {
+    "path": "owner-acceptance-shared-core-v54.js",
+    "blob_sha": "3525d36fb49625a30b3bd57925db4d206fe471d5"
+  },
+  {
+    "path": "owner-acceptance-ui-v47.js",
+    "blob_sha": "4eb9792a8b8960f1a03deb74f1e1ccc95c6fcdf3"
+  },
+  {
+    "path": "owner-diagnostics-universal-v2.js",
+    "blob_sha": "a3895d6e3467b923e0076493193bf3a61e4bec5c"
+  },
+  {
+    "path": "owner-diagnostics.js",
+    "blob_sha": "0e724f72e810d0ecc6292370a0e6e07b83b3e0cd"
+  },
+  {
+    "path": "package.json",
+    "blob_sha": "0c93556a6031473d82f9a520ac97d40cdad29eae"
+  },
+  {
+    "path": "permissions-v2-customers-create-routing.js",
+    "blob_sha": "a30867d03c49193a28fc4dc182823aaaa68c65fb"
+  },
+  {
+    "path": "permissions-v2-customers-edit-address-routing.js",
+    "blob_sha": "d960270792fedff2a7edc227f383755fe05a7fff"
+  },
+  {
+    "path": "permissions-v2-delivery-settings-routing.js",
+    "blob_sha": "fbf107f58abcf0c5fa63bc97e52f5bcf08987239"
+  },
+  {
+    "path": "permissions-v2-effective-evaluator.sql",
+    "blob_sha": "c4b92be36063c06d1925ffe8d8310de08f41b4b7"
+  },
+  {
+    "path": "permissions-v2-expense-edit-routing.js",
+    "blob_sha": "1fa84971e6ae0e33eac1ab05c57d529abecb8eba"
+  },
+  {
+    "path": "permissions-v2-offline-order-status-owner.sql",
+    "blob_sha": "e6fb261d7d62835b9f41d5d8a2b2776ad0016050"
+  },
+  {
+    "path": "permissions-v2-order-driver-assignment-routing.js",
+    "blob_sha": "f3341f724b8fe2034e5b9dab5be3c8064fbe971d"
+  },
+  {
+    "path": "permissions-v2-order-fulfillment-routing.js",
+    "blob_sha": "01120a7364ee40b04dcfc85262e6647f70ee9375"
+  },
+  {
+    "path": "permissions-v2-orders-privilege-closure.sql",
+    "blob_sha": "8fe6cf60666deaa8eedbd65ae41a5edd69511df6"
+  },
+  {
+    "path": "permissions-v2-owner-customers-create.sql",
+    "blob_sha": "773c30f88cffcc9b14d1597d7f7d03fe39f86e4d"
+  },
+  {
+    "path": "permissions-v2-owner-customers-edit-address.sql",
+    "blob_sha": "92f81e6b10c19551b1892a42fe8edec27161f037"
+  },
+  {
+    "path": "permissions-v2-owner-delivery-settings.sql",
+    "blob_sha": "a09839f2be0364ce3a54d4b859fe1a91e52bd34c"
+  },
+  {
+    "path": "permissions-v2-owner-order-driver-assignment.sql",
+    "blob_sha": "e87cd06a07a25b81b3c0f266d49bb2165baeb346"
+  },
+  {
+    "path": "permissions-v2-owner-order-fulfillment.sql",
+    "blob_sha": "cf5ccf7a4173f341817af41e73405bec5da5a6f6"
+  },
+  {
+    "path": "permissions-v2-owner-shifts-expenses.sql",
+    "blob_sha": "eaa1700bd38f932f2aa6685cf053ce207c5573f4"
+  },
+  {
+    "path": "permissions-v2-owner-website-payment-review.sql",
+    "blob_sha": "e738a4a22a5ec584e1c24236b00c9308163d1a51"
+  },
+  {
+    "path": "permissions-v2-profile-feature-applicability.sql",
+    "blob_sha": "2bc95a7b8ebd8c991966d62d6dcebb54c9f70d3c"
+  },
+  {
+    "path": "permissions-v2-role-defaults.sql",
+    "blob_sha": "33736906557522d5d9211e34d8c33545c0113140"
+  },
+  {
+    "path": "permissions-v2-sh0007-cloud-projection.sql",
+    "blob_sha": "5f22b5d5bd87a469d643ec79c94d8918a7c35854"
+  },
+  {
+    "path": "permissions-v2-trusted-profile-binding.sql",
+    "blob_sha": "8c98b5b6ba8cab5f4351f040ec8502aecae5067b"
+  },
+  {
+    "path": "permissions-v2-ui-filtering.sql",
+    "blob_sha": "280951b679cee19d29fcd455f733b69f0a0e5d4f"
+  },
+  {
+    "path": "permissions-v2-ui-profile-filtered.js",
+    "blob_sha": "479f1699a69a1ea6300c6cf8d52f71fd6162b94c"
+  },
+  {
+    "path": "permissions-v2-ui.js",
+    "blob_sha": "ebe6607809786415728ff29310d7c35613c16f2f"
+  },
+  {
+    "path": "pharmacy-diagnostics.js",
+    "blob_sha": "c4cca68c64307b1201f72b7f6bf0a14e6107c886"
+  },
+  {
+    "path": "pharmacy-engine.js",
+    "blob_sha": "ea5d098a84fdbbc929c3a00cf0721a314e1a843d"
+  },
+  {
+    "path": "pharmacy-ui.js",
+    "blob_sha": "dc871afa541d4e9a4fe23b33224db4b7ccb2223e"
+  },
+  {
+    "path": "point4-canonical-reconciliation-auditor.sql",
+    "blob_sha": "60115e47c2a4a32ee1b52672c25706bc86d14401"
+  },
+  {
+    "path": "point4-stock-reconciliation-auditor.sql",
+    "blob_sha": "b21d91014fc71fe883f70751877a50c3be88c14b"
+  },
+  {
+    "path": "point4-uuid-v4.js",
+    "blob_sha": "686da39611726c4f6df6e35951d830dce2b2637f"
+  },
+  {
+    "path": "preload.js",
+    "blob_sha": "41efb3d52510c6477afbc26a47fa5f63da798923"
+  },
+  {
+    "path": "printing-v2.js",
+    "blob_sha": "851fe04fa0edb9263a004d74d948b69042343763"
+  },
+  {
+    "path": "product-map-navigation-v1.js",
+    "blob_sha": "542274f6b780d91206feb71813434b03f3bc913d"
+  },
+  {
+    "path": "profile-parity-ui.js",
+    "blob_sha": "53fd35b2380f6919dd7bbcc07000658e8e6b9cdd"
+  },
+  {
+    "path": "purchasing-attachments-v1.js",
+    "blob_sha": "92c4d2a2d52c0ef3d71f03a8ee71f8f2405404e7"
+  },
+  {
+    "path": "RC1-BETA-POST-DEPLOY-EVIDENCE-2026-09-26.md",
+    "blob_sha": "a7e940c566ed277c656d6b1d7ca470665439e0b8"
+  },
+  {
+    "path": "RC1-CONSOLIDATED-FILE-MANIFEST.json",
+    "blob_sha": "abc56b599c8941ac13873a8a9fee98022b2027cd"
+  },
+  {
+    "path": "RC1-CONSOLIDATED-FINAL-MANIFEST-2026-09-26.json",
+    "blob_sha": "dac197e7f584037e4f8a62bde46f20e3e8fbc92b"
+  },
+  {
+    "path": "RC1-CONSOLIDATED-MERGE-STATUS.txt",
+    "blob_sha": "8c07f9ebb0cee98187200b1763ca7ec45659e090"
+  },
+  {
+    "path": "RC1-CONSOLIDATED-PACKAGE-NOTES-2026-09-26.txt",
+    "blob_sha": "c25a66f8f0534e9a097e8b867423deb2cc7c9c8b"
+  },
+  {
+    "path": "RC1-CONSOLIDATED-SOURCE-READINESS-2026-09-26.md",
+    "blob_sha": "03a85c4c0e312be1cb0b7eeeed28481dd80796f5"
+  },
+  {
+    "path": "README-OFFLINE-ENGINE-V2.md",
+    "blob_sha": "4e44df3b5687d79904cd6f735cda92cc97dc1b40"
+  },
+  {
+    "path": "README-V10-WINDOWS.txt",
+    "blob_sha": "06ab037f6c2fccdc1fcaa719a9106015daa5eb10"
+  },
+  {
+    "path": "README-V10.1-WINDOWS-RUNTIME.txt",
+    "blob_sha": "b80f3c43f40705a87d771542d5c04935440b9e83"
+  },
+  {
+    "path": "README-V10.2-LOCAL-FIRST.txt",
+    "blob_sha": "aa0d8f823aa32fbe5ed4bcc11e0ac9143102b34f"
+  },
+  {
+    "path": "README-V10.3-OFFLINE-OPERATIONS.txt",
+    "blob_sha": "e02ae92a3a0d78be5c15f4d56d24018f2b6ccc64"
+  },
+  {
+    "path": "README-V10.4-PC-TEST.txt",
+    "blob_sha": "9f7bda076214c3354e236a36f4bd71221c77315c"
+  },
+  {
+    "path": "README-V10.4.1-WIN7.txt",
+    "blob_sha": "856d959aa33ef431ef2939f5b8dffca58b7c945f"
+  },
+  {
+    "path": "README-V10.4.10-WEBSITE-ORDER-FLOW.txt",
+    "blob_sha": "486fb6cda050e9a6941fe97ba62fe97296d8bfa2"
+  },
+  {
+    "path": "README-V10.4.11-SAFE-FINAL.txt",
+    "blob_sha": "0f6cbbe24e1efc2fa3a01da67bb9a9f8bd344408"
+  },
+  {
+    "path": "README-V10.4.12-SHARAWLA.txt",
+    "blob_sha": "fe591317f4d2245259c4ab95733e0ee1907d391a"
+  },
+  {
+    "path": "README-V10.4.13-SHARAWLA-CLOUD-LICENSE.txt",
+    "blob_sha": "25a9b63b616a4c1966e2175f906f96f442651f90"
+  },
+  {
+    "path": "README-V10.4.14-LICENSE-RESUME-FIX.txt",
+    "blob_sha": "195e7b9a78569a5473509642e82d8ae0a4a5ae0f"
+  },
+  {
+    "path": "README-V10.4.15-LICENSE-SIDEBAR-FIX.txt",
+    "blob_sha": "b5d297218700b4a03de0aa5a88d056d3a85e8e25"
+  },
+  {
+    "path": "README-V10.4.16-DUAL-ARCH.txt",
+    "blob_sha": "b51d41b79842b73faca4c8b02ffc3473a7f155fd"
+  },
+  {
+    "path": "README-V10.4.16-FINAL-AUDIT.txt",
+    "blob_sha": "59a1b8cd9cd7c992152d95ea213a985b3ad5a7c1"
+  },
+  {
+    "path": "README-V10.4.17-CLEAN-DUAL-ARCH.txt",
+    "blob_sha": "9943cbbcef3c5c4f32475afaf945e2d95e7bf336"
+  },
+  {
+    "path": "README-V10.4.18-BUSINESS-CONNECTION-WEEKLY-HOURS.txt",
+    "blob_sha": "d705f4e62de7aa9c75522a432978d4b2b795cbd8"
+  },
+  {
+    "path": "README-V10.4.18-CLOUD-CONNECTION.txt",
+    "blob_sha": "8c01217a13e04da6064764ab93bbe85d734541cc"
+  },
+  {
+    "path": "README-V10.4.18-SAFE-FINAL-HARDENING.txt",
+    "blob_sha": "673b5393d9048a5a5d26c7e475114ebcb7847d52"
+  },
+  {
+    "path": "README-V10.4.19-WIN7-LICENSE-CONTACT.txt",
+    "blob_sha": "cc358d65b89bd09acc6d98abe59f5416232e1ebc"
+  },
+  {
+    "path": "README-V10.4.2-WIN7-SQLITE-FIX.txt",
+    "blob_sha": "76c745861f6be55e379587dce2053949a07e90f5"
+  },
+  {
+    "path": "README-V10.4.20-CANONICAL-FINGERPRINT-WEB-ORDER-REVIEW.txt",
+    "blob_sha": "935bb3bf45dbfec07d95ad7c44b89aa275b14618"
+  },
+  {
+    "path": "README-V10.4.20-FINAL-CANONICAL-IMMUTABILITY.txt",
+    "blob_sha": "f5e856531397aa1250568e271faa09e0c2b541e1"
+  },
+  {
+    "path": "README-V10.4.20-FINAL-LOGIN-CONTACT.txt",
+    "blob_sha": "44822d423ec0422af25e9c4279183e1778229d6c"
+  },
+  {
+    "path": "README-V10.4.21-SUPPORT-CODE-SIDEBAR-SCROLL-SAFE.txt",
+    "blob_sha": "bb25b40dc4abf658d0c66fe7a5854a3fba978aae"
+  },
+  {
+    "path": "README-V10.4.3-UNIFIED-SOURCE.txt",
+    "blob_sha": "fbd2a76592fb70f1d9a9fb0d59b8a1b414dca9b4"
+  },
+  {
+    "path": "README-V10.4.4-PRINTING.txt",
+    "blob_sha": "fa5a8ed4652b61745a1cfff007859af7794edd04"
+  },
+  {
+    "path": "README-V10.4.5-AUTO-UPDATE.txt",
+    "blob_sha": "7964438ae88eee4dcfcacb9975ce627cbd0dd2cd"
+  },
+  {
+    "path": "README-V10.4.6-AUDIT.txt",
+    "blob_sha": "556d61b1fe15e629ca0ad4bd94cee4551823feed"
+  },
+  {
+    "path": "README-V10.4.6-FINAL-INTEGRATION.txt",
+    "blob_sha": "a04048c97594d2dd09c8cdb9502c95e7b4a99abc"
+  },
+  {
+    "path": "README-V10.4.6-FINAL-REVIEW.txt",
+    "blob_sha": "9998ff4c148c97dc12113a216c0fb698914371d7"
+  },
+  {
+    "path": "README-V10.4.6-FIX.txt",
+    "blob_sha": "4e929ea0cc59e8e6e8d9f6bcf4d949a4f56920a0"
+  },
+  {
+    "path": "README-V10.4.6-REPORTS-FINAL.txt",
+    "blob_sha": "f35371fcf91aad30679ca0bd05caf3796b8c9e92"
+  },
+  {
+    "path": "README-V10.4.7-FINAL-STABILITY.txt",
+    "blob_sha": "e46c132d169ca334cd4677b70ac172479231b48d"
+  },
+  {
+    "path": "README-V10.4.7-PWA-CACHE-FIX.txt",
+    "blob_sha": "250a5d7cd21d377f7e6f7f474c27317e3bf6b682"
+  },
+  {
+    "path": "README-V10.4.9-OFFLINE-BACKUP-STABILITY.txt",
+    "blob_sha": "ed161e2cd7bb5a92a9c996dcd0da28dcd3a43edc"
+  },
+  {
+    "path": "README-V10.5.0-MULTI-INDUSTRY-CORE-PHASE1.txt",
+    "blob_sha": "18836127a8084cf969bdc56f23eefbebbc74c015"
+  },
+  {
+    "path": "README-V10.5.2-CORE-RESTAURANT-ISOLATION-PHASE2-STEP2.txt",
+    "blob_sha": "0e7fa27dc008d51fcf16fcdb68c8fd0c447b337f"
+  },
+  {
+    "path": "README-V10.5.3-HOTFIX.txt",
+    "blob_sha": "630882bb862e5d116f8dc32b534e6d43128a8488"
+  },
+  {
+    "path": "README-V10.5.4-BETA.10-FINAL-MERGED.txt",
+    "blob_sha": "1939d9a483ed9644a058269e25ee91464e2ed560"
+  },
+  {
+    "path": "README-V10.5.4-BETA.10-UPDATE-SAFETY-BUNDLE.txt",
+    "blob_sha": "8567215008c193db3f068c37aebb0df812ca4560"
+  },
+  {
+    "path": "README-V10.5.4-BETA.12-FINAL-MASTER-CANDIDATE.txt",
+    "blob_sha": "acb381ac690d55e2b30438fd574c933a9bb11594"
+  },
+  {
+    "path": "README-V10.5.4-BETA.13-RETAIL-ENGINE-FOUNDATION.txt",
+    "blob_sha": "ff2f4be3a1fd47b48498c606c659864c55c6f02d"
+  },
+  {
+    "path": "README-V10.5.4-BETA.14-RETAIL-CHECKOUT-BARCODE.txt",
+    "blob_sha": "429ea65300f32628df80edfd047d0a45beee9fef"
+  },
+  {
+    "path": "README-V10.5.4-BETA.15-RETAIL-INVENTORY-FOUNDATION.txt",
+    "blob_sha": "e337087ba132a65dcb21ded77e2927cc044585cb"
+  },
+  {
+    "path": "README-V10.5.4-BETA.16-RETAIL-SUPPLIERS-PURCHASING.txt",
+    "blob_sha": "324e44ba6335e881c0aed2ea214bb3cc43230d0f"
+  },
+  {
+    "path": "README-V10.5.4-BETA.17-RETAIL-SUPERMARKET-TEST-CANDIDATE.txt",
+    "blob_sha": "3ef2cc717c6b11ce1542271e7c74a771ff205e63"
+  },
+  {
+    "path": "README-V10.5.4-BETA.18-RETAIL-WEBSITE-INTEGRATION-FOUNDATION.txt",
+    "blob_sha": "55095181664de3cbab4a3f5fdb89c66132284500"
+  },
+  {
+    "path": "README-V10.5.4-BETA.19-CORE-PARITY-FIX-PACK.txt",
+    "blob_sha": "05f650aac43b361c171b2b237178ec86b5c32c41"
+  },
+  {
+    "path": "README-V10.5.4-BETA.3-FINAL-PART3.txt",
+    "blob_sha": "0ddfa000a3b19992e17d979c4e3630921ed8f15a"
+  },
+  {
+    "path": "README-V10.5.4-BETA.6-FINAL.txt",
+    "blob_sha": "43fb54e76b3801a65c057790e07a6ef950ca6e6c"
+  },
+  {
+    "path": "README-V10.5.4-BETA.7-UI-REGRESSION-FIX.txt",
+    "blob_sha": "2118ca251cca58e04c4400f5bc855679c4d55fa6"
+  },
+  {
+    "path": "README-V8.7-USERS.md",
+    "blob_sha": "1d48166bb8628f02ea10c6c3b6d57a4bd48ca8ef"
+  },
+  {
+    "path": "README-V8.8.txt",
+    "blob_sha": "ca7ac66df6855ebfcb3aa4731f2b03bd4077d30f"
+  },
+  {
+    "path": "README-V9-STABLE.txt",
+    "blob_sha": "290a2488ee6adb31f29a7f946d2540a83fc7d036"
+  },
+  {
+    "path": "README-V9.1.1-FIX.txt",
+    "blob_sha": "ce4e9b7bbaa9871fd1549f824a50260e417dfc52"
+  },
+  {
+    "path": "README-V9.1.2-UI.txt",
+    "blob_sha": "4d4d37b8407f4ae636d85f928c58957c6af345fd"
+  },
+  {
+    "path": "README-V9.1.3-MOBILE.txt",
+    "blob_sha": "634dbabdc01f1ad994b25942db47475b59031ca5"
+  },
+  {
+    "path": "README-V9.1.4-CART.txt",
+    "blob_sha": "c24b3d70aa45cc912bdb74685ff0fbef6dcd3e66"
+  },
+  {
+    "path": "README-V9.1.5-PRICES.txt",
+    "blob_sha": "89ddf46a0bf7dca59fed365c14f5b442a9a4844c"
+  },
+  {
+    "path": "README-V9.1.6-DELETE.txt",
+    "blob_sha": "e9de2b1e4abc289da796518dc4f8f6cfa708ef7f"
+  },
+  {
+    "path": "README-V9.1.7-SORT.txt",
+    "blob_sha": "7accf3c9f733efe1efbc5c49eeecc346092c1faf"
+  },
+  {
+    "path": "README-V9.1.8-FLEX.txt",
+    "blob_sha": "3a877d0b3998f3d119e0f97bc6b6384d8d3aecdf"
+  },
+  {
+    "path": "README-V9.1.9-EXTRAS.txt",
+    "blob_sha": "3936f705f2d915cf5f1074ae89b243257ecd041a"
+  },
+  {
+    "path": "README-V9.1.txt",
+    "blob_sha": "ce597a797bc7813361c1ad19eb4d2c5b75a28b65"
+  },
+  {
+    "path": "README-V9.2-WEBSITE.txt",
+    "blob_sha": "799d1eafcbea8e9e359f07a768e6bb735bafece7"
+  },
+  {
+    "path": "README-V9.2.10-BRANCH-ADMIN.txt",
+    "blob_sha": "948fde115be9b21055e570502f98be94fbfe5438"
+  },
+  {
+    "path": "README-V9.2.2-ALERTS.txt",
+    "blob_sha": "50460f9d6dbe777168a12b79c3af66bc3a2bf55b"
+  },
+  {
+    "path": "README-V9.2.3-ALERTS-FIX.txt",
+    "blob_sha": "bde78d3a9e8ccd8031f3055802e06f13a6add511"
+  },
+  {
+    "path": "README-V9.2.5-WEB-VISIBILITY.txt",
+    "blob_sha": "6be84c79618d85af99d3497642c84e45afa4aee9"
+  },
+  {
+    "path": "README-V9.2.5.1-AVAILABILITY-FIX.txt",
+    "blob_sha": "4241ad54014acc247fccdd0e106588487de4b696"
+  },
+  {
+    "path": "README-V9.2.5.2-MENU-AVAILABILITY.txt",
+    "blob_sha": "19312d896e08cbb5cca6dc2b9e2f24bda89b3ced"
+  },
+  {
+    "path": "README-V9.2.7-TIMED-AVAILABILITY.txt",
+    "blob_sha": "bb38336dac514fee421dca62817b0ae0dcc34904"
+  },
+  {
+    "path": "README-V9.2.8-BRANCH-ORDERS.txt",
+    "blob_sha": "6ececfc3ce88bf6feeed1b79091b1158ec4497ce"
+  },
+  {
+    "path": "README-V9.2.9-BRANCH-MANAGEMENT.txt",
+    "blob_sha": "7239df591ca863849c30a134b1ab88d825e47a77"
+  },
+  {
+    "path": "README-V9.3.0-BUSINESS-CONTROL.txt",
+    "blob_sha": "d1890170aa3cbeee492a6aed62a81b1a1d5529e5"
+  },
+  {
+    "path": "README-V9.3.2-BRAND-LOGO.txt",
+    "blob_sha": "13339681534ae4f0274aa5eca42108f5476e1a92"
+  },
+  {
+    "path": "README-V9.4.0-FINANCE.txt",
+    "blob_sha": "4449aebcb245634210bab8c3e20ba1e70bc02bbc"
+  },
+  {
+    "path": "README-V9.5.0-WEBSITE-CONTROL.txt",
+    "blob_sha": "39f3b428ad54c916276ab677049f157503461e87"
+  },
+  {
+    "path": "README-V9.5.1-FIX.txt",
+    "blob_sha": "10abb4f785c9529a37e6017cc3e236296235eb2c"
+  },
+  {
+    "path": "README-V9.6.0-RETURNS.txt",
+    "blob_sha": "053645c51b165c51bdfd1a834203b3c80aba0fef"
+  },
+  {
+    "path": "README-V9.7.0-PROMO.txt",
+    "blob_sha": "8c9a6903b5391d339e24d9ec457d9d1e259aa09c"
+  },
+  {
+    "path": "README-V9.7.1-TRANSACTION-SAFE.txt",
+    "blob_sha": "ff0e841989c5dd4c44dd1a329280551ed1a7c820"
+  },
+  {
+    "path": "README-V9.7.2-BACKUP.txt",
+    "blob_sha": "ff8c8935077bf58a78306e5b87929e6eefced850"
+  },
+  {
+    "path": "README-V9.7.3-FINANCIAL-CLEAN-START.txt",
+    "blob_sha": "9b38e68c3cda6c85a12e1764ccac4d43deaac219"
+  },
+  {
+    "path": "README-V9.7.3.1-RESET-FIX.txt",
+    "blob_sha": "a51a5f2ee3d3fd321518e89eda937481533c7b14"
+  },
+  {
+    "path": "README-V9.8-OFFLINE.txt",
+    "blob_sha": "86ff6728ada71b3e746c30f48cc4b08115a014bf"
+  },
+  {
+    "path": "README-V9.8.1-OFFLINE-OPERATIONS.txt",
+    "blob_sha": "58189d273462af22d8cc77c571b17042cdc8ab6d"
+  },
+  {
+    "path": "README.md",
+    "blob_sha": "7887b061179b2c04d0f6d3c4966dd8d0bbeb6392"
+  },
+  {
+    "path": "reports-v2-ui.js",
+    "blob_sha": "410bcb7fb73c86481112c3b6b040f03782d4a1df"
+  },
+  {
+    "path": "restaurant-engine.js",
+    "blob_sha": "50a2d0aae3d3c4b164079603ae1d53df4f0d1c6e"
+  },
+  {
+    "path": "retail-engine.js",
+    "blob_sha": "aa261e1959db29f7cb4831b4d238b1db1e734644"
+  },
+  {
+    "path": "retail-finalization-ui.js",
+    "blob_sha": "e26596916898753135f45470e5725c7c9e6d25c7"
+  },
+  {
+    "path": "retail-variants-runtime-bridge.js",
+    "blob_sha": "aebb7957fe10192d2be211b6bc869d87477b37f0"
+  },
+  {
+    "path": "retail-variants-startup-hotfix.js",
+    "blob_sha": "d28857277bb0ab889f479f38ed61716c637180fb"
+  },
+  {
+    "path": "retail-variants-ui.js",
+    "blob_sha": "b62b1342370e01d41284813fbf1e913fa1d207e3"
+  },
+  {
+    "path": "retail-website-pos.js",
+    "blob_sha": "5d4c1d75f8be2c5ca5f34a46fdee3dca1f7c2e61"
+  },
+  {
+    "path": "retail-website/app.js",
+    "blob_sha": "4eda3f25d4ff59b822a55624e961608b64788035"
+  },
+  {
+    "path": "retail-website/config.example.js",
+    "blob_sha": "cb11c18f6c9094107a5c8b5903a4b02c254b12b3"
+  },
+  {
+    "path": "retail-website/config.js",
+    "blob_sha": "b770739dcd7545809788de1ba825e8f70970d2f9"
+  },
+  {
+    "path": "retail-website/index.html",
+    "blob_sha": "5b08dc6bf3757957e6c2f15d01ccf2b7aa777bc0"
+  },
+  {
+    "path": "retail-website/README.txt",
+    "blob_sha": "01ad184380e391ab45602e43be954b3da656ae02"
+  },
+  {
+    "path": "retail-website/styles.css",
+    "blob_sha": "0b636abe7f219a9b09611eb746e75969616f7c25"
+  },
+  {
+    "path": "scripts/apply-offline-auth-55.3.js",
+    "blob_sha": "48ce6240e79ceb0d0ab50497347b04afd9a744da"
+  },
+  {
+    "path": "scripts/audit-permissions-v2-order-lifecycle.js",
+    "blob_sha": "31c36637244030ed02ba857763847ca2fa16d3fc"
+  },
+  {
+    "path": "scripts/audit-permissions-v2-shift-expense-provenance.js",
+    "blob_sha": "d15dd44eba161cc91246e4d08ce9f856bd7b2c7a"
+  },
+  {
+    "path": "scripts/batch1-runtime-evidence-contract.js",
+    "blob_sha": "845f7d70843939faa3e371d3fead3d54b32defc6"
+  },
+  {
+    "path": "scripts/check-batch1-continuation.js",
+    "blob_sha": "eaec9e6b4492ec3819d3a515e4c7591f1659aa87"
+  },
+  {
+    "path": "scripts/check-batch1-final-gaps.js",
+    "blob_sha": "48397cc20953cb46780dfd17f46d600287633b51"
+  },
+  {
+    "path": "scripts/check-batch1-final-postgres.py",
+    "blob_sha": "701abb50035826effca5d0965c16a45cd0edab6e"
+  },
+  {
+    "path": "scripts/check-batch1-final-review.js",
+    "blob_sha": "84c4852d6447f45a3b6bab06754a099bf16f2f82"
+  },
+  {
+    "path": "scripts/check-batch1-postgres.py",
+    "blob_sha": "8947391984dfccf88ce3b853c5d38df201e53ec0"
+  },
+  {
+    "path": "scripts/check-batch1-restaurant-families.js",
+    "blob_sha": "47eea5d073e0ccf450f4ccfd54cb2a98fcb53bed"
+  },
+  {
+    "path": "scripts/check-batch1-ui.js",
+    "blob_sha": "233e77f840200eb776e408e49a5ab253552c4e10"
+  },
+  {
+    "path": "scripts/check-beta-self-test.js",
+    "blob_sha": "f7545defc828f2b045b5e1063b769f9956328c43"
+  },
+  {
+    "path": "scripts/check-beta23-acceptance.js",
+    "blob_sha": "c9a163b4fd49b733ee24feb7c95474fd9ee69c94"
+  },
+  {
+    "path": "scripts/check-beta26-ui-delivery.js",
+    "blob_sha": "be1d791ebc1d63fd6eac63cd571d86dc1c156c56"
+  },
+  {
+    "path": "scripts/check-beta28-fixes.js",
+    "blob_sha": "5ce0d731efb040fc8e57f26d85221ee860f993de"
+  },
+  {
+    "path": "scripts/check-beta29-functional.js",
+    "blob_sha": "49e8c0d7234bf36a83d4cd864be1ab3f76f7c8b3"
+  },
+  {
+    "path": "scripts/check-beta30-pharmacy.js",
+    "blob_sha": "59212fc6f02d8df5f3223aa3b6b1c2071009ab11"
+  },
+  {
+    "path": "scripts/check-beta31-pharmacy-ui.js",
+    "blob_sha": "447600ecfeef04c8befa77fff35481331ede0d5d"
+  },
+  {
+    "path": "scripts/check-beta32-capabilities.js",
+    "blob_sha": "b064c5a2589be766c7de8bd4356aec4401e8c9fc"
+  },
+  {
+    "path": "scripts/check-beta33-cloud-runtime-v2.js",
+    "blob_sha": "209adf9134cc78e11bb8d665c1c40c61aec58594"
+  },
+  {
+    "path": "scripts/check-beta34-feature-consumption.js",
+    "blob_sha": "ace228d3cf67d0af1137cd94a844931f6d3f53ca"
+  },
+  {
+    "path": "scripts/check-beta35-feature-behavior.js",
+    "blob_sha": "805076226dddcb2fd2cf9db589d92cbac8835006"
+  },
+  {
+    "path": "scripts/check-beta36-landed-cost.js",
+    "blob_sha": "0f173f3375051f02a72f8cd99b72c57a5967c92d"
+  },
+  {
+    "path": "scripts/check-beta36-multi-engine.js",
+    "blob_sha": "c87f9a9992e2cd68f4d6138e961d084d19ca1186"
+  },
+  {
+    "path": "scripts/check-beta37-variants-startup.js",
+    "blob_sha": "408e22ba550cfe79f94c76312dbc2936fa3045f8"
+  },
+  {
+    "path": "scripts/check-beta38-retail-variants-runtime.js",
+    "blob_sha": "20fbaa995ba89a65c55cde008e441cf2046a72d9"
+  },
+  {
+    "path": "scripts/check-beta39-capability-v3.js",
+    "blob_sha": "6a73acfe063d2f766477f8d5cb2df399781618f2"
+  },
+  {
+    "path": "scripts/check-beta40-variants-acceptance.js",
+    "blob_sha": "085f96a12c0cd849a075391a62bbcf75d7f490a8"
+  },
+  {
+    "path": "scripts/check-beta41-purchasing-acceptance.js",
+    "blob_sha": "963ef95978ec349923b68fba36bfaab389c45ca9"
+  },
+  {
+    "path": "scripts/check-beta42-capability-module-registry.js",
+    "blob_sha": "f89f65ed9de82a40b9772b90938663893280b0c8"
+  },
+  {
+    "path": "scripts/check-beta43-offline-core.js",
+    "blob_sha": "ea8715ef0fdfb307da2a313249136e353f6cd2de"
+  },
+  {
+    "path": "scripts/check-beta44-offline-storage.js",
+    "blob_sha": "f86d559451135c4d66fc611732a115bbf7916e0c"
+  },
+  {
+    "path": "scripts/check-beta45-final-integration.js",
+    "blob_sha": "9a7b1531e6b130f5285b5aa0d1c48d2d15d48c0d"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-acceptance-harness.js",
+    "blob_sha": "7f662a6f0676ca5e2b8de2d19456cdfb2d4e5f52"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-diagnostics.js",
+    "blob_sha": "81cdc84e7dd0238d4c395ff7ed37a085e8d4b2a6"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-foundation.js",
+    "blob_sha": "c595ae7d920c06c85c43e073d2d323ea8a11a692"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-inbox.js",
+    "blob_sha": "c6b8f8a7b6e8d244876a2ccdfc02929d347e9e64"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-inventory.js",
+    "blob_sha": "8440e1f46e1a05354f2c7faa59e53869b295f736"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-safety.js",
+    "blob_sha": "65b05cfa93e1f3ebccdc3ffd8698076002467751"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-storage.js",
+    "blob_sha": "866fa4e7d5ee4db4549322e0b78c51bc7beb2f8c"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-sync.js",
+    "blob_sha": "01e66c24aaea1f4e9a9435a2e43a342a3714d8ad"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-takeover.js",
+    "blob_sha": "f6b29ae80e69c136840423548cb187fae3d25a52"
+  },
+  {
+    "path": "scripts/check-beta45-offline-v2-transport.js",
+    "blob_sha": "8c95140620d8501c77cec1dc25b134328f1a4f8c"
+  },
+  {
+    "path": "scripts/check-beta46-acceptance-center.js",
+    "blob_sha": "31e7a110a002feb97184531a0a9f8994a725c70f"
+  },
+  {
+    "path": "scripts/check-beta48-acceptance-harness.js",
+    "blob_sha": "28d6f679f13dd0b74e8a33d1505b0d285f47a314"
+  },
+  {
+    "path": "scripts/check-beta49-takeover-safety.js",
+    "blob_sha": "d2a989e22b4b4ad643089e52c7b3fdb662d6f65b"
+  },
+  {
+    "path": "scripts/check-beta50-transport-url.js",
+    "blob_sha": "d9c640b22135761b92cc05f28b50ff14e4c50734"
+  },
+  {
+    "path": "scripts/check-beta51-final-offline-acceptance.js",
+    "blob_sha": "fa1dbf4c11a0486997e6ede02fc63c89d96521b1"
+  },
+  {
+    "path": "scripts/check-beta52-crash-evidence.js",
+    "blob_sha": "ed217bd763797e369d8ab69fd81b2fad0d59db19"
+  },
+  {
+    "path": "scripts/check-beta53-retail-coverage-stage2.js",
+    "blob_sha": "b06c1f63e3a465b99f564746539d6005f38d9d27"
+  },
+  {
+    "path": "scripts/check-beta54-shared-core-runtime-coverage.js",
+    "blob_sha": "c45a213d305b916b84ee7e5580badd4c5ec38add"
+  },
+  {
+    "path": "scripts/check-beta54-shared-core.js",
+    "blob_sha": "24a37e596491481d814b4aacaf25091a555c058f"
+  },
+  {
+    "path": "scripts/check-beta55-5-runtime-hardening.js",
+    "blob_sha": "89f154758a70cd22b38f1339cc6f2bfcb1d67124"
+  },
+  {
+    "path": "scripts/check-beta55-navigation-parity.js",
+    "blob_sha": "663627011668ed6baf45194d18862b8bf489fc74"
+  },
+  {
+    "path": "scripts/check-beta55-print-order-type.js",
+    "blob_sha": "98d323c4cb9db094b93225adb34ecd959e1c7c18"
+  },
+  {
+    "path": "scripts/check-beta55-restaurant-acceptance.js",
+    "blob_sha": "b34e6f61a976fe36c944e4c8d0c56f3a7cd7cf2f"
+  },
+  {
+    "path": "scripts/check-beta55-restaurant-closure.js",
+    "blob_sha": "b7ba294e3d20c868c7aaeaa593d8f9f7eafd9ac2"
+  },
+  {
+    "path": "scripts/check-beta55-shared-workflows.js",
+    "blob_sha": "35b6986655ec46e840019bb2028e8247e0f68296"
+  },
+  {
+    "path": "scripts/check-beta56-1-runtime-acceptance-corrective.js",
+    "blob_sha": "d510fd5fe40b6e63ad210131251c4de10c427a1a"
+  },
+  {
+    "path": "scripts/check-beta56-runtime-snapshot-consumer.js",
+    "blob_sha": "838e9a933a1d6657bc035b66cbeda16806538215"
+  },
+  {
+    "path": "scripts/check-beta58-26-restaurant-point4-canonical-tx.js",
+    "blob_sha": "d325a0ae96d92ba6c66f015f6033a4f56401480a"
+  },
+  {
+    "path": "scripts/check-beta58-27-nav-foreach.js",
+    "blob_sha": "e4fcb0e854d805b62a70e21250fe8e68fd7d8e51"
+  },
+  {
+    "path": "scripts/check-beta58-29-migration-probe.js",
+    "blob_sha": "58ed80c63a0ddcb8be303d410260d2a148698cc7"
+  },
+  {
+    "path": "scripts/check-beta58-30-offline-practical-rc1.js",
+    "blob_sha": "7d1238d82767cb783bb023b80dd2efd536501643"
+  },
+  {
+    "path": "scripts/check-bon-final-definition-chain.js",
+    "blob_sha": "a9455377abd3b4230daaa9e466329e49ad468e7d"
+  },
+  {
+    "path": "scripts/check-bon-native-scope.js",
+    "blob_sha": "1fff79c976e876b54591e1cfb532c532420406ff"
+  },
+  {
+    "path": "scripts/check-bon-native-v24-scope-migration.js",
+    "blob_sha": "56800a438a4e4666fa90f32fac7d64356794c578"
+  },
+  {
+    "path": "scripts/check-bon-numbering-online-migration.js",
+    "blob_sha": "b1a21ef18372e208e4616780c81f3a19fdd259ad"
+  },
+  {
+    "path": "scripts/check-bon-numbering-policy-v1.js",
+    "blob_sha": "f238732c3a4d56454e017a221e80c27d20c1e482"
+  },
+  {
+    "path": "scripts/check-bon-reservation-v1-sale-integration.js",
+    "blob_sha": "e93c3142cc88a56e52f0d5d6e5bcbed49bd92715"
+  },
+  {
+    "path": "scripts/check-bon-reservation-v1-server-source.js",
+    "blob_sha": "635fe418eaee082b6ba2ffe893a24bd63afad741"
+  },
+  {
+    "path": "scripts/check-bon-reservation-v2-scope.js",
+    "blob_sha": "b4cfd813bbfa618323732500a21885a0496b99f2"
+  },
+  {
+    "path": "scripts/check-bon-runtime-policy-read.js",
+    "blob_sha": "1b87bd64c030b29a2fe4f5e45045711b5e10257f"
+  },
+  {
+    "path": "scripts/check-bon-scope-final-source.js",
+    "blob_sha": "aa41063a286e07551aa4d8fffc92f8eeb52f2211"
+  },
+  {
+    "path": "scripts/check-bon-source-closure.js",
+    "blob_sha": "eda3995244a3c7ab745fb16516655133c442fb0a"
+  },
+  {
+    "path": "scripts/check-bon-v3-base-sale-owner.js",
+    "blob_sha": "3d41833b5f29b8ef799cc1b36228db121d7c7d78"
+  },
+  {
+    "path": "scripts/check-bon-v3-sale-integration-source.js",
+    "blob_sha": "d36e97ab7070d425803d28f32d048dba8d2a1de0"
+  },
+  {
+    "path": "scripts/check-bon-v3-sql-deployability.js",
+    "blob_sha": "622d1d417d1f29a0b7633823588587cd31fe752d"
+  },
+  {
+    "path": "scripts/check-bon-v3-transport-boundary.js",
+    "blob_sha": "17b64e8ad759b64c2736d396f29723d2aad066ba"
+  },
+  {
+    "path": "scripts/check-capability-platform-v2.js",
+    "blob_sha": "b34b55b77289b3170c5790ff661fd889bdb984a5"
+  },
+  {
+    "path": "scripts/check-central-warehouse-config-authority.js",
+    "blob_sha": "c17e044cce13d480fe6900afaca853905d016f6c"
+  },
+  {
+    "path": "scripts/check-cross-profile-offline-commerce-scope.js",
+    "blob_sha": "4623cabb84f6936ca3de78191f83ddb7a028874b"
+  },
+  {
+    "path": "scripts/check-delivery-completion-payment-refresh.js",
+    "blob_sha": "3be1904a2ef2026205ca229db686af70982030e0"
+  },
+  {
+    "path": "scripts/check-delivery-payment-change-ui.js",
+    "blob_sha": "01d8274300836686910eb8998608359bdb1e0b5d"
+  },
+  {
+    "path": "scripts/check-delivery-settlement-runtime-ownership.js",
+    "blob_sha": "4b427c57bd18f85555b316b2d1131b5fad5bd31a"
+  },
+  {
+    "path": "scripts/check-hr-attendance-v1.js",
+    "blob_sha": "684030f2b2628b5ccf32114c3252d27426692717"
+  },
+  {
+    "path": "scripts/check-inventory-overview-v1.js",
+    "blob_sha": "82150db984b4fcb6e3023f1d6d8ddafdda83923b"
+  },
+  {
+    "path": "scripts/check-kitchen-labels-plan-v1.js",
+    "blob_sha": "14e2832e4cd06e4e96d8e8ed031360d8262f0938"
+  },
+  {
+    "path": "scripts/check-kitchen-offline-local-first.js",
+    "blob_sha": "fd027a45a0fb273546654007e4d83fd2ff6ba4ee"
+  },
+  {
+    "path": "scripts/check-legacy-settlement-v2-routing.js",
+    "blob_sha": "cb09ab9692ec1c21cc0c8f75c5036dca157e611d"
+  },
+  {
+    "path": "scripts/check-navigation-profile-leakage-corrective.js",
+    "blob_sha": "409e59aa8e137d6cc784e74ed66b0487c12fe9d0"
+  },
+  {
+    "path": "scripts/check-offline-auth-authoritative-order.js",
+    "blob_sha": "1cc5ce0321bf5a212781dcb13ee89d7e47ebdb0c"
+  },
+  {
+    "path": "scripts/check-offline-bon-atomic-local-allocation.js",
+    "blob_sha": "1933ed31278eed78379e74a4f390567b70f5df85"
+  },
+  {
+    "path": "scripts/check-offline-bon-business-ownership.js",
+    "blob_sha": "ee8c36fd528cce16d00f1c48da8de832bacf7f45"
+  },
+  {
+    "path": "scripts/check-offline-bon-device-authority.js",
+    "blob_sha": "2d0ca92eec607fa03100d5fa85af88652f84e3c5"
+  },
+  {
+    "path": "scripts/check-offline-bon-envelope-alignment.js",
+    "blob_sha": "bb5f0dc36c2f3d7e1afab9c910f8fd34224fe3e1"
+  },
+  {
+    "path": "scripts/check-offline-bon-local-record-consistency.js",
+    "blob_sha": "1e155ea9c226aee80c5ede2e2b31b54057624c12"
+  },
+  {
+    "path": "scripts/check-offline-bon-native-atomic-store.js",
+    "blob_sha": "c7c492af69ace89d1e08c92d83d5424a470ff56c"
+  },
+  {
+    "path": "scripts/check-offline-bon-replay-digest.js",
+    "blob_sha": "dc4a3894827822d383c93768a464d9f7e9454ef8"
+  },
+  {
+    "path": "scripts/check-offline-bon-reservation-bridge.js",
+    "blob_sha": "806b04495a88186ba5f9d7df72fd50f20306caf2"
+  },
+  {
+    "path": "scripts/check-offline-bon-reservation-v1.js",
+    "blob_sha": "50461b0136fb40f267b8c986357244b1700f9d39"
+  },
+  {
+    "path": "scripts/check-offline-bon-shift-close-lifecycle.js",
+    "blob_sha": "7298c9fb275fdbc3779b73d7cbe893b4a51d02c3"
+  },
+  {
+    "path": "scripts/check-offline-bon-transport-binding.js",
+    "blob_sha": "fb10dc1613d48d77f7714996fcfe47b52a31a2fb"
+  },
+  {
+    "path": "scripts/check-offline-central-warehouse-create-runtime.js",
+    "blob_sha": "428fae1f49349de51fa9d64fb59b9e9a4c6e2f2f"
+  },
+  {
+    "path": "scripts/check-offline-central-warehouse-state-runtime.js",
+    "blob_sha": "69dc8457d0b89b7a8d71b1445e1f889ffc949042"
+  },
+  {
+    "path": "scripts/check-offline-central-warehouse-stock-runtime.js",
+    "blob_sha": "4115261e8bf7ee21d1b5297236fa488ad36c026f"
+  },
+  {
+    "path": "scripts/check-offline-closure-batch1.js",
+    "blob_sha": "ac371855df8013a08b08722168d69e5ca454a3ce"
+  },
+  {
+    "path": "scripts/check-offline-customer-delivery-owner-design.js",
+    "blob_sha": "48cc2fcaa39fe77ee52546f9af30b40fe0998579"
+  },
+  {
+    "path": "scripts/check-offline-delivery-settings-runtime.js",
+    "blob_sha": "09e663fe4ad9384768fd958ffbf7a52cddf22b9b"
+  },
+  {
+    "path": "scripts/check-offline-delivery-settlement-runtime.js",
+    "blob_sha": "1dc89591e25195fd7f99639cae0a87351378f555"
+  },
+  {
+    "path": "scripts/check-offline-expense-local-projection.js",
+    "blob_sha": "1ab4056cdb668e76be86a247aa668d5c94f26345"
+  },
+  {
+    "path": "scripts/check-offline-food-ingredient-master-runtime.js",
+    "blob_sha": "a9d39a78309569ff44e2b72c271d02e57cf45d4d"
+  },
+  {
+    "path": "scripts/check-offline-food-ingredient-stock-adjust-runtime.js",
+    "blob_sha": "3b36a6da34216d0ff67629a61b12abfbf47aaa00"
+  },
+  {
+    "path": "scripts/check-offline-food-po-lifecycle-runtime.js",
+    "blob_sha": "8c697f2ce549ff68c6f09ad60adf9fe0299407a4"
+  },
+  {
+    "path": "scripts/check-offline-food-prep-master-runtime.js",
+    "blob_sha": "5dd281a283cde7a5e477784c3926472abae6d923"
+  },
+  {
+    "path": "scripts/check-offline-food-production-runtime.js",
+    "blob_sha": "20366af777f10a8f205b518e7d2c14105a7c5cf2"
+  },
+  {
+    "path": "scripts/check-offline-food-receiving-runtime.js",
+    "blob_sha": "8684db30295af4ffdcea789fd59448c4e5fc7934"
+  },
+  {
+    "path": "scripts/check-offline-food-recipe-master-runtime.js",
+    "blob_sha": "b8031066d9ce3c14f8c5156153e1017d32afeebb"
+  },
+  {
+    "path": "scripts/check-offline-food-stock-count-runtime.js",
+    "blob_sha": "f289d4afa25d96f33400de9a2e9afc67dba91738"
+  },
+  {
+    "path": "scripts/check-offline-food-supplier-return-runtime.js",
+    "blob_sha": "5cf115f1b2f679d1f7cfb247b8e2d0d795178c37"
+  },
+  {
+    "path": "scripts/check-offline-food-transfer-actions-runtime.js",
+    "blob_sha": "9ed8a2799b9eb50b001d7e59c997ab00a9609e74"
+  },
+  {
+    "path": "scripts/check-offline-food-transfer-create-runtime.js",
+    "blob_sha": "f3d200bf0db9afd78417240ef2dbdb3f389e5a09"
+  },
+  {
+    "path": "scripts/check-offline-food-waste-runtime.js",
+    "blob_sha": "d1816c31ae700416d753f2844071fa71d1ac93ea"
+  },
+  {
+    "path": "scripts/check-offline-http503-recovery-acceptance.js",
+    "blob_sha": "69f72d97fc70e76da28f62006c1d4b40be94627c"
+  },
+  {
+    "path": "scripts/check-offline-ingredient-reference-runtime.js",
+    "blob_sha": "4dd552dd2704f0849e8c1bbe32f76ee84c954744"
+  },
+  {
+    "path": "scripts/check-offline-modern-food-final-dispatcher.js",
+    "blob_sha": "be22e697faa604797fca52c5b94d9abae1d4babe"
+  },
+  {
+    "path": "scripts/check-offline-operation-ownership-runtime.js",
+    "blob_sha": "8979fb9e5fdaf514a4a57217712b42270604d730"
+  },
+  {
+    "path": "scripts/check-offline-order-status-binding-acceptance.js",
+    "blob_sha": "0f11321399620d192a16befcab248abec82ee3bf"
+  },
+  {
+    "path": "scripts/check-offline-order-status-local-projection.js",
+    "blob_sha": "d052d37d66f75a8a9fa16e81421b42d5858c07c5"
+  },
+  {
+    "path": "scripts/check-offline-order-status-post-sync-reconcile.js",
+    "blob_sha": "7dc485715f18a9f408fa5fdde539d80f1e8e3294"
+  },
+  {
+    "path": "scripts/check-offline-ownership-consolidation.js",
+    "blob_sha": "c727337a1e85cedd79a2037222b37b42acd4a52f"
+  },
+  {
+    "path": "scripts/check-offline-pos-return-native-owner.js",
+    "blob_sha": "6278051091d419206f99a05d47259c33ba892146"
+  },
+  {
+    "path": "scripts/check-offline-pos-sale-native-owner.js",
+    "blob_sha": "962045c0e9820bd2453b43957830aaee5c85f315"
+  },
+  {
+    "path": "scripts/check-offline-prep-reference-runtime.js",
+    "blob_sha": "17bf326f664de4f96bbde26fbee8458552d71ee1"
+  },
+  {
+    "path": "scripts/check-offline-recipe-draft-runtime.js",
+    "blob_sha": "d1778f49f7ba1292d7a10772fb805b99a40396bd"
+  },
+  {
+    "path": "scripts/check-offline-reference-four-state-compatibility.js",
+    "blob_sha": "b4fc55f0a3a446b0f949dda54031dcb5bf925f34"
+  },
+  {
+    "path": "scripts/check-offline-reference-return-behavior.js",
+    "blob_sha": "065eee47ce58870ac9aaa6fff66680eaaff7411a"
+  },
+  {
+    "path": "scripts/check-offline-restaurant-table-config-runtime.js",
+    "blob_sha": "2524332b4635ca3eea96830ee146d4aa5cdd37dd"
+  },
+  {
+    "path": "scripts/check-offline-restaurant-table-session-runtime.js",
+    "blob_sha": "3b948203e7e62b616d165fa22e7b2dcc67b077db"
+  },
+  {
+    "path": "scripts/check-offline-runtime-acceptance-coverage.js",
+    "blob_sha": "5c976888158f3de417b6c51af65f8dfc272103ff"
+  },
+  {
+    "path": "scripts/check-offline-shift-expense-native-owner.js",
+    "blob_sha": "af0ecdbeac2b2de5dd5a961c283c656b2125a611"
+  },
+  {
+    "path": "scripts/check-offline-shift-expense-unified-runtime.js",
+    "blob_sha": "6e3eb55aecc784a1deea1f18e04337a55b6304cd"
+  },
+  {
+    "path": "scripts/check-offline-shift-lifecycle-acceptance.js",
+    "blob_sha": "f0a43ada094437e225bc3def5fb1ca7ccd1e4fba"
+  },
+  {
+    "path": "scripts/check-offline-supplier-runtime.js",
+    "blob_sha": "591cd38ccbb98778f57a25adffa702adcfa0a4b8"
+  },
+  {
+    "path": "scripts/check-offline-universal-operation-contract-v1.js",
+    "blob_sha": "d18e162a355a58da2b57f0f06ce044bc3caf804f"
+  },
+  {
+    "path": "scripts/check-online-orders-accept-boundary.js",
+    "blob_sha": "e8d392ffa8674e5dbc6f3db91b0c9b99c614dd21"
+  },
+  {
+    "path": "scripts/check-online-orders-capability-permission-boundary.js",
+    "blob_sha": "c728f769009a60d3eef87dfa511c5d5e48f2d8bd"
+  },
+  {
+    "path": "scripts/check-online-orders-channel-model.js",
+    "blob_sha": "546c4295e3d7dd0619fff39b82e5b273ace540e6"
+  },
+  {
+    "path": "scripts/check-online-orders-core-boundary.js",
+    "blob_sha": "f3fcadf1d9cff9caa26158249e441caa5a50245f"
+  },
+  {
+    "path": "scripts/check-online-orders-delivery-extraction.js",
+    "blob_sha": "273b1df9bdc3cbd6660a112467dc5f36f4a2733c"
+  },
+  {
+    "path": "scripts/check-online-orders-fulfillment-handoff.js",
+    "blob_sha": "e36d855130436667eeca9035fa77054e44d6a3a9"
+  },
+  {
+    "path": "scripts/check-online-orders-identity-dedup.js",
+    "blob_sha": "7074333abec011ec0bfda499afc8dca18ca35149"
+  },
+  {
+    "path": "scripts/check-online-orders-lifecycle-model.js",
+    "blob_sha": "92fee8214b2479bf63dfd845621661100ea1fb95"
+  },
+  {
+    "path": "scripts/check-online-orders-lifecycle-views.js",
+    "blob_sha": "0aa88984186f7c99e349fc0b2f5d53ded6107d60"
+  },
+  {
+    "path": "scripts/check-online-orders-navigation-ui.js",
+    "blob_sha": "d77570f0cec3d458a4a76907301101e38db3dd1f"
+  },
+  {
+    "path": "scripts/check-online-orders-notification-routing.js",
+    "blob_sha": "9e0874c4d21f9df36c501f6513e049c519be1200"
+  },
+  {
+    "path": "scripts/check-online-orders-performance-pagination.js",
+    "blob_sha": "6b8763035a66bd9eee552f90bd240a5b1a99794e"
+  },
+  {
+    "path": "scripts/check-online-orders-readonly-inbox.js",
+    "blob_sha": "a4f648ec0af9bbd78b9c0b8e538d88896c43b28d"
+  },
+  {
+    "path": "scripts/check-online-orders-reject-boundary.js",
+    "blob_sha": "3870e641cea111291c7607ab8e7b834ac058eabc"
+  },
+  {
+    "path": "scripts/check-online-orders-route-foundation.js",
+    "blob_sha": "79904f8ccda8e57d9920a7af0dff41b38ec24fb9"
+  },
+  {
+    "path": "scripts/check-online-to-offline-order-continuation.js",
+    "blob_sha": "c774b7ffdc55ce5c7d10681608bee72f37271233"
+  },
+  {
+    "path": "scripts/check-orders-performance-date-window.js",
+    "blob_sha": "241109c7d1957fbb5428b83be203eb000cdf7608"
+  },
+  {
+    "path": "scripts/check-orders-runtime-corrective.js",
+    "blob_sha": "e2b48ac14afcd5985bc9e85b0c7d84d2959acc61"
+  },
+  {
+    "path": "scripts/check-owner-diagnostics.js",
+    "blob_sha": "45a53c7043c0863af3b91321d77705c4164033a7"
+  },
+  {
+    "path": "scripts/check-permissions-v2-beta-predeployment-gate.js",
+    "blob_sha": "5422d950cdc1f2a4384767faa6bfed29a726a445"
+  },
+  {
+    "path": "scripts/check-permissions-v2-controlled-beta-deployment-order.js",
+    "blob_sha": "4e3fa38267b423da1167c2f55cd37a4be6b2891e"
+  },
+  {
+    "path": "scripts/check-permissions-v2-delivery-completion-routing.js",
+    "blob_sha": "f8b042511f11e568725377b6ecb6a9cacfc55d3e"
+  },
+  {
+    "path": "scripts/check-permissions-v2-effective-evaluator.js",
+    "blob_sha": "9f97f5b01876a05a42ac180c2b58b95b60a1852a"
+  },
+  {
+    "path": "scripts/check-permissions-v2-f1-f4-runtime-routing.js",
+    "blob_sha": "a618c7b72a1b9d363869de37a6fb7df37f44fa71"
+  },
+  {
+    "path": "scripts/check-permissions-v2-f2-f4-transition-compatibility.js",
+    "blob_sha": "adac20be8cae2afb9e211c0184f4479d7d5c94da"
+  },
+  {
+    "path": "scripts/check-permissions-v2-offline-order-status-owner.js",
+    "blob_sha": "c56faf347673f2f005644cdb8edcdb587663e3f4"
+  },
+  {
+    "path": "scripts/check-permissions-v2-offline-order-status-replay.js",
+    "blob_sha": "209e3650fb33650c1c6064f3e353a61079b95865"
+  },
+  {
+    "path": "scripts/check-permissions-v2-offline-order-status-transport.js",
+    "blob_sha": "af211aab0020cb2b6a04793e65ae1ccf4b64638b"
+  },
+  {
+    "path": "scripts/check-permissions-v2-orders-closure-readiness.js",
+    "blob_sha": "2792fdb0cb9666a1b2fd5cf83503582a9aff4eed"
+  },
+  {
+    "path": "scripts/check-permissions-v2-orders-privilege-closure.js",
+    "blob_sha": "778a13f348d078880289a50fc6ed7c3b9d3cd6d6"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-customers-create.js",
+    "blob_sha": "9a9a131a24a677274b28c0a2b53f67bfd6b0c5be"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-customers-edit-address.js",
+    "blob_sha": "6ff3550f3dd0e4dd213efcc479e699468feffe44"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-delivery-settings.js",
+    "blob_sha": "e256c7c127cfeaa67fff1aecc4db2899ec57f789"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-order-driver-assignment.js",
+    "blob_sha": "e33658f580fbee034c97f5c7f68ed6aa4ee73d12"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-order-fulfillment.js",
+    "blob_sha": "889ffeea65988da13deb7741355f489d14d34c31"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-shifts-expenses.js",
+    "blob_sha": "db89024d80ccdab07d1bb2ee43e1216bc1b56b3b"
+  },
+  {
+    "path": "scripts/check-permissions-v2-owner-website-payment-review.js",
+    "blob_sha": "3e4c7c7becb9dbc7f1d217069ed0ba2db4d601c1"
+  },
+  {
+    "path": "scripts/check-permissions-v2-profile-feature-applicability.js",
+    "blob_sha": "faa63dadb20c741762bba42160ff20ba00c2cb05"
+  },
+  {
+    "path": "scripts/check-permissions-v2-restaurant-f1-f5-applicability.js",
+    "blob_sha": "f53e457d50c03918f03ea980904fc3a80dfac1c8"
+  },
+  {
+    "path": "scripts/check-permissions-v2-role-defaults.js",
+    "blob_sha": "1631dd06b0b8155e44d6dd5f4f710d4150cf9f7c"
+  },
+  {
+    "path": "scripts/check-permissions-v2-sh0007-cloud-projection.js",
+    "blob_sha": "70b6920afe265073182ff2c8e1f084ec8132cf5f"
+  },
+  {
+    "path": "scripts/check-permissions-v2-trusted-profile-binding.js",
+    "blob_sha": "9989219332d6f3370fff8fc8bb70a44b550b9cdc"
+  },
+  {
+    "path": "scripts/check-permissions-v2-ui-filtering.js",
+    "blob_sha": "c0fc39655c1390d089b7e1ba74fe662738f83137"
+  },
+  {
+    "path": "scripts/check-point15-focused-acceptance-runner.js",
+    "blob_sha": "d597ce6dcc764ca26c2f52cf4fc7de166c9b65ce"
+  },
+  {
+    "path": "scripts/check-point15-offline-final-closure-matrix.js",
+    "blob_sha": "467a6d657b8157ae81841b238eb81338f31ff3fc"
+  },
+  {
+    "path": "scripts/check-point4-batch10-supply-fixture.js",
+    "blob_sha": "3eba02b715e6d47e08524b206e99fedf90208ce0"
+  },
+  {
+    "path": "scripts/check-point4-batch11-supply-request-create.js",
+    "blob_sha": "6c616764c7b709679349f9ad46fdd2db3982233b"
+  },
+  {
+    "path": "scripts/check-point4-batch12-supply-request-decide.js",
+    "blob_sha": "d8731857b7ffdc40869058a0662602b755987a5a"
+  },
+  {
+    "path": "scripts/check-point4-batch13-retail-return.js",
+    "blob_sha": "5c37d578348f5034db9b0c6d0a63181c41ccc235"
+  },
+  {
+    "path": "scripts/check-point4-batch14-retail-sale.js",
+    "blob_sha": "c93d4cc4c6e1debb415dad046b8de46b21bac281"
+  },
+  {
+    "path": "scripts/check-point4-batch15-variant-return.js",
+    "blob_sha": "ebc6e7be60be960543c22e73d23c1dc3c2246c99"
+  },
+  {
+    "path": "scripts/check-point4-batch2-same-frozen-set.js",
+    "blob_sha": "3c19b0b96f7dc45d27b81f73073db281a5c32499"
+  },
+  {
+    "path": "scripts/check-point4-batch3-legacy-website-lifecycle.js",
+    "blob_sha": "aa450241ffc79768f7c4235bd0611e611b67cc14"
+  },
+  {
+    "path": "scripts/check-point4-batch4-website-create-identity.js",
+    "blob_sha": "cad5b291d6d955a60698d33c9b68a852ecd5025e"
+  },
+  {
+    "path": "scripts/check-point4-batch5-website-legacy-core.js",
+    "blob_sha": "e080b9142e5aa08d46c7f06b166fa2d182af5767"
+  },
+  {
+    "path": "scripts/check-point4-batch6-retail-purchasing-product-only.js",
+    "blob_sha": "2db97b6863a751e672f85d4a95cb73d7fc1ee328"
+  },
+  {
+    "path": "scripts/check-point4-batch7-retail-transfers.js",
+    "blob_sha": "1fc140e305d548e184b2ed5013872b6be6c3a7ad"
+  },
+  {
+    "path": "scripts/check-point4-batch8-restaurant-cleanup.js",
+    "blob_sha": "2a5240fab006b63dc9b62375d1685bf22bcf5ac0"
+  },
+  {
+    "path": "scripts/check-point4-batch9-supply-cleanup.js",
+    "blob_sha": "a04772e1416c1374731e2f2088d6ae672740920c"
+  },
+  {
+    "path": "scripts/check-point4-canonical-identity-propagation.js",
+    "blob_sha": "422ec0765f730ec04c655bb22c75677ceb0b0049"
+  },
+  {
+    "path": "scripts/check-point4-canonical-reconciliation-auditor.js",
+    "blob_sha": "822f61a8947d6b19040f78989123c3c2fcc53c79"
+  },
+  {
+    "path": "scripts/check-point4-deployment-manifest.js",
+    "blob_sha": "15e0052597e5d9097cdd7e4e4441a5c9b58b39c5"
+  },
+  {
+    "path": "scripts/check-point4-fast-track-factory.js",
+    "blob_sha": "dad8c578c5ec20b2b7a0c9bc4ab512d9698d647a"
+  },
+  {
+    "path": "scripts/check-point4-financial-journal-v1-contract.js",
+    "blob_sha": "065cbe5b8fbf6270180e7089ae0136da679effd1"
+  },
+  {
+    "path": "scripts/check-point4-ft1-supply-fulfillment.js",
+    "blob_sha": "f1e2082e1c92779fffed230fa24fbee0f4cbe917"
+  },
+  {
+    "path": "scripts/check-point4-ft10-acceptance-cleanup-v2.js",
+    "blob_sha": "bd21c3872f23330c306bcd206c11a2e145be3de8"
+  },
+  {
+    "path": "scripts/check-point4-ft11-acceptance-cleanup-v3.js",
+    "blob_sha": "578df7e900ef021a8f925011002838ccce8166fc"
+  },
+  {
+    "path": "scripts/check-point4-ft2-retail-market.js",
+    "blob_sha": "449d7dc153870d3554ebc6dda17a468e95b4fa47"
+  },
+  {
+    "path": "scripts/check-point4-ft3-variant-checkout.js",
+    "blob_sha": "c490211daa5c9f50b50a1cfb7a29011068a6da1e"
+  },
+  {
+    "path": "scripts/check-point4-ft4-document-shortage.js",
+    "blob_sha": "f8122a4666059dad5419ae8519956453946f197e"
+  },
+  {
+    "path": "scripts/check-point4-ft5-food-stock.js",
+    "blob_sha": "d54d75f7e20a85a6cb8fb8b9528fe4a7aae9cd1f"
+  },
+  {
+    "path": "scripts/check-point4-ft6-retail-mixed-stock.js",
+    "blob_sha": "66de673ca71012b54a49c555cf5a8c8934232658"
+  },
+  {
+    "path": "scripts/check-point4-ft7-food-order-consumption.js",
+    "blob_sha": "74656717e3e9901477c4a6fc1c3892fe6b78fe4a"
+  },
+  {
+    "path": "scripts/check-point4-ft8-food-return-consumption.js",
+    "blob_sha": "1237815751ddcdbd0f90d6875693c4501302103a"
+  },
+  {
+    "path": "scripts/check-point4-ft9-acceptance-cleanup-v1.js",
+    "blob_sha": "8a9eda0e4c6c9e13016568ff3a9d22eeb3cba988"
+  },
+  {
+    "path": "scripts/check-point4-gate3d-corrective-semantic.js",
+    "blob_sha": "be720b547aa35166b10a833958f2bc20cd153f0a"
+  },
+  {
+    "path": "scripts/check-point4-pre-cutover-46-guard-contracts.js",
+    "blob_sha": "5641ad3f16b60fe43474a5a03249bcd6578da9ea"
+  },
+  {
+    "path": "scripts/check-point4-purchasing-ap-v1-contract.js",
+    "blob_sha": "3da3c1c2ce1d705d2d48fbfd2f9acb9f624a72e9"
+  },
+  {
+    "path": "scripts/check-point4-reservation-identity-v1-contract.js",
+    "blob_sha": "4cf8922ae335f48ee9c25270737d838841088dff"
+  },
+  {
+    "path": "scripts/check-point4-reservation-identity-v1-design.js",
+    "blob_sha": "dd86549cb1851ca6e727670068c8d04c9e4f4214"
+  },
+  {
+    "path": "scripts/check-point4-runtime-recovery-integrity.js",
+    "blob_sha": "2e1d38f579671d5aff71dcd94ecda1def760857b"
+  },
+  {
+    "path": "scripts/check-point4-secure-uuid-v4.js",
+    "blob_sha": "78ffc8e44a3ae650e5a7860b07b7a493e73fd51f"
+  },
+  {
+    "path": "scripts/check-point4-source-identity-v1-contract.js",
+    "blob_sha": "62ace9a947ea6eefdf988d04e91d7a6fd94e9e36"
+  },
+  {
+    "path": "scripts/check-point4-stock-reconciliation-auditor.js",
+    "blob_sha": "3b1699d34e1cfa01567733b0b56aeccf6d36730d"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-controlled-cutover.js",
+    "blob_sha": "6fe941f66d882c507dd78697d11791235b122e5f"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-cutover-hooks.js",
+    "blob_sha": "cc6c7e5576708db9e1f1e9fb88e49ff83a1c2f3a"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-direct-routing-foundation.js",
+    "blob_sha": "b3e04200ba979b890c84c2ec55cdd497e65ed003"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-foundation.js",
+    "blob_sha": "dd43b83b49d0ca3656e7b80eaa991feef4a971ed"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-runtime-adapter-contract.js",
+    "blob_sha": "93069cf3915a0d5b9313923df4c12d8f674ced28"
+  },
+  {
+    "path": "scripts/check-point4-stock-v2-writer.js",
+    "blob_sha": "d360c305458f104c1b38a1f27c22c27ea2c2e0f8"
+  },
+  {
+    "path": "scripts/check-point4-transfer-v2-contract.js",
+    "blob_sha": "0952907cf2d4da1ac1a1429c82de54cef863a2d2"
+  },
+  {
+    "path": "scripts/check-pos-delivery-cart-layout.js",
+    "blob_sha": "0aa1b29bc42c1ee2be0f9fb5579a414df5e3b811"
+  },
+  {
+    "path": "scripts/check-pos-profile-routing-v1.js",
+    "blob_sha": "4acd559d23cfff8b80295b52a8cc43de9a521141"
+  },
+  {
+    "path": "scripts/check-product-map-navigation-v1.js",
+    "blob_sha": "04a3c8691eb1d97418785b6ba1fcf2af3790664b"
+  },
+  {
+    "path": "scripts/check-purchasing-attachments-v1.js",
+    "blob_sha": "a08ecad628dc8a26588f496f4a96c16a5225a3a6"
+  },
+  {
+    "path": "scripts/check-rc1-admin-real-reset-v6.js",
+    "blob_sha": "c941d66db9ed8ef52138caecf92501627e544e30"
+  },
+  {
+    "path": "scripts/check-rc1-central-warehouse-v2-ownership-routing.js",
+    "blob_sha": "f9c1ddcd6cc67f50dea94beac074a3010c9097a1"
+  },
+  {
+    "path": "scripts/check-rc1-cloud-only-offline-fail-closed.js",
+    "blob_sha": "6b59951c529f7aee386d07f093a17a2bb7f01667"
+  },
+  {
+    "path": "scripts/check-rc1-consolidated-work-merge.js",
+    "blob_sha": "537ba37caf7f2caba9122c8d7f282c9f825ae6b3"
+  },
+  {
+    "path": "scripts/check-rc1-customer-po-ownership-routing.js",
+    "blob_sha": "d3e0351c052a4685dd8ea76c2a4fe7ff51e8eea5"
+  },
+  {
+    "path": "scripts/check-rc1-customer-sale-linkage-consolidated-v2.js",
+    "blob_sha": "a7d99e7f51599b7ae997e95f74fe00c04e01e885"
+  },
+  {
+    "path": "scripts/check-rc1-delivery-server-guard.js",
+    "blob_sha": "265a8bd72751d9215316c32d50a917f688fd29ea"
+  },
+  {
+    "path": "scripts/check-rc1-driver-custody-local-projection.js",
+    "blob_sha": "0c9c80d3e5028b25781b4047610e45dae6cfd949"
+  },
+  {
+    "path": "scripts/check-rc1-function-restore-offline-fail-closed.js",
+    "blob_sha": "182b44eb3836a158bdbb45fe0c994e2a19ec1af8"
+  },
+  {
+    "path": "scripts/check-rc1-hr-live-contract-source.js",
+    "blob_sha": "f19bf5de93ec117939a969fc6deb422bab2c4d7d"
+  },
+  {
+    "path": "scripts/check-rc1-hr-navigation-restore.js",
+    "blob_sha": "b3409200779cc8deff38806caef602d1a7077039"
+  },
+  {
+    "path": "scripts/check-rc1-inventory-complete-snapshot.js",
+    "blob_sha": "ce6f70eaccca44168bb8cbc04d0a17ee6c391126"
+  },
+  {
+    "path": "scripts/check-rc1-local-shift-id-boundary.js",
+    "blob_sha": "3360fa57f2ad6048bcd9461afef5e39df4464dc8"
+  },
+  {
+    "path": "scripts/check-rc1-next-bon-authority-runtime.js",
+    "blob_sha": "6139c5e9894e7d4dcbf80fb1c8c9d126894ecb44"
+  },
+  {
+    "path": "scripts/check-rc1-official-number-reconciliation.js",
+    "blob_sha": "b4a1489fa44acc546089a8615831183fbe725b1a"
+  },
+  {
+    "path": "scripts/check-rc1-offline-closure-matrix.js",
+    "blob_sha": "940638482d21e7d2b90d0897ece537c5c964fef4"
+  },
+  {
+    "path": "scripts/check-rc1-offline-notice-polling-regression.js",
+    "blob_sha": "32b142944b2a8d56d1044b32c6d01890b76844aa"
+  },
+  {
+    "path": "scripts/check-rc1-offline-performance-hotfix.js",
+    "blob_sha": "36b57351881e4fcc8661426b1069079a923820dc"
+  },
+  {
+    "path": "scripts/check-rc1-offline-read-after-write.js",
+    "blob_sha": "b326f6402f785800a2fa676fc8e9d665fa8131ee"
+  },
+  {
+    "path": "scripts/check-rc1-offline-root-cause-patch.js",
+    "blob_sha": "d82ee7d7de3affbea2b44aebe4e208ebff09f328"
+  },
+  {
+    "path": "scripts/check-rc1-offline-supplier-seq48-49-regression.js",
+    "blob_sha": "a949d2263b8f918ba55db1144b57d921fc276352"
+  },
+  {
+    "path": "scripts/check-rc1-online-only-storage-admin.js",
+    "blob_sha": "efad3577deecd0a4d812ab9273b79698eb0269b5"
+  },
+  {
+    "path": "scripts/check-rc1-online-runtime-performance.js",
+    "blob_sha": "9f7fd07fc1d9964f3bb210f66a1cd6ad7b5b1288"
+  },
+  {
+    "path": "scripts/check-rc1-pending-sale-return-v1.js",
+    "blob_sha": "c8e4f7f5ef8716a2b983b6b18322db55629d64f5"
+  },
+  {
+    "path": "scripts/check-rc1-practical-acceptance-sandbox-lock.js",
+    "blob_sha": "b146f97ba13bf8e96f9284bed0af91933b601818"
+  },
+  {
+    "path": "scripts/check-rc1-practical-nav-hr-hotfix.js",
+    "blob_sha": "741e4246d7b0e14d41d864e2c80d6486fc539715"
+  },
+  {
+    "path": "scripts/check-rc1-printer-failure-no-duplicate.js",
+    "blob_sha": "d594c17af41d76cac30a34c37ed0659282faca19"
+  },
+  {
+    "path": "scripts/check-rc1-reset-fk-safe-v2.js",
+    "blob_sha": "9e35885dce1051dd6e8248d8d33cfdbacc41896c"
+  },
+  {
+    "path": "scripts/check-rc1-reset-fk-safe-v3.js",
+    "blob_sha": "df982f49194183ded5947e7efd0e225d02bc32e9"
+  },
+  {
+    "path": "scripts/check-rc1-reset-fk-safe-v4.js",
+    "blob_sha": "252d325eb33b8309d670493256b12507d04436a7"
+  },
+  {
+    "path": "scripts/check-rc1-reset-fk-safe-v5.js",
+    "blob_sha": "9e3967716a2936074873a570f9c390d14ee2e6eb"
+  },
+  {
+    "path": "scripts/check-rc1-rest-mutation-offline-fail-closed.js",
+    "blob_sha": "4260c89187565443e1ae060c2cce745d1efdb61c"
+  },
+  {
+    "path": "scripts/check-rc1-retail-offline-sync-behavior.js",
+    "blob_sha": "f0af9519055f0f5d7e5c2bf320cb7a91907e3a6b"
+  },
+  {
+    "path": "scripts/check-rc1-retail-offline-sync-coverage.js",
+    "blob_sha": "6797a242f25cfba009a493016af4ec5b7fe850ad"
+  },
+  {
+    "path": "scripts/check-rc1-root-cause-stabilization-runtime.js",
+    "blob_sha": "e8ce23262db31064ec7e3dc704bd3c4d615c5a10"
+  },
+  {
+    "path": "scripts/check-rc1-runtime-alignment-deployment-manifest.js",
+    "blob_sha": "9452523ec7ad7e64bbaa41c808e52b3e597142fa"
+  },
+  {
+    "path": "scripts/check-rc1-runtime-alignment-final-definition-simulation.js",
+    "blob_sha": "0ad33a2c37c1cc005ee10fae84ad81fc6fc44a7d"
+  },
+  {
+    "path": "scripts/check-rc1-runtime-alignment-final-dispatcher.js",
+    "blob_sha": "60fc6142e7c08dd438257dd08e6a72b0bf0c059e"
+  },
+  {
+    "path": "scripts/check-rc1-runtime-navigation-alignment.js",
+    "blob_sha": "6381041dd5d3145fdd6e89a6854f61c70a54c4d0"
+  },
+  {
+    "path": "scripts/check-rc1-sandbox-clean-reset.js",
+    "blob_sha": "e872d8094d8234701eb7eb4a981d580c58c82b90"
+  },
+  {
+    "path": "scripts/check-rc1-sh0007-readonly-preflight.js",
+    "blob_sha": "d6b02956b08f52428afd4a3200360c6d8e244ee5"
+  },
+  {
+    "path": "scripts/check-rc1-sh0007-zero-state-v1.js",
+    "blob_sha": "7a4af26d35bd2c460a2820540bd9711e67e77203"
+  },
+  {
+    "path": "scripts/check-rc1-special-direct-write-guards.js",
+    "blob_sha": "6dc2f973111f5daf70bd8e8da77e5275403e24e4"
+  },
+  {
+    "path": "scripts/check-rc1-strict-online-only-guards-batch3.js",
+    "blob_sha": "7be78ce11e90973c363df2d444d55215c7e254c2"
+  },
+  {
+    "path": "scripts/check-rc1-systemwide-offline-guard-coverage-2.js",
+    "blob_sha": "f31284d14831149b7951dc39607123c69a024c43"
+  },
+  {
+    "path": "scripts/check-rc1-website-helper-replay-boundary.js",
+    "blob_sha": "1af4a87290663fa0b9b61b664a5787c597e28893"
+  },
+  {
+    "path": "scripts/check-restaurant-acceptance-stage-v1.js",
+    "blob_sha": "3d8a0f8f27b3521a30c790ce22a4d4a3b96ab45a"
+  },
+  {
+    "path": "scripts/check-restaurant-ingredient-reference-source.js",
+    "blob_sha": "599b0303c9055c03b3607049ac81576053792acf"
+  },
+  {
+    "path": "scripts/check-restaurant-offline-read-foundation.js",
+    "blob_sha": "682aacdd1e28911153d31bd6b23d6743d16befc6"
+  },
+  {
+    "path": "scripts/check-restaurant-offline-reference-transport.js",
+    "blob_sha": "02ab49a0470599618edf4312ac0390df43ac6a1f"
+  },
+  {
+    "path": "scripts/check-retail-finalization.js",
+    "blob_sha": "dd1f249e611e38914d9d572769d65df62c38458c"
+  },
+  {
+    "path": "scripts/check-retail-suspend-resume-local-first.js",
+    "blob_sha": "b83d1b5f94bf89deb41b3c287dec168222fb15bc"
+  },
+  {
+    "path": "scripts/check-retail-suspend-resume-ownership.js",
+    "blob_sha": "e0215637facb1e4f565e337975890b6c5db5ca29"
+  },
+  {
+    "path": "scripts/check-runtime-snapshot-anti-rollback-runtime-acceptance.js",
+    "blob_sha": "e4cba579df8a66c5bfc1e087fc35a5fb203f9e2c"
+  },
+  {
+    "path": "scripts/check-runtime-syntax.js",
+    "blob_sha": "e23427fa5b695d8dbd146f50942655157097b5ef"
+  },
+  {
+    "path": "scripts/check-settings-hub-v1.js",
+    "blob_sha": "0565a436fa562ddc8c14fb9c6a685b63f658c0ce"
+  },
+  {
+    "path": "scripts/check-sh0007-test-queue-reset.js",
+    "blob_sha": "e64f53b3e1a8a00f1330b977e970dd9145b4522b"
+  },
+  {
+    "path": "scripts/check-shared-inventory-purchasing-routing-v1.js",
+    "blob_sha": "137efa4273a9cc9d3c89cd9d3068b407d10d0b56"
+  },
+  {
+    "path": "scripts/check-shift-close-pending-custody-guard.js",
+    "blob_sha": "9060aeafd8c7d64ea2a863468b1e7fed61512214"
+  },
+  {
+    "path": "scripts/check-sidebar-input-runtime.js",
+    "blob_sha": "bef2b39cb9be4e410878a7d2be30523f2fb9dcd7"
+  },
+  {
+    "path": "scripts/check-touch-customer-v1.js",
+    "blob_sha": "a3488c3d6c1a08e77045b67019f23eba119e9350"
+  },
+  {
+    "path": "scripts/check-trusted-device-acquisition-boundary.js",
+    "blob_sha": "7377ea0683b4c7d9bfbba196a7716ae968698809"
+  },
+  {
+    "path": "scripts/check-trusted-device-assertion-cloud-source.js",
+    "blob_sha": "4d2230044d43e9da01ada3a5686ef803ac97594f"
+  },
+  {
+    "path": "scripts/check-trusted-device-assertion-v1.js",
+    "blob_sha": "8e66d46423193f6a2b070bc181ceaf1f3c43840f"
+  },
+  {
+    "path": "scripts/check-trusted-device-bridge-security.js",
+    "blob_sha": "d2e2685c4bb43dbc4100bc40dc45ffbfb7b7231f"
+  },
+  {
+    "path": "scripts/check-trusted-device-edge-bridge-source.js",
+    "blob_sha": "62bfd743acb0404fb6d7aee5883e97432b9b8517"
+  },
+  {
+    "path": "scripts/check-trusted-device-restaurant-binding-source.js",
+    "blob_sha": "d517bfb9872a787ce1b34593e71f69610fbd6342"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1b.js",
+    "blob_sha": "3bbe1e3b67b4d5331315a449ee5d0e443a9b1d41"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1c.js",
+    "blob_sha": "211bc7cb699a3627a6eca1d90b5999038eb4c0a5"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1d-a.js",
+    "blob_sha": "c795768c76dddbc99c9363e67f66fc15242898eb"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1d-b-prebind.js",
+    "blob_sha": "ebf873124c70d81187c16ab39ab1c3655ac7880d"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1d-b-runtime-binding.js",
+    "blob_sha": "91159b567b74878d3b5cff92b952f3acd68f1438"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1e.js",
+    "blob_sha": "fd48e55a1853823b8bc0d617542fb3bcbe0179c2"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry-1f.js",
+    "blob_sha": "af0b048c790b00a6ebd067dd9120f1250bc9568f"
+  },
+  {
+    "path": "scripts/check-unified-navigation-registry.js",
+    "blob_sha": "6338d592706b377f25f0cddfaa8162bd14d507c7"
+  },
+  {
+    "path": "scripts/check-universal-dashboard-cloud-schema-v1.js",
+    "blob_sha": "50a80a9bd5e94ff84c5e6fbeb7023f0484daffb7"
+  },
+  {
+    "path": "scripts/check-universal-dashboard-connectivity-runtime.js",
+    "blob_sha": "de29f95a0314e75bfb41ef84555145ada31333e2"
+  },
+  {
+    "path": "scripts/check-universal-dashboard-navigation-v1.js",
+    "blob_sha": "a1effdd4eecab7f86de74e591a0fca8fea19c472"
+  },
+  {
+    "path": "scripts/check-universal-dashboard-v1.js",
+    "blob_sha": "54f0e57cb1f79d1366b61e7f2b75d65cac9d6f2f"
+  },
+  {
+    "path": "scripts/check-update-recovery.js",
+    "blob_sha": "b2a4a4405345945310ec45ceb7db3564ce7f8b66"
+  },
+  {
+    "path": "scripts/check-variants-v1-runtime.js",
+    "blob_sha": "ed9467055bf29a286f95dfb03bad392e6ee13691"
+  },
+  {
+    "path": "scripts/check-version.js",
+    "blob_sha": "d7911234314633526a8dea41de6eb9ffbbad978f"
+  },
+  {
+    "path": "scripts/fixtures/navigation-coverage-negative-fixture.js",
+    "blob_sha": "a91c555be3e16d562237c84b8ba643caaf4562b6"
+  },
+  {
+    "path": "scripts/fixtures/navigation-ownership-negative-fixture.js",
+    "blob_sha": "785078bf0408f9634353d3ea01db62615d12ca74"
+  },
+  {
+    "path": "scripts/fixtures/navigation-shadow-auditor-fixtures.js",
+    "blob_sha": "f9c7d6b84db1b6207b82c92625aa08cdd41dd338"
+  },
+  {
+    "path": "scripts/fixtures/navigation-shadow-runtime-probe-fixtures.js",
+    "blob_sha": "2045ad1b92f160e76f13719dc4abbd935e7fec7f"
+  },
+  {
+    "path": "scripts/lib/navigation-coverage-detector.js",
+    "blob_sha": "56d1747771334041886c6fa8fecfefa5f8a7b76d"
+  },
+  {
+    "path": "scripts/lib/navigation-ownership-detector.js",
+    "blob_sha": "6a800a0fc388157746a6e72ba91872e1a01ce86f"
+  },
+  {
+    "path": "scripts/lib/navigation-shadow-auditor.js",
+    "blob_sha": "dc998ca7adbe7a6a11e3c7d33b3b2f695d253830"
+  },
+  {
+    "path": "scripts/lib/navigation-shadow-runtime-probe.js",
+    "blob_sha": "c81448fd9d5159ceb99510d04a4bce2a23a6e684"
+  },
+  {
+    "path": "scripts/navigation-coverage-contract-v1.js",
+    "blob_sha": "c00f1924221f6f05c70db738bdf21a167d414a2a"
+  },
+  {
+    "path": "scripts/navigation-ownership-contract-v1.js",
+    "blob_sha": "44344d9609e56618d2507d125bc0173e3413e5d1"
+  },
+  {
+    "path": "scripts/navigation-shadow-runtime-signatures-v1.js",
+    "blob_sha": "e36724a04857cca7395221c93d9b18acec69f4f3"
+  },
+  {
+    "path": "scripts/offline-reference-return-fixture.js",
+    "blob_sha": "cc1e6d76ca3d999e2596d5357a603d14cb46c86c"
+  },
+  {
+    "path": "scripts/offline-reference-return-sql-contract.js",
+    "blob_sha": "c7da166c21d792ff9d73ad15512ace0fe11defae"
+  },
+  {
+    "path": "scripts/point4b2-genuine-concurrency-setup.sql",
+    "blob_sha": "dd3b57c1dd86e860b0a6bb16286f50d1043ecdc6"
+  },
+  {
+    "path": "scripts/probe-beta45-sqlite3-arch.js",
+    "blob_sha": "bc27869ebac86ed8ce046687834e9ac8d9e8c8a2"
+  },
+  {
+    "path": "scripts/remove-offline-auth-wrapper-55.3.js",
+    "blob_sha": "aee2b2599d6b624e4ce8c64b1df1b0986b5406a3"
+  },
+  {
+    "path": "scripts/run-full-checks.js",
+    "blob_sha": "f1a125798487fd459538ff86dbbeb25ef678d42b"
+  },
+  {
+    "path": "scripts/sync-version.js",
+    "blob_sha": "237b17de121bf7c88e3b687eceb21b164887f128"
+  },
+  {
+    "path": "service-engine.js",
+    "blob_sha": "53e575bbdd16bcf51c1726b77efbcdc2b4c65569"
+  },
+  {
+    "path": "service-v1-ui.js",
+    "blob_sha": "841b9881dcf3b50180f58ba6bcc84de46666e4b4"
+  },
+  {
+    "path": "settings-hub-v1.css",
+    "blob_sha": "5b45086af0eff2b683bfb58c647ed7b759d669c6"
+  },
+  {
+    "path": "SHARAWLA_MASTER_STATUS.md",
+    "blob_sha": "0896357925e5895c5c347ee27bdcc1414590fcb6"
+  },
+  {
+    "path": "SHARAWLA_PRE_RC_PRODUCT_GATES.md",
+    "blob_sha": "ba8127860d6ea6c16bfa2ab638720699bbd891eb"
+  },
+  {
+    "path": "sharawla-capabilities-beta33.js",
+    "blob_sha": "9961386005dc73b2ca7ad859bd3a514e65359696"
+  },
+  {
+    "path": "sharawla-capabilities-v3.js",
+    "blob_sha": "ccb20e609aad651f249cca2ae3b31ab36e62cec9"
+  },
+  {
+    "path": "sharawla-capabilities.js",
+    "blob_sha": "5c27f8eab669a55442f2daf2d03805637c9cd887"
+  },
+  {
+    "path": "SHARAWLA-CAPABILITY-ARCHITECTURE.md",
+    "blob_sha": "14e8da239b90c2f16bc2e618f0bf97fa32b96cd5"
+  },
+  {
+    "path": "sharawla-capability-module-registry.js",
+    "blob_sha": "fa74c6c0c8ef34ac1e1d90ff3cf9120336959749"
+  },
+  {
+    "path": "sharawla-capability-runtime-bridge.js",
+    "blob_sha": "91f06733c3ff04c64ebf3520e715b5ad965d4162"
+  },
+  {
+    "path": "sharawla-cloud-runtime-v2.js",
+    "blob_sha": "652588cbf3548f2b61f0f271ae426bd0f7203bde"
+  },
+  {
+    "path": "SHARAWLA-CLOUD-TRUSTED-DEVICE-ASSERTION-V1-SOURCE.sql",
+    "blob_sha": "9f0f548330a100c29e9b2782943f7395d4cd4008"
+  },
+  {
+    "path": "SHARAWLA-CLOUD-V10.4.21-SUPPORT-CODE-READ-SAFE.sql",
+    "blob_sha": "f96419365542e87ad5a38fb1ffa7cba61dba9697"
+  },
+  {
+    "path": "SHARAWLA-CLOUD-V10.5.0-RUNTIME-CONFIG-SAFE.sql",
+    "blob_sha": "bded55733269e34edaef29d0667c350b30583530"
+  },
+  {
+    "path": "sharawla-feature-consumption.js",
+    "blob_sha": "a631610a49a498a5194daf63b649751a43e2b9db"
+  },
+  {
+    "path": "sharawla-navigation-adapters.js",
+    "blob_sha": "7fd840f0247d4589cebaa2429bb9c46867552bfe"
+  },
+  {
+    "path": "sharawla-navigation-registry.js",
+    "blob_sha": "26e325113259a1c85b88576951b52121b7204ce4"
+  },
+  {
+    "path": "sharawla-navigation-shadow-1d-b.js",
+    "blob_sha": "38742dd9a3f527ff6ae0dc5cc27aa7596f84d2e7"
+  },
+  {
+    "path": "sharawla-runtime-core.js",
+    "blob_sha": "e94e4aaeaacdd823d2b00bc100e5ca3fd953b075"
+  },
+  {
+    "path": "sharawla-web-v1/app.js",
+    "blob_sha": "693ff74a94af0115e0ff317fa76e09206b688df8"
+  },
+  {
+    "path": "sharawla-web-v1/config.example.js",
+    "blob_sha": "2338c1f7967fea38c9aca5467beec248c7b2f9c4"
+  },
+  {
+    "path": "sharawla-web-v1/config.js",
+    "blob_sha": "f9d7ad98709c6159eb7bfa113eab58d347a0296e"
+  },
+  {
+    "path": "sharawla-web-v1/index.html",
+    "blob_sha": "4f56da143fcef1a73468b0c35fdd21894149d1c4"
+  },
+  {
+    "path": "sharawla-web-v1/manifest.webmanifest",
+    "blob_sha": "4469ae744c392dc621deb4bcccbf4ccf94e5e8bc"
+  },
+  {
+    "path": "sharawla-web-v1/styles.css",
+    "blob_sha": "82c226171cbbf48bed7e63b07e711062d56ddccd"
+  },
+  {
+    "path": "sharawla-web-v1/sw.js",
+    "blob_sha": "2ba0a1146196a8aa2fa51e3c657ecaf028e3357e"
+  },
+  {
+    "path": "shared-business-core-v1.js",
+    "blob_sha": "efec4d1b065bc2dbae70c15cea77eb064f6878b7"
+  },
+  {
+    "path": "staff/app.js",
+    "blob_sha": "906bb21b3920f975511202f96fe02ffc38c94055"
+  },
+  {
+    "path": "staff/hr-staff-domain.js",
+    "blob_sha": "52caba40821248039e925b10c7a2eaeeb1c445fc"
+  },
+  {
+    "path": "staff/hr-staff-store.js",
+    "blob_sha": "a88b60004a1bf705f71af0dc4dfa63e4298324bc"
+  },
+  {
+    "path": "staff/icon-192.png",
+    "blob_sha": "4555978758b9b347389a7040db564c6a8d6b4a96"
+  },
+  {
+    "path": "staff/icon-512.png",
+    "blob_sha": "adcc6ff9e28bce20fa2ddd0ec11e1195cec63ff4"
+  },
+  {
+    "path": "staff/icon.svg",
+    "blob_sha": "47622fdc26095c19c3281a49e6f9c7ed01365255"
+  },
+  {
+    "path": "staff/index.html",
+    "blob_sha": "c84f2064c4eb4e879e1cd3421333b1f20a48716e"
+  },
+  {
+    "path": "staff/manifest.webmanifest",
+    "blob_sha": "e5b7b0faf3b8c3b25aa8e0882536c91353c716f8"
+  },
+  {
+    "path": "staff/styles.css",
+    "blob_sha": "f86ceece78750ff041ecdaf67f3be12d574942d5"
+  },
+  {
+    "path": "staff/sw.js",
+    "blob_sha": "6cd08f17a81303386d1d0c009e11c40c029f5423"
+  },
+  {
+    "path": "styles.css",
+    "blob_sha": "c10b8a2c94eaec1ecc041b8777883198edafebc4"
+  },
+  {
+    "path": "supabase-beta42-food-cross-profile-retail-runtime-v1.sql",
+    "blob_sha": "4177b4b5e724791ba0703ea140b491a00c445e3e"
+  },
+  {
+    "path": "supabase-beta42-food-helper-duplicate-composition-fix.sql",
+    "blob_sha": "7643ed9c54661850a4b012ac02ba1a6e496437c6"
+  },
+  {
+    "path": "supabase-beta42-recipe-track-inventory-acceptance.sql",
+    "blob_sha": "a1569becc3fac7e8660483d8c33deab576fff4c4"
+  },
+  {
+    "path": "supabase-beta42-remove-redundant-retail-food-aliases.sql",
+    "blob_sha": "88a857d254367694d314c3b0ecddeb777e1c03a7"
+  },
+  {
+    "path": "supabase-beta42-retail-recipe-composable-runtime.sql",
+    "blob_sha": "4dddca65daddbc778ec842b83b525f552c8ba413"
+  },
+  {
+    "path": "supabase-beta45-offline-v2-inbox-events-v1-hardening.sql",
+    "blob_sha": "6d4641d83db9badd5ed3dbf58f4897981cd1f355"
+  },
+  {
+    "path": "supabase-beta45-offline-v2-inbox-events-v1.sql",
+    "blob_sha": "2552c8e18320273fb19b4e63294a74730fb0a215"
+  },
+  {
+    "path": "supabase-beta45-offline-v2-transport-v1.sql",
+    "blob_sha": "3af379945efcadcef53778c1469ff9dde1238a87"
+  },
+  {
+    "path": "supabase-beta54-acceptance-hr-cleanup.sql",
+    "blob_sha": "c2d0bde14e02f355daa6d8024761100e67cff0cf"
+  },
+  {
+    "path": "supabase-beta54-acceptance-purchase-attachments-cleanup.sql",
+    "blob_sha": "e7499b366022346afcc9b73c41fc769d24a14267"
+  },
+  {
+    "path": "supabase-beta54-acceptance-shared-core-extra-cleanup.sql",
+    "blob_sha": "fc719bb6bd528a29cf3fc33590b80f8d2bdf38a9"
+  },
+  {
+    "path": "supabase-beta54-hr-payroll-runtime.sql",
+    "blob_sha": "615752d2f07b9bce228651e95a6d0add80a03f6c"
+  },
+  {
+    "path": "supabase-beta54-hr-treasury-foundation.sql",
+    "blob_sha": "7dfbb5896a38f906212414c376e72bd4d8c79daf"
+  },
+  {
+    "path": "supabase-beta54-hr-ui-support.sql",
+    "blob_sha": "c017851e0834062fdec161e260eca4975622395c"
+  },
+  {
+    "path": "supabase-beta54-purchasing-attachments-storage-api-cleanup-fix.sql",
+    "blob_sha": "200689b1789bba7455b43b68e57f03187efba8f2"
+  },
+  {
+    "path": "supabase-beta54-shared-customer-foundation.sql",
+    "blob_sha": "3c7d49e3e28bd3f57960bca8b62b2fcb0dec84a6"
+  },
+  {
+    "path": "supabase-beta55-acceptance-supply.sql",
+    "blob_sha": "fae66e56925c53b73e82c5eb016a9d40c33058cc"
+  },
+  {
+    "path": "supabase-beta55-branch-request-read-model.sql",
+    "blob_sha": "c4714d4008db42969c0b5a1851b728624b285a13"
+  },
+  {
+    "path": "supabase-beta55-central-warehouse-foundation.sql",
+    "blob_sha": "65f20e3400939b4e230baf4449fc73fdb9ac87af"
+  },
+  {
+    "path": "supabase-beta55-central-warehouse-fulfillment.sql",
+    "blob_sha": "6c9090547d8fa1356b8d6980e35825923f0612ee"
+  },
+  {
+    "path": "supabase-beta55-central-warehouse-hardening.sql",
+    "blob_sha": "822f7c59d4d618dfe0e60beac2e6a3f97a761d17"
+  },
+  {
+    "path": "supabase-beta55-central-warehouse-runtime.sql",
+    "blob_sha": "1b7cd7c5ba8c0e5f43bf1f2a4469c2cbd1735b27"
+  },
+  {
+    "path": "supabase-beta55-central-warehouse-visibility-shortages.sql",
+    "blob_sha": "6231e8c5e8fd7164e1b18765f4f19526ed4223c8"
+  },
+  {
+    "path": "supabase-beta55-delivery-settlement-acceptance.sql",
+    "blob_sha": "d8bf65f72a7e8461e1aacb4f19f8c932cbf2b226"
+  },
+  {
+    "path": "supabase-beta55-delivery-settlement-anon-hardening.sql",
+    "blob_sha": "d408dca959c0f21730c905c1176f5f31750d0c38"
+  },
+  {
+    "path": "supabase-beta55-delivery-settlement-offline-bridge.sql",
+    "blob_sha": "3c14bf2c616cc5388ed258f502fcdb6d040dcb6b"
+  },
+  {
+    "path": "supabase-beta55-delivery-settlement-shift-cash.sql",
+    "blob_sha": "f353cc79fca40a8666c6b2bcc0d6930cc35dbf47"
+  },
+  {
+    "path": "supabase-beta55-permission-boundary-hardening.sql",
+    "blob_sha": "f4d217e6ae0221a8f521f3303e2ccedaa6185397"
+  },
+  {
+    "path": "supabase-beta55-restaurant-acceptance-anon-hardening.sql",
+    "blob_sha": "6aa60567de96840010dfd29dabdd25a2fe2b1d27"
+  },
+  {
+    "path": "supabase-beta55-restaurant-acceptance.sql",
+    "blob_sha": "155b9846dbb59c50e1f9964c0cf02d494eff0077"
+  },
+  {
+    "path": "supabase-beta55-restaurant-direct-dml-hardening.sql",
+    "blob_sha": "6e96058cff55c5469c19ddf6e70a8161900b6cf5"
+  },
+  {
+    "path": "supabase-beta55-restaurant-operations-fixes.sql",
+    "blob_sha": "18edaba78882c1102b245aea7583d8f70ee554d7"
+  },
+  {
+    "path": "supabase-beta55-restaurant-operations.sql",
+    "blob_sha": "002e76541d1ec75a09ba41e5f7a979e0bad00114"
+  },
+  {
+    "path": "supabase-beta55-restaurant-permissions-runtime.sql",
+    "blob_sha": "d45e2086974d50983f7f24b2c6f29077f336dabb"
+  },
+  {
+    "path": "supabase-beta55-shortages-allocation-hardening.sql",
+    "blob_sha": "c20d88b8103c01d82a4ad90f9de6012ebafe581e"
+  },
+  {
+    "path": "supabase-beta56-1-runtime-acceptance-corrective.sql",
+    "blob_sha": "cb648bd0112fb4948af1af05e8a9eb6f10c9789b"
+  },
+  {
+    "path": "supabase-beta58-12-shift-close-custody-guard.sql",
+    "blob_sha": "3cf2fa98b10546773919193a522577bb0c5154b7"
+  },
+  {
+    "path": "supabase-beta58-13-legacy-shift-close-custody-guard.sql",
+    "blob_sha": "da8a540ab8fa51ac37811c822d8136b9a5a19b7b"
+  },
+  {
+    "path": "supabase-beta58-26-restaurant-acceptance-point4-canonical-tx-cleanup.sql",
+    "blob_sha": "8130ff0ba0ab8645f53cd8d7e89bbc70c9e6385e"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-1-variants-implemented.sql",
+    "blob_sha": "7da0b7b621c1a3ae6d5f5e46587c1381431d3e82"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-2-purchasing-implemented.sql",
+    "blob_sha": "3833ad9148f84568d70e59b18019d7102926e80d"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-3-food-dependency-fix.sql",
+    "blob_sha": "8c12a3151ab8a483ebd9887de80b6960570bdb2a"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-4-food-implemented.sql",
+    "blob_sha": "c9873927609156c91103c94f076fd23285897973"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-5-orders-finance-implemented.sql",
+    "blob_sha": "14d4ea3d0a73a37d9a4184d45e743c9b6b073364"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-6-profile-graduation.sql",
+    "blob_sha": "e6a38c7fc81998f5eca92a014015fed50bcd9022"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-7-landed-cost.sql",
+    "blob_sha": "4f3dfccee715e3f12e58c205b6e0ee2e4dd94b78"
+  },
+  {
+    "path": "supabase-capability-catalog-v3-shared-engines.sql",
+    "blob_sha": "9e3a6ea1b4c1adcf34030a35b1d0d85a3d5fbe7c"
+  },
+  {
+    "path": "supabase-capability-category-distribution-v3.sql",
+    "blob_sha": "be1edd7e0dd7d42589eb9995069a32364716f428"
+  },
+  {
+    "path": "supabase-capability-platform-v2-1-matrix-hardening.sql",
+    "blob_sha": "49b34687edc1e28445a05f50fd4eccdb31c39dc3"
+  },
+  {
+    "path": "supabase-capability-platform-v2-category-inheritance.sql",
+    "blob_sha": "b8b0bf7c372716de17d07122f40fc9e95588b392"
+  },
+  {
+    "path": "supabase-engine-finance-b2b-v1-1.sql",
+    "blob_sha": "b393c57e4823e9e35517efca2a2079cabafdfb1d"
+  },
+  {
+    "path": "supabase-engine-finance-b2b-v1.sql",
+    "blob_sha": "50d5460e09a9f2d351605d9dbe4f869350377a4c"
+  },
+  {
+    "path": "supabase-engine-landed-cost-v1-posting.sql",
+    "blob_sha": "1f8bbc6d5453a8570f2c13a9065d323a94c0d457"
+  },
+  {
+    "path": "supabase-engine-logistics-v1.sql",
+    "blob_sha": "70aa1f56cd61bcbb599bf42acead56fd65c34f3d"
+  },
+  {
+    "path": "supabase-engine-membership-v1.sql",
+    "blob_sha": "29f9fe0a8b6f37ab4bdce753f6a19bbb02c4ee1a"
+  },
+  {
+    "path": "supabase-engine-orders-v2.sql",
+    "blob_sha": "1d906e2c1f1515796827bba0a8435dbcfd3ba2ce"
+  },
+  {
+    "path": "supabase-engine-purchasing-v1-1-runtime.sql",
+    "blob_sha": "da400da9a60d46f4c05ac59b359b416e6c6774e1"
+  },
+  {
+    "path": "supabase-engine-purchasing-v1-advanced-foundation.sql",
+    "blob_sha": "d2ed5f73c6a4aa7ed3558c5d1ab909bd87425190"
+  },
+  {
+    "path": "supabase-engine-recipe-advanced-v1-foundation.sql",
+    "blob_sha": "5daee271b80b78ff66b1d6cc5bc67e6df1f10447"
+  },
+  {
+    "path": "supabase-engine-recipe-advanced-v1-runtime.sql",
+    "blob_sha": "29d4c8455c7c6f24de0e6e3993a0a5ea6cbb72ff"
+  },
+  {
+    "path": "supabase-engine-recipe-basic-v1-foundation.sql",
+    "blob_sha": "5933c3fd91907edd40ab75e8eb74ce7a8722290d"
+  },
+  {
+    "path": "supabase-engine-recipe-basic-v1-runtime.sql",
+    "blob_sha": "a9922634d7433925fdc977a6e9158c4b4ab75f2f"
+  },
+  {
+    "path": "supabase-engine-reports-v2.sql",
+    "blob_sha": "2102df71f8686ff2321865c398341cb9f7d3aba1"
+  },
+  {
+    "path": "supabase-engine-service-v1-1.sql",
+    "blob_sha": "d1c9aa205438953ef287dd236f21aac5d2fd1e54"
+  },
+  {
+    "path": "supabase-engine-service-v1.sql",
+    "blob_sha": "86b2b6a6993b308a05f0f80364cdd3beb144ae0a"
+  },
+  {
+    "path": "supabase-engine-specializations-v1.sql",
+    "blob_sha": "b4cdc99b3e89875ab6176afef18e782f3893f160"
+  },
+  {
+    "path": "supabase-engine-variants-v1-checkout-returns.sql",
+    "blob_sha": "7696388b999b26f2c7d1c8e88307af02361c5f33"
+  },
+  {
+    "path": "supabase-engine-variants-v1-foundation.sql",
+    "blob_sha": "747911b955534fdaca5bb6b8c1da8f2568c8b737"
+  },
+  {
+    "path": "supabase-engine-variants-v1-runtime-api-v1-1-hardening.sql",
+    "blob_sha": "e7f443967a8add10688471603c00df91978ab38e"
+  },
+  {
+    "path": "supabase-engine-variants-v1-runtime-api.sql",
+    "blob_sha": "3f23728500ce305a5d0c67f5154e4d144e70cf20"
+  },
+  {
+    "path": "supabase-hr-attendance-payroll-extension-v1.sql",
+    "blob_sha": "3d5f4ca4f9d67caedf9b185b6647b071600eb114"
+  },
+  {
+    "path": "supabase-offline-v2-central-warehouse-state-owners-v1.sql",
+    "blob_sha": "0032ef2fdc0e3e2ee206bc46d8e711d3327667ca"
+  },
+  {
+    "path": "supabase-offline-v2-central-warehouse-stock-owners-v1.sql",
+    "blob_sha": "919f576f78a91ae09106dcbc98f17c743e0569dc"
+  },
+  {
+    "path": "supabase-offline-v2-customer-delivery-owners-v1.sql",
+    "blob_sha": "00069c601ff41c17b14b3a6bc4a8068c9d7a727d"
+  },
+  {
+    "path": "supabase-offline-v2-delivery-settlement-owner-v1.sql",
+    "blob_sha": "cfcef77ca2a32f2af5a78fac97499cb129e54432"
+  },
+  {
+    "path": "supabase-offline-v2-expense-edit-source.sql",
+    "blob_sha": "8ce910f237547a2fb83445ceeb7e154e11fb1090"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-ingredient-master-owner-v1.sql",
+    "blob_sha": "b0c5ae3b3d0d1e650d8e2fce9b29865e534ef7f6"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-ingredient-stock-adjust-owner-v1.sql",
+    "blob_sha": "c10aa1baabb55c5b9c22fc7ac0ce20314c50c3a1"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-po-owners-v1.sql",
+    "blob_sha": "95ece2f85e505c99edde690d5e444a2824084ab5"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-prep-master-owner-v1.sql",
+    "blob_sha": "0d91fd93bce85ca326e0ddd8f49156f84c3a466f"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-production-owner-v1.sql",
+    "blob_sha": "b9de76f3fa0f5d4519accaa5c131443d622ce717"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-receive-owner-v1.sql",
+    "blob_sha": "1823f798e2f1f05652b75803cd5fc0cfc5366ac0"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-recipe-master-owner-v1.sql",
+    "blob_sha": "e964d06583330630cd310820f4aa4805bcf7bb9c"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-stock-count-owner-v1.sql",
+    "blob_sha": "704b05316f35763b90c1c1994e70a1b266b50532"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-supplier-return-owner-v1.sql",
+    "blob_sha": "774648ad36fc3561ea0d5b390ae5097ca6af8951"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-transfer-actions-owner-v1.sql",
+    "blob_sha": "c0bcf7e1ef0d2ed6b22eb428b1847634e84cb3cd"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-transfer-create-owner-v1.sql",
+    "blob_sha": "076112680861a8e2cdc3dd54c6d84ecbaa040a4b"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-food-waste-owner-v1.sql",
+    "blob_sha": "305b4da9a9f63fcf6b9e49f91fe4accdd861d2ea"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-prep-reference-owners-v1.sql",
+    "blob_sha": "9f29d4a37fd0acf44db78413551e252062fe26f6"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-reference-owners-v1.sql",
+    "blob_sha": "d7b6902363a35d6f165e07b53e886e56fcffacac"
+  },
+  {
+    "path": "supabase-offline-v2-restaurant-reference-transport-v1.sql",
+    "blob_sha": "b89199c9eea2c79c9c34355606e5eff68ee46b6d"
+  },
+  {
+    "path": "supabase-permissions-v2-actions.sql",
+    "blob_sha": "5505c11538dca3fcd314febfffaf7ac6d0db523b"
+  },
+  {
+    "path": "supabase-point4-deploy-batch4-foundation-preserve-newer-catalog-view-v2.sql",
+    "blob_sha": "ab7cbd6c8dc5b463e24918ae32de2983db24a6bf"
+  },
+  {
+    "path": "supabase-point4-deploy-batch4-foundation-preserve-newer-catalog-view.sql",
+    "blob_sha": "4a741e571cfa85fe5645b7bfe5739cabbe053833"
+  },
+  {
+    "path": "supabase-point4-financial-journal-v1-contract.sql",
+    "blob_sha": "074bf83e8980cf11b48cbcb26024292bd64d9304"
+  },
+  {
+    "path": "supabase-point4-ft10-acceptance-cleanup-v2-guard.sql",
+    "blob_sha": "493f92c24f2f7d675e771202ef1abb4cda7263b5"
+  },
+  {
+    "path": "supabase-point4-ft11-acceptance-cleanup-v3-guard.sql",
+    "blob_sha": "c92b63664e53afbfac9f111404d52416e9fc4b14"
+  },
+  {
+    "path": "supabase-point4-ft6-retail-mixed-stock.sql",
+    "blob_sha": "3e0c4b2e65edd86bc5eda892af0ea798fb913665"
+  },
+  {
+    "path": "supabase-point4-ft7-food-order-consumption-guard.sql",
+    "blob_sha": "42c8dd065ff7601f1371fe67f0e3916f10dbb582"
+  },
+  {
+    "path": "supabase-point4-ft8-food-return-consumption-guard.sql",
+    "blob_sha": "9d5b97bb2f03d4b93bf2a34833a6d5ee283a3265"
+  },
+  {
+    "path": "supabase-point4-ft9-acceptance-cleanup-v1-guard.sql",
+    "blob_sha": "334f85a0bad7fa7afcb521743732ddfba25708e8"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch1-insertion-only.sql",
+    "blob_sha": "3da64c2ce459e71336b5c1b8e503c37a5ba82c35"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch2-website-identity.sql",
+    "blob_sha": "786380b5d9eacca6a21d1de8ff0de78893f407a2"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch3-legacy-website-lifecycle.sql",
+    "blob_sha": "372a5091d70e6ee320c6ffacd95cbfa0aca06ef5"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch4-website-create-identity.sql",
+    "blob_sha": "7c3328ebfee0962279ebdad5d3df83e066cad953"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch5-website-legacy-core.sql",
+    "blob_sha": "3f8b3fb147592b20be9a77f3d999e86fed0d1fe1"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch6-retail-purchasing-product-only.sql",
+    "blob_sha": "70514e5a72fa911e21f889e6a455e9788b3e8d85"
+  },
+  {
+    "path": "supabase-point4-pre-cutover-46-guard-installation-batch7-retail-transfers.sql",
+    "blob_sha": "57602b078a90a49ef9da2fa6792f9d63e4f89702"
+  },
+  {
+    "path": "supabase-point4-purchasing-ap-v1-contract.sql",
+    "blob_sha": "9ec2730bf0d6c83161466d8fb52ae8b41ea3cc75"
+  },
+  {
+    "path": "supabase-point4-reservation-identity-v1-contract.sql",
+    "blob_sha": "c774a8b81479bbbf3105295f41ffad6dad86068f"
+  },
+  {
+    "path": "supabase-point4-source-identity-v1-contract.sql",
+    "blob_sha": "386dc3ffd968528b85a3d9629895d8c8ad789979"
+  },
+  {
+    "path": "supabase-point4-stock-v2-controlled-cutover.sql",
+    "blob_sha": "657c3533e6784f25a789ccf8534c540385b06714"
+  },
+  {
+    "path": "supabase-point4-stock-v2-cutover-hooks.sql",
+    "blob_sha": "320e97dbbfcbcf9a55a1b9d59f3385721f800a71"
+  },
+  {
+    "path": "supabase-point4-stock-v2-direct-routing-foundation.sql",
+    "blob_sha": "cac4f3086e39b71bd88b00eaa89907f3d2cd80a4"
+  },
+  {
+    "path": "supabase-point4-stock-v2-foundation.sql",
+    "blob_sha": "377fc0401731b3aa16da9346bb0c951629d1e310"
+  },
+  {
+    "path": "supabase-point4-stock-v2-runtime-adapter-contract.sql",
+    "blob_sha": "32810a9327a03e9ac8bb06a58640e8945b54bdeb"
+  },
+  {
+    "path": "supabase-point4-stock-v2-writer.sql",
+    "blob_sha": "32bebf146110f12583e121863de79c6ef334132f"
+  },
+  {
+    "path": "supabase-point4-transfer-v2-contract.sql",
+    "blob_sha": "e7515695c9733ebb945da5d89020b07a21bbe6a5"
+  },
+  {
+    "path": "supabase-point4-transitive-action-document-guards-v1.sql",
+    "blob_sha": "6af5e6d5d725f8656f887ca3e4648a7cf12f0534"
+  },
+  {
+    "path": "supabase-point4-transitive-context-primitives-v1.sql",
+    "blob_sha": "232a074e7e9495e932a68ab8854d580c93438ca6"
+  },
+  {
+    "path": "supabase-point4-transitive-food-context-plumbing-v1.sql",
+    "blob_sha": "3ba684cfec223e27ec88d31cab965ff53d7240fd"
+  },
+  {
+    "path": "supabase-point4-transitive-frozen-evidence-v1.sql",
+    "blob_sha": "42147ca1d8b80f8955659a49d9ab8f5a6273ecca"
+  },
+  {
+    "path": "supabase-point4-transitive-offline-same-context-v1.sql",
+    "blob_sha": "f2dee8ceb82088493425e1d0d8e4d64c680279ca"
+  },
+  {
+    "path": "supabase-point4-transitive-return-pharmacy-guards-v1.sql",
+    "blob_sha": "8f2165134e244b4b44b285c0982ce8f5c3f2413c"
+  },
+  {
+    "path": "supabase-point4-transitive-same-context-handoff-v1.sql",
+    "blob_sha": "6737dbd62c73b8dd2da9730959d2098ebe16bd3d"
+  },
+  {
+    "path": "supabase-purchasing-attachments-v1.sql",
+    "blob_sha": "69a6397fd97baa36b2d011479c1fa56ef772514f"
+  },
+  {
+    "path": "supabase-rc1-admin-real-reset-v6.sql",
+    "blob_sha": "bb93c7bd32146a9d25457401b5053ebc51e0fd9e"
+  },
+  {
+    "path": "supabase-rc1-bon-numbering-policy-v1-online-migration-source.sql",
+    "blob_sha": "5b131f26c024ea0c77a333647f6991b9ec108efe"
+  },
+  {
+    "path": "supabase-rc1-bon-numbering-policy-v1-source.sql",
+    "blob_sha": "f5bbbcd6bb1af89e3ffb6d2802fb0b01e642a18b"
+  },
+  {
+    "path": "supabase-rc1-bon-reservation-v1-sale-integration.sql",
+    "blob_sha": "402536486bfc1657c65aae27ba715c9aa103a8a7"
+  },
+  {
+    "path": "supabase-rc1-bon-reservation-v1-source.sql",
+    "blob_sha": "995eeb93cabd4a3a0a6aa3a435b2ce2eec44e49a"
+  },
+  {
+    "path": "supabase-rc1-bon-reservation-v2-scope-aware-source.sql",
+    "blob_sha": "8f36f95d6e1582befd2e93a617e61af558870a25"
+  },
+  {
+    "path": "supabase-rc1-bon-v3-base-sale-owner-source.sql",
+    "blob_sha": "d417c8393742ce4102e6307a7c74b77e9d29734e"
+  },
+  {
+    "path": "supabase-rc1-bon-v3-deployability-preflight.sql",
+    "blob_sha": "f19341025703967bdaab6c0419535cf3d291849f"
+  },
+  {
+    "path": "supabase-rc1-bon-v3-sale-integration-source.sql",
+    "blob_sha": "bfb840f60dc58733a4a978adac06919ab1595c97"
+  },
+  {
+    "path": "supabase-rc1-branch-scoped-reset-v7.sql",
+    "blob_sha": "bc6c165bc56a7af521db4af82b6766f9a37e2824"
+  },
+  {
+    "path": "supabase-rc1-delivery-required-fields-guard-v1.sql",
+    "blob_sha": "52bb4f831a7f9a8d1dde828de612c68cdeddd147"
+  },
+  {
+    "path": "supabase-rc1-hr-action-profile-bindings-v1.sql",
+    "blob_sha": "fcf156fc6fd0b22742fdeb45e2586cd081db7e8a"
+  },
+  {
+    "path": "supabase-rc1-next-bon-authority-v1.sql",
+    "blob_sha": "7841924613fec3c7ad51fe483e981af79de4a99b"
+  },
+  {
+    "path": "supabase-rc1-offline-outer-consolidated-v3.sql",
+    "blob_sha": "e9f417894b2be85819dec203f5664a17686ac217"
+  },
+  {
+    "path": "supabase-rc1-offline-v2-modern-food-final-dispatcher.sql",
+    "blob_sha": "03c2a67c25c5f8246869ed9e8a5d50f869b60a12"
+  },
+  {
+    "path": "supabase-rc1-offline-v2-retail-purchasing-owners-v1.sql",
+    "blob_sha": "324ecf4a6d81761cb1706d59a2982a1976852ca9"
+  },
+  {
+    "path": "supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql",
+    "blob_sha": "2f89df4c7c10f0654574b21953a99b964f4e1370"
+  },
+  {
+    "path": "supabase-rc1-reset-fk-safe-v2.sql",
+    "blob_sha": "1f3438bf8dd933a4fa34507cd885ad79be7bc56f"
+  },
+  {
+    "path": "supabase-rc1-reset-fk-safe-v3.sql",
+    "blob_sha": "414b07f6d1a75e45feea91b1eb69396b5119d8aa"
+  },
+  {
+    "path": "supabase-rc1-reset-fk-safe-v4.sql",
+    "blob_sha": "0afd7cb7a4bbce3b728d51aa5c8e2cb78cd963a0"
+  },
+  {
+    "path": "supabase-rc1-reset-fk-safe-v5.sql",
+    "blob_sha": "78e28fe6132dcadb42f5248f1b63fa81c9d1da18"
+  },
+  {
+    "path": "supabase-rc1-retail-suspend-resume-offline-v1-source.sql",
+    "blob_sha": "878db472610769721320484b7aef135036e19a07"
+  },
+  {
+    "path": "supabase-rc1-trusted-device-context-bon-v3-source.sql",
+    "blob_sha": "cdb63792498bbf77b2f7f1cdd97f24b661321d82"
+  },
+  {
+    "path": "supabase-v10-3-windows-offline-shifts.sql",
+    "blob_sha": "dfcf3c2c3aa87036d82720152e93dd012686e08f"
+  },
+  {
+    "path": "supabase-v10-4-10-website-tracking-cancel.sql",
+    "blob_sha": "d26377c232ed0f9c063229f00d438330564d9cbb"
+  },
+  {
+    "path": "supabase-v10-4-11-SAFE-WEBSITE-INTEGRATION.sql",
+    "blob_sha": "9a41815c5d0fd2e5fed886c2d07286762da4a69f"
+  },
+  {
+    "path": "supabase-v10-4-18-weekly-website-hours.sql",
+    "blob_sha": "f6ee10a2ac8c577551a7c874d5f6887e5182a33b"
+  },
+  {
+    "path": "supabase-v10-4-6-final-stability.sql",
+    "blob_sha": "c3d8dfaf1a43bd02ad759adf999ddcd527f76c8e"
+  },
+  {
+    "path": "supabase-v10-4-6-website-pickup-promo-stability.sql",
+    "blob_sha": "c60530c7bb2897d898fe51c3f6b09fad73afede6"
+  },
+  {
+    "path": "supabase-v10-5-4-beta15-retail-inventory-foundation.sql",
+    "blob_sha": "f2d96d1aff7dc806cb6546ee2b62f26447b6783a"
+  },
+  {
+    "path": "supabase-v10-5-4-beta16-retail-suppliers-purchasing.sql",
+    "blob_sha": "5ebe8cf22f68821c43e6d052a3839b7cb2aaac23"
+  },
+  {
+    "path": "supabase-v10-5-4-beta17-retail-market-core.sql",
+    "blob_sha": "576baf33eff9b750d359925a7696c2f4f8b54a64"
+  },
+  {
+    "path": "supabase-v10-5-4-beta18-retail-website-integration-finalize.sql",
+    "blob_sha": "76c769629788eae05ce08d70981e87a52ee8f6be"
+  },
+  {
+    "path": "supabase-v10-5-4-beta18-retail-website-integration.sql",
+    "blob_sha": "f3251a8f0d4aa8384c39160f7a49ae2fe8f23ee3"
+  },
+  {
+    "path": "supabase-v10-5-4-beta18-retail-website-public-api.sql",
+    "blob_sha": "58284a3fafabf2c4ec2c0f1627c9572eebc91f14"
+  },
+  {
+    "path": "supabase-v10-5-4-beta18-retail-website-quote.sql",
+    "blob_sha": "84309cbfb6bfa15b3bf80d20bbe162b9659e2cc0"
+  },
+  {
+    "path": "supabase-v3.sql",
+    "blob_sha": "36cd6c9054e785935782b5e3c2b523e2dc0873a3"
+  },
+  {
+    "path": "supabase-v5.sql",
+    "blob_sha": "10412eb22502751ca9fd4e04a50fec8c2e0f8e2c"
+  },
+  {
+    "path": "supabase-v6.sql",
+    "blob_sha": "e258a53db25ae662f598f585179a435e9eb5d68d"
+  },
+  {
+    "path": "supabase-v7.sql",
+    "blob_sha": "8fd9ddf32650ac3148073846dd7206034e81640e"
+  },
+  {
+    "path": "supabase-v8-7-3-branches.sql",
+    "blob_sha": "f2ca30a2f37c715515daef4cc28d20702b9817de"
+  },
+  {
+    "path": "supabase-v8-8-permissions.sql",
+    "blob_sha": "ae63d936184f49775dfa1760d73bcb64f8cda3f8"
+  },
+  {
+    "path": "supabase-v8-9-2-reset.sql",
+    "blob_sha": "36601a6ab1846ee7e440ea3def2dfc5daf19d624"
+  },
+  {
+    "path": "supabase-v8-9-images.sql",
+    "blob_sha": "3cd26c3f9578023ecac773164230dd167a94fecb"
+  },
+  {
+    "path": "supabase-v9-0-stable-reset.sql",
+    "blob_sha": "3eca0cdc856d12e7b80253afc130c3a542a65abc"
+  },
+  {
+    "path": "supabase-v9-1-8-meat-repair.sql",
+    "blob_sha": "82773cf04f1132c42d83ae4a498cd76195e8db84"
+  },
+  {
+    "path": "supabase-v9-1-menu.sql",
+    "blob_sha": "6963c3303dde0cfe2769cdda6f80761eb48c969b"
+  },
+  {
+    "path": "supabase-v9-2-10-branch-admin.sql",
+    "blob_sha": "3f4cf3a1d43eccaf07110fecde74cdcd143f128c"
+  },
+  {
+    "path": "supabase-v9-2-5-website-availability-permission.sql",
+    "blob_sha": "4a4195ae9086111704885db755b49422c49d2cb3"
+  },
+  {
+    "path": "supabase-v9-2-6-website-visibility-permission.sql",
+    "blob_sha": "aa7ca888f4dc02f172375d37a9891067985a5be2"
+  },
+  {
+    "path": "supabase-v9-2-7-branch-product-permission.sql",
+    "blob_sha": "8c13dc8bbcd4cf0711b7dff8df17d14dd9658070"
+  },
+  {
+    "path": "supabase-v9-2-7-timed-availability.sql",
+    "blob_sha": "2136cb8dbf6f554864ea59ac762ae459b0febf1e"
+  },
+  {
+    "path": "supabase-v9-2-8-branch-website-settings.sql",
+    "blob_sha": "b4ca1a86270d88d3e4f73518fe1be6b99d11018e"
+  },
+  {
+    "path": "supabase-v9-2-9-branch-management.sql",
+    "blob_sha": "0523da9ccdb82a907857c586ecbc4a5ae2c07c39"
+  },
+  {
+    "path": "supabase-v9-3-0-business-control.sql",
+    "blob_sha": "267c7fa7dbc6dc9cc823fb8d9b1ea68a62f70de8"
+  },
+  {
+    "path": "supabase-v9-3-1-print-settings.sql",
+    "blob_sha": "fc435dd29b70c545bd445406c39d0beb017345cb"
+  },
+  {
+    "path": "supabase-v9-3-2-business-logo-storage.sql",
+    "blob_sha": "e837bebf7e2cb9724d800e269f0f433844b99a82"
+  },
+  {
+    "path": "supabase-v9-4-0-numbering-payments-finance.sql",
+    "blob_sha": "e493b024d329c4cdf9af2c3a94ea9d694dffbba8"
+  },
+  {
+    "path": "supabase-v9-5-0-website-control.sql",
+    "blob_sha": "597e185bcf6e52903c3f14eef87d0f0ac3e32978"
+  },
+  {
+    "path": "supabase-v9-6-0-returns.sql",
+    "blob_sha": "8a4ae64b1cc9ca7b1d87f52550a795d5132af8a6"
+  },
+  {
+    "path": "supabase-v9-6-1-returns-pickup.sql",
+    "blob_sha": "5c7c904b283af90a059f615f9abdaf2564d0cf09"
+  },
+  {
+    "path": "supabase-v9-7-0-promocodes.sql",
+    "blob_sha": "fe78c5e7aecb57c0f89c28a395d65f9a2362ce83"
+  },
+  {
+    "path": "supabase-v9-7-1-transaction-safe.sql",
+    "blob_sha": "2dc0c6a36a1a0dfe82e20830383b875e662081d4"
+  },
+  {
+    "path": "supabase-v9-7-3-1-reset-fix.sql",
+    "blob_sha": "1bb48c0f5d0f26ca44092d79e0d02dda7af104eb"
+  },
+  {
+    "path": "supabase-v9-7-3-financial-clean-start.sql",
+    "blob_sha": "258b2ed936dd2200cc4bccdf253d690a99e204e5"
+  },
+  {
+    "path": "supabase-v9-8-0-offline.sql",
+    "blob_sha": "364c7e520de36ee43397760f7ac330c69ce2ac47"
+  },
+  {
+    "path": "supabase-v9-8-1-offline-operations.sql",
+    "blob_sha": "3fe5aa02160c2f738b6786a9e6cef028a506c6c2"
+  },
+  {
+    "path": "supabase-web-portal-v1-public-api.sql",
+    "blob_sha": "cb0cb9f05a2c0cab367c1b6249b5f43b28ed9158"
+  },
+  {
+    "path": "supabase/functions/hr-staff-api/index.ts",
+    "blob_sha": "f89437fc6f097aa7d722bbbff84b95e2b8ad66e2"
+  },
+  {
+    "path": "supabase/functions/trusted-device-bridge-v1/index.ts",
+    "blob_sha": "5244ca79983e061e519aa09e5cdc9b039dc2a2dd"
+  },
+  {
+    "path": "sw.js",
+    "blob_sha": "f1878144b6c108183b4f2f29b724d0e436c2667d"
+  },
+  {
+    "path": "touch-ux-v1.css",
+    "blob_sha": "cc608015fa48713452560c19d3d82514ec3ca30d"
+  },
+  {
+    "path": "universal-dashboard-engine-v1.js",
+    "blob_sha": "d319ae23bd89cefccdfae181c48a1b1e38bd8ed5"
+  },
+  {
+    "path": "universal-dashboard-v1.js",
+    "blob_sha": "9e19a5166f2f60d0bdc014b6f7bf5db9e3036213"
+  },
+  {
+    "path": "update-config.json",
+    "blob_sha": "6180c44acab1079a1c5a4f4b43d13467346d203f"
+  },
+  {
+    "path": "update-indicators.css",
+    "blob_sha": "83bd1aebc9f16defce1e875b59ced2681224074d"
+  },
+  {
+    "path": "update-ui.js",
+    "blob_sha": "fc0430f33f8908db21cc6d01b09a208d193e34f9"
+  },
+  {
+    "path": "VALIDATION-V10.4.21.txt",
+    "blob_sha": "8c67c0e8d1919fc7e1afb1c8b041d99fc3c22fa8"
+  },
+  {
+    "path": "VALIDATION-V10.5.0-PHASE1.txt",
+    "blob_sha": "443c83619640af2f606b7665df0f6f5d3d40d4ee"
+  },
+  {
+    "path": "VALIDATION-V10.5.2-PHASE2-STEP2.txt",
+    "blob_sha": "0ff151e836342aad602d00d65ccd73f29e1d60dd"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.10-UPDATE-SAFETY-BUNDLE.txt",
+    "blob_sha": "68d6d187ab8d55b2a2c42c712e9b6c101df8f9cc"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.13-RETAIL-ENGINE-FOUNDATION.txt",
+    "blob_sha": "c0deb67620937e15dcc50501ffb9c81c31f558ee"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.14-RETAIL-CHECKOUT-BARCODE.txt",
+    "blob_sha": "3d0bde5a067cd29edc129973f72024bb9ccadbc3"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.15-RETAIL-INVENTORY-FOUNDATION.txt",
+    "blob_sha": "0c6df65368fbb48ccbf9f1cd78f3f272eca8ff74"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.16-RETAIL-SUPPLIERS-PURCHASING.txt",
+    "blob_sha": "1c6fa27e66b81f8dcec0669a8ef5b1fdf299e769"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.17-RETAIL-SUPERMARKET-TEST-CANDIDATE.txt",
+    "blob_sha": "b199d4504b1071d99be8bbeda088e1d8d56a2222"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.3-FINAL-PART3.txt",
+    "blob_sha": "7b716046bd4aa2bd17d30ffeacb24c21be36b75e"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.6-FINAL.txt",
+    "blob_sha": "14682a313a32ced658b59abad99dca3487f2df17"
+  },
+  {
+    "path": "VALIDATION-V10.5.4-BETA.7-UI-REGRESSION-FIX.txt",
+    "blob_sha": "96a0b2516ac34e95a3f5f3bbfdef2e3abf0efa42"
+  },
+  {
+    "path": "verification/RC1-BETA-58-31-NPM-CHECK.log",
+    "blob_sha": "97dbfc965bf9408c86da515a9cc6d9e9679b524c"
+  },
+  {
+    "path": "verification/RC1-BETA-POST-DEPLOY-EVIDENCE.sha256",
+    "blob_sha": "01eb2d5d555d8f408d41a68377f4385d8cb54ed1"
+  },
+  {
+    "path": "verification/RC1-CONSOLIDATED-FINAL-CHECK-2026-09-26.txt",
+    "blob_sha": "f256ab6c8b5cccfb83f819d5fde857fe509acd03"
+  },
+  {
+    "path": "verification/RC1-CONSOLIDATED-FINAL-RECHECK-2026-09-26.txt",
+    "blob_sha": "b9ff38fec5d065ece34185592b5c35a31676afa2"
+  },
+  {
+    "path": "verification/RC1-CONSOLIDATED-KEY-HASHES-2026-09-26.txt",
+    "blob_sha": "290a18e3e486d2fada5b051ba783e0377b877e4a"
+  },
+  {
+    "path": "version-ui.js",
+    "blob_sha": "72cbe966f1f6e2d45b1ebf94ff2ff9c7cd04f5d0"
+  },
+  {
+    "path": "version.json",
+    "blob_sha": "21151b9fe851dfb8ac3baf40707cfb55de5a661d"
+  },
+  {
+    "path": "warehouse-engine.js",
+    "blob_sha": "5fcf6f20fdb806f7541677d8ba7bb2045faa60a4"
+  },
+  {
+    "path": "warehouse-v1-ui.js",
+    "blob_sha": "3c7daf08a74ec8d932ea24ae9ad3420558d2b3ca"
+  }
+]

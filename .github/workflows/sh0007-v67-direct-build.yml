@@ -1,4 +1,4 @@
-name: SH0007 V67 Direct Exact Candidate x64 Build
+name: SH0007 V67 Practical Complete Candidate x64 Build
 
 on:
   push:
@@ -25,26 +25,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Restore exact V67 Git blob bytes
+
+      - name: Restore exact practical candidate Git blob bytes
         shell: pwsh
         run: |
           @'
           import json, pathlib, subprocess
-          manifest=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
           for meta in manifest:
               p=pathlib.Path(meta['path'])
               p.parent.mkdir(parents=True, exist_ok=True)
               p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
-          print(f'V67_BLOB_BYTES_RESTORED={len(manifest)}')
+          print(f'V67_PRACTICAL_BLOB_BYTES_RESTORED={len(manifest)}')
           '@ | python -
-      - name: Verify exact V67 candidate identity
+
+      - name: Verify practical candidate identity 1056 of 1056
         shell: pwsh
         run: |
           @'
           import hashlib, json, pathlib, sys
           root=pathlib.Path('.')
-          manifest=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
-          expected={x['path']:x for x in manifest}
+          manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          expected={x['path']:x['blob_sha'] for x in manifest}
           excluded={'.github/workflows/sh0007-v67-direct-build.yml'}
           actual=[]
           for q in root.rglob('*'):
@@ -53,29 +55,35 @@ jobs:
               if p.startswith('.git/') or p.startswith('.v67/') or p in excluded: continue
               actual.append(p)
           extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual)); bad=[]
-          for p,meta in expected.items():
+          def git_blob_sha(data):
+              return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\x00'+data).hexdigest()
+          for p,want in expected.items():
               q=root/p
               if not q.is_file(): continue
-              data=q.read_bytes(); got=hashlib.sha256(data).hexdigest()
-              if got!=meta['sha256'] or len(data)!=meta['size']: bad.append((p,got,len(data),meta['sha256'],meta['size']))
-          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
-          if len(expected)!=1036 or bad or extra or missing:
+              got=git_blob_sha(q.read_bytes())
+              if got!=want: bad.append((p,got,want))
+          print(f'V67_PRACTICAL_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1056 or bad or extra or missing:
               for x in bad[:50]: print('BAD',*x)
               for x in extra[:50]: print('EXTRA',x)
               for x in missing[:50]: print('MISSING',x)
               sys.exit(1)
-          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          print('V67_PRACTICAL_COMPLETE_1056_1056_PASS')
           '@ | python -
+
       - name: Pin node-gyp Python
         shell: pwsh
         run: |
           $python = (Get-Command python).Source
           "PYTHON=$python" >> $env:GITHUB_ENV
           "npm_config_python=$python" >> $env:GITHUB_ENV
+
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
+
       - name: Full-check slot 1 - sync version
         run: npm run sync-version
+
       - name: Full-check slot 2 - semantic equivalent for legacy brittle literal
         shell: pwsh
         run: |
@@ -113,6 +121,7 @@ jobs:
             console.log('V67_FULL_CHECK_SLOT_2_SEMANTIC_EQUIVALENT_PASS files='+files.length);
           })().catch(e=>{console.error(e);process.exit(1)});
           '@ | node -
+
       - name: Full-check slots 3-184
         shell: pwsh
         run: |
@@ -135,27 +144,32 @@ jobs:
           }
           console.log('V67_REMAINING_FULL_CHECKS_PASS '+(commands.length-2)+'/'+(commands.length-2));
           '@ | node -
-      - name: Restore exact V67 candidate after checks
+
+      - name: Restore exact practical candidate after checks
         shell: pwsh
         run: |
           @'
           import hashlib, json, pathlib, subprocess, sys
-          manifest=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
           bad=[]
+          def git_blob_sha(data):
+              return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\x00'+data).hexdigest()
           for meta in manifest:
               p=pathlib.Path(meta['path'])
               p.parent.mkdir(parents=True, exist_ok=True)
               p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
-              data=p.read_bytes(); got=hashlib.sha256(data).hexdigest()
-              if got!=meta['sha256'] or len(data)!=meta['size']: bad.append((meta['path'],got,len(data)))
+              got=git_blob_sha(p.read_bytes())
+              if got!=meta['blob_sha']: bad.append((meta['path'],got,meta['blob_sha']))
           print(f'V67_POST_CHECK_RESTORE={len(manifest)} BAD={len(bad)}')
           if bad:
               for x in bad[:50]: print('BAD',*x)
               sys.exit(1)
           print('V67_POST_CHECK_EXACT_BYTES_PASS')
           '@ | python -
+
       - name: Build Windows x64 installer
         run: npm run dist -- --win --x64 --publish never
+
       - name: Save V67 SH-0007 installer and SHA256
         shell: pwsh
         run: |
@@ -168,6 +182,7 @@ jobs:
           "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
           "${{ github.sha }}" | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
           Get-Content V67-SH0007-SHA256.txt
+
       - name: Upload V67 SH-0007 x64 candidate
         uses: actions/upload-artifact@v4
         with:
