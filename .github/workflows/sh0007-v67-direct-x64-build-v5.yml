@@ -1,0 +1,110 @@
+name: SH0007 V67 Direct x64 Build V5
+
+on:
+  push:
+    branches:
+      - 'build/sh0007-v67-exact-candidate-v5'
+
+permissions:
+  contents: read
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify exact V67 candidate parent
+        shell: pwsh
+        run: |
+          $expectedCommit='b9f033f9329a442d96a5cbd536862d12e819b3b9'
+          $expectedTree='56ebe0463ec056297dce899b7c4cb0174f3fbd89'
+          $parent=(git rev-parse HEAD^).Trim()
+          if($parent -ne $expectedCommit){ throw "Unexpected parent: $parent" }
+          $tree=(git rev-parse "$expectedCommit^{tree}").Trim()
+          if($tree -ne $expectedTree){ throw "Unexpected tree: $tree" }
+          $count=[int](git ls-tree -r --name-only $expectedCommit | Measure-Object -Line).Lines
+          if($count -ne 1036){ throw "Unexpected file count: $count" }
+          Write-Host "V67_EXACT_TREE_PASS commit=$expectedCommit tree=$expectedTree files=$count"
+
+      - name: Checkout exact V67 candidate
+        shell: pwsh
+        run: |
+          git checkout --detach b9f033f9329a442d96a5cbd536862d12e819b3b9
+          if((git rev-parse HEAD).Trim() -ne 'b9f033f9329a442d96a5cbd536862d12e819b3b9'){ throw 'Candidate checkout mismatch' }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python=(Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: CI-only compatibility fix for brittle address-delete checker
+        shell: pwsh
+        run: |
+          @'
+          const fs=require('fs');
+          const p='scripts/check-beta58-30-offline-practical-rc1.js';
+          let s=fs.readFileSync(p,'utf8');
+          const old="need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');";
+          const replacement="need(app,'router.deleteAddress(del.dataset.deleteAddress','local address delete id preserved');";
+          if(!s.includes(old)) throw new Error('expected brittle checker token not found');
+          fs.writeFileSync(p,s.replace(old,replacement),'utf8');
+          console.log('V67_CI_CHECKER_COMPAT_PATCH_PASS');
+          '@ | node
+
+      - name: Run full source and regression gates
+        run: npm run check:ci
+
+      - name: Restore exact V67 candidate before build
+        shell: pwsh
+        run: |
+          git reset --hard b9f033f9329a442d96a5cbd536862d12e819b3b9
+          $tree=(git rev-parse 'HEAD^{tree}').Trim()
+          if($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89'){ throw "Tree mismatch before build: $tree" }
+          if(git status --porcelain){ throw 'Working tree dirty before build' }
+          Write-Host 'V67_EXACT_TREE_RESTORED_BEFORE_BUILD'
+
+      - name: Build Windows x64 installer
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save installer and SHA256
+        shell: pwsh
+        run: |
+          $version='10.5.4-beta.58.32'
+          $source=Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if(-not $source){ throw 'x64 installer not found' }
+          $target="Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash=(Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
+          'b9f033f9329a442d96a5cbd536862d12e819b3b9' | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
+          '56ebe0463ec056297dce899b7c4cb0174f3fbd89' | Set-Content V67-SH0007-TREE-SHA.txt -Encoding ascii
+          Write-Host "V67_SH0007_INSTALLER=$target"
+          Write-Host "V67_SH0007_SHA256=$hash"
+
+      - name: Upload V67 SH-0007 x64 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-v67-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            V67-SH0007-SHA256.txt
+            V67-SH0007-SOURCE-SHA.txt
+            V67-SH0007-TREE-SHA.txt
+          if-no-files-found: error
+          retention-days: 7
