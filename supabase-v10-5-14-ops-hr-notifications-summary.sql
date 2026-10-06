@@ -454,4 +454,21 @@ end;$$;
 grant execute on function public.branch_hr_staff_list_v1(bigint) to authenticated;
 
 
+
+create or replace function public.hr_staff_notification_read_v1(p_session_token text,p_notification_id bigint)
+returns boolean language plpgsql security definer set search_path=public as $$
+declare c record;
+begin
+ select * into c from public.hr_staff_session_context_v1(p_session_token);
+ if not found then raise exception 'جلسة الموظف غير صالحة';end if;
+ update public.app_notifications_v1
+ set read_at=coalesce(read_at,now())
+ where id=p_notification_id and recipient_hr_employee_id=c.employee_id;
+ if not found then raise exception 'الإشعار غير موجود أو لا يخص الموظف';end if;
+ return true;
+end;$$;
+revoke all on function public.hr_staff_notification_read_v1(text,bigint) from public,anon,authenticated;
+grant execute on function public.hr_staff_notification_read_v1(text,bigint) to service_role;
+
+
 commit;
