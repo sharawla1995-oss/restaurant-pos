@@ -10,6 +10,10 @@ const escLocal=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','
 const tx=prefix=>`${prefix}-${(global.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`)}`;
 const moneyLocal=v=>typeof global.money==='function'?global.money(v):`${num(v).toFixed(2)}`;
 const toastLocal=v=>typeof global.toast==='function'?global.toast(v):console.log(v);
+// Typed local result is deliberately separate from server financial acceptance.
+async function commitDelivery(name,payload){return global.SharawlaOfflineV2Transport.commitOptionalTxRpc(name,payload,{localFirstResult:true})}
+function pendingCommit(saved){return saved?.durable===true&&saved.synced!==true}
+async function refreshAfterSave(render){try{await render?.()}catch(error){console.warn('Delivery saved; view refresh pending',error);toastLocal('تم الحفظ؛ تحديث العرض مؤجل')}}
 const branchId=()=>Number(global.currentBranchId?.()||global.state?.activeBranchId||0);
 const isOnline=()=>typeof navigator==='undefined'||navigator.onLine!==false;
 function custodyCacheKey(bid){return `${CUSTODY_KEY_PREFIX}${Number(bid)||0}`}
@@ -80,11 +84,11 @@ async function changeDeliveryPaymentInteractive(orderId,hostModal=null){
    if(String(method)===String(order.payment_method)){toastLocal('طريقة الدفع لم تتغير');wrap.remove();resolve(true);return}
    ok.disabled=true;
    try{
-    const out=await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-PAYMENT-CHANGE')});
+    const out=await commitDelivery('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-PAYMENT-CHANGE')});
     wrap.remove();hostModal?.remove?.();
-    const custody=num(out?.custody_amount);
-    toastLocal(custody>0?`تم تغيير طريقة الدفع — ${moneyLocal(custody)} عهدة على المندوب`:'تم تغيير طريقة الدفع — لا توجد عهدة كاش على المندوب');
-    if(typeof global.renderDeliveryOrders==='function')await global.renderDeliveryOrders();
+    const custody=num((out?.durable===true?out.result:out)?.custody_amount);
+    toastLocal(pendingCommit(out)?'تم حفظ طلب التسليم/تعديل الدفع محليًا — بانتظار اعتماد السيرفر؛ العهدة لم تُعتمد بعد':custody>0?`تم تغيير طريقة الدفع — ${moneyLocal(custody)} عهدة على المندوب`:'تم تغيير طريقة الدفع — لا توجد عهدة كاش على المندوب');
+    if(typeof global.renderDeliveryOrders==='function')await refreshAfterSave(global.renderDeliveryOrders);
     resolve(true);
    }catch(err){ok.disabled=false;toastLocal(err?.message||String(err));resolve(true)}
   };
@@ -107,11 +111,11 @@ async function markDeliveredInteractive(orderId,hostModal=null){
    const method=wrap.querySelector('[data-final-payment]')?.value||order.payment_method;
    ok.disabled=true;
    try{
-    const out=await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-DELIVER')});
+    const out=await commitDelivery('delivery_mark_delivered_v2',{p_order_id:Number(order.id),p_payment_method:method,p_client_tx_id:tx('B55-DELIVER')});
     wrap.remove();hostModal?.remove?.();
-    const custody=num(out?.custody_amount);
-    toastLocal(custody>0?`تم التسليم — ${moneyLocal(custody)} عهدة على المندوب`:'تم التسليم — لا توجد عهدة كاش على المندوب');
-    if(typeof global.renderDeliveryOrders==='function')await global.renderDeliveryOrders();
+    const custody=num((out?.durable===true?out.result:out)?.custody_amount);
+    toastLocal(pendingCommit(out)?'تم حفظ طلب التسليم/تعديل الدفع محليًا — بانتظار اعتماد السيرفر؛ العهدة لم تُعتمد بعد':custody>0?`تم التسليم — ${moneyLocal(custody)} عهدة على المندوب`:'تم التسليم — لا توجد عهدة كاش على المندوب');
+    if(typeof global.renderDeliveryOrders==='function')await refreshAfterSave(global.renderDeliveryOrders);
     resolve(true);
    }catch(err){ok.disabled=false;toastLocal(err?.message||String(err));resolve(true)}
   };
@@ -232,13 +236,14 @@ if(baseRenderShifts){
       if(unsettled>0.005){toastLocal(`يوجد عهدة مناديب غير مسواة بقيمة ${moneyLocal(unsettled)} — سوّي العهدة قبل قفل الوردية`);return}
       if(!isOnline())return await legacyClose?.();
       closeBtn.disabled=true;
-      const tr=global.SharawlaOfflineV2Transport;if(typeof tr?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');const closed=await tr.commitOptionalTxRpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')});
+      const tr=global.SharawlaOfflineV2Transport;if(typeof tr?.commitOptionalTxRpc!=='function')throw new Error('Offline V2 transport غير جاهز');const saved=await tr.commitOptionalTxRpc('close_pos_shift_v2',{p_shift_id:Number(open.id),p_closing_cash:actual,p_metrics:{sales_total:fresh.sales,wallet_sales:fresh.wallet,instapay_sales:fresh.instapay,orders_count:fresh.count},p_client_tx_id:tx('B55-SHIFT-CLOSE')},{localFirstResult:true});const closed=saved?.durable===true?saved.result:saved;
       try{await global.odbSet?.(`openShift:${open.employee_id}:${bid}`,null)}catch{}
+      if(pendingCommit(saved)){toastLocal('تم حفظ طلب قفل الوردية محليًا — بانتظار اعتماد السيرفر؛ تقرير فروق الخزنة غير معتمد بعد');await refreshAfterSave(global.renderShifts);return}
       const diff=num(closed?.cash_difference);
       toastLocal(diff===0?'تم قفل الوردية — الخزنة مظبوطة':`تم القفل — ${diff>0?'زيادة':'عجز'} ${moneyLocal(Math.abs(diff))}`);
       try{if(global.topBurgerDesktop?.backup?.create)await global.topBurgerDesktop.backup.create('shift-close')}catch{}
       if(isOnline()&&global.topBurgerDesktop?.isDesktop&&typeof global.createDesktopFullBackup==='function')global.createDesktopFullBackup('shift-close-full').catch(()=>{});
-      await global.renderShifts();
+      await refreshAfterSave(global.renderShifts);
       if(typeof global.openShiftReport==='function'){
        try{const employees=await global.rest('employees','select=id,name,branch_id,role,active&order=name');await global.openShiftReport(closed,employees||[])}catch{}
       }
@@ -284,13 +289,13 @@ async function enhanceDeliveryOrdersSettlement(){
   e.preventDefault();e.stopPropagation();
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.deliverySettleOrderV2);const row=rows.find(x=>Number(x.order_id)===oid);if(!row)return;
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row.custody_amount)} من المندوب وتسوية عهدة هذا الطلب؟`)))return;
-  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal('تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{const saved=await commitDelivery('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ONE')});toastLocal(pendingCommit(saved)?'تم حفظ طلب التسوية محليًا — بانتظار اعتماد السيرفر؛ لم يدخل المبلغ في كاش الوردية بعد':'تمت تسوية العهدة ودخل المبلغ في كاش الوردية الحالية');await refreshAfterSave(global.renderDeliveryOrders)}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  host.querySelectorAll('[data-delivery-settle-all-v2]').forEach(btn=>btn.onclick=async e=>{
   e.preventDefault();e.stopPropagation();
   const did=Number(btn.dataset.deliverySettleAllV2),items=byDriver.get(did)||[],amount=items.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام وتسوية كل عهدة المندوب: ${items.length} طلب بإجمالي ${moneyLocal(amount)}؟`)))return;
-  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:items.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal('تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliveryOrders()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{const saved=await commitDelivery('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:items.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-DELIVERY-SETTLE-ALL')});toastLocal(pendingCommit(saved)?'تم حفظ طلب التسوية محليًا — بانتظار اعتماد السيرفر؛ لم يدخل المبلغ في كاش الوردية بعد':'تمت تسوية كل عهدة المندوب ودخل المبلغ في كاش الوردية الحالية');await refreshAfterSave(global.renderDeliveryOrders)}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
 }
 const baseRenderDeliveryOrdersSettlement=typeof global.renderDeliveryOrders==='function'?global.renderDeliveryOrders:null;
@@ -327,13 +332,13 @@ async function enhanceDeliverySettings(){
   
   const did=Number(btn.dataset.driverV2),oid=Number(btn.dataset.settleOrderV2);const row=pending.find(x=>Number(x.order_id)===oid);
   if(global.uiConfirm&&!(await global.uiConfirm(`استلام ${moneyLocal(row?.custody_amount)} من المندوب وتسوية هذا الأوردر؟`)))return;
-  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ONE')});toastLocal('تمت تسوية الأوردر ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{const saved=await commitDelivery('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:[oid],p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ONE')});toastLocal(pendingCommit(saved)?'تم حفظ طلب التسوية محليًا — بانتظار اعتماد السيرفر؛ لم يدخل المبلغ في كاش الوردية بعد':'تمت تسوية الأوردر ودخل المبلغ في كاش الوردية الحالية');await refreshAfterSave(global.renderDeliverySettings)}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
  panel.querySelectorAll('[data-settle-all-v2]').forEach(btn=>btn.onclick=async()=>{
   
   const did=Number(btn.dataset.settleAllV2),rows=byDriver.get(did)||[],amount=rows.reduce((a,x)=>a+num(x.custody_amount),0);
   if(global.uiConfirm&&!(await global.uiConfirm(`تسوية كل عهدة المندوب: ${rows.length} أوردر بإجمالي ${moneyLocal(amount)}؟`)))return;
-  btn.disabled=true;try{await global.SharawlaOfflineV2Transport.commitOptionalTxRpc('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:rows.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ALL')});toastLocal('تمت تسوية كل العهدة ودخل المبلغ في كاش الوردية الحالية');await global.renderDeliverySettings()}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
+  btn.disabled=true;try{const saved=await commitDelivery('delivery_driver_settle_v2',{p_driver_id:did,p_order_ids:rows.map(x=>Number(x.order_id)),p_expected_receiving_shift_id:Number((await global.getOpenShift?.())?.id||0),p_client_tx_id:tx('B55-SETTLE-ALL')});toastLocal(pendingCommit(saved)?'تم حفظ طلب التسوية محليًا — بانتظار اعتماد السيرفر؛ لم يدخل المبلغ في كاش الوردية بعد':'تمت تسوية كل العهدة ودخل المبلغ في كاش الوردية الحالية');await refreshAfterSave(global.renderDeliverySettings)}catch(err){btn.disabled=false;toastLocal(err?.message||String(err))}
  });
 }
 

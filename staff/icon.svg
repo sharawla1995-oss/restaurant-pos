@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
- <rect width="512" height="512" rx="112" fill="#0b3b35"/>
- <circle cx="256" cy="188" r="88" fill="#e9b949"/>
- <path d="M100 438c12-103 69-154 156-154s144 51 156 154" fill="#f4f7f5"/>
- <path d="M164 72h184v54H164z" rx="16" fill="#f4f7f5"/>
- <text x="256" y="493" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" font-weight="700" fill="#e9b949">STAFF</text>
-</svg>
