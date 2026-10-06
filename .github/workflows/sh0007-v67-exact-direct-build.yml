@@ -132,7 +132,7 @@ jobs:
           if(!sync.includes('OFFLINE_V2_ACK_BON_MISSING')) throw new Error('Current V67 canonical BON ACK guard missing');
           fs.writeFileSync(transport,t.replace(tOld,tNew),'utf8');
 
-          const coverage='scripts/check-offline-runtime-acceptance-coverage.js';
+          const coverage='scripts/check-offline-runtime-acceptance-coverage.js scripts/check-beta54-shared-core.js';
           let c=fs.readFileSync(coverage,'utf8');
           const cOld="has(settlement,\"commitOptionalTxRpc('delivery_mark_delivered_v2'\",'interactive delivery completion/payment choice must use unified durable transport');";
           const cNew="has(settlement,\"commitDelivery('delivery_mark_delivered_v2'\",'interactive delivery completion/payment choice must use unified durable transport');\nhas(settlement,'global.SharawlaOfflineV2Transport.commitOptionalTxRpc','delivery wrapper must delegate to unified durable transport');";
@@ -141,6 +141,24 @@ jobs:
           if(!settlement.includes("commitDelivery('delivery_mark_delivered_v2'")) throw new Error('V67 delivery completion wrapper call missing');
           if(!settlement.includes('global.SharawlaOfflineV2Transport.commitOptionalTxRpc')) throw new Error('V67 unified durable delivery wrapper missing');
           fs.writeFileSync(coverage,c.replace(cOld,cNew),'utf8');
+
+          const beta54='scripts/check-beta54-shared-core.js';
+          let b54=fs.readFileSync(beta54,'utf8');
+          const b54ReadOld="const customerUi=read('shared-business-core-v1.js');";
+          const b54ReadNew="const customerUi=read('shared-business-core-v1.js');\nconst customerCreateRoute=read('permissions-v2-customers-create-routing.js');";
+          const b54TokenOld="\"commitOptionalTxRpc('offline_customer_create_v1'\",";
+          const b54TokenNew="'global.__SharawlaPV2CustomerCreate',";
+          if(!b54.includes(b54ReadOld)||!b54.includes(b54TokenOld)) throw new Error('Expected Beta54 legacy customer direct-call checker not found');
+          b54=b54.replace(b54ReadOld,b54ReadNew).replace(b54TokenOld,b54TokenNew);
+          const b54Needle="])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);";
+          const b54Extra="])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);\nassert(customerCreateRoute.includes(\"commitRpcLocal('offline_customer_create_v1'\"),'Beta54 customer durable routing owner missing');";
+          if(!b54.includes(b54Needle)) throw new Error('Beta54 customer assertion anchor missing');
+          b54=b54.replace(b54Needle,b54Extra);
+          const customerUiSource=fs.readFileSync('shared-business-core-v1.js','utf8');
+          const customerRouteSource=fs.readFileSync('permissions-v2-customers-create-routing.js','utf8');
+          if(!customerUiSource.includes('global.__SharawlaPV2CustomerCreate')) throw new Error('V67 customer UI router binding missing');
+          if(!customerRouteSource.includes("commitRpcLocal('offline_customer_create_v1'")) throw new Error('V67 customer durable owner missing');
+          fs.writeFileSync(beta54,b54,'utf8');
 
           console.log('V67_CI_TEST_FIXTURE_ALIGNMENT_PASS');
           '@ | node
