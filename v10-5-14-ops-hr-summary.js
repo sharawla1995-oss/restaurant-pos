@@ -57,7 +57,27 @@ function injectNav(){
  let finance=nav.querySelector('[data-v14-page="finance"]');
  if(perms.financeView&&!finance){finance=document.createElement('button');finance.type='button';finance.dataset.v14Page='finance';finance.textContent='💵 صرف HR المعتمد';const anchor=nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(finance,anchor);else nav.appendChild(finance)}
  if(finance)finance.classList.toggle('hidden',!perms.financeView);
+ injectHomeHrCard();
  if(!nav.__v14Bound){nav.__v14Bound=true;nav.addEventListener('click',e=>{const b=e.target.closest('[data-v14-page]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.dataset.v14Page==='summary')renderSummary();else renderBranchFinance()},true)}
+}
+function visibleHrButtons(){
+ return [...document.querySelectorAll('.hr-nav-group [data-hr-page]')].filter(b=>!b.classList.contains('hidden'));
+}
+function renderHrHub(){
+ clearActiveNav();setTitle('الموارد البشرية');
+ const buttons=visibleHrButtons();
+ const iconByPage={employees:'👨‍💼',attendance:'🕘',schedules:'📅',leaves:'📝',rules:'⚖️',advances:'💰',adjustments:'➕➖',payroll:'🧾',reports:'📊',settings:'⚙️'};
+ $('#page').innerHTML=`<section class="home-hero hr-hub-hero"><div><span class="home-kicker">SHARAWLA HR</span><h1>👥 الموارد البشرية</h1><p>اختر القسم المطلوب. تظهر لك فقط الأقسام المسموح بها لحسابك.</p></div></section><section class="home-grid hr-hub-grid">${buttons.map(b=>{const key=b.dataset.hrPage;return `<button class="home-card tone-violet" data-open-hr="${esc(key)}"><span class="home-icon">${iconByPage[key]||'👥'}</span><span class="home-copy"><b>${esc(b.textContent.trim())}</b><small>فتح القسم</small></span><span class="home-arrow">‹</span></button>`}).join('')||'<div class="empty">لا توجد أقسام HR مسموح بها لهذا المستخدم.</div>'}</section>`;
+ $('#page').onclick=e=>{const x=e.target.closest('[data-open-hr]');if(!x)return;document.querySelector(`.hr-nav-group [data-hr-page="${CSS.escape(x.dataset.openHr)}"]`)?.click()};
+}
+function injectHomeHrCard(){
+ const grid=document.querySelector('.home-grid');if(!grid||document.querySelector('[data-v14-home-hr]'))return;
+ const buttons=visibleHrButtons();if(!buttons.length)return;
+ const card=document.createElement('button');card.className='home-card tone-violet';card.type='button';card.dataset.v14HomeHr='1';
+ card.innerHTML='<span class="home-icon">👥</span><span class="home-copy"><b>الموارد البشرية</b><small>الموظفون والحضور والجداول والسلف والمرتبات</small></span><span class="home-arrow">‹</span>';
+ card.onclick=renderHrHub;
+ const firstOperational=grid.querySelector('[data-home-page]');
+ if(firstOperational)grid.insertBefore(card,firstOperational);else grid.prepend(card);
 }
 function table(headers,rows){
  return `<div class="table-wrap"><table><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${headers.length}">لا توجد بيانات</td></tr>`}</tbody></table></div>`;
@@ -123,5 +143,5 @@ async function init(){
 addEventListener('focus',syncContext);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncContext()});
 setTimeout(init,900);
-global.SharawlaV14={renderSummary,renderBranchFinance,refreshNotifications,version:VERSION};
+global.SharawlaV14={renderSummary,renderBranchFinance,renderHrHub,refreshNotifications,version:VERSION};
 })(globalThis);
