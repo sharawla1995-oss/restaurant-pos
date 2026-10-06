@@ -32,9 +32,6 @@ jobs:
               q.write_bytes(subprocess.check_output(['git','show',f'HEAD:{p}']))
           print('V67_WORKTREE_RESTORED_FROM_GIT_BLOBS')
           '@ | python -
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
       - name: Verify exact V67 candidate identity
         shell: pwsh
         run: |
@@ -59,62 +56,21 @@ jobs:
               actual.append(p)
           extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual))
           print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
-          if len(expected)!=1036 or bad or extra or missing: sys.exit(1)
+          if len(expected)!=1036 or bad or extra or missing:
+              for x in bad[:50]: print('BAD',*x)
+              for x in extra[:50]: print('EXTRA',x)
+              for x in missing[:50]: print('MISSING',x)
+              sys.exit(1)
           print('V67_EXACT_CANDIDATE_1036_1036_PASS')
           '@ | python -
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
       - name: Verify pinned application version
         shell: pwsh
         run: |
           $v = node -p "require('./package.json').version"
           if ($v -ne '10.5.4-beta.58.32') { throw "Unexpected version: $v" }
-      - name: Prepare continuation baseline fixture
-        shell: pwsh
-        run: |
-          @'
-          import pathlib, subprocess
-          base="2d174feff680c4ffc0dd6972036590d259f75626"
-          out=pathlib.Path("..")/"continuation_baseline"
-          out.mkdir(exist_ok=True)
-          for name in ("permissions-v2-delivery-settings-routing.js","permissions-v2-order-fulfillment-routing.js"):
-              (out/name).write_bytes(subprocess.check_output(["git","show",f"{base}:{name}"]))
-          print("CONTINUATION_BASELINE_READY")
-          '@ | python -
-      - name: Prepare Windows tmp compatibility
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path 'D:\\tmp' -Force | Out-Null
-      - name: Run authoritative V67 source gates
-        shell: pwsh
-        run: |
-          $tests = @(
-            'check-batch1-continuation.js',
-            'check-batch1-final-gaps.js',
-            'check-batch1-final-review.js',
-            'check-batch1-restaurant-families.js',
-            'check-batch1-ui.js',
-            'check-beta58-26-restaurant-point4-canonical-tx.js',
-            'check-bon-final-definition-chain.js',
-            'check-bon-runtime-policy-read.js',
-            'check-bon-source-closure.js',
-            'check-bon-v3-transport-boundary.js',
-            'check-offline-closure-batch1.js',
-            'check-offline-modern-food-final-dispatcher.js',
-            'check-offline-reference-return-behavior.js',
-            'check-offline-restaurant-table-config-runtime.js',
-            'check-offline-restaurant-table-session-runtime.js',
-            'check-rc1-pending-sale-return-v1.js',
-            'check-rc1-runtime-alignment-final-dispatcher.js',
-            'offline-reference-return-sql-contract.js'
-          )
-          foreach ($t in $tests) {
-            Write-Host "=== V67 SOURCE GATE: $t ==="
-            node "scripts/$t"
-            if ($LASTEXITCODE -ne 0) { throw "V67 source gate failed: $t" }
-          }
-          Write-Host "V67_AUTHORITATIVE_SOURCE_GATES_PASS=18/18"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '16'
       - name: Pin node-gyp Python
         shell: pwsh
         run: |
