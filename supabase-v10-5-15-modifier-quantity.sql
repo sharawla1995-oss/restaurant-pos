@@ -24,7 +24,7 @@ create or replace function public.order_item_modifier_quantity_default_v15()
 returns trigger
 language plpgsql
 set search_path=public
-as $
+as $$
 begin
   if new.quantity is null then
     select greatest(1,round(coalesce(oi.quantity,1))::integer)
@@ -35,7 +35,7 @@ begin
   new.quantity:=coalesce(new.quantity,1);
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_order_item_modifier_quantity_default_v15
 on public.order_item_modifiers;
