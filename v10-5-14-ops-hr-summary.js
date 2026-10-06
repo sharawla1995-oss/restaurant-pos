@@ -51,12 +51,12 @@ function injectBell(){
 }
 function injectNav(){
  const nav=$('#nav');if(!nav)return;
- if(perms.summary&&!nav.querySelector('[data-v14-page="summary"]')){
-  const b=document.createElement('button');b.type='button';b.dataset.v14Page='summary';b.textContent='📈 الملخص';const anchor=nav.querySelector('button[data-page="reports"]');if(anchor)nav.insertBefore(b,anchor);else nav.appendChild(b);
- }
- if(perms.financeView&&!nav.querySelector('[data-v14-page="finance"]')){
-  const b=document.createElement('button');b.type='button';b.dataset.v14Page='finance';b.textContent='💵 صرف HR المعتمد';const anchor=nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(b,anchor);else nav.appendChild(b);
- }
+ let summary=nav.querySelector('[data-v14-page="summary"]');
+ if(perms.summary&&!summary){summary=document.createElement('button');summary.type='button';summary.dataset.v14Page='summary';summary.textContent='📈 الملخص';const anchor=nav.querySelector('button[data-page="reports"]');if(anchor)nav.insertBefore(summary,anchor);else nav.appendChild(summary)}
+ if(summary)summary.classList.toggle('hidden',!perms.summary);
+ let finance=nav.querySelector('[data-v14-page="finance"]');
+ if(perms.financeView&&!finance){finance=document.createElement('button');finance.type='button';finance.dataset.v14Page='finance';finance.textContent='💵 صرف HR المعتمد';const anchor=nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(finance,anchor);else nav.appendChild(finance)}
+ if(finance)finance.classList.toggle('hidden',!perms.financeView);
  if(!nav.__v14Bound){nav.__v14Bound=true;nav.addEventListener('click',e=>{const b=e.target.closest('[data-v14-page]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.dataset.v14Page==='summary')renderSummary();else renderBranchFinance()},true)}
 }
 function table(headers,rows){
@@ -106,15 +106,19 @@ async function renderBranchFinance(){
   $$('#page [data-pay-payroll]').forEach(b=>b.onclick=async()=>{const p=await promptPayment('صرف مسير المرتبات المعتمد');if(!p)return;try{await global.rpc('hr_payroll_pay_attendance_v1',{p_payroll_period_id:Number(b.dataset.payPayroll),p_method:p.method,p_reference:p.reference,p_shift_id:null,p_client_tx_id:tx('BR-HR-PAYROLL')});global.toast('تم صرف المرتبات وتسجيل الحركات');await renderBranchFinance()}catch(e){global.toast(e.message)}});
  }catch(e){$('#page').innerHTML=`<div class="panel"><h2>💵 صرف HR المعتمد</h2><div class="empty">${esc(e.message||String(e))}</div></div>`}
 }
-async function init(){
+async function syncContext(){
  if(!global.rpc||!global.rest)return;
  injectBell();
+ if($('#appView')?.classList.contains('hidden')||!activeBranch())return;
  const [summary,financeView,financePay,adjustmentRequest]=await Promise.all([hasPermission('reports'),hasPermission('branch.hr.finance.view'),hasPermission('branch.hr.finance.disburse'),hasPermission('branch.hr.adjustments.request')]);
  perms={summary,financeView,financePay,adjustmentRequest};injectNav();await refreshNotifications();
- clearInterval(timer);timer=setInterval(refreshNotifications,10000);
 }
-addEventListener('focus',refreshNotifications);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshNotifications()});
+async function init(){
+ await syncContext();
+ clearInterval(timer);timer=setInterval(syncContext,10000);
+}
+addEventListener('focus',syncContext);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncContext()});
 setTimeout(init,900);
 global.SharawlaV14={renderSummary,renderBranchFinance,refreshNotifications,version:VERSION};
 })(globalThis);
