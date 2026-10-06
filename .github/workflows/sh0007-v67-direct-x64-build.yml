@@ -26,8 +26,11 @@ jobs:
         run: |
           $expectedCommit = 'b9f033f9329a442d96a5cbd536862d12e819b3b9'
           $expectedTree = '56ebe0463ec056297dce899b7c4cb0174f3fbd89'
-          $parent = (git rev-parse HEAD^).Trim()
-          if ($parent -ne $expectedCommit) { throw "Unexpected candidate parent: $parent" }
+          git merge-base --is-ancestor $expectedCommit HEAD
+          if ($LASTEXITCODE -ne 0) { throw "V67 candidate is not an ancestor of build-control HEAD" }
+          $changed = @(git diff --name-only "$expectedCommit..HEAD")
+          $unexpected = @($changed | Where-Object { $_ -ne '.github/workflows/sh0007-v67-direct-x64-build.yml' })
+          if ($unexpected.Count -gt 0) { throw "Unexpected files after V67 candidate: $($unexpected -join ', ')" }
           $tree = (git rev-parse "$expectedCommit^{tree}").Trim()
           if ($tree -ne $expectedTree) { throw "Unexpected candidate tree: $tree" }
           $count = [int](git ls-tree -r --name-only $expectedCommit | Measure-Object -Line).Lines
