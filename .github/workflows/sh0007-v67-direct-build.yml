@@ -25,6 +25,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Restore exact V67 Git blob bytes
+        shell: pwsh
+        run: |
+          @'
+          import json, pathlib, subprocess
+          manifest=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          for meta in manifest:
+              p=pathlib.Path(meta['path'])
+              p.parent.mkdir(parents=True, exist_ok=True)
+              data=subprocess.check_output(['git','cat-file','blob',meta['blob_sha']])
+              p.write_bytes(data)
+          print(f'V67_BLOB_BYTES_RESTORED={len(manifest)}')
+          '@ | python -
       - name: Verify exact V67 candidate identity
         shell: pwsh
         run: |
