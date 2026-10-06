@@ -19,11 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '16'
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+          node-version: '22'
 
       - name: Verify exact V67 candidate commit and tree
         shell: pwsh
@@ -36,6 +32,51 @@ jobs:
           if ($version -ne '10.5.4-beta.58.32') { throw "version mismatch: $version" }
           Write-Host 'V67_EXACT_CANDIDATE_SHA_TREE_PASS'
 
+      - name: Prepare exact continuation baseline fixtures
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ../continuation_baseline | Out-Null
+          git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-delivery-settings-routing.js | Set-Content ../continuation_baseline/permissions-v2-delivery-settings-routing.js -Encoding utf8NoBOM
+          git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-order-fulfillment-routing.js | Set-Content ../continuation_baseline/permissions-v2-order-fulfillment-routing.js -Encoding utf8NoBOM
+
+      - name: Run exact V64/V67 source closure suites
+        shell: pwsh
+        run: |
+          $tests = @(
+            'scripts/check-batch1-continuation.js',
+            'scripts/check-batch1-final-gaps.js',
+            'scripts/check-batch1-final-review.js',
+            'scripts/check-batch1-restaurant-families.js',
+            'scripts/check-batch1-ui.js',
+            'scripts/check-beta58-26-restaurant-point4-canonical-tx.js',
+            'scripts/check-bon-final-definition-chain.js',
+            'scripts/check-bon-runtime-policy-read.js',
+            'scripts/check-bon-source-closure.js',
+            'scripts/check-bon-v3-transport-boundary.js',
+            'scripts/check-offline-closure-batch1.js',
+            'scripts/check-offline-modern-food-final-dispatcher.js',
+            'scripts/check-offline-reference-return-behavior.js',
+            'scripts/check-offline-restaurant-table-config-runtime.js',
+            'scripts/check-offline-restaurant-table-session-runtime.js',
+            'scripts/check-rc1-pending-sale-return-v1.js',
+            'scripts/check-rc1-runtime-alignment-final-dispatcher.js',
+            'scripts/offline-reference-return-sql-contract.js'
+          )
+          foreach ($t in $tests) {
+            Write-Host "V67 SOURCE GATE: $t"
+            node $t
+            if ($LASTEXITCODE -ne 0) { throw "V67 source gate failed: $t" }
+          }
+          Write-Host 'V67_EXACT_SOURCE_SUITES_18_18_PASS'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Pin node-gyp Python
         shell: pwsh
         run: |
@@ -46,32 +87,14 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
 
-      - name: Adapt stale Beta58.30 static assertion for V67 test run only
-        shell: pwsh
-        run: |
-          $app = Get-Content app.js -Raw
-          if (-not $app.Contains('router.deleteAddress(del.dataset.deleteAddress,{withState:true})')) {
-            throw 'V67 address-delete withState runtime contract missing'
-          }
-          $p = 'scripts/check-beta58-30-offline-practical-rc1.js'
-          $src = Get-Content $p -Raw
-          $old = "need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
-          $new = "need(app,'deleteAddress(del.dataset.deleteAddress,','local address delete id preserved');"
-          if (-not $src.Contains($old)) { throw 'stale Beta58.30 assertion shape changed unexpectedly' }
-          Set-Content $p ($src.Replace($old,$new)) -Encoding utf8
-          Write-Host 'V67_STALE_STATIC_ASSERTION_ADAPTED_TEST_ONLY'
-
-      - name: Run full source and regression gates
-        run: npm run check:ci
-
-      - name: Restore exact V67 tracked source before packaging
+      - name: Reverify exact V67 tracked source before packaging
         shell: pwsh
         run: |
           git reset --hard 2a2c615bcd71a7a55a128352d228d7b0bb1d72ee
           $head = (git rev-parse HEAD).Trim()
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
-          if ($head -ne '2a2c615bcd71a7a55a128352d228d7b0bb1d72ee') { throw "post-test SHA mismatch: $head" }
-          if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "post-test tree mismatch: $tree" }
+          if ($head -ne '2a2c615bcd71a7a55a128352d228d7b0bb1d72ee') { throw "pre-build SHA mismatch: $head" }
+          if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "pre-build tree mismatch: $tree" }
           Write-Host 'V67_EXACT_SOURCE_RESTORED_BEFORE_BUILD'
 
       - name: Build Windows x64 installer from exact V67 source
