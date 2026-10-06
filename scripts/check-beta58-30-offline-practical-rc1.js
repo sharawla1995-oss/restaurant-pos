@@ -54,7 +54,7 @@ need(takeover,'p_shift_id:o?._offline_return_shift_id??null','offline return shi
 need(takeover,'shiftHistory:${runtimeBranch()}','offline shift history projection');
 need(app,'o._offline_return_shift_id=sh.id','return binds active local shift');
 need(app,'const id=b.dataset.returnDetails','local return detail id preserved');
-need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');
+need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');
 
 reject(app,/openDriverPicker[\s\S]{0,1800}navigator\.onLine===false\)throw new Error/,'driver picker still blocks durable Offline owner');
 need(app,'تم حفظ تسليم الطلب إلى ${d.name} للمزامنة','driver assignment local-success UX');
