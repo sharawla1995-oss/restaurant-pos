@@ -119,10 +119,13 @@ jobs:
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
           git fetch --tags --force
-          git rev-parse "refs/tags/$tag" *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Stable tag $tag already exists and is immutable." }
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) { throw "Stable release $tag already exists and is immutable." }
+          $tagExists = git tag --list $tag
+          if ($tagExists) { throw "Stable tag $tag already exists and is immutable." }
+
+          $releaseExists = gh release list --limit 100 --json tagName --jq ".[] | select(.tagName == \"$tag\") | .tagName"
+          if ($releaseExists) { throw "Stable release $tag already exists and is immutable." }
+
+          Write-Host "No existing stable tag/release for $tag"
 
       - name: Create immutable GitHub Release
         shell: pwsh
