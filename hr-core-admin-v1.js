@@ -24,7 +24,7 @@ async function rest(table,query=''){if(typeof global.rest!=='function')throw new
 function branchId(){try{return Number(typeof global.currentBranchId==='function'?global.currentBranchId():0)||0}catch{return 0}}
 function has(code){return perms[code]===true}
 async function permission(code){try{return (await rpc('has_permission',{p_permission:code}))===true}catch{return false}}
-function localPermission(code){try{if(typeof global.isAdmin==='function'&&global.isAdmin())return true;if(typeof global.hasFeaturePermission==='function')return global.hasFeaturePermission(code)===true}catch{}return null}
+function localPermission(code){try{if(typeof global.sharawlaHasPermissionLocal==='function')return global.sharawlaHasPermissionLocal(code)===true}catch{}return null}
 async function refreshPermissions(){
  const local=PERMISSION_CODES.map(localPermission);
  if(local.some(v=>v!==null))PERMISSION_CODES.forEach((c,i)=>perms[c]=local[i]===true);
