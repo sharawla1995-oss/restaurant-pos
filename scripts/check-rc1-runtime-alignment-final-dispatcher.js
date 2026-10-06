@@ -5,7 +5,7 @@ const sql=fs.readFileSync('supabase-rc1-offline-v2-runtime-alignment-final-dispa
 
 const registered=[...transport.matchAll(/registerOne\('([^']+)'/g)].map(m=>m[1]);
 const ops=[...new Set(registered)];
-assert.strictEqual(ops.length,59,'expected 59 current Offline V2 client operation types');
+assert.strictEqual(ops.length,60,'expected 60 current Offline V2 client operation types');
 
 const finalMarker='create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)';
 const finalAt=sql.lastIndexOf(finalMarker);
@@ -29,7 +29,9 @@ const outerStart=sql.indexOf('create or replace function public.sharawla_offline
 assert(outerStart>=0,'Point-4 Outer helper missing');
 const outerEnd=sql.indexOf('create or replace function public.sharawla_offline_v2_apply_event(p_event jsonb)',outerStart);
 const outer=sql.slice(outerStart,outerEnd);
-assert(outer.includes('sharawla_offline_v2_prepare_stock_event_v1(p_event)'),'Point-4 Outer must prepare stock context');
+assert(outer.includes('sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event)'),'pending Restaurant resolver missing before preparation');
+assert(outer.indexOf('resolve_pending_restaurant_return_v1')<outer.indexOf('prepare_stock_event_v1'),'pending Return IDs must be resolved before stock preparation');
+assert(outer.includes('sharawla_offline_v2_prepare_stock_event_v1(v_execution_event)'),'Point-4 Outer must prepare stock context');
 assert(outer.includes("v_prepared->'context_envelope'"),'Point-4 Outer must forward prepared context envelope');
 assert(outer.includes("v_prepared->'stock_identities'"),'Point-4 Outer must forward prepared stock identities');
 assert(outer.includes('sharawla_point4_assert_context_envelope_v1'),'Point-4 Outer must validate prepared context envelope');
