@@ -10,6 +10,7 @@ const versionQuery=`?v=${version}`;
 const blueprint=read('docs/SHARAWLA-FUNCTIONAL-BLUEPRINT-V1.md');
 const customerSql=read('supabase-beta54-shared-customer-foundation.sql');
 const customerUi=read('shared-business-core-v1.js');
+const customerCreateRouting=read('permissions-v2-customers-create-routing.js');
 const hrSql=read('supabase-beta54-hr-treasury-foundation.sql');
 const payrollSql=read('supabase-beta54-hr-payroll-runtime.sql');
 const hrSupportSql=read('supabase-beta54-hr-ui-support.sql');
@@ -44,10 +45,10 @@ for(const token of [
  versionConst,
  "allowed('customers.create')",
  "b.textContent='➕ عميل جديد'",
- "commitOptionalTxRpc('offline_customer_create_v1'",
  'p_client_tx_id:',
  'global.__SharawlaSharedBusinessCoreV1'
 ])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);
+assert(customerCreateRouting.includes("commitRpcLocal('offline_customer_create_v1'"),'Beta54 customer durable owner invariant missing: permissions-v2 customer-create commitRpcLocal');
 
 for(const token of [
  'create table if not exists public.hr_employees',
