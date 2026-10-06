@@ -438,4 +438,20 @@ begin
 end;$$;
 grant execute on function public.business_summary_v2(bigint,timestamptz,timestamptz) to authenticated;
 
+
+create or replace function public.branch_hr_staff_list_v1(p_branch_id bigint)
+returns table(id bigint,name text,job_title text)
+language plpgsql stable security definer set search_path=public as $$
+begin
+ if auth.uid() is null or not (public.has_permission('branch.hr.adjustments.request') or public.has_permission('hr.adjustments.manage')) then
+  raise exception 'ليس لديك صلاحية عرض موظفي الفرع لهذه الحركة';
+ end if;
+ if not public.has_branch_access(p_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
+ return query select h.id,h.name,h.job_title from public.hr_employees h
+ where h.home_branch_id=p_branch_id and h.active=true and h.employment_status<>'terminated'
+ order by h.name,h.id;
+end;$$;
+grant execute on function public.branch_hr_staff_list_v1(bigint) to authenticated;
+
+
 commit;
