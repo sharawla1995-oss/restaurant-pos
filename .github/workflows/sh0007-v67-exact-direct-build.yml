@@ -132,12 +132,22 @@ jobs:
           if(!sync.includes('OFFLINE_V2_ACK_BON_MISSING')) throw new Error('Current V67 canonical BON ACK guard missing');
           fs.writeFileSync(transport,t.replace(tOld,tNew),'utf8');
 
+          const coverage='scripts/check-offline-runtime-acceptance-coverage.js';
+          let c=fs.readFileSync(coverage,'utf8');
+          const cOld="has(settlement,\"commitOptionalTxRpc('delivery_mark_delivered_v2'\",'interactive delivery completion/payment choice must use unified durable transport');";
+          const cNew="has(settlement,\"commitDelivery('delivery_mark_delivered_v2'\",'interactive delivery completion/payment choice must use unified durable transport');\nhas(settlement,'global.SharawlaOfflineV2Transport.commitOptionalTxRpc','delivery wrapper must delegate to unified durable transport');";
+          if(!c.includes(cOld)) throw new Error('Expected legacy direct delivery transport coverage token not found');
+          const settlement=fs.readFileSync('beta55-delivery-settlement-shift-cash.js','utf8');
+          if(!settlement.includes("commitDelivery('delivery_mark_delivered_v2'")) throw new Error('V67 delivery completion wrapper call missing');
+          if(!settlement.includes('global.SharawlaOfflineV2Transport.commitOptionalTxRpc')) throw new Error('V67 unified durable delivery wrapper missing');
+          fs.writeFileSync(coverage,c.replace(cOld,cNew),'utf8');
+
           console.log('V67_CI_TEST_FIXTURE_ALIGNMENT_PASS');
           '@ | node
 
           & npm run check:ci
           $code = $LASTEXITCODE
-          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js scripts/check-beta45-offline-v2-transport.js
+          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js scripts/check-beta45-offline-v2-transport.js scripts/check-offline-runtime-acceptance-coverage.js
           if ($code -ne 0) { exit $code }
       - name: Reverify V67 source after gates
         shell: pwsh
