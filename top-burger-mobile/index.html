@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <title>Top Burger POS</title>
-  <link rel="manifest" href="manifest.json">\n  <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=topburger-10.5.4b17.1">
-  <link rel="stylesheet" href="update-indicators.css?v=topburger-10.5.4b17.1">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=topburger-10.5.15.1">
 </head>
 <body>
 <div id="toast"></div>
@@ -52,7 +52,6 @@
     <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
     <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
     <button class="primary" type="submit">تسجيل الدخول</button>
-    <button id="updateCenterMenuBtn" class="developer-contact-login-btn" type="button"><span class="developer-contact-icon">⬆️</span><span><b>التحديثات</b><small>فحص وتحديث Sharawla POS</small></span></button>
     <button id="developerContactBtn" class="developer-contact-login-btn" type="button"><span class="developer-contact-icon">💬</span><span><b>تواصل مع المطور</b><small>الدعم الفني لـ Sharawla POS</small></span></button>
     <div id="loginSupportCode" class="login-support-code" aria-live="polite"><span class="login-support-code-icon">🆔</span><span><small>كود الجهاز</small><b id="loginSupportCodeValue" dir="ltr">—</b></span></div>
   </form>
@@ -60,24 +59,20 @@
 
 <section id="appView" class="app hidden">
   <aside class="sidebar">
-    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge" id="appVersionBadge">V—</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
+    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Top Burger POS</span> <small class="version-badge">V10.5.15 Mobile</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
     <nav id="nav">
       <button data-page="home" class="active">🏠 الرئيسية</button>
       <button data-page="pos">🧾 الكاشير</button>
       <button data-page="orders">📋 الطلبات</button>
       <button data-page="returns">↩️ المرتجعات</button>
+      <button data-page="approvals" id="navApprovalsBtn">✅ الموافقات <span id="returnApprovalBadge" class="hidden"></span></button>
       <button data-page="customers">👤 العملاء</button>
       <button data-page="deliveryOrders">🛵 طلبات الدليفري</button>
       <button data-page="deliverySettings">📍 إعدادات الدليفري</button>
       <button data-page="kitchen">👨‍🍳 المطبخ</button>
       <button data-page="shifts">🕘 الشيفت</button>
       <button data-page="inventory">📦 المخزون</button>
-      <button data-page="marketSettings">⚖️ وحدات وباركود الوزن</button>
-      <button data-page="retailOffers">🏷️ عروض الماركت</button>
-      <button data-page="stockCount">🧮 الجرد</button>
-      <button data-page="transfers">🔄 تحويلات الفروع</button>
-      <button data-page="suppliers">🚚 الموردين</button>
-      <button data-page="purchasing">📥 المشتريات والاستلام</button>
+      <button data-page="foodRecipes">🍲 الوصفات</button>
       <button data-page="expenses">💸 المصروفات</button>
       <button data-page="products">🍔 الأصناف</button>
       <button data-page="promoCodes">🎟️ البرومو كود</button>
@@ -95,31 +90,6 @@
   </main>
 </section>
 
-
-<div id="updateCenterModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="updateCenterTitle">
-  <div class="modal-card">
-    <button id="updateCenterCloseBtn" class="developer-contact-close" type="button" aria-label="إغلاق">✕</button>
-    <h2 id="updateCenterTitle">⬆️ تحديث Sharawla POS</h2>
-    <div class="settings-list">
-      <div class="setting-switch"><span>النسخة الحالية</span><b id="updateCurrentVersion" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>النسخة المتاحة</span><b id="updateAvailableVersion" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>قناة التحديث</span><b id="updateChannelValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>المعمارية</span><b id="updateArchitectureValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>الحركات الأوفلاين</span><b id="updateOfflineQueueValue">جاري الفحص…</b></div>
-      <div class="setting-switch"><span>آخر Backup قبل التحديث</span><b id="updateBackupValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>سلامة ملف التحديث</span><b id="updateIntegrityValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>فحص ما بعد التحديث</span><b id="updateHealthValue">—</b></div>
-      <div class="setting-switch"><span>آخر نسخة سليمة</span><b id="updateLastGoodValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>النسخة السليمة السابقة</span><b id="updatePreviousGoodValue" dir="ltr">—</b></div>
-      <div class="setting-switch"><span>الحالة</span><b id="updateStatusValue">جاهز</b></div>
-    </div>
-    <progress id="updateProgressBar" class="hidden" max="100" value="0" style="width:100%;margin:12px 0"></progress>
-    <p id="updateStatusMessage">اضغط «فحص التحديثات الآن» للبحث عن تحديث جديد.</p>
-    <button id="checkUpdatesNowBtn" class="primary" type="button">🔄 فحص التحديثات الآن</button>
-    <button id="rollbackLastGoodBtn" class="secondary hidden" type="button">↩️ الرجوع لآخر نسخة سليمة</button>
-  </div>
-</div>
-
 <div id="developerContactModal" class="modal hidden developer-contact-modal" role="dialog" aria-modal="true" aria-labelledby="developerContactTitle">
   <div class="modal-card developer-contact-card">
     <button id="developerContactClose" class="developer-contact-close" type="button" aria-label="إغلاق">✕</button>
@@ -134,10 +104,11 @@
   </div>
 </div>
 
-<script src="version-ui.js?v=topburger-10.5.4b17.1"></script>
-<script src="update-ui.js?v=topburger-10.5.4b17.1"></script>
-<script src="sharawla-runtime-core.js?v=topburger-10.5.4b17.1"></script>
-<script src="restaurant-engine.js?v=topburger-10.5.4b17.1"></script>
-<script src="app.js?v=topburger-10.5.4b17.1"></script>
+<script src="sharawla-runtime-core.js?v=topburger-10.5.15.1"></script>
+<script src="restaurant-engine.js?v=topburger-10.5.15.1"></script>
+<script src="food-recipe-ui-v1.js?v=topburger-10.5.15.1"></script>
+<script src="app.js?v=topburger-10.5.15.1"></script>
+<script src="hr-core-admin-v1.js?v=topburger-10.5.15.1"></script>
+<script src="hr-attendance-admin-v1.js?v=topburger-10.5.15.1"></script>\n<script src="v10-5-14-ops-hr-summary.js?v=topburger-10.5.15.1"></script>
 </body>
 </html>

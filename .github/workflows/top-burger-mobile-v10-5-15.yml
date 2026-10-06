@@ -1,0 +1,36 @@
+name: Top Burger Mobile 10.5.15 Parity
+
+on:
+  push:
+    branches:
+      - feature/top-burger-mobile-v10.5.15-sync
+      - main
+    paths:
+      - 'top-burger-mobile/**'
+      - 'scripts/check-top-burger-mobile-v10-5-15.js'
+      - '.github/workflows/top-burger-mobile-v10-5-15.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax checks
+        run: |
+          node --check top-burger-mobile/app.js
+          node --check top-burger-mobile/sharawla-runtime-core.js
+          node --check top-burger-mobile/restaurant-engine.js
+          node --check top-burger-mobile/food-recipe-ui-v1.js
+          node --check top-burger-mobile/hr-core-admin-v1.js
+          node --check top-burger-mobile/hr-attendance-admin-v1.js
+          node --check top-burger-mobile/v10-5-14-ops-hr-summary.js
+          node --check top-burger-mobile/sw.js
+      - name: 10.5.15 parity contract
+        run: node scripts/check-top-burger-mobile-v10-5-15.js

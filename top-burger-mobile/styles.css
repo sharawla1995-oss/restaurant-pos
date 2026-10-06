@@ -10,7 +10,7 @@
 
 
 /* V4: quantity + one note per item line */
-.item-qty-picker{display:flex;align-items:center;gap:10px;margin:8px 0 14px}.item-qty-picker button{width:44px;height:42px;font-size:22px;font-weight:700}.item-qty-picker input{width:90px;text-align:center;font-size:18px;font-weight:700;padding:8px}.kitchen-note{display:block;margin:5px 0 8px;padding:6px 8px;border:1px dashed #999;border-radius:8px;font-size:13px;font-weight:600}
+.item-qty-picker{display:flex;align-items:center;gap:10px;margin:8px 0 14px}.item-qty-picker button{width:44px;height:42px;font-size:22px;font-weight:700}.item-qty-picker input{width:90px;text-align:center;font-size:18px;font-weight:700;padding:8px}.modifier-qty-list{gap:8px}.modifier-qty-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--line,#d1d5db);border-radius:10px}.modifier-qty-row>span{display:flex;flex-direction:column;gap:2px}.modifier-qty-row small{opacity:.75}.modifier-qty-picker{display:flex;align-items:center;gap:6px;direction:ltr}.modifier-qty-picker button{width:34px;height:34px;font-size:20px;font-weight:800;padding:0}.modifier-qty-picker input{width:54px;text-align:center;padding:6px;font-weight:800}.kitchen-note{display:block;margin:5px 0 8px;padding:6px 8px;border:1px dashed #999;border-radius:8px;font-size:13px;font-weight:600}
 
 /* V5 Foundation */
 .catalog-tools{padding-bottom:10px}.catalog-tools input{background:#fff}
@@ -387,15 +387,58 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
 .sidebar-foot{flex:0 0 auto;margin-top:0}
 
 
-/* Sharawla POS V10.5.4-beta.14 — Retail Checkout + Barcode MVP (Retail only) */
-.retail-checkout-shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,390px);gap:14px;height:calc(100vh - 112px);min-height:520px}
-.retail-catalog{min-width:0;overflow:hidden;display:flex;flex-direction:column}
-.retail-scan-row{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:10px;margin-bottom:10px}
-.retail-scan-row input{min-height:46px;font-size:15px}
-.retail-scan-input{font-weight:700;letter-spacing:.4px}
-.retail-module-note{display:flex;align-items:center;padding:10px 12px;border:1px dashed var(--border,#334155);border-radius:10px;opacity:.8}
-#retailProductsGrid{overflow:auto;align-content:start}
-.retail-product small{font-size:11px;opacity:.68;direction:ltr;unicode-bidi:plaintext}
-.retail-cart{min-height:0}
-.retail-sale-head{grid-template-columns:1fr 1fr}
-@media(max-width:900px){.retail-checkout-shell{grid-template-columns:1fr;height:auto}.retail-scan-row{grid-template-columns:1fr}.retail-cart{min-height:560px}}
+/* V10.5.13 Candidate — Ops polish readability + Customer 360 */
+#returnApprovalBadge{
+  display:inline-flex;min-width:20px;height:20px;padding:0 5px;border-radius:999px;
+  align-items:center;justify-content:center;font-size:11px;font-weight:900;
+  background:#dc2626;color:#fff;margin-inline-start:6px
+}
+#returnApprovalBadge.hidden{display:none}
+.customer-quick-summary{display:block;margin-top:5px;font-weight:700;line-height:1.45}
+.customer-360-modal{width:min(1120px,96vw);max-height:94vh;overflow:auto}
+.customer-360-kpis{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px;margin:14px 0}
+.customer-360-kpis>div{border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff}
+.customer-360-kpis small{display:block;color:#6b7280;font-weight:700}
+.customer-360-kpis b{display:block;margin-top:4px;font-size:17px;font-weight:900}
+.customer-360-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.customer-360-grid>section{border:1px solid #e5e7eb;border-radius:12px;padding:12px;min-width:0}
+.customer-360-grid h3{margin-top:0;font-weight:900}
+.extras-source-panel h2,.report-summary-list b,.shift-current strong,.shift-pay-grid b{font-weight:900}
+.shift-detail h2,.shift-title h2,.receipt h1,.receipt h2,.receipt h3{font-weight:900}
+.shift-detail .report-summary-list>div{font-weight:700}
+@media(max-width:800px){
+  .customer-360-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-360-grid{grid-template-columns:1fr}
+}
+
+
+/* V10.5.14 — operational polish */
+.customer-360-kpis>div{color:#111827}
+.customer-360-kpis small{color:#6b7280}
+.customer-360-kpis b{color:#111827!important}
+.customer-360-grid>section{color:#111827;background:#fff}
+.customer-360-grid>section .muted,.customer-360-grid>section small{color:#64748b}
+.permission-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.permission-group-head h4{margin:0}
+.permission-select-all{padding:7px 10px;font-size:12px}
+.orders-date-toolbar{align-items:end}
+.orders-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px}
+.notification-bell{position:relative;min-width:42px;height:40px;border:1px solid var(--line);background:#fff;border-radius:10px}
+.notification-badge{position:absolute;top:-6px;left:-6px;min-width:19px;height:19px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:900;display:grid;place-items:center;padding:0 5px}
+.notification-badge.hidden{display:none}
+.notification-list{display:grid;gap:8px}
+.notification-row{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;color:#111827;text-align:right;width:100%}
+.notification-row.unread{border-color:#0f766e;background:#f0fdfa}
+.notification-row b,.notification-row small{display:block}.notification-row small{color:#64748b;margin-top:4px}
+.v14-summary-kpis{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
+.v14-summary-kpis>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.v14-summary-kpis small{display:block;color:#64748b}.v14-summary-kpis b{display:block;font-size:22px;margin-top:5px;color:#111827}
+.v14-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.v14-finance-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:800px){.v14-summary-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.v14-summary-grid{grid-template-columns:1fr}}
+@media(prefers-color-scheme:dark){
+ .customer-360-kpis>div,.customer-360-grid>section,.notification-row,.v14-summary-kpis>div{background:#111827;color:#f8fafc;border-color:#334155}
+ .customer-360-kpis small,.customer-360-grid>section .muted,.customer-360-grid>section small,.notification-row small,.v14-summary-kpis small{color:#cbd5e1}
+ .customer-360-kpis b,.v14-summary-kpis b{color:#f8fafc!important}
+ .notification-row.unread{background:#0f2f2b;border-color:#14b8a6}
+}
