@@ -162,12 +162,21 @@ jobs:
           if(!customerRouteSource.includes("commitRpcLocal('offline_customer_create_v1'")) throw new Error('V67 customer durable owner missing');
           fs.writeFileSync(beta54,b54,'utf8');
 
+          const kitchen='scripts/check-kitchen-offline-local-first.js';
+          let k=fs.readFileSync(kitchen,'utf8');
+          const kOld="vm.createContext(ctx);vm.runInContext(fn+';globalThis.__testKitchen=kitchenOrderBundles;',ctx);";
+          const kNew="ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fn+';globalThis.__testKitchen=kitchenOrderBundles;',ctx);";
+          if(!k.includes(kOld)) throw new Error('Expected kitchen VM harness anchor not found');
+          const appKitchen=fs.readFileSync('app.js','utf8');
+          if(!appKitchen.includes('const transport=window.SharawlaOfflineV2Transport;')) throw new Error('Current V67 kitchen transport binding missing');
+          fs.writeFileSync(kitchen,k.replace(kOld,kNew),'utf8');
+
           console.log('V67_CI_TEST_FIXTURE_ALIGNMENT_PASS');
           '@ | node
 
           & npm run check:ci
           $code = $LASTEXITCODE
-          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js scripts/check-beta45-offline-v2-transport.js scripts/check-offline-runtime-acceptance-coverage.js scripts/check-beta54-shared-core.js
+          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js scripts/check-beta45-offline-v2-transport.js scripts/check-offline-runtime-acceptance-coverage.js scripts/check-beta54-shared-core.js scripts/check-kitchen-offline-local-first.js
           if ($code -ne 0) { exit $code }
       - name: Reverify V67 source after gates
         shell: pwsh
