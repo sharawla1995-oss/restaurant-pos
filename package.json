@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
   "version": "10.5.15",
-  "description": "Sharawla POS V10.5.15 Candidate - immediate HR navigation hydration hotfix",
+  "description": "Sharawla POS V10.5.15 Candidate - HR navigation, exact modifier quantities, receipt visibility and shift split",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
