@@ -52,7 +52,7 @@ function injectBell(){
 function injectNav(){
  const nav=$('#nav');if(!nav)return;
  let summary=nav.querySelector('[data-v14-page="summary"]');
- if(perms.summary&&!summary){summary=document.createElement('button');summary.type='button';summary.dataset.v14Page='summary';summary.textContent='📈 الملخص';const anchor=nav.querySelector('button[data-page="reports"]');if(anchor)nav.insertBefore(summary,anchor);else nav.appendChild(summary)}
+ if(perms.summary&&!summary){summary=document.createElement('button');summary.type='button';summary.dataset.v14Page='summary';summary.textContent='📈 الملخص';const anchor=nav.querySelector('button[data-page="home"]')||nav.firstElementChild;if(anchor)nav.insertBefore(summary,anchor);else nav.prepend(summary)}
  if(summary)summary.classList.toggle('hidden',!perms.summary);
  let finance=nav.querySelector('[data-v14-page="finance"]');
  if(perms.financeView&&!finance){finance=document.createElement('button');finance.type='button';finance.dataset.v14Page='finance';finance.textContent='💵 صرف HR المعتمد';const anchor=nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(finance,anchor);else nav.appendChild(finance)}
