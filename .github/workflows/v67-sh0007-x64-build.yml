@@ -1,0 +1,136 @@
+name: V67 SH-0007 x64 Candidate Build
+
+on:
+  push:
+    branches:
+      - build/v67-sh0007-x64-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v67-sh0007-x64-candidate
+  cancel-in-progress: false
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify V67 branch and fixed version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_NAME -ne 'build/v67-sh0007-x64-candidate') { throw "Wrong branch: $env:GITHUB_REF_NAME" }
+          if ($env:GITHUB_SHA -eq '40511daacf42b8aed6201bd610f99f6d015d1a23') { throw "V67 overlay commit missing" }
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne '10.5.4-beta.58.32') { throw "Wrong package version" }
+          if ([string]$ver.version -ne [string]$pkg.version) { throw "Version mismatch" }
+
+      - name: Verify exact V67 product/test overlay hashes
+        shell: pwsh
+        run: |
+          $expected = @{
+            'app.js'='91435cae3d6dc34ab73433572675cc4aaba45c0e7c884e5a4dd4b7cdb658c031'
+            'beta45-offline-v2-inbox-runtime.js'='da874b17d0aaec0ddf9637ed1d0b7389a0f79eb5a7d75081ff62187358257917'
+            'beta45-offline-v2-inbox-store.js'='1ea2b80848d659d52357573482961c4e0027279400b56639d3ed7820520dbf99'
+            'beta45-offline-v2-native-store.js'='f1f7fdb8cecbca38959d3fbb8f6dc767a939820506c27cbd8ac2bc710e5cc36c'
+            'beta45-offline-v2-sync.js'='13e04a4cff7695841a62ddc5fc7a1f94d94cc73a29b07ceb5f2a2c98ab026c89'
+            'beta45-offline-v2-transport-runtime.js'='b6f16102ee28b0576e1b3323f0886e10b0c213dd2c334cb714a83e0382910ef3'
+            'beta55-delivery-settlement-shift-cash.js'='d0d17147f08e3890a8dfdfbeea4780de457a74ec71ded42bfb97cd47e8818e30'
+            'beta55-restaurant-closure-ui.js'='f80f1d5fbc7b69e4093461cda7d54ebba351a2291cee3148253e7d4c9972fb04'
+            'food-advanced-ui-v1.js'='2eb0ab70cd9d6c8e4a0d6a414eaf63381a6dd981c4b145fbeee1ab348f5831ff'
+            'food-recipe-ui-v1.js'='c2db3cbdc5a73210a59132ef8c38b9398197d013934a44ad356e5e1b2b0fc755'
+            'permissions-v2-customers-create-routing.js'='78dc70335b3ff7e3d389f42d661771a395c7e3fef05ee00f4da79d747a69c2f1'
+            'permissions-v2-customers-edit-address-routing.js'='60a8206a993593bb2d803aade160bc3c603baa28c1621e0c1c829d9130213578'
+            'permissions-v2-delivery-settings-routing.js'='6a54c048f9e90cfb1fc011ebb3520c73d6559e5db29f9f13bc8854bee532559b'
+            'permissions-v2-expense-edit-routing.js'='687f67abacce011097ef70f2ff04bee2f516f20ecce057842ee8c1181fb815b1'
+            'permissions-v2-order-fulfillment-routing.js'='c37cb566b7448a4a5cdeceb5fa05c1cf08b6ec0f647e3ac322d1215b308139f9'
+            'scripts/batch1-runtime-evidence-contract.js'='624bc2d1193689a790f2ec881c2a1bf50df9cc9a109673b24a44418f634f8672'
+            'scripts/check-batch1-continuation.js'='b8ebb4322b89e0ac09dbc60c42564b7c36fcb2a378cd10ef5d042e2ac3cc91df'
+            'scripts/check-batch1-final-gaps.js'='0de35a0f11e565f983c868e6d6028577b397c8e697dbdbc88f97922a1186ac57'
+            'scripts/check-batch1-final-postgres.py'='31bcbefb8fdcdf5f2d43166eaa1ebbaaf6ddf5e9b598d7036d15141fe9e5e22e'
+            'scripts/check-batch1-final-review.js'='0d1c79ea2834cba167cb2df11628816fed46ba9442c2ac63cbe2fa3922bef606'
+            'scripts/check-batch1-postgres.py'='637ec3b4d9558bc9c4f75fd49df66df8e4446cb189e5869fa0663a5abb69efd3'
+            'scripts/check-batch1-restaurant-families.js'='c74f34f8ccbe88ad4d94bba5a5355cc95120569591c49e24986b60ddd4e3495d'
+            'scripts/check-batch1-ui.js'='be76a0870fe1805c667d0017067b102c69266ef1c5cb2d03a535b5d07289310d'
+            'scripts/check-bon-final-definition-chain.js'='5bf1103ffe52fdb100cd0b5757c002a919f485e74172db2835e755b43f62762e'
+            'scripts/check-offline-closure-batch1.js'='40f6da991883409c5e4bb99782761be2d99e3a90881767bba67eff3fe0c68463'
+            'scripts/check-offline-expense-local-projection.js'='b8503852d37375b2a9295c67b0e2fbeebd8ef9ab0b9f52660854e00c97f85232'
+            'scripts/check-offline-pos-sale-native-owner.js'='7baa49ca0ac9422fe7d0860be0316379a47ff0f8c3f14074da69ca0dc03b0ade'
+            'scripts/check-offline-reference-return-behavior.js'='cb36136d5c0afa3596cf4a7352478abf0fdb983868b41f7a5662f2c1bf9d824b'
+            'scripts/check-rc1-runtime-alignment-final-dispatcher.js'='910a7ab6a4a73b7e65f8270fe021a68dd5e44fef6ee79cfb0c5f3bc2de95084b'
+            'scripts/offline-reference-return-fixture.js'='825b3ed55a9e0a096eebc5d72c45e58e7525b392c99e1825b6f472089cc0c27a'
+            'scripts/offline-reference-return-sql-contract.js'='1c5bff027a1a4d0ceaafe1460c7da83204fdadebd641661ed9bef5bbf398f1e1'
+            'shared-business-core-v1.js'='560a0719628f02bceb45dd9b79da6628c1049f3a25388fdf0b82bf32af16a5e0'
+            'supabase-offline-v2-expense-edit-source.sql'='641e6dff5fc52175b45a0acfad4952f7009c0ae9b41814a9446c4fb472f6a37a'
+            'supabase-rc1-bon-numbering-policy-v1-source.sql'='045eb3a55a27083817e2f86e3e0eb2ff383a03de5aa57e82f62a9b97c95a2d9e'
+            'supabase-rc1-offline-v2-runtime-alignment-final-dispatcher.sql'='3fb152d78988be51243468b3cc43ca1227c3334461c5aeef42aeb0d16aa792bb'
+          }
+          foreach ($entry in $expected.GetEnumerator()) {
+            if (-not (Test-Path -LiteralPath $entry.Key)) { throw "Missing V67 file: $($entry.Key)" }
+            $actual = (Get-FileHash -LiteralPath $entry.Key -Algorithm SHA256).Hash.ToLower()
+            if ($actual -ne $entry.Value) { throw "V67 hash mismatch: $($entry.Key) expected=$($entry.Value) actual=$actual" }
+          }
+          if ($expected.Count -ne 35) { throw "Expected overlay count mismatch" }
+          Write-Host "V67 overlay hashes PASS 35/35"
+
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+
+      - name: Run full source and regression gates
+        run: npm run check:ci
+
+      - name: Build Windows x64 candidate
+        run: npm run dist -- --win --x64 --publish never
+
+      - name: Save V67 installer, SHA256 and provenance
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.32'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content v67-sh0007-sha256.txt -Encoding ascii
+          @(
+            "scope=SH-0007-only"
+            "internal_version=$version"
+            "v67_base=40511daacf42b8aed6201bd610f99f6d015d1a23"
+            "build_branch=$env:GITHUB_REF_NAME"
+            "build_commit=$env:GITHUB_SHA"
+            "overlay_hashes=PASS-35-of-35"
+            "supabase_contact=none"
+            "production_target=none"
+          ) | Set-Content v67-sh0007-build-provenance.txt -Encoding ascii
+
+      - name: Upload V67 SH-0007 x64 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.4-beta.58.32-v67-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            v67-sh0007-sha256.txt
+            v67-sh0007-build-provenance.txt
+          if-no-files-found: error
+          retention-days: 7
