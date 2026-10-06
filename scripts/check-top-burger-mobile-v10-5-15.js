@@ -41,7 +41,7 @@ has(app,'confirmDeliveryPaymentAtHandover','delivery handover payment confirmati
 has(engine,"foodRecipes:'food.recipes'",'recipe feature gate');
 has(core,'function featureEnabled','runtime feature engine');
 has(recipe,"const VERSION='food-recipe-ui-v1.2-production'",'stable recipe UI');
-has(hrCore,'branch.hr.finance.disburse','branch HR finance permission');
+has(engine,'branch.hr.finance.disburse','branch HR finance permission');
 has(hrAttendance,'sharawla:hr-nav-ready','immediate HR navigation signal');
 has(v14,"const VERSION='10.5.15'",'v15 extension runtime');
 has(v14,"dataset.v14Page='hr'",'single HR hub root');
