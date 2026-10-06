@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.13",
+  "version": "10.5.14",
   "channel": "candidate",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Candidate only. Unified extras source, permission-based driver settlement, Customer 360, stronger print readability, atomic delivery payment correction before settlement, and manager return approval/notification. Based on certified 10.5.12 branch-open runtime. No Production publish/deploy and no Point 4/Canonical Stock activation."
+  "notes": "Candidate only. Fast day-first Orders with date pagination; delivery payment confirmation/change before settlement; Customer 360 contrast; HR Select All; Notifications V1; Staff advance requests and self-service status; HR approval-only workflow with branch-controlled disbursement; approved-only adjustments; Summary V2. No Production DB/app deployment and no Point 4/Canonical Stock activation."
 }
