@@ -35,7 +35,7 @@ function navigateNotification(page){
  if(page==='hr-advances')return $('#nav [data-beta54-page="advances"]')?.click();
  if(page==='hr-adjustments')return $('#nav [data-beta54-page="adjustments"]')?.click();
  if(page==='hr-payroll')return $('#nav [data-beta54-page="payroll"]')?.click();
- if(page==='hr-leave')return $('#nav [data-beta54-attendance-page="leave"]')?.click();
+ if(page==='hr-leave')return $('#nav [data-hr-page="leaves"]')?.click();
 }
 async function openNotifications(){
  await refreshNotifications();
