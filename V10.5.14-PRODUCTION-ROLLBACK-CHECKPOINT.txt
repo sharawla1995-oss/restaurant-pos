@@ -1,0 +1,32 @@
+Sharawla POS 10.5.14 — Production Rollback Checkpoint
+Prepared: 2026-10-06
+
+CERTIFIED 10.5.14 CANDIDATE
+- SHA: ffcee8195ae3e14675b96d9175a9cb97f003590a
+- Candidate CI: 37462350217 = SUCCESS
+- PostgreSQL rollback gate to 10.5.13 = PASS
+- Windows x64 + ia32 candidate builds = PASS
+
+PRODUCTION DB STATE BEFORE 10.5.14 STABLE PUBLISH
+- Project: kzokretuuigjhxjzdlmk
+- v10_5_14_ops_hr_notifications_summary applied
+- v10_5_14_rpc_privilege_hardening applied
+- hr-staff-api Edge Function ACTIVE version 1
+- hr-staff-app Edge Function ACTIVE version 1
+
+EMERGENCY DB COMPATIBILITY ROLLBACK
+- File: supabase-v10-5-14-emergency-rollback-to-10-5-13.sql
+- Restores the replaced 10.5.13 HR write contracts and disables V14 notification side effects.
+- Leaves additive V14 objects in place; no destructive CASCADE/data deletion.
+
+PINNED APPLICATION FALLBACK
+- Immutable release: https://github.com/sharawla1995-oss/restaurant-pos/releases/tag/v10.5.13
+- Tag target: 54490d9ae1c8ca7de0cf20b852d77b97d326c7a7
+- ia32 installer SHA256: 9b59da580d9567d51fd50d683eed4ec398034a43264c401c7ad76b069f0292d6
+- x64 installer SHA256: bc7074b4919f24dc089fdcbcc01a1b346ff2b3318b466bd883c24355e200395a
+
+EMERGENCY ORDER
+1) Run supabase-v10-5-14-emergency-rollback-to-10-5-13.sql only if V14 must be abandoned.
+2) Reinstall the matching immutable v10.5.13 installer.
+3) Do NOT Reset/Rebind; preserve device fingerprint/local data.
+4) Smoke-test Login -> Branch -> POS -> Delivery -> Return -> HR -> restart.
