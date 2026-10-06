@@ -1,6 +1,9 @@
 name: Build Windows Release
 
 on:
+  push:
+    branches:
+      - release/v10.5.15-production-prep
   workflow_dispatch:
 
 permissions:
@@ -8,18 +11,22 @@ permissions:
 
 jobs:
   release:
-    if: github.ref_name == 'release/v10.5.8-production-recipe'
+    if: github.ref_name == 'release/v10.5.15-production-prep'
     runs-on: windows-2022
 
     steps:
-      - name: Checkout
+      - name: Checkout certified 10.5.15 candidate
         uses: actions/checkout@v4
+        with:
+          ref: dffc9765b02dc6a6eea0ccefd12166cbc8c4fc69
+          fetch-depth: 1
 
       - name: Read version
         id: ver
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "10.5.15") { throw "Unexpected package version: $($pkg.version)" }
           "version=$($pkg.version)" >> $env:GITHUB_OUTPUT
           "tag=v$($pkg.version)" >> $env:GITHUB_OUTPUT
 
@@ -28,7 +35,7 @@ jobs:
         with:
           node-version: '16'
 
-      - name: Stamp update repository
+      - name: Stamp stable updater
         shell: pwsh
         run: |
           $cfg = @{
@@ -38,19 +45,32 @@ jobs:
             channel = "stable"
             checkEveryHours = 6
           }
-
           $cfg | ConvertTo-Json | Set-Content update-config.json -Encoding UTF8
 
       - name: Install dependencies
         run: npm install
 
-      - name: Verify version
+      - name: Verify certified candidate source
         run: npm run check
+
+      - name: Stamp production metadata
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.description = "Sharawla POS V10.5.15 Production - HR navigation, exact modifier quantities, receipts and shift extras split"
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding UTF8
+
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ($ver.version -ne "10.5.15" -or $ver.channel -ne "candidate") {
+            throw "Unexpected certified candidate metadata"
+          }
+          $ver.channel = "production"
+          $ver.notes = "Top Burger Production stable 10.5.15. Immediate single-entry HR hub; exact independent internal-extra quantities; customer/prep receipts print extra counts; shift close separates internal vs external extras; branch-scoped modifier read parity."
+          $ver | ConvertTo-Json -Depth 100 | Set-Content version.json -Encoding UTF8
 
       - name: Build Windows x64
         shell: pwsh
-        run: |
-          npm run dist -- --win --x64 --publish never
+        run: npx electron-builder --win nsis --x64 --publish never
 
       - name: Save x64 installer
         shell: pwsh
@@ -59,30 +79,36 @@ jobs:
             Where-Object { $_.Name -notmatch "ia32|x86" } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
-
-          if (-not $exe) {
-            throw "x64 installer not found"
-          }
-
+          if (-not $exe) { throw "x64 installer not found" }
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-x64.exe"
 
       - name: Build Windows ia32
         shell: pwsh
-        run: |
-          npm run dist -- --win --ia32 --publish never
+        run: npx electron-builder --win nsis --ia32 --publish never
 
       - name: Save ia32 installer
         shell: pwsh
         run: |
           $exe = Get-ChildItem dist -Filter *.exe |
+            Where-Object { $_.Name -match "ia32|x86" } |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
-
           if (-not $exe) {
-            throw "ia32 installer not found"
+            $exe = Get-ChildItem dist -Filter *.exe |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
           }
-
+          if (-not $exe) { throw "ia32 installer not found" }
           Copy-Item $exe.FullName "Sharawla-POS-Setup-${{ steps.ver.outputs.version }}-ia32.exe"
+
+      - name: Generate SHA256 manifest
+        shell: pwsh
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $x64=(Get-FileHash "Sharawla-POS-Setup-$version-x64.exe" -Algorithm SHA256).Hash.ToLower()
+          $ia32=(Get-FileHash "Sharawla-POS-Setup-$version-ia32.exe" -Algorithm SHA256).Hash.ToLower()
+          "Sharawla-POS-Setup-$version-x64.exe  $x64" | Set-Content "production-v$version-sha256.txt" -Encoding ascii
+          "Sharawla-POS-Setup-$version-ia32.exe  $ia32" | Add-Content "production-v$version-sha256.txt" -Encoding ascii
 
       - name: Refuse existing stable tag or release
         shell: pwsh
@@ -90,17 +116,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
-
           git fetch --tags --force
-          git rev-parse "refs/tags/$tag" *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Stable tag $tag already exists and is immutable."
-          }
+          $tagExists = git tag --list $tag
+          if ($tagExists) { throw "Stable tag $tag already exists and is immutable." }
 
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Stable release $tag already exists and is immutable."
-          }
+          $releaseListJson = gh release list --limit 100 --json tagName
+          if ($LASTEXITCODE -ne 0) { throw "Unable to inspect existing GitHub releases." }
+          $releaseExists = ($releaseListJson | ConvertFrom-Json) | Where-Object { $_.tagName -eq $tag }
+          if ($releaseExists) { throw "Stable release $tag already exists and is immutable." }
 
       - name: Create immutable GitHub Release
         shell: pwsh
@@ -109,12 +132,13 @@ jobs:
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
-
           gh release create $tag `
-            --target "${{ github.sha }}" `
-            --title "Sharawla POS $version — Production 10.5.8 — Maintenance + Recipe" `
-            --notes "Production cumulative stable roll-forward: preserves all reviewed maintenance fixes and adds Recipe Production V1 backend integration. Recipe stock consumption is fail-open so sales/returns remain authoritative even if stock processing fails; returns restore frozen sale snapshots."
+            --target "dffc9765b02dc6a6eea0ccefd12166cbc8c4fc69" `
+            --title "Sharawla POS $version — Production 10.5.15 — HR + Exact Extras" `
+            --notes "Top Burger Production hotfix 10.5.15 built from certified candidate dffc9765b02dc6a6eea0ccefd12166cbc8c4fc69. CI 37477348744 and 37477437428 passed candidate Windows builds and PostgreSQL 16 migration twice. Internal sandwich extras now have independent quantities, receipt/prep output prints exact counts, shift closing separates internal and external extras, and HR navigation opens immediately as one hub entry. Production migration v10_5_15_modifier_quantity was applied before release and is backward-compatible with 10.5.14."
 
           gh release upload $tag `
             "Sharawla-POS-Setup-$version-x64.exe" `
-            "Sharawla-POS-Setup-$version-ia32.exe"
+            "Sharawla-POS-Setup-$version-ia32.exe" `
+            "production-v$version-sha256.txt" `
+            "supabase-v10-5-15-modifier-quantity.sql"
