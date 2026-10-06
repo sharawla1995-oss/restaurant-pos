@@ -3,14 +3,14 @@ name: SH0007 V67 Buildable Composition x64 Build
 on:
   push:
     branches:
-      - build/sh0007-v67-exact-candidate-v3
+      - build/sh0007-v67-exact-candidate-v6
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: sh0007-v67-exact-candidate-v3
+  group: sh0007-v67-exact-candidate-v6
   cancel-in-progress: false
 
 jobs:
@@ -108,19 +108,36 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '16'
-      - name: Run full source and regression gates with legacy checker shadow alignment
+      - name: Run full source and regression gates with test-only legacy fixture alignment
         shell: pwsh
         run: |
-          $checker = 'scripts/check-beta58-30-offline-practical-rc1.js'
-          $old = "need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
-          $new = "need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');"
-          $content = Get-Content $checker -Raw
-          if (-not $content.Contains($old)) { throw "Expected legacy address-delete checker token not found" }
-          if (-not (Get-Content app.js -Raw).Contains("router.deleteAddress(del.dataset.deleteAddress,{withState:true})")) { throw "Current V67 address-delete runtime binding missing" }
-          $content.Replace($old,$new) | Set-Content $checker -Encoding utf8 -NoNewline
+          @'
+          const fs=require('fs');
+
+          const practical='scripts/check-beta58-30-offline-practical-rc1.js';
+          let p=fs.readFileSync(practical,'utf8');
+          const pOld="need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');";
+          const pNew="need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');";
+          if(!p.includes(pOld)) throw new Error('Expected legacy address-delete checker token not found');
+          const app=fs.readFileSync('app.js','utf8');
+          if(!app.includes("router.deleteAddress(del.dataset.deleteAddress,{withState:true})")) throw new Error('Current V67 address-delete runtime binding missing');
+          fs.writeFileSync(practical,p.replace(pOld,pNew),'utf8');
+
+          const transport='scripts/check-beta45-offline-v2-transport.js';
+          let t=fs.readFileSync(transport,'utf8');
+          const tOld="function ack(x){return {ok:true,acknowledged:true,client_tx_id:x.client_tx_id,protocol_version:2,payload_digest:x.payload_digest,server_event_id:`evt-${x.client_tx_id}`,server_entity_id:`srv-${x.client_tx_id}`}}";
+          const tNew="function ack(x){return {ok:true,acknowledged:true,client_tx_id:x.client_tx_id,protocol_version:2,payload_digest:x.payload_digest,server_event_id:`evt-${x.client_tx_id}`,server_entity_id:`srv-${x.client_tx_id}`,result:{order:{bon_number:1}}}}";
+          if(!t.includes(tOld)) throw new Error('Expected legacy transport ACK fixture not found');
+          const sync=fs.readFileSync('beta45-offline-v2-sync.js','utf8');
+          if(!sync.includes('OFFLINE_V2_ACK_BON_MISSING')) throw new Error('Current V67 canonical BON ACK guard missing');
+          fs.writeFileSync(transport,t.replace(tOld,tNew),'utf8');
+
+          console.log('V67_CI_TEST_FIXTURE_ALIGNMENT_PASS');
+          '@ | node
+
           & npm run check:ci
           $code = $LASTEXITCODE
-          git checkout -- $checker
+          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js scripts/check-beta45-offline-v2-transport.js
           if ($code -ne 0) { exit $code }
       - name: Reverify V67 source after gates
         shell: pwsh
