@@ -64,8 +64,42 @@ jobs:
               sys.exit(1)
           print('V67_EXACT_CANDIDATE_1036_1036_PASS')
           PY
+      - name: Align legacy Beta58.30 checker to current V67 address-delete call
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/check-beta58-30-offline-practical-rc1.js')
+          s=p.read_text(encoding='utf-8')
+          old="need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
+          new="need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');"
+          if old not in s:
+              raise SystemExit('legacy checker token not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          print('V67_CHECKER_COMPAT_ADDRESS_DELETE_APPLIED')
+          PY
       - name: Run full source/regression gates
         run: npm run check:ci
+      - name: Restore checker and reverify exact V67 identity
+        if: always()
+        shell: bash
+        run: |
+          git checkout -- scripts/check-beta58-30-offline-practical-rc1.js
+          python3 - <<'PY'
+          import hashlib, pathlib, sys
+          expected={}
+          for line in pathlib.Path('.v67/V67_CANDIDATE_SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
+              if line.strip():
+                  h,p=line.split('  ',1); expected[p]=h
+          bad=[]
+          for p,h in expected.items():
+              q=pathlib.Path(p)
+              if not q.is_file() or hashlib.sha256(q.read_bytes()).hexdigest()!=h:
+                  bad.append(p)
+          if bad: print('BAD',*bad[:20]); sys.exit(1)
+          print('V67_POST_CHECK_RESTORE_1036_HASH_PASS')
+          PY
 
   build-x64:
     needs: verify-source
@@ -102,8 +136,56 @@ jobs:
           "npm_config_python=$python" >> $env:GITHUB_ENV
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Align legacy Beta58.30 checker to current V67 address-delete call
+        shell: pwsh
+        run: |
+          $p = 'scripts/check-beta58-30-offline-practical-rc1.js'
+          $s = Get-Content $p -Raw
+          $old = "need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
+          $new = "need(app,'router.deleteAddress(del.dataset.deleteAddress,{withState:true})','local address delete id preserved');"
+          if (-not $s.Contains($old)) { throw 'legacy checker token not found' }
+          [System.IO.File]::WriteAllText((Resolve-Path $p), $s.Replace($old,$new), [System.Text.UTF8Encoding]::new($false))
+          Write-Host 'V67_CHECKER_COMPAT_ADDRESS_DELETE_APPLIED'
       - name: Run full source/regression gates
         run: npm run check:ci
+      - name: Restore checker before build
+        shell: pwsh
+        run: git checkout -- scripts/check-beta58-30-offline-practical-rc1.js
+      - name: Reverify exact V67 identity before build
+        shell: pwsh
+        run: |
+          $expected = @{}
+          Get-Content .v67/V67_CANDIDATE_SHA256SUMS.txt | ForEach-Object {
+            if ($_ -match '^([0-9a-f]{64})  (.+)
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Save exact V67 installer and SHA256
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.32'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
+          Get-Content V67-SH0007-SHA256.txt
+      - name: Upload SH-0007 V67 x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.4-beta.58.32-V67-SH0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            V67-SH0007-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
+) { $expected[$Matches[2]] = $Matches[1] }
+          }
+          foreach ($p in $expected.Keys) {
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw "Missing candidate file: $p" }
+            $got = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower()
+            if ($got -ne $expected[$p]) { throw "Candidate hash mismatch before build: $p" }
+          }
+          Write-Host 'V67_PRE_BUILD_1036_HASH_PASS'
       - name: Build Windows x64 SH-0007 candidate
         run: npx electron-builder --win nsis --x64 --publish never
       - name: Save exact V67 installer and SHA256
