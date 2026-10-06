@@ -1,0 +1,29 @@
+Sharawla POS 10.5.15 — Production Rollback Checkpoint
+Prepared: 2026-10-06
+
+CERTIFIED 10.5.15 CANDIDATE
+- SHA: dffc9765b02dc6a6eea0ccefd12166cbc8c4fc69
+- Candidate CI: 37477348744 / 37477437428 = SUCCESS
+- Windows ia32 + x64 candidate build = PASS
+- PostgreSQL modifier quantity migration = PASS twice on PostgreSQL 16 contract
+
+PRODUCTION DB STATE BEFORE 10.5.15 STABLE PUBLISH
+- Project: kzokretuuigjhxjzdlmk
+- v10_5_15_modifier_quantity applied
+- order_item_modifiers.quantity = NOT NULL, valid 1..99
+- authenticated branch-scoped modifier SELECT = enabled
+- anon modifier SELECT = disabled
+- create_pos_order_atomic stores explicit modifier qty when supplied
+- legacy 10.5.14 writers remain compatible through trigger/default semantics
+
+PINNED APPLICATION FALLBACK
+- Immutable release: https://github.com/sharawla1995-oss/restaurant-pos/releases/tag/v10.5.14
+- Tag target: ffcee8195ae3e14675b96d9175a9cb97f003590a
+- ia32 installer SHA256: c759b4f7bdadc686ecd22f4d049d786f6aff6d6ae36a2399f2120adb206d7b49
+- x64 installer SHA256: 91fc19e38c00e8f5957b76177bd33a3b6cf7e2cd4905cee4512b04f27af0a9b5
+
+ROLLBACK RULE
+- The V10.5.15 database change is additive/backward-compatible with V10.5.14 and should normally be LEFT IN PLACE during an application rollback.
+- If V10.5.15 must be abandoned, reinstall the matching immutable V10.5.14 installer.
+- Do NOT Reset/Rebind; preserve device fingerprint and local operational data.
+- SH-0005 remains untouched until SH-0006 practical pass.
