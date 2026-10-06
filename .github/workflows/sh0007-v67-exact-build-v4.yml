@@ -35,6 +35,7 @@ jobs:
       - name: Prepare exact continuation baseline fixtures
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force /tmp | Out-Null
           New-Item -ItemType Directory -Force ../continuation_baseline | Out-Null
           git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-delivery-settings-routing.js | Set-Content ../continuation_baseline/permissions-v2-delivery-settings-routing.js -Encoding utf8NoBOM
           git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-order-fulfillment-routing.js | Set-Content ../continuation_baseline/permissions-v2-order-fulfillment-routing.js -Encoding utf8NoBOM
