@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const VERSION='10.5.14';
+const VERSION='10.5.15';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmt=v=>v?new Date(v).toLocaleString('ar-EG'):'—';
