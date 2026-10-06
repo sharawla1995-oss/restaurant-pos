@@ -1,12 +1,12 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.14",
-  "description": "Sharawla POS V10.5.14 Candidate - delivery flow, fast orders, notifications, HR approvals, branch disbursement, Summary V2",
+  "version": "10.5.15",
+  "description": "Sharawla POS V10.5.15 Candidate - immediate HR navigation hydration hotfix",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node --check app.js && node --check v10-5-14-ops-hr-summary.js && node --check staff/app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-hr-staff-port.js && node scripts/check-v10-5-14-ops-hr-summary.js",
+    "check": "node scripts/check-version.js && node --check app.js && node --check v10-5-14-ops-hr-summary.js && node --check staff/app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-hr-staff-port.js && node scripts/check-v10-5-14-ops-hr-summary.js && node scripts/check-v10-5-15-hr-nav-immediate.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
