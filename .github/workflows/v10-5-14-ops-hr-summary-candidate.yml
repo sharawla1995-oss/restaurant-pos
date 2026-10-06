@@ -95,3 +95,12 @@ jobs:
           select public.hr_staff_self_snapshot_v1('ci-session',current_date-1,current_date+1);
           select count(*) as notifications from public.app_notifications_v1;
           SQL
+      - name: Verify emergency rollback to V10.5.13 on ephemeral PostgreSQL
+        run: |
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f supabase-v10-5-14-emergency-rollback-to-10-5-13.sql
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 <<'SQL'
+          select to_regprocedure('public.hr_adjustment_create_v1(bigint,text,numeric,date,text,text)') is not null as adjustment_restored;
+          select to_regprocedure('public.hr_advance_disburse_v1(bigint,text,text,bigint,text)') is not null as advance_restored;
+          select to_regprocedure('public.hr_payroll_pay_v1(bigint,text,text,bigint,text)') is not null as payroll_restored;
+          select to_regprocedure('public.hr_payroll_pay_attendance_v1(bigint,text,text,bigint,text)') is not null as payroll_attendance_restored;
+          SQL
