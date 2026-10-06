@@ -8,6 +8,8 @@ const order=[
   'supabase-rc1-bon-v3-sale-integration-source.sql',
   'supabase-rc1-bon-v3-base-sale-owner-source.sql'
 ];
+const fail=m=>{throw new Error(m)};
+const bodies=order.map(p=>({p,s:fs.readFileSync(p,'utf8')}));
 const policy=bodies.find(x=>x.p==='supabase-rc1-bon-numbering-policy-v1-source.sql').s;
 if(!policy.includes('primary key(branch_id,business_date)')) fail('BRANCH Bon counter must reset by business date');
 if(!policy.includes('pos_bon_business_date_v1')) fail('business-date resolver missing');
@@ -27,8 +29,6 @@ const expected=[
   'pos_consume_sale_bon_v3',
   'create_pos_order_atomic'
 ];
-const fail=m=>{throw new Error(m)};
-const bodies=order.map(p=>({p,s:fs.readFileSync(p,'utf8')}));
 const defs=[];
 for(const {p,s} of bodies){
   for(const m of s.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)) defs.push({name:m[1],p});

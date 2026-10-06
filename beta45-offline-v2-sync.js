@@ -30,6 +30,8 @@ function validateAck(event,ack){
   if(!text(ack.server_event_id))throw err('OFFLINE_V2_ACK_EVENT_ID_MISSING','Server ACK requires server_event_id');
   if(text(event?.payload_digest)&&text(ack.payload_digest)!==text(event.payload_digest))throw err('OFFLINE_V2_ACK_PAYLOAD_MISMATCH','Server ACK payload_digest mismatch');
   if(text(event?.local_entity_id)&&!(ack.server_entity_id!==undefined&&ack.server_entity_id!==null&&text(ack.server_entity_id)))throw err('OFFLINE_V2_ACK_MAPPING_MISSING','Server ACK requires server_entity_id for a local entity');
+  const restaurantSale=text(event?.operation_type)==='sale'&&['create_pos_order_atomic','create_food_pos_order_atomic_v1'].includes(text(event?.envelope?.payload?.rpc_name));
+  if(restaurantSale&&(!Number.isInteger(num(ack?.result?.order?.bon_number,0))||num(ack?.result?.order?.bon_number,0)<1))throw err('OFFLINE_V2_ACK_BON_MISSING','Restaurant sale ACK requires its canonical BON');
   const reservedBon=num(event?.envelope?.payload?.rpc_payload?.p_order?.bon_reservation?.bon_number,0);
   if(text(event?.operation_type)==='sale'&&reservedBon>0){
     const ackBon=num(ack?.result?.order?.bon_number,0);
@@ -44,10 +46,11 @@ function classifyError(error){
   const lower=message.toLowerCase();
   const status=num(error?.http_status||error?.status,0);
   const businessCodes=new Set(['INSUFFICIENT_STOCK','NEGATIVE_STOCK_NOT_ALLOWED','BUSINESS_CONFLICT','VALIDATION_CONFLICT','OUT_OF_STOCK','23505','P0001']);
-  const auth=status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
+  const auth=code==='42501'||status===401||status===403||error?.kind==='auth'||code==='PGRST301'||code==='JWT_EXPIRED'||lower.includes('jwt')||lower.includes('غير مصرح')||lower.includes('not authorized')||lower.includes('permission denied');
   if(auth)return {kind:'blocked',reason:'auth',code,message,retryable:false,http_status:status};
   if(code==='OFFLINE_V2_DEPENDENCY_MAPPING_MISSING'||code==='OFFLINE_V2_DEPENDENCY_PENDING'||error?.kind==='dependency')return {kind:'blocked',reason:'dependency',code,message,retryable:false,http_status:status};
-  const business=error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
+  const expenseConflict=/^EXPENSE_EDIT_(AMOUNT_INVALID|REVISION_CONFLICT|CLOSED_SHIFT|SCOPE_CHANGED|PARENT_INVALID|PARENT_ENTITY_MISMATCH|ROOT_INVALID|PARENT_REQUIRED|UNEXPECTED_DEPENDENCY|DENIED)/.test(message);
+  const business=expenseConflict||error?.kind==='business_conflict'||businessCodes.has(code)||lower.includes('المخزون غير كاف')||lower.includes('insufficient stock')||lower.includes('يوجد وردية مفتوحة بالفعل')||lower.includes('الوردية غير مفتوحة')||lower.includes('غير مطابقة للموظف')||lower.includes('تغيرت')||lower.includes('غير صالح');
   if(business)return {kind:'conflict',code,message,retryable:false,http_status:status};
   if(error?.kind==='protocol'||code.startsWith('OFFLINE_V2_ACK_'))return {kind:'protocol',code,message,retryable:true,http_status:status};
   if(error?.kind==='permanent')return {kind:'permanent',code,message,retryable:false,http_status:status};

@@ -219,6 +219,11 @@ function validateCommit(input){
   // Fail closed for durable order-status events. The generic runtime catalog may
   // exist before the transport-specific adapter registers, but such a window
   // must never be allowed to persist an unbound event into the outbox.
+  if(text(input?.operation_type)==='expense_update'){
+    const p=input?.payload?.rpc_payload||{};
+    if(input?.payload?.rpc_name!=='offline_expense_update_v1'||text(p.p_client_tx_id)!==text(input.client_tx_id))errors.push('invalid:expense_update_binding');
+    if(!text(p.p_expense_id)||!text(p.p_description)||!Number.isFinite(Number(p.p_amount))||Number(p.p_amount)<=0||!Number.isFinite(Number(p.p_expected_amount))||Number(p.p_expected_amount)<=0||typeof p.p_expected_description!=='string')errors.push('invalid:expense_update_revision');
+  }
   if(text(input?.operation_type)==='order_status'){
     const rpcName=text(input?.payload?.rpc_name);
     const rpcPayload=input?.payload?.rpc_payload;
@@ -231,6 +236,7 @@ function validateCommit(input){
     }
   }
   const boundRpc={
+    driver_save:'offline_delivery_driver_save_v1',zone_save:'offline_delivery_zone_save_v1',
     customer_create:'offline_customer_create_v1',
     customer_update:'offline_customer_update_v1',
     customer_address_save:'offline_customer_address_save_v1',
@@ -398,6 +404,49 @@ async function commitOperationUnsafe(input){
       if(existing.payload_digest!==comparableHash){const e=new Error('Same client_tx_id was reused with different payload');e.code='OFFLINE_V2_TX_PAYLOAD_MISMATCH';throw e}
       await exec('COMMIT');
       return {ok:true,duplicate:true,durable:true,event:hydrate(existing).envelope};
+    }
+    // Exact replay above does not reread parents. New scoped children require a same-owner durable parent.
+    const scopedType=text(input.operation_type),p=input.payload?.rpc_payload||{},dependency=text(input.depends_on_tx_id);
+    if(['driver_save','zone_save','order_status','expense_update'].includes(scopedType)){
+      const bindings={driver_save:'offline_delivery_driver_save_v1',zone_save:'offline_delivery_zone_save_v1',order_status:'order_status_apply_offline_v2',expense_update:'offline_expense_update_v1'};
+      const field=scopedType==='driver_save'?'p_driver_id':scopedType==='zone_save'?'p_zone_id':scopedType==='order_status'?'p_order_id':'p_expense_id';
+      const parentField=scopedType==='driver_save'?'p_driver_save_tx':scopedType==='zone_save'?'p_zone_save_tx':scopedType==='expense_update'?'p_expense_parent_tx':null;
+      if(input.payload.rpc_name!==bindings[scopedType]||text(p.p_client_tx_id)!==tx
+       ||(['driver_save','zone_save'].includes(scopedType)&&number(p.p_branch_id)!==number(input.branch_id))
+       ||(parentField&&text(p[parentField])!==dependency)
+       ||(text(p[field]).startsWith('offline-')&&!dependency)){
+        const error=new Error('Offline V2 scoped route/branch/dependency mismatch');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
+      }
+    }
+    if(['driver_save','zone_save','order_status','expense_update'].includes(scopedType)&&dependency){
+      const parent=await get('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',[dependency]);
+      const expected=scopedType==='order_status'?'sale':scopedType==='expense_update'?['expense','expense_update']:scopedType;
+      const field=scopedType==='driver_save'?'p_driver_id':scopedType==='zone_save'?'p_zone_id':scopedType==='order_status'?'p_order_id':'p_expense_id';
+      const prefix=scopedType==='driver_save'?'offline-driver-':scopedType==='zone_save'?'offline-zone-':scopedType==='order_status'?'offline-':'offline-exp-';
+      const alias=text(p[field]);
+      if(!parent||!(Array.isArray(expected)?expected.includes(parent.operation_type):parent.operation_type===expected)
+       ||parent.device_id!==text(input.device_id)||parent.business_id!==text(input.business_id)||number(parent.branch_id)!==number(input.branch_id)
+       ||number(parent.employee_id)!==number(input.employee_id)||['conflict','dead_letter'].includes(parent.status)
+       ||(scopedType!=='expense_update'&&alias!==prefix+dependency)){
+        const error=new Error('Offline V2 scoped parent identity/type/dependency mismatch');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
+      }
+      if(scopedType==='expense_update'){
+        let ancestor=parent,root=null;const seen=new Set();
+        while(ancestor&&!seen.has(ancestor.client_tx_id)){
+          seen.add(ancestor.client_tx_id);
+          if(!['expense','expense_update'].includes(ancestor.operation_type)||ancestor.device_id!==text(input.device_id)
+           ||ancestor.business_id!==text(input.business_id)||number(ancestor.branch_id)!==number(input.branch_id)
+           ||number(ancestor.employee_id)!==number(input.employee_id))break;
+          const envelope=hydrate(ancestor).envelope,rpc=envelope.payload?.rpc_payload||{};
+          if(ancestor.operation_type==='expense'){root='offline-exp-'+ancestor.client_tx_id;break}
+          if(!text(ancestor.depends_on_tx_id)){root=text(rpc.p_expense_id);break}
+          ancestor=await get('SELECT * FROM offline_v2_outbox WHERE client_tx_id=?',[ancestor.depends_on_tx_id]);
+        }
+        const canonical=text(hydrate(parent).server_ack?.server_entity_id);
+        if(!root||(alias!==root&&(!canonical||alias!==canonical))){
+          const error=new Error('Offline V2 expense parent belongs to another entity');error.code='OFFLINE_V2_SCOPED_PARENT_INVALID';throw error;
+        }
+      }
     }
     // Bon selection, consumption and the operational outbox event share one serialized SQLite transaction.
     // No previewed number is trusted here; capacity exhaustion leaves the sale unreserved (OFF-*).

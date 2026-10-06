@@ -16,12 +16,12 @@ function localTx(value,prefix){const s=String(value??'').trim();return s.startsW
 async function durableRpc(name,payload){
   const transport=global.SharawlaOfflineV2Transport;
   const active=typeof transport?.isActive==='function'&&!!(await transport.isActive());
-  if(active){const committed=await transport.commitRpcLocal(name,{...payload,p_client_tx_id:tx()});return committed.result}
+  if(active){const committed=await transport.commitRpcLocal(name,{...payload,p_client_tx_id:tx()});return committed}
   if(offline())throw new Error('Offline V2 غير جاهز. لم يتم حفظ أي بيانات.');
   return null;
 }
 
-async function updateCustomer(input={}){
+async function updateCustomer(input={},options={}){
   const rawId=String(input.id??'').trim(),createTx=localTx(rawId,'offline-customer-'),id=Number(rawId);
   if((!Number.isFinite(id)||id<=0)&&!createTx)throw new Error('معرّف العميل غير صالح');
   const payload={
@@ -33,8 +33,8 @@ async function updateCustomer(input={}){
     p_address:clean(input.address),
     p_notes:clean(input.notes)
   };
-  const durable=await durableRpc('offline_customer_update_v1',payload);if(durable!==null)return durable;
-  return rpc('customer_update_v2',{
+  const durable=await durableRpc('offline_customer_update_v1',payload);if(durable!==null)return options.withState?durable:durable.result;
+  const result=await rpc('customer_update_v2',{
     p_customer_id:id,
     p_name:clean(input.name),
     p_phone:clean(input.phone),
@@ -42,16 +42,17 @@ async function updateCustomer(input={}){
     p_address:clean(input.address),
     p_notes:clean(input.notes)
   });
+  return options.withState?{result,synced:true,durable:false,status:'online-only'}:result;
 }
 
-async function saveAddress(input={}){
+async function saveAddress(input={},options={}){
   const rawCustomer=String(input.customer_id??'').trim(),customerCreateTx=localTx(rawCustomer,'offline-customer-'),customerId=Number(rawCustomer);
   if((!Number.isFinite(customerId)||customerId<=0)&&!customerCreateTx)throw new Error('معرّف العميل غير صالح');
   const rawAddress=input.id==null?'':String(input.id).trim(),addressSaveTx=localTx(rawAddress,'offline-customer_address_save-'),addressId=rawAddress?Number(rawAddress):null;
   if(rawAddress&&(!Number.isFinite(addressId)||addressId<=0)&&!addressSaveTx)throw new Error('معرّف العنوان غير صالح');
   const payload={p_address_id:addressSaveTx?null:addressId,p_address_save_tx:addressSaveTx,p_customer_id:customerCreateTx?null:customerId,p_customer_create_tx:customerCreateTx,p_label:clean(input.label),p_area:clean(input.area),p_address:clean(input.address),p_notes:clean(input.notes),p_is_default:input.is_default===true};
-  const durable=await durableRpc('offline_customer_address_save_v1',payload);if(durable!==null)return durable;
-  return rpc('customer_address_save_v2',{
+  const durable=await durableRpc('offline_customer_address_save_v1',payload);if(durable!==null)return options.withState?durable:durable.result;
+  const result=await rpc('customer_address_save_v2',{
     p_address_id:addressId,
     p_customer_id:customerId,
     p_label:clean(input.label),
@@ -60,13 +61,15 @@ async function saveAddress(input={}){
     p_notes:clean(input.notes),
     p_is_default:input.is_default===true
   });
+  return options.withState?{result,synced:true,durable:false,status:'online-only'}:result;
 }
 
-async function deleteAddress(addressId){
+async function deleteAddress(addressId,options={}){
   const raw=String(addressId??'').trim(),addressSaveTx=localTx(raw,'offline-customer_address_save-'),id=Number(raw);
   if((!Number.isFinite(id)||id<=0)&&!addressSaveTx)throw new Error('معرّف العنوان غير صالح');
-  const durable=await durableRpc('offline_customer_address_delete_v1',{p_address_id:addressSaveTx?null:id,p_address_save_tx:addressSaveTx});if(durable!==null)return durable;
-  return rpc('customer_address_delete_v2',{p_address_id:id});
+  const durable=await durableRpc('offline_customer_address_delete_v1',{p_address_id:addressSaveTx?null:id,p_address_save_tx:addressSaveTx});if(durable!==null)return options.withState?durable:durable.result;
+  const result=await rpc('customer_address_delete_v2',{p_address_id:id});
+  return options.withState?{result,synced:true,durable:false,status:'online-only'}:result;
 }
 
 global.__SharawlaPV2CustomerEditAddress=Object.freeze({
