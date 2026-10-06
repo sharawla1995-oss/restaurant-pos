@@ -376,13 +376,13 @@ begin
 end;$$;
 
 create or replace function public.hr_payroll_pay_v1(p_payroll_period_id bigint,p_method text,p_reference text,p_shift_id bigint,p_client_tx_id text)
-returns boolean language plpgsql security definer set search_path=public as $
+returns boolean language plpgsql security definer set search_path=public as $$
 begin
  if auth.uid() is null or not public.has_permission('branch.hr.finance.disburse') or not public.has_permission('treasury.post') then
   raise exception 'ليس لديك صلاحية صرف المرتبات المعتمدة من الفرع';
  end if;
  return public.hr_payroll_pay_attendance_v1(p_payroll_period_id,p_method,p_reference,p_shift_id,p_client_tx_id);
-end;$;
+end;$$;
 
 create or replace function public.branch_hr_finance_queue_v1(p_branch_id bigint)
 returns jsonb language plpgsql security definer set search_path=public as $$
