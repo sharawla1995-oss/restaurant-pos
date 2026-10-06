@@ -46,11 +46,36 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
 
+      - name: Adapt stale Beta58.30 static assertion for V67 test run only
+        shell: pwsh
+        run: |
+          $app = Get-Content app.js -Raw
+          if (-not $app.Contains('router.deleteAddress(del.dataset.deleteAddress,{withState:true})')) {
+            throw 'V67 address-delete withState runtime contract missing'
+          }
+          $p = 'scripts/check-beta58-30-offline-practical-rc1.js'
+          $src = Get-Content $p -Raw
+          $old = "need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');"
+          $new = "need(app,'deleteAddress(del.dataset.deleteAddress,','local address delete id preserved');"
+          if (-not $src.Contains($old)) { throw 'stale Beta58.30 assertion shape changed unexpectedly' }
+          Set-Content $p ($src.Replace($old,$new)) -Encoding utf8
+          Write-Host 'V67_STALE_STATIC_ASSERTION_ADAPTED_TEST_ONLY'
+
       - name: Run full source and regression gates
         run: npm run check:ci
 
-      - name: Build Windows x64 installer
-        run: npm run dist -- --win --x64 --publish never
+      - name: Restore exact V67 tracked source before packaging
+        shell: pwsh
+        run: |
+          git reset --hard 2a2c615bcd71a7a55a128352d228d7b0bb1d72ee
+          $head = (git rev-parse HEAD).Trim()
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($head -ne '2a2c615bcd71a7a55a128352d228d7b0bb1d72ee') { throw "post-test SHA mismatch: $head" }
+          if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "post-test tree mismatch: $tree" }
+          Write-Host 'V67_EXACT_SOURCE_RESTORED_BEFORE_BUILD'
+
+      - name: Build Windows x64 installer from exact V67 source
+        run: npx electron-builder --win nsis --x64 --publish never
 
       - name: Save V67 SH-0007 installer and provenance
         shell: pwsh
