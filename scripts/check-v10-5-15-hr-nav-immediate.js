@@ -1,6 +1,6 @@
 const fs=require('fs');
 function read(p){return fs.readFileSync(p,'utf8')}
-const app=read('app.js'),attendance=read('hr-attendance-admin-v1.js'),core=read('hr-core-admin-v1.js'),runtime=read('v10-5-14-ops-hr-summary.js'),sql=read('supabase-v10-5-15-order-modifier-read-parity.sql');
+const app=read('app.js'),attendance=read('hr-attendance-admin-v1.js'),core=read('hr-core-admin-v1.js'),runtime=read('v10-5-14-ops-hr-summary.js'),sql=read('supabase-v10-5-15-modifier-quantity.sql');
 function ok(cond,msg){if(!cond)throw new Error(msg)}
 ok(app.includes("window.sharawlaHasPermissionLocal=function"),'app must expose loaded permission snapshot');
 ok(app.includes("window.dispatchEvent(new Event('sharawla:auth-ready'))"),'app must signal auth-ready after session hydration');
@@ -18,9 +18,13 @@ ok(runtime.includes("setTimeout(init,150)"),'V15 runtime bootstrap delay must be
 ok(app.includes('data-mod-qty'),'modifier quantity input must exist');
 ok(app.includes('modifierCount(md'),'modifier quantity semantics must exist');
 ok(app.includes('cartItemLineTotal(i)'),'cart line total must separate item quantity from modifier quantity');
-ok(app.includes('expandedItemModifiers(i)'),'modifier quantities must persist as repeated durable modifier rows');
+ok(app.includes('payloadItemModifiers(i)'),'modifier quantities must persist explicitly in checkout payload');
 ok(app.includes('× ${m.qty}'),'printed modifier count must be visible');
 ok(app.includes('modifiers:itemPayload[idx]?.modifiers'),'immediate receipt must retain checkout modifiers before reread');
-ok(sql.includes('order_item_modifiers_staff_read_v15'),'branch-scoped modifier read policy must exist');
+ok(sql.includes('order_item_modifiers_staff_read'),'branch-scoped modifier read policy must exist');
 ok(sql.includes('public.has_branch_access(o.branch_id)'),'modifier reads must stay branch-scoped');
+ok(sql.includes('add column if not exists quantity integer'),'durable modifier quantity column must exist');
+ok(sql.includes("nullif(v_mod->>'qty','')::integer"),'atomic checkout must persist explicit modifier quantity');
+ok(app.includes('الإضافات الداخلية'),'shift close must separate internal extras');
+ok(app.includes('الإضافات الخارجية'),'shift close must separate external extras');
 console.log('V10.5.15_HR_NAV_AND_MODIFIER_QTY_PASS');
