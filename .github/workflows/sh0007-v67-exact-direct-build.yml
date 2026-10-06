@@ -85,7 +85,10 @@ jobs:
         with:
           node-version: '22'
       - name: Run V67 actual customer UI gate
-        run: node scripts/check-batch1-ui.js
+        shell: pwsh
+        run: |
+          $env:SHARAWLA_UI_RESULT = Join-Path $env:RUNNER_TEMP 'batch1-ui.json'
+          node scripts/check-batch1-ui.js
       - name: Return to Node 16 for baseline CI and Windows build
         uses: actions/setup-node@v4
         with:
