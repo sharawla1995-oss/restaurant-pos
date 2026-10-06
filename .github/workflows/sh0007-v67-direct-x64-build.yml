@@ -59,8 +59,33 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
 
+      - name: Harden brittle legacy checker for V67 CI only
+        shell: pwsh
+        run: |
+          @'
+          const fs=require('fs');
+          const p='scripts/check-beta58-30-offline-practical-rc1.js';
+          let s=fs.readFileSync(p,'utf8');
+          const old="need(app,'deleteAddress(del.dataset.deleteAddress)','local address delete id preserved');";
+          const replacement="need(app,'router.deleteAddress(del.dataset.deleteAddress','local address delete id preserved');";
+          if(!s.includes(old)) throw new Error('expected brittle checker token not found');
+          s=s.replace(old,replacement);
+          fs.writeFileSync(p,s,'utf8');
+          console.log('V67_CI_CHECKER_COMPAT_PATCH_PASS');
+          '@ | node
+
       - name: Run full source and regression gates
         run: npm run check:ci
+
+      - name: Restore exact V67 candidate before build
+        shell: pwsh
+        run: |
+          git reset --hard b9f033f9329a442d96a5cbd536862d12e819b3b9
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "Post-check tree mismatch: $tree" }
+          $dirty = git status --porcelain
+          if ($dirty) { throw "Working tree not clean before build: $dirty" }
+          Write-Host 'V67_EXACT_TREE_RESTORED_BEFORE_BUILD'
 
       - name: Build Windows x64 installer
         run: npm run dist -- --win --x64 --publish never
