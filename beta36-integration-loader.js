@@ -6,7 +6,6 @@ const FILES=[
  ['permissions-v2','permissions-v2-ui.js?v=10.5.4-beta.58.32'],
  ['shared-business-core-v1','shared-business-core-v1.js?v=10.5.4-beta.58.32'],
  ['beta54-shared-core-ui','beta54-shared-core-ui.js?v=10.5.4-beta.58.32'],
- ['hr-employee-profile-model-v1','hr-employee-profile-model-v1.js?v=10.5.4-beta.58.32'],
  ['hr-attendance-admin-v1','hr-attendance-admin-v1.js?v=10.5.4-beta.58.32'],
  ['purchasing-attachments-v1','purchasing-attachments-v1.js?v=10.5.4-beta.58.32'],
  ['beta55-ui-workflow-fixes','beta55-ui-workflow-fixes.js?v=10.5.4-beta.58.32'],

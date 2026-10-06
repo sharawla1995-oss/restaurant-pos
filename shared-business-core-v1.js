@@ -22,9 +22,11 @@ function openNewCustomer(){
   try{
    const name=$('#scName',m).value.trim(),phone=$('#scPhone',m).value.trim(),area=$('#scArea',m).value.trim(),address=$('#scAddress',m).value.trim(),notes=$('#scNotes',m).value.trim();
    if(!name)throw new Error('اسم العميل مطلوب');
-   const transport=global.SharawlaOfflineV2Transport;if(typeof transport?.commitOptionalTxRpc!=='function')throw Object.assign(new Error('Offline V2 غير جاهز لحفظ العميل بأمان'),{code:'OFFLINE_V2_OWNER_UNAVAILABLE'});const id=await transport.commitOptionalTxRpc('offline_customer_create_v1',{p_name:name,p_phone:phone||null,p_area:area||null,p_address:address||null,p_notes:notes||null,p_client_tx_id:global.crypto?.randomUUID?.()||`customer-${Date.now()}-${Math.random().toString(16).slice(2)}`});
-   m.remove();toast(`تم إضافة العميل #${id}`);
-   if(typeof global.renderCustomers==='function')await global.renderCustomers();else if(typeof global.showPage==='function')await global.showPage('customers');
+   const router=global.__SharawlaPV2CustomerCreate;if(typeof router?.createCustomer!=='function')throw new Error('مسار إنشاء العميل غير جاهز');
+   const saved=await router.createCustomer({name,phone:phone||null,area:area||null,address:address||null,notes:notes||null},{withState:true});
+   m.remove();toast(saved.synced?'تم إضافة العميل':'تم إضافة العميل محليًا — بانتظار المزامنة');
+   try{if(typeof global.renderCustomers==='function')await global.renderCustomers();else if(typeof global.showPage==='function')await global.showPage('customers')}catch(e){console.warn('Customer saved; refresh pending',e);toast('تم الحفظ — تحديث العرض قيد الاستعادة')}
+
   }catch(err){save.disabled=false;toast(err?.message||String(err))}
  };
  setTimeout(()=>$('#scName',m)?.focus(),0);

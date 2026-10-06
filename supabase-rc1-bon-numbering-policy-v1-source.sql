@@ -23,13 +23,13 @@ create table if not exists public.branch_bon_counters_v1(
 );
 
 create or replace function public.pos_bon_business_date_v1(p_branch_id bigint,p_at timestamptz default clock_timestamp())
-returns date language sql stable security definer set search_path=public as $
+returns date language sql stable security definer set search_path=public as $$
   select (p_at at time zone coalesce((
     select nullif(trim(p.bon_day_timezone),'')
     from public.branch_bon_numbering_policy p
     where p.branch_id=p_branch_id
   ),'Africa/Cairo'))::date
-$;
+$$;
 
 -- Read-only resolver. Missing row deliberately resolves to legacy SHIFT.
 create or replace function public.pos_bon_numbering_mode_v1(p_branch_id bigint)

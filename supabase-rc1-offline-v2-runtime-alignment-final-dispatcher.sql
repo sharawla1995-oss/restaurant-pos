@@ -16,7 +16,6 @@
 
 begin;
 
-
 create or replace function public.sharawla_offline_v2_apply_event_reference_v1(p_event jsonb)
 returns jsonb
 language plpgsql
@@ -41,6 +40,10 @@ declare
   v_receipt public.offline_v2_server_receipts%rowtype;
   v_result jsonb;
   v_entity_id text;
+  v_customer_parent public.offline_v2_server_receipts%rowtype;
+  v_parent_tx text;
+  v_parent_kind text;
+  v_parent_field text;
   v_return_id bigint;
   v_event_id text;
 begin
@@ -116,38 +119,8 @@ begin
     if nullif(trim(coalesce(v_payload->>'p_client_tx_id','')),'') is distinct from v_tx then
       raise exception using errcode='22023', message='Offline V2 RPC client_tx_id mismatch';
     end if;
-    if v_operation='order_status' and (coalesce(nullif(v_payload->>'p_order_id','')::bigint,0)<=0 or nullif(trim(coalesce(v_payload->>'p_target_status','')),'') is null) then
-      raise exception using errcode='22023', message='Offline V2 order status payload invalid';
-    end if;
     if v_operation='shift_open' and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
       raise exception using errcode='22023', message='Offline V2 shift branch mismatch';
-    end if;
-    if v_operation in ('driver_save','zone_save')
-       and coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
-      raise exception using errcode='22023', message='Offline V2 Delivery Settings branch mismatch';
-    end if;
-  end if;
-
-  if v_dep_tx is not null then
-    if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
-      raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
-    end if;
-    if v_operation='sale' then
-      v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation in ('expense','shift_close') then
-      v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation in ('return','order_status','delivery_assign_driver') then
-      v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='customer_update' then
-      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='customer_address_save' and nullif(trim(coalesce(v_payload->>'p_address_save_tx','')),'') is not null then
-      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='customer_address_save' then
-      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='customer_address_delete' then
-      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
-    elsif v_operation='ingredient_conversion_save' then
-      v_payload := jsonb_set(v_payload,'{p_ingredient_id}',to_jsonb(v_dep_server_id::bigint),true);
     end if;
   end if;
 
@@ -182,7 +155,114 @@ begin
     );
   end if;
 
+  -- Mapping before bigint validation, after exact replay; same device/actor/branch/type receipt only.
+  if v_operation in ('order_status','driver_save','zone_save') and v_dep_tx is not null then
+    select * into v_customer_parent from public.offline_v2_server_receipts where client_tx_id=v_dep_tx;
+    if not found or v_customer_parent.operation_type is distinct from (case when v_operation='order_status' then 'sale' else v_operation end)
+     or v_customer_parent.device_id is distinct from v_device_id or v_customer_parent.branch_id is distinct from v_branch
+     or v_customer_parent.employee_id is distinct from v_employee or v_customer_parent.auth_user_id is distinct from auth.uid()
+     or v_customer_parent.server_entity_id is distinct from v_dep_server_id
+     or coalesce(v_dep_server_id,'') !~ '^[1-9][0-9]*$'
+     or (v_operation='order_status' and (v_payload->>'p_order_id' is distinct from 'offline-'||v_dep_tx
+         or v_customer_parent.rpc_name not in ('create_pos_order_atomic','create_food_pos_order_atomic_v1')))
+     or (v_operation='driver_save' and (v_payload->>'p_driver_save_tx' is distinct from v_dep_tx
+         or v_payload->>'p_driver_id' is distinct from 'offline-driver-'||v_dep_tx
+         or v_customer_parent.rpc_name is distinct from 'offline_delivery_driver_save_v1'))
+     or (v_operation='zone_save' and (v_payload->>'p_zone_save_tx' is distinct from v_dep_tx
+         or v_payload->>'p_zone_id' is distinct from 'offline-zone-'||v_dep_tx
+         or v_customer_parent.rpc_name is distinct from 'offline_delivery_zone_save_v1')) then
+      raise exception using errcode='22023',message='OFFLINE_REFERENCE_PARENT_RECEIPT_INVALID';
+    end if;
+  elsif v_operation in ('driver_save','zone_save') and
+    (v_payload->>'p_driver_save_tx' is not null or v_payload->>'p_zone_save_tx' is not null) then
+    raise exception using errcode='22023',message='OFFLINE_REFERENCE_DEPENDENCY_REQUIRED';
+  end if;
+  if v_dep_tx is not null then
+    if v_dep_server_id is null or v_dep_map_tx is distinct from v_dep_tx then
+      raise exception using errcode='22023', message='Offline V2 dependency mapping غير مكتملة';
+    end if;
+    if v_operation='sale' then
+      v_payload := jsonb_set(v_payload,'{p_order,shift_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation in ('expense','shift_close') then
+      v_payload := jsonb_set(v_payload,'{p_shift_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation in ('return','order_status','delivery_assign_driver') then
+      v_payload := jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='driver_save' then
+      v_payload:=jsonb_set(v_payload,'{p_driver_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='zone_save' then
+      v_payload:=jsonb_set(v_payload,'{p_zone_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_update' then
+      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_save' and nullif(trim(coalesce(v_payload->>'p_address_save_tx','')),'') is not null then
+      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_save' then
+      v_payload := jsonb_set(v_payload,'{p_customer_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='customer_address_delete' then
+      v_payload := jsonb_set(v_payload,'{p_address_id}',to_jsonb(v_dep_server_id::bigint),true);
+    elsif v_operation='ingredient_conversion_save' then
+      v_payload := jsonb_set(v_payload,'{p_ingredient_id}',to_jsonb(v_dep_server_id::bigint),true);
+    end if;
+  end if;
+
+    if v_operation='order_status' and (coalesce(nullif(v_payload->>'p_order_id','')::bigint,0)<=0 or nullif(trim(coalesce(v_payload->>'p_target_status','')),'') is null) then
+      raise exception using errcode='22023', message='Offline V2 order status payload invalid';
+    end if;
+  if v_operation='order_status' and not exists(select 1 from public.orders where id=(v_payload->>'p_order_id')::bigint and branch_id=v_branch) then raise exception using errcode='42501',message='OFFLINE_FULFILLMENT_BRANCH_MISMATCH';end if;
+  -- Customer references may have TWO parents (local customer + local address).
+  -- Resolve from accepted same-actor receipts, not the single client map. Original
+  -- event/digest/TX stay immutable; exact child replay above needs no parent reads.
+  if v_operation in ('customer_update','customer_address_save','customer_address_delete') then
+    for v_parent_tx,v_parent_kind,v_parent_field in
+      select x.tx,x.kind,x.field from (values
+       (nullif(trim(v_payload->>'p_customer_create_tx'),''),'customer_create','p_customer_id'),
+       (nullif(trim(v_payload->>'p_address_save_tx'),''),'customer_address_save','p_address_id')
+      ) x(tx,kind,field) where x.tx is not null
+    loop
+      select * into v_customer_parent from public.offline_v2_server_receipts where client_tx_id=v_parent_tx;
+      if not found or v_customer_parent.operation_type is distinct from v_parent_kind
+       or v_customer_parent.device_id is distinct from v_device_id
+       or v_customer_parent.branch_id is distinct from v_branch
+       or v_customer_parent.employee_id is distinct from v_employee
+       or v_customer_parent.auth_user_id is distinct from auth.uid()
+       or coalesce(v_customer_parent.server_entity_id,'') !~ '^[1-9][0-9]*$' then
+        raise exception using errcode='22023',message='OFFLINE_CUSTOMER_PARENT_RECEIPT_REQUIRED';
+      end if;
+      v_payload:=jsonb_set(v_payload,array[v_parent_field],to_jsonb(v_customer_parent.server_entity_id::bigint),true);
+    end loop;
+  end if;
+
   case v_rpc
+    -- OF-1: execute the existing idempotent reference owners, not a second writer.
+    when 'offline_delivery_driver_save_v1' then
+      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then raise exception 'OFFLINE_DELIVERY_BRANCH_MISMATCH';end if;
+      v_result:=public.offline_delivery_driver_save_v1(nullif(v_payload->>'p_driver_id','')::bigint,(v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',v_payload->>'p_phone',coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest);v_entity_id:=v_result->>'driver_id';
+    when 'offline_delivery_zone_save_v1' then
+      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then raise exception 'OFFLINE_DELIVERY_BRANCH_MISMATCH';end if;
+      v_result:=public.offline_delivery_zone_save_v1(nullif(v_payload->>'p_zone_id','')::bigint,(v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',(v_payload->>'p_delivery_fee')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_tx,v_digest);v_entity_id:=v_result->>'zone_id';
+    when 'offline_restaurant_floor_save_v1' then
+      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+        raise exception using errcode='22023',message='OFFLINE_RESTAURANT_REFERENCE_BRANCH_MISMATCH';
+      end if;
+      v_result := public.offline_restaurant_floor_save_v1(
+        nullif(v_payload->>'p_floor_id','')::bigint,
+        (v_payload->>'p_branch_id')::bigint,v_payload->>'p_name',
+        (v_payload->>'p_sort_order')::integer,
+        coalesce((v_payload->>'p_active')::boolean,true),
+        v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'floor_id','');
+    when 'offline_restaurant_table_save_v1' then
+      if coalesce(nullif(v_payload->>'p_branch_id','')::bigint,0) is distinct from v_branch then
+        raise exception using errcode='22023',message='OFFLINE_RESTAURANT_REFERENCE_BRANCH_MISMATCH';
+      end if;
+      v_result := public.offline_restaurant_table_save_v1(
+        nullif(v_payload->>'p_table_id','')::bigint,
+        (v_payload->>'p_branch_id')::bigint,
+        nullif(v_payload->>'p_floor_id','')::bigint,
+        v_payload->>'p_name',v_payload->>'p_code',
+        (v_payload->>'p_capacity')::integer,
+        coalesce((v_payload->>'p_active')::boolean,true),
+        v_payload->>'p_client_tx_id',v_digest);
+      v_entity_id := nullif(v_result->>'table_id','');
     when 'create_pos_order_atomic' then
       v_result := public.create_pos_order_atomic(v_payload->'p_order',v_payload->'p_items',v_payload->'p_payments');
       v_entity_id := nullif(v_result#>>'{order,id}','');
@@ -254,12 +334,6 @@ begin
     when 'offline_food_supplier_save_v1' then
       v_result := public.offline_food_supplier_save_v1(nullif(v_payload->>'p_supplier_id','')::bigint,v_payload->>'p_name',v_payload->>'p_phone',v_payload->>'p_email',v_payload->>'p_tax_no',v_payload->>'p_address',v_payload->>'p_notes',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'supplier_id','');
-    when 'offline_delivery_driver_save_v1' then
-      v_result := public.offline_delivery_driver_save_v1(nullif(v_payload->>'p_driver_id','')::bigint,v_branch,v_payload->>'p_name',v_payload->>'p_phone',coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
-      v_entity_id := nullif(v_result->>'driver_id','');
-    when 'offline_delivery_zone_save_v1' then
-      v_result := public.offline_delivery_zone_save_v1(nullif(v_payload->>'p_zone_id','')::bigint,v_branch,v_payload->>'p_name',(v_payload->>'p_delivery_fee')::numeric,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
-      v_entity_id := nullif(v_result->>'zone_id','');
     when 'offline_food_ingredient_save_v1' then
       v_result := public.offline_food_ingredient_save_v1(nullif(v_payload->>'p_ingredient_id','')::bigint,v_payload->>'p_name',v_payload->>'p_base_unit_code',v_payload->>'p_purchase_unit_code',v_payload->>'p_sku',v_payload->>'p_barcode',coalesce((v_payload->>'p_cost_per_base_unit')::numeric,0),coalesce((v_payload->>'p_minimum_quantity')::numeric,0),coalesce((v_payload->>'p_track_inventory')::boolean,true),coalesce((v_payload->>'p_usable_yield_percent')::numeric,100),nullif(v_payload->>'p_shelf_life_minutes','')::integer,coalesce((v_payload->>'p_active')::boolean,true),v_payload->>'p_client_tx_id',v_digest);
       v_entity_id := nullif(v_result->>'ingredient_id','');
@@ -313,6 +387,14 @@ begin
     raise exception using errcode='22000', message='Offline V2 backend result missing server entity id';
   end if;
 
+  if v_operation in ('customer_create','customer_update','customer_address_save','customer_address_delete') then
+    v_result:=v_result||jsonb_build_object('server_revision',clock_timestamp());
+    if v_operation in ('customer_create','customer_update') then
+      v_result:=v_result||jsonb_build_object('canonical_entity',(select to_jsonb(c) from public.customers c where c.id=v_entity_id::bigint));
+    elsif v_operation='customer_address_save' then
+      v_result:=v_result||jsonb_build_object('canonical_entity',(select to_jsonb(a) from public.customer_addresses a where a.id=v_entity_id::bigint));
+    end if;
+  end if;
   v_event_id := 'ov2-'||md5(v_tx||':'||v_digest);
   insert into public.offline_v2_server_receipts(
     client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,
@@ -652,6 +734,106 @@ begin
 end;
 $$;
 
+-- OF-2 SOURCE ONLY: private execution-payload resolver; no new posting owner.
+-- The existing V3 accepted index bridge is valid only for its pinned definitions.
+-- Live signature/MD5 verification is a Beta deployment gate, not inferred here.
+create or replace function public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event jsonb)
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $return_map$
+declare
+ v_payload jsonb:=p_event#>'{payload,rpc_payload}';
+ v_operation text:=p_event->>'operation_type';v_rpc text:=p_event#>>'{payload,rpc_name}';
+ v_order text:=v_payload->>'p_order_id';v_tx text:=nullif(trim(p_event->>'client_tx_id'),'');
+ v_digest text:=nullif(trim(p_event->>'payload_digest'),'');v_dep text:=nullif(trim(p_event->>'depends_on_tx_id'),'');
+ v_device text:=nullif(trim(p_event->>'device_id'),'');v_branch bigint;v_employee bigint;v_sequence bigint;
+ v_parent_id text:=p_event#>>'{dependency_mapping,server_id}';
+ v_receipt public.offline_v2_server_receipts%rowtype;v_parent public.offline_v2_server_receipts%rowtype;
+ v_items jsonb;v_count integer;v_indices integer;v_uids integer;v_forward jsonb;
+ v_sale_md5 text;v_food_sale_md5 text;v_return_md5 text;v_return_idem_md5 text;
+begin
+ -- Already-server Returns and every other family retain their existing route.
+ if v_operation is distinct from 'return' or coalesce(v_order,'') !~ '^offline-' then
+  return jsonb_build_object('event',p_event);
+ end if;
+ if v_rpc not in ('create_order_return_idempotent','create_food_order_return_idempotent_v1')
+    or v_rpc is null then raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_RESTAURANT_ONLY';end if;
+ if auth.uid() is null then raise exception using errcode='42501',message='UNAUTHENTICATED';end if;
+ v_branch:=nullif(p_event->>'branch_id','')::bigint;v_employee:=nullif(p_event->>'employee_id','')::bigint;v_sequence:=nullif(p_event->>'device_sequence','')::bigint;
+ if coalesce((p_event->>'protocol_version')::integer,0)<>2 or v_tx is null or v_digest is null or v_device is null
+    or coalesce(v_branch,0)<=0 or coalesce(v_employee,0)<=0 or coalesce(v_sequence,0)<=0
+    or public.current_employee_id() is distinct from v_employee
+    or nullif(trim(v_payload->>'p_client_tx_id'),'') is distinct from v_tx then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_IDENTITY_INVALID';
+ end if;
+ perform pg_advisory_xact_lock(hashtextextended('offline-v2:'||v_tx,0));
+ select * into v_receipt from public.offline_v2_server_receipts where client_tx_id=v_tx;
+ if found then
+  if v_receipt.payload_digest is distinct from v_digest or v_receipt.rpc_name is distinct from v_rpc
+     or v_receipt.operation_type is distinct from v_operation or v_receipt.device_id is distinct from v_device
+     or v_receipt.device_sequence is distinct from v_sequence or v_receipt.branch_id is distinct from v_branch
+     or v_receipt.employee_id is distinct from v_employee or v_receipt.auth_user_id is distinct from auth.uid() then
+   raise exception using errcode='22000',message='Offline V2 duplicate TX payload/identity mismatch';
+  end if;
+  -- Exact existing receipt shape; no current parent, recipe or stock reads on replay.
+  return jsonb_build_object('replay_ack',jsonb_build_object(
+   'ok',true,'acknowledged',false,'duplicate',true,'idempotent_replay',true,
+   'client_tx_id',v_receipt.client_tx_id,'protocol_version',v_receipt.protocol_version,
+   'payload_digest',v_receipt.payload_digest,'server_event_id',v_receipt.server_event_id,
+   'server_entity_id',v_receipt.server_entity_id,'server_version',v_receipt.server_version,'result',v_receipt.result_json));
+ end if;
+ if v_dep is null or v_order is distinct from 'offline-'||v_dep
+    or p_event#>>'{dependency_mapping,client_tx_id}' is distinct from v_dep
+    or coalesce(v_parent_id,'') !~ '^[1-9][0-9]*$' then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_PARENT_MAPPING_REQUIRED';
+ end if;
+ select * into v_parent from public.offline_v2_server_receipts where client_tx_id=v_dep;
+ if not found or v_parent.operation_type is distinct from 'sale'
+    or v_parent.server_entity_id is distinct from v_parent_id
+    or v_parent.rpc_name not in ('create_pos_order_atomic','create_food_pos_order_atomic_v1')
+    or v_parent.device_id is distinct from v_device or v_parent.branch_id is distinct from v_branch
+    or v_parent.employee_id is distinct from v_employee or v_parent.auth_user_id is distinct from auth.uid() then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_PARENT_RECEIPT_INVALID';
+ end if;
+ -- Fail closed if the accepted insertion-order/Return contract has drifted.
+ select md5(pg_get_functiondef('public.create_pos_order_atomic(jsonb,jsonb,jsonb)'::regprocedure)) into v_sale_md5;
+ select md5(pg_get_functiondef('public.create_food_pos_order_atomic_v1(jsonb,jsonb,jsonb)'::regprocedure)) into v_food_sale_md5;
+ select md5(pg_get_functiondef('public.create_order_return(bigint,text,text,jsonb,jsonb)'::regprocedure)) into v_return_md5;
+ select md5(pg_get_functiondef('public.create_order_return_idempotent(bigint,text,text,jsonb,jsonb,text)'::regprocedure)) into v_return_idem_md5;
+ if v_sale_md5 is distinct from 'a677482d9944aa8ae40003408506c7c1'
+    or v_food_sale_md5 is distinct from 'c6de3f95f85c6bb2f9d4854c1d7c5a8c'
+    or v_return_md5 is distinct from '3fe18445ec4e05799bd8bebdeeb716c9'
+    or v_return_idem_md5 is distinct from '8fb379d606004c895befb2b0f9787586' then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINE_CONTRACT_DRIFT';
+ end if;
+ if jsonb_typeof(v_payload->'p_items') is distinct from 'array' or jsonb_array_length(v_payload->'p_items')=0 then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_ITEMS_REQUIRED';
+ end if;
+ if exists(select 1 from jsonb_array_elements(v_payload->'p_items') x(item)
+   where coalesce(x.item->>'source_order_item_index','') !~ '^[1-9][0-9]*$'
+      or coalesce(x.item->>'source_sale_line_uid','') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$') then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINEAGE_INVALID';
+ end if;
+ select count(*),count(distinct (x.item->>'source_order_item_index')::integer),count(distinct x.item->>'source_sale_line_uid')
+ into v_count,v_indices,v_uids from jsonb_array_elements(v_payload->'p_items') x(item);
+ if v_count is distinct from v_indices or v_count is distinct from v_uids then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_LINEAGE_DUPLICATE';
+ end if;
+ select coalesce(jsonb_agg((x.item-'source_order_item_index'-'source_sale_line_uid')||jsonb_build_object('order_item_id',mapped.id) order by x.ord),'[]'::jsonb)
+ into v_items from jsonb_array_elements(v_payload->'p_items') with ordinality x(item,ord)
+ join lateral (
+  select q.id from (select oi.id,row_number() over(order by oi.id)::integer source_index
+   from public.order_items oi where oi.order_id=v_parent_id::bigint) q
+  where q.source_index=(x.item->>'source_order_item_index')::integer
+ ) mapped on true;
+ if jsonb_array_length(v_items) is distinct from v_count then
+  raise exception using errcode='22023',message='OFFLINE_PENDING_RETURN_ITEM_MAPPING_INCOMPLETE';
+ end if;
+ v_payload:=jsonb_set(jsonb_set(v_payload,'{p_order_id}',to_jsonb(v_parent_id::bigint),true),'{p_items}',v_items,true);
+ v_forward:=jsonb_set(p_event,'{payload,rpc_payload}',v_payload,false);
+ return jsonb_build_object('event',v_forward);
+end;$return_map$;
+revoke all on function public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(jsonb) from public,anon,authenticated,service_role;
+-- Called only by the SECURITY DEFINER final Point4 Outer under its existing owner.
+
 create or replace function public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event jsonb)
 returns jsonb
 language plpgsql
@@ -668,6 +850,8 @@ declare
   v_context jsonb;
   v_identity record;
   v_forward jsonb;
+  v_execution_event jsonb:=p_event;
+  v_resolution jsonb;
 begin
   if v_operation not in ('sale','return','expense','shift_open','shift_close') then
     raise exception using errcode='22023',message='Offline V2 Point4 Outer operation غير مدعومة';
@@ -676,9 +860,14 @@ begin
     raise exception using errcode='22023',message='Offline V2 Point4 Outer shift_close binding غير مدعومة';
   end if;
 
-  v_prepared:=public.sharawla_offline_v2_prepare_stock_event_v1(p_event);
+  -- OF-2: pending Restaurant IDs must be resolved before any stock preparation casts.
+  -- Full replay is returned under the original receipt lock, before current lineage reads.
+  v_resolution:=public.sharawla_offline_v2_resolve_pending_restaurant_return_v1(p_event);
+  if v_resolution ? 'replay_ack' then return v_resolution->'replay_ack'; end if;
+  v_execution_event:=v_resolution->'event';
+  v_prepared:=public.sharawla_offline_v2_prepare_stock_event_v1(v_execution_event);
   if v_prepared->>'classification'='FULL_REPLAY' then
-    return public.sharawla_offline_v2_apply_event_core_v1(p_event);
+    return public.sharawla_offline_v2_apply_event_core_v1(v_execution_event);
   end if;
   if v_prepared->>'classification'<>'EXECUTION_REQUIRED' then
     raise exception 'Offline preparation classification غير صالحة';
@@ -716,7 +905,7 @@ begin
 
   v_forward:=jsonb_set(
     jsonb_set(
-      p_event,
+      v_execution_event,
       '{point4_context_envelope}',
       coalesce(v_envelope,'null'::jsonb),
       true
@@ -743,6 +932,11 @@ begin
   -- Restore the accepted Point-4 Outer preparation before entering Core.
   -- This prepares frozen Food context + stock identities for sale/return while
   -- keeping the Core authoritative for the actual base operation execution.
+  if v_operation='expense_update' then
+    if v_rpc is distinct from 'offline_expense_update_v1' then raise exception using errcode='22023',message='EXPENSE_EDIT_RPC_BINDING_INVALID';end if;
+    return public.offline_expense_update_v1(p_event);
+  end if;
+
   if v_operation in ('sale','return','expense','shift_open')
      or (v_operation='shift_close' and v_rpc='close_pos_shift_idempotent') then
     return public.sharawla_offline_v2_apply_event_point4_outer_v1(p_event);
@@ -792,8 +986,6 @@ revoke all on function public.sharawla_offline_v2_apply_event_point4_outer_v1(js
 revoke all on function public.sharawla_offline_v2_apply_event_reference_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_modern_v1(jsonb) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event_alignment_special_v1(jsonb) from public,anon,authenticated;
-revoke all on function public.offline_delivery_driver_save_v1(bigint,bigint,text,text,boolean,text,text) from public,anon,authenticated;
-revoke all on function public.offline_delivery_zone_save_v1(bigint,bigint,text,numeric,boolean,text,text) from public,anon,authenticated;
 revoke all on function public.sharawla_offline_v2_apply_event(jsonb) from public,anon;
 grant execute on function public.sharawla_offline_v2_apply_event(jsonb) to authenticated;
 

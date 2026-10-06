@@ -1,0 +1,135 @@
+name: SH0007 V67 Exact Direct x64 Build
+
+on:
+  push:
+    branches:
+      - build/sh0007-v67-exact-candidate-v3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sh0007-v67-exact-candidate-v3
+  cancel-in-progress: false
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact V67 source identity
+        shell: pwsh
+        run: |
+          @'
+          import hashlib, json, pathlib, sys
+          root=pathlib.Path('.')
+          rows=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          expected={x['path']:x for x in rows}
+          bad=[]
+          for p,m in expected.items():
+              q=root/p
+              if not q.is_file():
+                  bad.append((p,'MISSING',m['sha256'],m['size']))
+                  continue
+              b=q.read_bytes()
+              h=hashlib.sha256(b).hexdigest()
+              if h!=m['sha256'] or len(b)!=m['size']:
+                  bad.append((p,h,len(b),m['sha256'],m['size']))
+          actual=[]
+          for q in root.rglob('*'):
+              if not q.is_file():
+                  continue
+              p=q.as_posix().removeprefix('./')
+              if p.startswith('.git/') or p.startswith('.v67/') or p=='.github/workflows/sh0007-v67-exact-direct-build.yml':
+                  continue
+              actual.append(p)
+          extra=sorted(set(actual)-set(expected))
+          missing=sorted(set(expected)-set(actual))
+          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1036 or bad or extra or missing:
+              for x in bad[:50]: print('BAD',*x)
+              for x in extra[:50]: print('EXTRA',x)
+              for x in missing[:50]: print('MISSING',x)
+              sys.exit(1)
+          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          '@ | python -
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne '10.5.4-beta.58.32') { throw "Wrong package version" }
+          if ([string]$ver.version -ne [string]$pkg.version) { throw "Version mismatch" }
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source and regression gates
+        run: npm run check:ci
+      - name: Reverify V67 source after gates
+        shell: pwsh
+        run: |
+          @'
+          import hashlib, json, pathlib, sys
+          rows=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          bad=[]
+          for m in rows:
+              q=pathlib.Path(m['path'])
+              if not q.is_file(): bad.append((m['path'],'MISSING')); continue
+              b=q.read_bytes()
+              if hashlib.sha256(b).hexdigest()!=m['sha256'] or len(b)!=m['size']: bad.append((m['path'],'CHANGED'))
+          print(f'POST_CHECK_BAD={len(bad)}')
+          if bad:
+              print(bad[:50]); sys.exit(1)
+          print('V67_POST_CHECK_IDENTITY_PASS')
+          '@ | python -
+      - name: Build Windows x64 candidate
+        run: npm run dist -- --win --x64 --publish never
+      - name: Reverify V67 source after build
+        shell: pwsh
+        run: |
+          @'
+          import hashlib, json, pathlib, sys
+          rows=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          bad=[]
+          for m in rows:
+              q=pathlib.Path(m['path'])
+              if not q.is_file(): bad.append((m['path'],'MISSING')); continue
+              b=q.read_bytes()
+              if hashlib.sha256(b).hexdigest()!=m['sha256'] or len(b)!=m['size']: bad.append((m['path'],'CHANGED'))
+          print(f'POST_BUILD_BAD={len(bad)}')
+          if bad:
+              print(bad[:50]); sys.exit(1)
+          print('V67_POST_BUILD_IDENTITY_PASS')
+          '@ | python -
+      - name: Save V67 SH-0007 installer and SHA256
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.32'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
+          "$env:GITHUB_SHA" | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
+      - name: Upload V67 SH-0007 x64 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-v67-sh0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            V67-SH0007-SHA256.txt
+            V67-SH0007-SOURCE-SHA.txt
+          if-no-files-found: error
+          retention-days: 7
