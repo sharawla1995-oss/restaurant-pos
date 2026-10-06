@@ -130,13 +130,12 @@ async function renderAdvances(){
  ]);
  const em=new Map((employees||[]).map(x=>[Number(x.id),x]));
  const add=has('hr.advances.create')?button('➕ سلفة جديدة','data-add-advance','primary'):'';
- const cards=(rows||[]).map(a=>`<article class="beta54-card"><h3>${esc(em.get(Number(a.employee_id))?.name||'#'+a.employee_id)}</h3><div class="beta54-kpi">${money(a.amount)}</div><div>المتبقي: <b>${money(a.outstanding_amount)}</b></div><div>الحالة: <span class="beta54-pill">${esc(a.status)}</span></div><div>التاريخ: ${date(a.requested_on)}</div>${a.reason?`<div class="beta54-muted">${esc(a.reason)}</div>`:''}<div class="beta54-actions">${a.status==='draft'&&has('hr.advances.approve')?button('✅ اعتماد',`data-adv-approve="${a.id}"`)+button('❌ رفض',`data-adv-reject="${a.id}"`):''}${a.status==='approved'&&has('hr.advances.disburse')&&has('treasury.post')?button('💸 صرف',`data-adv-disburse="${a.id}"`,'primary'):''}</div></article>`).join('');
- setPage('advances',`<div class="beta54-toolbar">${add}<span class="beta54-muted">السلفة أصل موظف وتتحرك ماليًا من الخزنة عند الصرف؛ ليست مصروف تشغيل.</span></div><div class="beta54-grid">${cards||'<div class="beta54-card">لا توجد سلف.</div>'}</div>`);
+ const cards=(rows||[]).map(a=>`<article class="beta54-card"><h3>${esc(em.get(Number(a.employee_id))?.name||'#'+a.employee_id)}</h3><div class="beta54-kpi">${money(a.amount)}</div><div>المتبقي: <b>${money(a.outstanding_amount)}</b></div><div>الحالة: <span class="beta54-pill">${esc(a.status)}</span></div><div>التاريخ: ${date(a.requested_on)}</div>${a.reason?`<div class="beta54-muted">${esc(a.reason)}</div>`:''}<div class="beta54-actions">${a.status==='draft'&&has('hr.advances.approve')?button('✅ اعتماد',`data-adv-approve="${a.id}"`)+button('❌ رفض',`data-adv-reject="${a.id}"`):''}</div></article>`).join('');
+ setPage('advances',`<div class="beta54-toolbar">${add}<span class="beta54-muted">HR يعتمد السلفة فقط. بعد الاعتماد تظهر لفرع الموظف في شاشة الصرف.</span></div><div class="beta54-grid">${cards||'<div class="beta54-card">لا توجد سلف.</div>'}</div>`);
  const page=document.querySelector('#page');
  page.querySelector('[data-add-advance]')?.addEventListener('click',()=>openAdvance(employees||[]));
  page.querySelectorAll('[data-adv-approve]').forEach(b=>b.onclick=async()=>{try{await rpc('hr_advance_decide_v1',{p_advance_id:Number(b.dataset.advApprove),p_approve:true,p_note:null});toast('تم اعتماد السلفة');await renderAdvances()}catch(e){toast(e.message)}});
  page.querySelectorAll('[data-adv-reject]').forEach(b=>b.onclick=async()=>{try{await rpc('hr_advance_decide_v1',{p_advance_id:Number(b.dataset.advReject),p_approve:false,p_note:null});toast('تم رفض السلفة');await renderAdvances()}catch(e){toast(e.message)}});
- page.querySelectorAll('[data-adv-disburse]').forEach(b=>b.onclick=()=>openDisburse(Number(b.dataset.advDisburse)));
 }
 function openAdvance(employees){
  const opts=employees.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
@@ -150,12 +149,18 @@ function openDisburse(id){
 async function renderAdjustments(){
  if(!ensureAllowed('adjustments'))return;
  setPage('adjustments','<div class="beta54-muted">جاري التحميل…</div>');
- const [employees,rows]=await Promise.all([rest('hr_employees','select=id,name&active=eq.true&order=name'),rest('hr_employee_adjustments','select=id,employee_id,adjustment_type,amount,effective_date,status,reason,created_at&order=effective_date.desc,id.desc')]);
- const em=new Map((employees||[]).map(x=>[Number(x.id),x]));const add=has('hr.adjustments.manage')?button('➕ حركة جديدة','data-add-adjustment','primary'):'';
- const labels={deduction:'خصم',bonus:'مكافأة',overtime:'إضافي'};
- const rowsHtml=(rows||[]).map(r=>`<tr><td>${esc(em.get(Number(r.employee_id))?.name||'#'+r.employee_id)}</td><td>${esc(labels[r.adjustment_type]||r.adjustment_type)}</td><td>${money(r.amount)}</td><td>${date(r.effective_date)}</td><td>${esc(r.status)}</td><td>${esc(r.reason||'—')}</td></tr>`).join('');
- setPage('adjustments',`<div class="beta54-toolbar">${add}<span class="beta54-muted">الحركات Pending تدخل تلقائيًا في مسير المرتب الذي يغطي تاريخها.</span></div><div class="beta54-card beta54-table-wrap"><table class="beta54-table"><thead><tr><th>الموظف</th><th>النوع</th><th>القيمة</th><th>التاريخ</th><th>الحالة</th><th>السبب</th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="6">لا توجد حركات.</td></tr>'}</tbody></table></div>`);
- document.querySelector('#page [data-add-adjustment]')?.addEventListener('click',()=>openAdjustment(employees||[]));
+ const [employees,rows]=await Promise.all([
+  rest('hr_employees','select=id,name&active=eq.true&order=name'),
+  rest('hr_employee_adjustments','select=id,employee_id,adjustment_type,amount,effective_date,status,approval_status,reason,created_at,created_by_employee_id&order=effective_date.desc,id.desc')
+ ]);
+ const em=new Map((employees||[]).map(x=>[Number(x.id),x]));const add=has('hr.adjustments.manage')?button('➕ طلب حركة جديدة','data-add-adjustment','primary'):'';
+ const labels={deduction:'خصم',bonus:'مكافأة',overtime:'إضافي'},approval={pending:'⏳ بانتظار اعتماد HR',approved:'✅ معتمد',rejected:'❌ مرفوض'};
+ const rowsHtml=(rows||[]).map(r=>`<tr><td>${esc(em.get(Number(r.employee_id))?.name||'#'+r.employee_id)}</td><td>${esc(labels[r.adjustment_type]||r.adjustment_type)}</td><td>${money(r.amount)}</td><td>${date(r.effective_date)}</td><td>${esc(approval[r.approval_status]||r.approval_status||'pending')}</td><td>${esc(r.reason||'—')}</td><td>${r.approval_status==='pending'&&has('hr.adjustments.manage')?`<button class="secondary" data-adj-approve="${r.id}">✅ اعتماد</button> <button class="secondary" data-adj-reject="${r.id}">❌ رفض</button>`:''}</td></tr>`).join('');
+ setPage('adjustments',`<div class="beta54-toolbar">${add}<span class="beta54-muted">الجزاءات والمكافآت اليدوية لا تدخل المرتب إلا بعد اعتماد HR.</span></div><div class="beta54-card beta54-table-wrap"><table class="beta54-table"><thead><tr><th>الموظف</th><th>النوع</th><th>القيمة</th><th>التاريخ</th><th>اعتماد HR</th><th>السبب</th><th></th></tr></thead><tbody>${rowsHtml||'<tr><td colspan="7">لا توجد حركات.</td></tr>'}</tbody></table></div>`);
+ const page=document.querySelector('#page');
+ page.querySelector('[data-add-adjustment]')?.addEventListener('click',()=>openAdjustment(employees||[]));
+ page.querySelectorAll('[data-adj-approve]').forEach(b=>b.onclick=async()=>{try{await rpc('hr_adjustment_decide_v2',{p_adjustment_id:Number(b.dataset.adjApprove),p_approve:true,p_note:null});toast('تم اعتماد الحركة');await renderAdjustments()}catch(e){toast(e.message)}});
+ page.querySelectorAll('[data-adj-reject]').forEach(b=>b.onclick=async()=>{const note=prompt('سبب الرفض (اختياري)')||null;try{await rpc('hr_adjustment_decide_v2',{p_adjustment_id:Number(b.dataset.adjReject),p_approve:false,p_note:note});toast('تم رفض الحركة');await renderAdjustments()}catch(e){toast(e.message)}});
 }
 function openAdjustment(employees){
  const opts=employees.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');
@@ -168,13 +173,12 @@ async function renderPayroll(){
  const [periods,items,employees,lines]=await Promise.all([rest('hr_payroll_periods','select=id,branch_id,period_start,period_end,status,notes,approved_at,paid_at,created_at&order=period_end.desc,id.desc'),rest('hr_payroll_items','select=id,payroll_period_id,employee_id,base_amount,overtime_amount,bonus_amount,deduction_amount,advance_deduction,net_amount,notes&order=id'),rest('hr_employees','select=id,name&order=name'),rest('hr_payroll_item_lines','select=id,payroll_item_id,line_type,amount,quantity,unit,effective_date,reason,source_type,source_id&order=id').catch(()=>[])]);
  const em=new Map((employees||[]).map(x=>[Number(x.id),x]));const byP=new Map(),linesByItem=new Map();for(const i of items||[]){const k=Number(i.payroll_period_id);if(!byP.has(k))byP.set(k,[]);byP.get(k).push(i)}for(const line of lines||[]){const k=Number(line.payroll_item_id);if(!linesByItem.has(k))linesByItem.set(k,[]);linesByItem.get(k).push(line)}
  const add=has('hr.payroll.run')?button('➕ مسير مرتب','data-run-payroll','primary'):'';
- const cards=(periods||[]).map(p=>{const its=byP.get(Number(p.id))||[];const total=its.reduce((s,i)=>s+Number(i.net_amount||0),0);return `<article class="beta54-card"><h3>${esc(p.period_start)} → ${esc(p.period_end)}</h3><div class="beta54-kpi">${money(total)}</div><div>${its.length} موظف • <span class="beta54-pill">${esc(p.status)}</span></div><div class="beta54-actions">${button('📄 التفاصيل',`data-payroll-details="${p.id}"`)}${p.status==='draft'&&has('hr.payroll.approve')?button('✅ اعتماد',`data-payroll-approve="${p.id}"`):''}${p.status==='approved'&&has('hr.payroll.pay')&&has('treasury.post')?button('💸 صرف',`data-payroll-pay="${p.id}"`,'primary'):''}</div></article>`}).join('');
- setPage('payroll',`<div class="beta54-toolbar">${add}<span class="beta54-muted">الصافي = أساسي + إضافي + مكافآت − خصومات − قسط السلفة.</span></div><div class="beta54-grid">${cards||'<div class="beta54-card">لا توجد مسيرات مرتبات.</div>'}</div>`);
+ const cards=(periods||[]).map(p=>{const its=byP.get(Number(p.id))||[];const total=its.reduce((s,i)=>s+Number(i.net_amount||0),0);return `<article class="beta54-card"><h3>${esc(p.period_start)} → ${esc(p.period_end)}</h3><div class="beta54-kpi">${money(total)}</div><div>${its.length} موظف • <span class="beta54-pill">${esc(p.status)}</span></div><div class="beta54-actions">${button('📄 التفاصيل',`data-payroll-details="${p.id}"`)}${p.status==='draft'&&has('hr.payroll.approve')?button('✅ اعتماد',`data-payroll-approve="${p.id}"`):''}</div></article>`}).join('');
+ setPage('payroll',`<div class="beta54-toolbar">${add}<span class="beta54-muted">HR يجهز ويعتمد المسير. الصرف الفعلي يتم من الفرع المصرح له ماليًا.</span></div><div class="beta54-grid">${cards||'<div class="beta54-card">لا توجد مسيرات مرتبات.</div>'}</div>`);
  const page=document.querySelector('#page');
  page.querySelector('[data-run-payroll]')?.addEventListener('click',openPayrollRun);
  page.querySelectorAll('[data-payroll-details]').forEach(b=>b.onclick=()=>openPayrollDetails(Number(b.dataset.payrollDetails),byP.get(Number(b.dataset.payrollDetails))||[],em,linesByItem));
  page.querySelectorAll('[data-payroll-approve]').forEach(b=>b.onclick=async()=>{try{await rpc('hr_payroll_approve_v1',{p_payroll_period_id:Number(b.dataset.payrollApprove),p_note:null});toast('تم اعتماد مسير المرتبات');await renderPayroll()}catch(e){toast(e.message)}});
- page.querySelectorAll('[data-payroll-pay]').forEach(b=>b.onclick=()=>openPayrollPay(Number(b.dataset.payrollPay)));
 }
 function openPayrollRun(){
  const d=new Date(),start=new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10),end=new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);
