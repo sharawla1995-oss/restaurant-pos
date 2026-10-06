@@ -84,7 +84,10 @@
     ['hr.adjustments.view','HR • عرض الخصومات والمكافآت'],['hr.adjustments.manage','HR • إدارة الخصومات والمكافآت'],
     ['hr.payroll.view','HR • عرض المرتبات'],['hr.payroll.run','HR • إعداد المرتبات'],['hr.payroll.approve','HR • اعتماد المرتبات'],['hr.payroll.pay','HR • صرف المرتبات'],
     ['hr.reports.view','HR • التقارير'],['hr.settings.manage','HR • الإعدادات'],
-    ['treasury.post','الخزنة • تسجيل حركة']
+    ['branch.hr.adjustments.request','الفرع • رفع طلب جزاء / مكافأة'],
+    ['branch.hr.finance.view','الفرع • عرض مستحقات HR المعتمدة'],
+    ['branch.hr.finance.disburse','الفرع • صرف السلف والمرتبات المعتمدة'],
+    ['treasury.post','الخزنة • تسجيل حركة مالية']
   ].map(row=>Object.freeze(row)));
 
   const PERMISSION_GROUPS=Object.freeze([
@@ -94,7 +97,8 @@
     ['🌐 إدارة الموقع',['branchProductAvailability','websiteBranchSettings','websiteAppearance']],
     ['🏪 الفروع',['branchManagement']],
     ['⚙️ النظام',['businessSettings','printingSettings','financialSettings','discount']],
-    ['👥 الموارد البشرية',["hr.employees.view","hr.employees.create","hr.employees.edit","hr.salary.view","hr.salary.manage","hr.attendance.view","hr.attendance.manage","hr.attendance.adjust","hr.schedules.view","hr.schedules.manage","hr.geofence.manage","hr.staff_accounts.manage","hr.leave.view","hr.leave.manage","hr.deduction_rules.view","hr.deduction_rules.manage","hr.advances.view","hr.advances.create","hr.advances.approve","hr.advances.disburse","hr.adjustments.view","hr.adjustments.manage","hr.payroll.view","hr.payroll.run","hr.payroll.approve","hr.payroll.pay","hr.reports.view","hr.settings.manage","treasury.post"]]
+    ['👥 الموارد البشرية',["hr.employees.view","hr.employees.create","hr.employees.edit","hr.salary.view","hr.salary.manage","hr.attendance.view","hr.attendance.manage","hr.attendance.adjust","hr.schedules.view","hr.schedules.manage","hr.geofence.manage","hr.staff_accounts.manage","hr.leave.view","hr.leave.manage","hr.deduction_rules.view","hr.deduction_rules.manage","hr.advances.view","hr.advances.create","hr.advances.approve","hr.adjustments.view","hr.adjustments.manage","hr.payroll.view","hr.payroll.run","hr.payroll.approve","hr.reports.view","hr.settings.manage"]],
+    ['🏪 مدير الفرع / HR المالي',["branch.hr.adjustments.request","branch.hr.finance.view","branch.hr.finance.disburse","treasury.post"]]
   ].map(([name,keys])=>Object.freeze([name,Object.freeze(keys)])));
 
   const OPERATIONAL_FLAGS=Object.freeze({
