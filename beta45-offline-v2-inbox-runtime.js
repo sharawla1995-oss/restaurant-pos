@@ -45,12 +45,14 @@ async function applyOrderCache(event){
   await putOrderBundle({...old?.order,...order},items);
 }
 async function applyCustomerCache(event){
+  if(global.SharawlaOfflineV2Transport?.applyCanonicalCustomerEvent){await global.SharawlaOfflineV2Transport.applyCanonicalCustomerEvent(event);await global.SharawlaOfflineV2Transport.reconcileCompatibilityProjections();return}
   const customer=clone(event.payload||{});if(!customer?.id)customer.id=event.entity_id;
   const all=(await odbGet('customersCache'))||[];
   const phone=normalizePhone(customer.phone),next=[customer,...all.filter(x=>String(x.id)!==String(customer.id)&&(!phone||normalizePhone(x.phone)!==phone))];
   await odbSet('customersCache',next.slice(0,10000));
 }
 async function applyAddressCache(event){
+  if(global.SharawlaOfflineV2Transport?.applyCanonicalCustomerEvent){await global.SharawlaOfflineV2Transport.applyCanonicalCustomerEvent(event);await global.SharawlaOfflineV2Transport.reconcileCompatibilityProjections();return}
   const address=clone(event.payload||{});if(!address?.id)address.id=event.entity_id;
   const all=(await odbGet('customerAddressesCache'))||[];
   const rest=all.filter(x=>String(x.id)!==String(address.id));

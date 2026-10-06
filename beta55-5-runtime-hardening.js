@@ -20,7 +20,7 @@ const OFFLINE_CONTRACT=Object.freeze({
   reports:Object.freeze({mode:'cache-read',read:true,create:false,update:false,notes:'offline reports are limited to locally cached and pending operational rows'}),
   shifts:Object.freeze({mode:'full',read:true,create:true,update:true,notes:'open/close uses durable offline queue'}),
   expenses:Object.freeze({mode:'full-create',read:true,create:true,update:false,notes:'new expenses queue offline; editing historical rows requires internet'}),
-  deliverySettings:Object.freeze({mode:'partial',read:true,create:true,update:true,notes:'drivers/zones use durable Offline V2 owners; settlement remains Online-only'}),
+  deliverySettings:Object.freeze({mode:'cache-read',read:true,create:false,update:false,notes:'drivers/zones/settlements read from cached bootstrap; administration requires internet'}),
   products:Object.freeze({mode:'cache-read',read:true,create:false,update:false,notes:'catalog reads from cached bootstrap; catalog mutation requires internet'})
 });
 
@@ -43,7 +43,7 @@ function ensureScopeStyle(){
   document.head.appendChild(s);
 }
 function mutationSelector(page){
-  if(page==='deliverySettings')return '[data-settle]';
+  if(page==='deliverySettings')return '#addDriver,#addZone,[data-edit-driver],[data-delete-driver],[data-edit-zone],[data-toggle-zone],[data-settle]';
   if(page==='products')return '#addCategory,#addProduct,[data-edit-cat],[data-delete-cat],[data-cat-up],[data-cat-down],[data-edit-product],[data-delete-product],[data-product-up],[data-product-down]';
   return '';
 }
@@ -54,7 +54,7 @@ function guardOfflineMutations(e){
   const selector=mutationSelector(page);if(!selector)return;
   const hit=e.target?.closest?.(selector);if(!hit)return;
   e.preventDefault();e.stopImmediatePropagation();
-  toast55(page==='products'?'إدارة الأصناف متاحة للقراءة أوفلاين. الإضافة والتعديل تحتاج إنترنت.':'تسوية المندوب تحتاج اتصالًا بالإنترنت. لم يتم تنفيذ أي تسوية.');
+  toast55(page==='products'?'إدارة الأصناف متاحة للقراءة أوفلاين. الإضافة والتعديل تحتاج إنترنت.':'بيانات الدليفري متاحة للقراءة أوفلاين. تعديل المناديب والمناطق والتسويات يحتاج إنترنت.');
 }
 let offlineNoteNode=null;
 let offlinePresentationState=null;

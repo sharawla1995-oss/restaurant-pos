@@ -21,11 +21,6 @@ function style(){if(document.querySelector('#beta55UiWorkflowStyle'))return;cons
 function dedupeAdvancedPurchasing(){const panels=[...document.querySelectorAll('[data-advanced-purchasing]')];if(panels.length<=1)return;panels.slice(1).forEach(x=>x.remove())}
 function ensureHrGroup(){
  const nav=document.querySelector('#nav');if(!nav)return;
- const canonical=nav.querySelector('.hr-nav-group[data-beta55-hr-group]');
- if(canonical){
-  nav.querySelector('.beta55-hr-group[data-beta55-hr-group]')?.remove();
-  return;
- }
  const keys=['employees','advances','adjustments','payroll'];
  const buttons=keys.map(k=>nav.querySelector(`button[data-beta54-page="${k}"]`)).filter(Boolean);
  let group=nav.querySelector('[data-beta55-hr-group]');
