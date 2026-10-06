@@ -5,6 +5,7 @@ const pkg=JSON.parse(read('package.json')),ver=JSON.parse(read('version.json'));
 const app=read('app.js'),css=read('styles.css'),engine=read('restaurant-engine.js'),index=read('index.html');
 const runtime=read('v10-5-14-ops-hr-summary.js'),hr=read('hr-core-admin-v1.js'),staff=read('staff/app.js');
 const staffIndex=read('staff/index.html'),staffSw=read('staff/sw.js'),edge=read('supabase/functions/hr-staff-api/index.ts');
+const hrStaffHost=read('supabase/functions/hr-staff-app/index.ts');
 const sql=read('supabase-v10-5-14-ops-hr-notifications-summary.sql');
 const must=(s,n,m)=>assert(s.includes(n),m||('missing '+n));
 const mustNot=(s,n,m)=>assert(!s.includes(n),m||('forbidden '+n));
@@ -48,6 +49,7 @@ must(sql,'request_digest text','request digest');must(sql,'client_tx_id مستخ
 must(edge,'action==="advance-request"','Edge advance route');must(edge,'action==="notification-read"','Edge notification route');
 must(staff,'openAdvanceRequest','Staff advance UI');must(staff,'advance_requests','Staff advance snapshot');must(staff,'notifications','Staff notifications');must(staff,'payroll','Staff payroll view');
 must(staffSw,'sharawla-staff-v10.5.14-hr2','Staff cache generation');must(staffIndex,'app.js?v=10.5.14','Staff app cache stamp');
+must(hrStaffHost,'/functions/v1/hr-staff-app','production Staff host route');must(hrStaffHost,'https://kzokretuuigjhxjzdlmk.supabase.co','production Staff project');must(hrStaffHost,'10.5.14-hr2','production Staff host embeds current app');mustNot(hrStaffHost,'xihcxydjnzemflhedzor','production Staff host must not target Beta');
 mustNot(staff,'SUPABASE_SERVICE_ROLE_KEY','Staff client must not contain service key');
 
 // Summary V2.
