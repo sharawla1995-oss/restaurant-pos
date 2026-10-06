@@ -417,7 +417,7 @@ function offlineOrderNo(){return Number(localStorage.getItem('offlineOrderNo')||
 function setOfflineOrderNo(n){localStorage.setItem('offlineOrderNo',String(n))}
 function isNetError(e){const m=String(e?.message||e||'').toLowerCase();return !navigator.onLine||m.includes('failed to fetch')||m.includes('networkerror')||m.includes('load failed')}
 async function cacheBootstrap(){try{await odbSet('bootstrap',{employee:state.employee,homeBranchId:state.homeBranchId,branches:state.branches,categories:state.categories,products:state.products,modifiers:state.modifiers,productModifiers:state.productModifiers,productVariants:state.productVariants,deliveryZones:state.deliveryZones,drivers:state.drivers,branchPrintSettings:state.branchPrintSettings,paymentMethods:state.paymentMethods,branchPaymentMethods:state.branchPaymentMethods,branchFinancialSettings:state.branchFinancialSettings,employeeBranches:state.employeeBranches,userPermissions:state.userPermissions,settings:state.settings,business:state.business,websiteSettings:state.websiteSettings,activeBranchId:state.activeBranchId,at:new Date().toISOString()})}catch(e){console.warn('offline cache',e)}}
-async function loadOfflineBootstrap(){const c=await odbGet('bootstrap');if(!c?.employee)throw new Error('لا توجد بيانات محفوظة للعمل بدون إنترنت على هذا الجهاز');Object.assign(state,c);applyBusinessBranding();$('#who').textContent=`${state.employee.name} • ${state.employee.role}`;refreshBranchChrome();applyRoleNavigation();show('appView');showOfflineStatus();if(state.activeBranchId)showPage('pos');else renderBranchPicker()}
+async function loadOfflineBootstrap(){const c=await odbGet('bootstrap');if(!c?.employee)throw new Error('لا توجد بيانات محفوظة للعمل بدون إنترنت على هذا الجهاز');Object.assign(state,c);applyBusinessBranding();$('#who').textContent=`${state.employee.name} • ${state.employee.role}`;refreshBranchChrome();applyRoleNavigation();window.dispatchEvent(new Event('sharawla:auth-ready'));show('appView');showOfflineStatus();if(state.activeBranchId)showPage('pos');else renderBranchPicker()}
 function showOfflineStatus(){let el=document.getElementById('offlineStatus');if(!el){el=document.createElement('div');el.id='offlineStatus';document.body.appendChild(el)}const off=!navigator.onLine;el.textContent=off?'⚠️ وضع أوفلاين — الحركات محفوظة على الجهاز وستتزامن تلقائيًا':'✓ متصل';el.className=off?'offline-status offline':'offline-status online';setTimeout(()=>{if(navigator.onLine)el.classList.add('fade')},1800)}
 async function refreshOfflineCustomerCache(){
   if(!navigator.onLine)return;
@@ -677,6 +677,7 @@ async function bootstrap(){
   if(!state.activeBranchId && !isAdmin() && state.homeBranchId && allowedIds.includes(Number(state.homeBranchId))) state.activeBranchId=Number(state.homeBranchId);
   refreshBranchChrome();
   applyRoleNavigation();
+  window.dispatchEvent(new Event('sharawla:auth-ready'));
   show('appView');if(state.activeBranchId){startWebsiteOrderWatch();startReturnApprovalWatch();showPage('home')}else renderBranchPicker();
   await cacheBootstrap();showOfflineStatus();syncOfflineQueue();setTimeout(()=>refreshOfflineCustomerCache(),1200);setTimeout(()=>maybeDesktopDailyBackup(),5000);
 }
