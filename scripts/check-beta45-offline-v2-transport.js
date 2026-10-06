@@ -63,7 +63,7 @@ class MemoryStore{
   async markAcked(tx,ack){const r=this.row(tx);r.status='synced';r.server_ack=clone(ack);if(r.local_entity_id)this.mappings.push({entity_type:r.entity_type,local_id:r.local_entity_id,server_id:String(ack.server_entity_id),client_tx_id:tx});return clone(r)}
 }
 function row(tx,attempts=0,extra={}){return {client_tx_id:tx,device_id:'dev7',device_sequence:1,business_id:'biz',branch_id:1,employee_id:3,operation_type:'sale',entity_type:'order',local_entity_id:`offline-${tx}`,protocol_version:2,schema_version:2,status:'pending',attempts,payload_digest:`digest-${tx}`,envelope:{payload:{rpc_name:'create_pos_order_atomic',rpc_payload:{}}},...extra}}
-function ack(x){return {ok:true,acknowledged:true,client_tx_id:x.client_tx_id,protocol_version:2,payload_digest:x.payload_digest,server_event_id:`evt-${x.client_tx_id}`,server_entity_id:`srv-${x.client_tx_id}`}}
+function ack(x){return {ok:true,acknowledged:true,client_tx_id:x.client_tx_id,protocol_version:2,payload_digest:x.payload_digest,server_event_id:`evt-${x.client_tx_id}`,server_entity_id:`srv-${x.client_tx_id}`,result:{order:{bon_number:901}}}}
 function engine(store,send){return createSyncEngine({store,transport:{send},identityProvider:async()=>({device_fingerprint:'canonical'}),random:()=>0.5,clock:()=>1000000});}
 
 function rendererHarness(options={}){
