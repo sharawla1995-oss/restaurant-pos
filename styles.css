@@ -410,3 +410,35 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
   .customer-360-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .customer-360-grid{grid-template-columns:1fr}
 }
+
+
+/* V10.5.14 — operational polish */
+.customer-360-kpis>div{color:#111827}
+.customer-360-kpis small{color:#6b7280}
+.customer-360-kpis b{color:#111827!important}
+.customer-360-grid>section{color:#111827;background:#fff}
+.customer-360-grid>section .muted,.customer-360-grid>section small{color:#64748b}
+.permission-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.permission-group-head h4{margin:0}
+.permission-select-all{padding:7px 10px;font-size:12px}
+.orders-date-toolbar{align-items:end}
+.orders-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px}
+.notification-bell{position:relative;min-width:42px;height:40px;border:1px solid var(--line);background:#fff;border-radius:10px}
+.notification-badge{position:absolute;top:-6px;left:-6px;min-width:19px;height:19px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:900;display:grid;place-items:center;padding:0 5px}
+.notification-badge.hidden{display:none}
+.notification-list{display:grid;gap:8px}
+.notification-row{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;color:#111827;text-align:right;width:100%}
+.notification-row.unread{border-color:#0f766e;background:#f0fdfa}
+.notification-row b,.notification-row small{display:block}.notification-row small{color:#64748b;margin-top:4px}
+.v14-summary-kpis{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
+.v14-summary-kpis>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.v14-summary-kpis small{display:block;color:#64748b}.v14-summary-kpis b{display:block;font-size:22px;margin-top:5px;color:#111827}
+.v14-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.v14-finance-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+@media(max-width:800px){.v14-summary-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.v14-summary-grid{grid-template-columns:1fr}}
+@media(prefers-color-scheme:dark){
+ .customer-360-kpis>div,.customer-360-grid>section,.notification-row,.v14-summary-kpis>div{background:#111827;color:#f8fafc;border-color:#334155}
+ .customer-360-kpis small,.customer-360-grid>section .muted,.customer-360-grid>section small,.notification-row small,.v14-summary-kpis small{color:#cbd5e1}
+ .customer-360-kpis b,.v14-summary-kpis b{color:#f8fafc!important}
+ .notification-row.unread{background:#0f2f2b;border-color:#14b8a6}
+}
