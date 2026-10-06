@@ -71,6 +71,10 @@ jobs:
               (out/name).write_bytes(subprocess.check_output(["git","show",f"{base}:{name}"]))
           print("CONTINUATION_BASELINE_READY")
           '@ | python -
+      - name: Prepare Windows tmp compatibility
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path 'D:\\tmp' -Force | Out-Null
       - name: Run authoritative V67 source gates
         shell: pwsh
         run: |
