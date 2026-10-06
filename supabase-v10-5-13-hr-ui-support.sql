@@ -1,10 +1,7 @@
--- Sharawla POS 10.5.13 Candidate
--- HR UI support — view permission + employee edit
+-- Sharawla POS 10.5.13 — Production Stable HR UI support
+-- Production-native: authorization uses Stable public.has_permission(text)
+-- and public.employee_permissions(permission_key, allowed). No Permissions V2 dependency.
 begin;
-
-insert into public.permission_actions_v2(code,name_ar,domain,legacy_permission,sort_order) values
- ('hr.adjustments.view','عرض الخصومات والمكافآت','hr','financialSettings',1185)
-on conflict(code) do update set name_ar=excluded.name_ar,domain=excluded.domain,legacy_permission=excluded.legacy_permission,sort_order=excluded.sort_order,active=true;
 
 drop policy if exists hr_employee_adjustments_read_v1 on public.hr_employee_adjustments;
 create policy hr_employee_adjustments_read_v1 on public.hr_employee_adjustments for select to authenticated using(
