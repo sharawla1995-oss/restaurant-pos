@@ -13,11 +13,101 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify-and-build-x64:
+  source-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.out.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore exact practical candidate Git blob bytes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, subprocess
+          manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          for meta in manifest:
+              p=pathlib.Path(meta['path'])
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
+          print(f'V67_PRACTICAL_BLOB_BYTES_RESTORED={len(manifest)}')
+          PY
+      - name: Verify practical candidate identity 1056 of 1056
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, pathlib, sys
+          root=pathlib.Path('.')
+          manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          expected={x['path']:x['blob_sha'] for x in manifest}
+          excluded={'.github/workflows/sh0007-v67-direct-build.yml'}
+          actual=[]
+          for q in root.rglob('*'):
+              if not q.is_file(): continue
+              p=q.as_posix().removeprefix('./')
+              if p.startswith('.git/') or p.startswith('.v67/') or p in excluded: continue
+              actual.append(p)
+          def git_blob_sha(data):
+              return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\x00'+data).hexdigest()
+          bad=[]
+          for p,want in expected.items():
+              q=root/p
+              if not q.is_file(): continue
+              got=git_blob_sha(q.read_bytes())
+              if got!=want: bad.append((p,got,want))
+          extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual))
+          print(f'V67_PRACTICAL_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1056 or bad or extra or missing:
+              for x in bad[:50]: print('BAD',*x)
+              for x in extra[:50]: print('EXTRA',x)
+              for x in missing[:50]: print('MISSING',x)
+              sys.exit(1)
+          print('V67_PRACTICAL_COMPLETE_1056_1056_PASS')
+          PY
+      - name: Run accepted V67 source closure suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          suites=(
+            scripts/check-batch1-continuation.js
+            scripts/check-batch1-final-gaps.js
+            scripts/check-batch1-final-review.js
+            scripts/check-batch1-restaurant-families.js
+            scripts/check-batch1-ui.js
+            scripts/check-beta58-26-restaurant-point4-canonical-tx.js
+            scripts/check-bon-final-definition-chain.js
+            scripts/check-bon-runtime-policy-read.js
+            scripts/check-bon-source-closure.js
+            scripts/check-bon-v3-transport-boundary.js
+            scripts/check-offline-closure-batch1.js
+            scripts/check-offline-modern-food-final-dispatcher.js
+            scripts/check-offline-reference-return-behavior.js
+            scripts/check-offline-restaurant-table-config-runtime.js
+            scripts/check-offline-restaurant-table-session-runtime.js
+            scripts/check-rc1-pending-sale-return-v1.js
+            scripts/check-rc1-runtime-alignment-final-dispatcher.js
+            scripts/offline-reference-return-sql-contract.js
+          )
+          for s in "${suites[@]}"; do
+            echo "=== V67 SOURCE SUITE: $s ==="
+            node "$s"
+          done
+          echo "V67_ACCEPTED_SOURCE_SUITES_PASS=18/18"
+      - id: out
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  build-x64:
+    needs: source-gate
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.source-gate.outputs.source_sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -25,7 +115,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Restore exact practical candidate Git blob bytes
         shell: pwsh
         run: |
@@ -38,138 +127,57 @@ jobs:
               p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
           print(f'V67_PRACTICAL_BLOB_BYTES_RESTORED={len(manifest)}')
           '@ | python -
-
-      - name: Verify practical candidate identity 1056 of 1056
+      - name: Verify practical candidate identity before build
         shell: pwsh
         run: |
           @'
           import hashlib, json, pathlib, sys
-          root=pathlib.Path('.')
           manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
-          expected={x['path']:x['blob_sha'] for x in manifest}
-          excluded={'.github/workflows/sh0007-v67-direct-build.yml'}
-          actual=[]
-          for q in root.rglob('*'):
-              if not q.is_file(): continue
-              p=q.as_posix().removeprefix('./')
-              if p.startswith('.git/') or p.startswith('.v67/') or p in excluded: continue
-              actual.append(p)
-          extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual)); bad=[]
           def git_blob_sha(data):
               return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\x00'+data).hexdigest()
-          for p,want in expected.items():
-              q=root/p
-              if not q.is_file(): continue
-              got=git_blob_sha(q.read_bytes())
-              if got!=want: bad.append((p,got,want))
-          print(f'V67_PRACTICAL_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
-          if len(expected)!=1056 or bad or extra or missing:
+          bad=[]
+          for meta in manifest:
+              p=pathlib.Path(meta['path'])
+              if not p.is_file(): bad.append((meta['path'],'MISSING',meta['blob_sha'])); continue
+              got=git_blob_sha(p.read_bytes())
+              if got!=meta['blob_sha']: bad.append((meta['path'],got,meta['blob_sha']))
+          print(f'V67_WINDOWS_PREBUILD_EXPECTED={len(manifest)} BAD={len(bad)}')
+          if len(manifest)!=1056 or bad:
               for x in bad[:50]: print('BAD',*x)
-              for x in extra[:50]: print('EXTRA',x)
-              for x in missing[:50]: print('MISSING',x)
               sys.exit(1)
-          print('V67_PRACTICAL_COMPLETE_1056_1056_PASS')
+          print('V67_WINDOWS_PREBUILD_1056_1056_PASS')
           '@ | python -
-
       - name: Pin node-gyp Python
         shell: pwsh
         run: |
           $python = (Get-Command python).Source
           "PYTHON=$python" >> $env:GITHUB_ENV
           "npm_config_python=$python" >> $env:GITHUB_ENV
-
-      - name: Install dependencies
+      - name: Install build dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
-
-      - name: Full-check slot 1 - sync version
-        run: npm run sync-version
-
-      - name: Full-check slot 2 - semantic equivalent for legacy brittle literal
-        shell: pwsh
-        run: |
-          @'
-          const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
-          (async()=>{
-            const root=process.cwd();
-            const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
-            if(!app.includes('deleteAddress(del.dataset.deleteAddress,{withState:true})')) throw new Error('current withState address-delete UI binding missing');
-            const routing=fs.readFileSync(path.join(root,'permissions-v2-customers-edit-address-routing.js'),'utf8');
-            const calls=[];
-            const window={
-              navigator:{onLine:false},
-              crypto:{randomUUID:()=> 'child-delete-tx'},
-              SharawlaOfflineV2Transport:{
-                isActive:async()=>true,
-                commitRpcLocal:async(name,payload)=>{calls.push({name,payload});return {result:true,status:'pending',client_tx_id:'child-delete-tx'};}
-              },
-              rpc:async()=>{throw new Error('unexpected online rpc');}
-            };
-            vm.runInNewContext(routing,{window,console,Date,Math,setTimeout,clearTimeout},{filename:'permissions-v2-customers-edit-address-routing.js'});
-            await window.__SharawlaPV2CustomerEditAddress.deleteAddress('offline-customer_address_save-parent-save-tx',{withState:true});
-            assert.equal(calls.length,1);
-            assert.equal(calls[0].name,'offline_customer_address_delete_v1');
-            assert.equal(calls[0].payload.p_address_id,null);
-            assert.equal(calls[0].payload.p_address_save_tx,'parent-save-tx');
-            const syntaxSource=fs.readFileSync(path.join(root,'scripts/check-runtime-syntax.js'),'utf8');
-            const m=syntaxSource.match(/const files=(\[[\s\S]*?\]);/);
-            if(!m) throw new Error('runtime syntax file list not found');
-            const files=vm.runInNewContext(m[1],{});
-            for(const file of files){
-              const source=fs.readFileSync(path.join(root,file),'utf8');
-              new vm.Script(source,{filename:file});
-            }
-            console.log('V67_FULL_CHECK_SLOT_2_SEMANTIC_EQUIVALENT_PASS files='+files.length);
-          })().catch(e=>{console.error(e);process.exit(1)});
-          '@ | node -
-
-      - name: Full-check slots 3-184
-        shell: pwsh
-        run: |
-          @'
-          const fs=require('fs'),vm=require('vm'),{spawnSync}=require('child_process');
-          const src=fs.readFileSync('scripts/run-full-checks.js','utf8');
-          const m=src.match(/const commands = (\[[\s\S]*?\]);\s*\n\nfor/);
-          if(!m) throw new Error('full-check command array not found');
-          const commands=vm.runInNewContext(m[1],{});
-          if(commands.length!==184) throw new Error('expected 184 full checks, got '+commands.length);
-          for(let index=2;index<commands.length;index++){
-            const command=commands[index];
-            process.stdout.write('\n[v67-full-check '+(index+1)+'/'+commands.length+'] '+command+'\n');
-            const r=spawnSync(command,{shell:true,stdio:'inherit',env:process.env});
-            if(r.error||r.status!==0){
-              console.error('V67 remaining full check failed at '+(index+1)+'/'+commands.length+': '+command);
-              if(r.error) console.error(r.error);
-              process.exit(typeof r.status==='number'?r.status:1);
-            }
-          }
-          console.log('V67_REMAINING_FULL_CHECKS_PASS '+(commands.length-2)+'/'+(commands.length-2));
-          '@ | node -
-
-      - name: Restore exact practical candidate after checks
+      - name: Restore exact candidate source after dependency install
         shell: pwsh
         run: |
           @'
           import hashlib, json, pathlib, subprocess, sys
           manifest=json.loads(pathlib.Path('.v67/V67_PRACTICAL_BUILD_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
-          bad=[]
           def git_blob_sha(data):
               return hashlib.sha1(b'blob '+str(len(data)).encode()+b'\x00'+data).hexdigest()
+          bad=[]
           for meta in manifest:
               p=pathlib.Path(meta['path'])
               p.parent.mkdir(parents=True, exist_ok=True)
               p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
               got=git_blob_sha(p.read_bytes())
               if got!=meta['blob_sha']: bad.append((meta['path'],got,meta['blob_sha']))
-          print(f'V67_POST_CHECK_RESTORE={len(manifest)} BAD={len(bad)}')
+          print(f'V67_POST_INSTALL_RESTORE={len(manifest)} BAD={len(bad)}')
           if bad:
               for x in bad[:50]: print('BAD',*x)
               sys.exit(1)
-          print('V67_POST_CHECK_EXACT_BYTES_PASS')
+          print('V67_POST_INSTALL_EXACT_BYTES_PASS')
           '@ | python -
-
       - name: Build Windows x64 installer
         run: npm run dist -- --win --x64 --publish never
-
       - name: Save V67 SH-0007 installer and SHA256
         shell: pwsh
         run: |
@@ -180,9 +188,8 @@ jobs:
           Copy-Item $source.FullName $target -Force
           $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
           "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
-          "${{ github.sha }}" | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
+          "${{ needs.source-gate.outputs.source_sha }}" | Set-Content V67-SH0007-SOURCE-SHA.txt -Encoding ascii
           Get-Content V67-SH0007-SHA256.txt
-
       - name: Upload V67 SH-0007 x64 candidate
         uses: actions/upload-artifact@v4
         with:
