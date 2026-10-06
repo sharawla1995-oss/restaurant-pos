@@ -54,11 +54,15 @@ function injectNav(){
  let summary=nav.querySelector('[data-v14-page="summary"]');
  if(perms.summary&&!summary){summary=document.createElement('button');summary.type='button';summary.dataset.v14Page='summary';summary.textContent='📈 الملخص';const anchor=nav.querySelector('button[data-page="home"]')||nav.firstElementChild;if(anchor)nav.insertBefore(summary,anchor);else nav.prepend(summary)}
  if(summary)summary.classList.toggle('hidden',!perms.summary);
+ const hrAllowed=visibleHrButtons().length>0;
+ let hr=nav.querySelector('[data-v14-page="hr"]');
+ if(hrAllowed&&!hr){hr=document.createElement('button');hr.type='button';hr.dataset.v14Page='hr';hr.textContent='👥 الموارد البشرية';const anchor=nav.querySelector('button[data-page="users"]')||nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(hr,anchor);else nav.appendChild(hr)}
+ if(hr)hr.classList.toggle('hidden',!hrAllowed);
  let finance=nav.querySelector('[data-v14-page="finance"]');
  if(perms.financeView&&!finance){finance=document.createElement('button');finance.type='button';finance.dataset.v14Page='finance';finance.textContent='💵 صرف HR المعتمد';const anchor=nav.querySelector('button[data-page="settings"]');if(anchor)nav.insertBefore(finance,anchor);else nav.appendChild(finance)}
  if(finance)finance.classList.toggle('hidden',!perms.financeView);
  injectHomeHrCard();
- if(!nav.__v14Bound){nav.__v14Bound=true;nav.addEventListener('click',e=>{const b=e.target.closest('[data-v14-page]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.dataset.v14Page==='summary')renderSummary();else renderBranchFinance()},true)}
+ if(!nav.__v14Bound){nav.__v14Bound=true;nav.addEventListener('click',e=>{const b=e.target.closest('[data-v14-page]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.dataset.v14Page==='summary')renderSummary();else if(b.dataset.v14Page==='hr')renderHrHub();else renderBranchFinance()},true)}
 }
 function visibleHrButtons(){
  return [...document.querySelectorAll('.hr-nav-group [data-hr-page]')].filter(b=>!b.classList.contains('hidden'));
@@ -141,7 +145,8 @@ async function init(){
  clearInterval(timer);timer=setInterval(syncContext,10000);
 }
 addEventListener('focus',syncContext);
+addEventListener('sharawla:hr-nav-ready',injectNav);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncContext()});
-setTimeout(init,900);
+setTimeout(init,150);
 global.SharawlaV14={renderSummary,renderBranchFinance,renderHrHub,refreshNotifications,version:VERSION};
 })(globalThis);
