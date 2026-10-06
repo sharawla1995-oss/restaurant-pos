@@ -43,6 +43,8 @@ create trigger trg_order_item_modifier_quantity_default_v15
 before insert on public.order_item_modifiers
 for each row execute function public.order_item_modifier_quantity_default_v15();
 
+revoke all on function public.order_item_modifier_quantity_default_v15() from public,anon,authenticated;
+
 do $$
 begin
   if not exists(
@@ -61,6 +63,10 @@ create index if not exists idx_order_item_modifiers_order_item
 
 -- Cashiers/managers need read access to modifiers for receipt reprint/order details/shift close.
 -- Branch access remains enforced; no INSERT/UPDATE/DELETE is granted by this policy.
+grant select on table public.order_item_modifiers to authenticated;
+revoke select on table public.order_item_modifiers from anon;
+
+drop policy if exists order_item_modifiers_staff_read_v15 on public.order_item_modifiers;
 drop policy if exists order_item_modifiers_staff_read on public.order_item_modifiers;
 create policy order_item_modifiers_staff_read
 on public.order_item_modifiers
