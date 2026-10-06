@@ -992,7 +992,7 @@ function modifierCount(md,itemQty=1){const q=Number(md?.qty);return Number.isFin
 function cartItemBasePrice(i){const b=Number(i?.base_price);return Number.isFinite(b)?b:Number(i?.price||0)}
 function cartItemExtrasTotal(i){return (i?.modifiers||[]).reduce((sum,md)=>sum+Number(md.price||0)*modifierCount(md,i?.qty),0)}
 function cartItemLineTotal(i){return cartItemBasePrice(i)*Math.max(0,Number(i?.qty||0))+cartItemExtrasTotal(i)}
-function expandedItemModifiers(i){const out=[];for(const md of (i?.modifiers||[])){const q=modifierCount(md,i?.qty);for(let n=0;n<q;n++)out.push({id:md.id,name:md.name,price:Number(md.price||0)})}return out}
+function payloadItemModifiers(i){return (i?.modifiers||[]).map(md=>({id:md.id,name:md.name,price:Number(md.price||0),qty:modifierCount(md,i?.qty)})).filter(md=>md.qty>0)}
 function openItemOptions(p){
  const mods=productModifierList(p),variants=productVariantList(p),removals=Array.isArray(p.removable_components)?p.removable_components:[];
  const m=document.createElement('div');m.className='modal';
@@ -1049,7 +1049,7 @@ async function checkout(payment,payments=null){
   const itemPayload=state.cart.map(i=>({
     product_id:i.product_id,product_name:i.name,quantity:i.qty,unit_price:cartItemBasePrice(i),cost:i.cost,total:cartItemLineTotal(i),
     notes:[i.removed?.length?`بدون: ${i.removed.map(esc).join('، ')}`:'',i.notes||''].filter(Boolean).join(' | ')||null,
-    modifiers:expandedItemModifiers(i)
+    modifiers:payloadItemModifiers(i)
   }));
   const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({method:x.method,amount:Number(x.amount)}));
   let result;const clientTx=uuid();let localFirst=null;if(window.topBurgerDesktop?.isDesktop){if(state.activePromo&&!navigator.onLine)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');localFirst=await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx)}try{if(!navigator.onLine)throw new TypeError('Failed to fetch');result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows});if(window.topBurgerDesktop?.isDesktop)await removeQueuedOperation(clientTx)}catch(err){if(!isNetError(err)){if(window.topBurgerDesktop?.isDesktop){try{await window.topBurgerDesktop.operations.status(clientTx,'failed',String(err.message||err))}catch{}try{await removeQueuedOperation(clientTx)}catch{}}throw err}if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=localFirst||await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx);toast('تم حفظ الفاتورة محليًا وستتزامن عند رجوع النت')}
@@ -1089,7 +1089,7 @@ async function enrichOrderItemsWithModifiers(items){
  const ids=rows.map(i=>Number(i.id)).filter(Number.isFinite);
  if(!ids.length)return rows;
  try{
-   const mods=await rest('order_item_modifiers',`select=id,order_item_id,modifier_id,modifier_name,price&order_item_id=in.(${ids.join(',')})&order=id`);
+   const mods=await rest('order_item_modifiers',`select=id,order_item_id,modifier_id,modifier_name,price,quantity&order_item_id=in.(${ids.join(',')})&order=id`);
    const by=new Map();
    for(const m of (mods||[])){const k=String(m.order_item_id);if(!by.has(k))by.set(k,[]);by.get(k).push(m)}
    for(const i of rows){const found=by.get(String(i.id));if(found?.length)i._modifiers=found}
@@ -1478,12 +1478,12 @@ async function shiftReportData(shift){
  const [returnItems,returnPayments,mods]=await Promise.all([
    returnIds.length?rest('return_items',`select=return_id,order_item_id,product_id,product_name,quantity,total&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([]),
    returnIds.length?rest('return_payments',`select=return_id,method,amount&return_id=in.(${returnIds.join(',')})`).catch(()=>[]):Promise.resolve([]),
-   validItems.length?rest('order_item_modifiers',`select=order_item_id,modifier_id,modifier_name,price&order_item_id=in.(${validItems.map(i=>i.id).join(',')})`).catch(()=>[]):Promise.resolve([])
+   validItems.length?rest('order_item_modifiers',`select=order_item_id,modifier_id,modifier_name,price,quantity&order_item_id=in.(${validItems.map(i=>i.id).join(',')})`).catch(()=>[]):Promise.resolve([])
  ]);
  const loadedModifierItemIds=new Set((mods||[]).map(m=>String(m.order_item_id)));
  const missingReturnedItemIds=[...new Set((returnItems||[]).map(r=>Number(r.order_item_id)).filter(Number.isFinite))].filter(id=>!loadedModifierItemIds.has(String(id)));
  if(missingReturnedItemIds.length){
-   const returnedMods=await rest('order_item_modifiers',`select=order_item_id,modifier_id,modifier_name,price&order_item_id=in.(${missingReturnedItemIds.join(',')})`).catch(()=>[]);
+   const returnedMods=await rest('order_item_modifiers',`select=order_item_id,modifier_id,modifier_name,price,quantity&order_item_id=in.(${missingReturnedItemIds.join(',')})`).catch(()=>[]);
    mods.push(...(returnedMods||[]));
  }
 
@@ -1511,11 +1511,20 @@ async function shiftReportData(shift){
  for(const p of reportProductRows){const x=categories.get(p.category)||{name:p.category,qty:0,total:0,products:[]};x.qty+=p.qty;x.total+=p.total;x.products.push(p);categories.set(p.category,x)}
  const categoryStats=[...categories.values()].sort((a,b)=>b.total-a.total);
 
- const itemById=new Map(validItems.map(i=>[String(i.id),i])),modsByItem=new Map(),modifierStats=new Map();
- for(const p of standaloneExtraRows){const name=p.name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty+=Number(p.qty||0);x.total+=Number(p.total||0);modifierStats.set(name,x)}
- for(const m of (mods||[])){const k=String(m.order_item_id);if(!modsByItem.has(k))modsByItem.set(k,[]);modsByItem.get(k).push(m);const item=itemById.get(k);if(!item)continue;const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty+=Number(item.quantity||0);x.total+=Number(m.price||0)*Number(item.quantity||0);modifierStats.set(name,x)}
- for(const r of returnItems){const originalMods=modsByItem.get(String(r.order_item_id))||[];for(const m of originalMods){const name=m.modifier_name||'إضافة',x=modifierStats.get(name)||{name,qty:0,total:0};x.qty-=Number(r.quantity||0);x.total-=Number(m.price||0)*Number(r.quantity||0);modifierStats.set(name,x)}}
- const modifierRows=[...modifierStats.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
+ const itemById=new Map(validItems.map(i=>[String(i.id),i])),modsByItem=new Map(),internalModifierStats=new Map();
+ const externalExtraRows=standaloneExtraRows.map(p=>({name:p.name||'إضافة',qty:Number(p.qty||0),total:Number(p.total||0)})).filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
+ for(const m of (mods||[])){
+   const k=String(m.order_item_id);if(!modsByItem.has(k))modsByItem.set(k,[]);modsByItem.get(k).push(m);
+   const item=itemById.get(k);if(!item)continue;
+   const name=m.modifier_name||'إضافة',qty=Math.max(0,Number(m.quantity||1)),x=internalModifierStats.get(name)||{name,qty:0,total:0};
+   x.qty+=qty;x.total+=Number(m.price||0)*qty;internalModifierStats.set(name,x)
+ }
+ for(const r of returnItems){
+   const originalItem=itemById.get(String(r.order_item_id)),ratio=originalItem&&Number(originalItem.quantity||0)>0?Math.min(1,Math.max(0,Number(r.quantity||0)/Number(originalItem.quantity||1))):0;
+   const originalMods=modsByItem.get(String(r.order_item_id))||[];
+   for(const m of originalMods){const name=m.modifier_name||'إضافة',qty=Math.max(0,Number(m.quantity||1))*ratio,x=internalModifierStats.get(name)||{name,qty:0,total:0};x.qty-=qty;x.total-=Number(m.price||0)*qty;internalModifierStats.set(name,x)}
+ }
+ const internalModifierRows=[...internalModifierStats.values()].filter(x=>Math.abs(x.qty)>0.0001||Math.abs(x.total)>0.005).sort((a,b)=>b.qty-a.qty);
 
  const orderTypes=new Map();
  for(const o of valid){const key=String(o.order_type||'unknown'),x=orderTypes.get(key)||{code:key,count:0,total:0};x.count++;x.total+=Number(o.total||0);orderTypes.set(key,x)}
@@ -1529,7 +1538,7 @@ async function shiftReportData(shift){
 
  return {
    orders:orders||[],valid,items:items||[],expenses:expenses||[],returnItems,
-   products:productRowsNet,categories:categoryStats,modifiers:modifierRows,
+   products:productRowsNet,categories:categoryStats,internalModifiers:internalModifierRows,externalExtras:externalExtraRows,
    paymentStats:paymentRows,orderTypeStats:[...orderTypes.values()].sort((a,b)=>b.count-a.count),
    deliveryCount:valid.filter(o=>o.order_type==='delivery').length,
    deliverySales:valid.filter(o=>o.order_type==='delivery').reduce((a,o)=>a+Number(o.total||0),0),
@@ -1545,17 +1554,20 @@ function shiftReportHTML(sh,employees,mtr,data){
  const paymentTable=data.paymentStats.map(x=>`<tr><td>${esc(methodName(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد مدفوعات</td></tr>';
  const orderTypeTable=data.orderTypeStats.map(x=>`<tr><td>${esc(orderTypeLabel(x.code))}</td><td>${x.count}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد طلبات</td></tr>';
  const categoryTable=data.categories.map(cat=>`<tr><td><b>${esc(cat.name)}</b></td><td><b>${cat.qty}</b></td><td><b>${money(cat.total)}</b></td></tr>${cat.products.map(p=>`<tr><td>↳ ${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.total)}</td></tr>`).join('')}`).join('')||'<tr><td colspan="3">لا توجد مبيعات</td></tr>';
- const modifierTable=data.modifiers.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.qty}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات</td></tr>';
+ const qtyLabel=v=>Number.isInteger(Number(v))?String(Number(v)):Number(v).toFixed(2);
+ const internalModifierTable=(data.internalModifiers||[]).map(x=>`<tr><td>${esc(x.name)}</td><td>${qtyLabel(x.qty)}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات داخلية</td></tr>';
+ const externalExtraTable=(data.externalExtras||[]).map(x=>`<tr><td>${esc(x.name)}</td><td>${qtyLabel(x.qty)}</td><td>${money(x.total)}</td></tr>`).join('')||'<tr><td colspan="3">لا توجد إضافات خارجية</td></tr>';
  return `<div class="shift-print"><h2>${esc(businessName())}</h2><h3>تقرير وردية #${sh.id}</h3><div class="r-meta">${esc(branchName(sh.branch_id))}<br>${esc(employeeName(sh.employee_id,employees)||'موظف')}<br>فتح: ${fmtDate(sh.opened_at)}<br>قفل: ${sh.closed_at?fmtDate(sh.closed_at):'مفتوحة الآن'}</div><hr>
  <div class="r-totals"><div><span>صافي المبيعات بعد المرتجعات</span><b>${money(sales)}</b></div>${Number(data.returnTotal||0)?`<div><span>المرتجعات</span><b>-${money(data.returnTotal)}</b></div>`:''}<div><span>عدد الأوردرات</span><b>${data.valid.length}</b></div><div><span>أوردرات دليفري</span><b>${data.deliveryCount}</b></div><div><span>مبيعات الدليفري</span><b>${money(data.deliverySales)}</b></div><div><span>رسوم التوصيل</span><b>${money(data.deliveryFees)}</b></div><div><span>أوردرات ملغية</span><b>${data.cancelled.length} (${money(data.cancelledValue)})</b></div></div><hr>
  <h3>طرق الدفع</h3><table class="shift-report-table"><thead><tr><th>الطريقة</th><th>العمليات</th><th>القيمة</th></tr></thead><tbody>${paymentTable}</tbody></table><hr>
  <h3>طرق الطلب</h3><table class="shift-report-table"><thead><tr><th>النوع</th><th>الأوردرات</th><th>القيمة</th></tr></thead><tbody>${orderTypeTable}</tbody></table><hr>
  <h3>مبيعات التصنيفات والأصناف</h3><table class="shift-report-table"><thead><tr><th>التصنيف / الصنف</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${categoryTable}</tbody></table><hr>
- <h3>مبيعات الإضافات</h3><small>يشمل الإضافة المباعة كصنف والإضافة المختارة داخل الصنف. الإضافة الداخلية تحليل لقيمتها داخل إجمالي الصنف ولا تُجمع مرة ثانية على صافي المبيعات.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>${modifierTable}</tbody></table><hr>
+ <h3>الإضافات الداخلية</h3><small>إضافات مختارة داخل الساندوتش. العدد مستقل عن عدد الساندوتشات، والقيمة داخلة بالفعل في إجمالي الصنف ولا تُجمع مرة ثانية على صافي المبيعات.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>العدد</th><th>القيمة</th></tr></thead><tbody>${internalModifierTable}</tbody></table><hr>
+ <h3>الإضافات الخارجية</h3><small>إضافات مباعة كصنف مستقل من تصنيف «إضافات»؛ تظهر هنا منفصلة عن الإضافات الداخلية.</small><table class="shift-report-table"><thead><tr><th>الإضافة</th><th>العدد</th><th>القيمة</th></tr></thead><tbody>${externalExtraTable}</tbody></table><hr>
  <h3>المصروفات</h3><table class="shift-report-table"><thead><tr><th>البيان</th><th>المبلغ</th></tr></thead><tbody>${data.expenses.map(x=>`<tr><td>${esc(x.description||'مصروف')}<small>${fmtDate(x.created_at)}</small></td><td>${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="2">لا توجد مصروفات</td></tr>'}</tbody></table><div class="r-totals"><div><span>إجمالي المصروفات</span><b>${money(exp)}</b></div></div><hr>
  <div class="r-totals"><div><span>افتتاحية الخزنة</span><b>${money(sh.opening_cash)}</b></div><div><span>الكاش المتوقع</span><b>${money(expected)}</b></div>${sh.closed_at?`<div><span>الكاش الفعلي</span><b>${money(sh.closing_cash)}</b></div><div class="grand-print"><span>العجز / الزيادة</span><b>${money(sh.cash_difference||0)}</b></div>`:''}</div><hr><div class="r-footer">تقرير الوردية • ${new Date().toLocaleString('ar-EG')}</div></div>`;
 }
-async function openShiftReport(sh,employees){const [mtr,data]=await Promise.all([shiftMetrics(sh),shiftReportData(sh)]);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
+async function openShiftReport(sh,employees){const [mtr,data]=await Promise.all([shiftMetrics(sh),shiftReportData(sh)]);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>إضافات داخلية <b>${(data.internalModifiers||[]).reduce((a,x)=>a+Number(x.qty||0),0)}</b></div><div>إضافات خارجية <b>${(data.externalExtras||[]).reduce((a,x)=>a+Number(x.qty||0),0)}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
 async function renderShifts(){let employees=[],rows=[];try{employees=await rest('employees','select=id,name,branch_id,role,active&order=name');rows=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);await odbSet(`shiftHistory:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;employees=[state.employee];rows=(await odbGet(`shiftHistory:${currentBranchId()}`))||[];const cached=await cachedOpenShift();if(cached&&!rows.some(x=>String(x.id)===String(cached.id)))rows.unshift(cached)}const isAdmin=state.employee.role==='admin';const open=rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;$('#page').innerHTML=`${open?`<div class="panel shift-current"><div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div>${Object.entries(metrics.paymentTotals||{}).filter(([k,v])=>k!=='cash'&&Math.abs(Number(v||0))>0.005).map(([k,v])=>`<div>${esc(state.paymentMethods.find(x=>String(x.code)===String(k))?.name||k)} <b>${money(v)}</b></div>`).join('')}<div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
  const drawHistory=()=>{const list=rows;$('#shiftRows').innerHTML=list.map(x=>`<tr><td>${x.id}</td><td>${esc(branchName(x.branch_id))}</td><td>${esc(employeeName(x.employee_id,employees))}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'-'}</td><td>${money(x.sales_total||0)}</td><td>${money(x.cash_sales||0)}</td><td>${money(x.expenses_total||0)}</td><td class="${Number(x.cash_difference||0)<0?'negative':'positive'}">${x.closed_at?money(x.cash_difference||0):'-'}</td><td><span class="tag">${x.status==='open'?'مفتوحة':'مقفولة'}</span></td><td><button class="secondary" data-shift="${x.id}">التفاصيل</button></td></tr>`).join('')||'<tr><td colspan="11">لا توجد ورديات</td></tr>'};drawHistory();
  if(open)$('#closeShift').onclick=async()=>{const actual=Number($('#closingCash').value);if(!Number.isFinite(actual)||actual<0)return toast('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');const pending=metrics.orders.filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));if(pending.length)return toast(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);
