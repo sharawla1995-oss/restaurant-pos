@@ -50,3 +50,53 @@ jobs:
             Sharawla-POS-Setup-10.5.15-ia32.exe
             Sharawla-POS-Setup-10.5.15-x64.exe
           if-no-files-found: error
+
+
+  postgres-contract:
+    if: github.ref_name == 'hotfix/v10.5.15-hr-nav-immediate'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sharawla_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sharawla_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Load production-contract fixture
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f scripts/fixtures/v10-5-14-prod-contract.sql
+      - name: Apply V10.5.14 production contract
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f supabase-v10-5-14-ops-hr-notifications-summary.sql
+      - name: Apply V10.5.15 modifier quantity migration
+        run: |
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f supabase-v10-5-15-modifier-quantity.sql
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f supabase-v10-5-15-modifier-quantity.sql
+      - name: Verify modifier quantity contract
+        run: |
+          psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not exists(
+              select 1 from information_schema.columns
+              where table_schema='public' and table_name='order_item_modifiers'
+                and column_name='quantity' and is_nullable='NO'
+            ) then raise exception 'modifier quantity column missing'; end if;
+            if not exists(
+              select 1 from pg_policies
+              where schemaname='public' and tablename='order_item_modifiers'
+                and policyname='order_item_modifiers_staff_read'
+            ) then raise exception 'modifier staff read policy missing'; end if;
+            if position('v_mod->>''qty''' in pg_get_functiondef('public.create_pos_order_atomic(jsonb,jsonb,jsonb)'::regprocedure))=0
+            then raise exception 'atomic modifier qty persistence missing'; end if;
+          end $$;
+          SQL
