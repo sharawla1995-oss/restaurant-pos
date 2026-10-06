@@ -1,0 +1,128 @@
+name: SH0007 V67 Exact Candidate x64 Build
+
+on:
+  push:
+    branches:
+      - build/sh0007-v67-exact-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sh0007-v67-exact-candidate-x64
+  cancel-in-progress: false
+
+jobs:
+  verify-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Verify exact V67 candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.32"
+          python3 - <<'PY'
+          import hashlib, pathlib, sys
+          root=pathlib.Path('.')
+          manifest=pathlib.Path('.v67/V67_CANDIDATE_SHA256SUMS.txt')
+          expected={}
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if not line.strip():
+                  continue
+              h,p=line.split('  ',1)
+              expected[p]=h
+          bad=[]
+          for p,h in expected.items():
+              q=root/p
+              if not q.is_file():
+                  bad.append((p,'MISSING',h)); continue
+              got=hashlib.sha256(q.read_bytes()).hexdigest()
+              if got!=h:
+                  bad.append((p,got,h))
+          actual=[]
+          for q in root.rglob('*'):
+              if not q.is_file():
+                  continue
+              p=q.as_posix()
+              if p.startswith('.git/') or p.startswith('.v67/') or p=='.github/workflows/sh0007-v67-exact-build.yml':
+                  continue
+              actual.append(p)
+          extra=sorted(set(actual)-set(expected))
+          missing=sorted(set(expected)-set(actual))
+          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1036 or bad or extra or missing:
+              for x in bad[:50]: print('BAD',*x)
+              for x in extra[:50]: print('EXTRA',x)
+              for x in missing[:50]: print('MISSING',x)
+              sys.exit(1)
+          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          PY
+      - name: Run full source/regression gates
+        run: npm run check:ci
+
+  build-x64:
+    needs: verify-source
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact V67 candidate identity
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ([string]$pkg.version -ne '10.5.4-beta.58.32') { throw "Wrong package version" }
+          $expected = @{}
+          Get-Content .v67/V67_CANDIDATE_SHA256SUMS.txt | ForEach-Object {
+            if ($_ -match '^([0-9a-f]{64})  (.+)$') { $expected[$Matches[2]] = $Matches[1] }
+          }
+          if ($expected.Count -ne 1036) { throw "V67 manifest count mismatch: $($expected.Count)" }
+          foreach ($p in $expected.Keys) {
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw "Missing candidate file: $p" }
+            $got = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower()
+            if ($got -ne $expected[$p]) { throw "Candidate hash mismatch: $p" }
+          }
+          Write-Host "V67_EXACT_CANDIDATE_1036_1036_PASS"
+      - name: Pin node-gyp Python
+        shell: pwsh
+        run: |
+          $python = (Get-Command python).Source
+          "PYTHON=$python" >> $env:GITHUB_ENV
+          "npm_config_python=$python" >> $env:GITHUB_ENV
+      - name: Install dependencies
+        run: npm install --ignore-scripts=false --no-audit --no-fund
+      - name: Run full source/regression gates
+        run: npm run check:ci
+      - name: Build Windows x64 SH-0007 candidate
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Save exact V67 installer and SHA256
+        shell: pwsh
+        run: |
+          $version = '10.5.4-beta.58.32'
+          $source = Get-ChildItem dist -Filter "Sharawla-POS-Setup-$version*.exe" | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $source) { throw "x64 installer not found" }
+          $target = "Sharawla-POS-Setup-$version-V67-SH0007-x64.exe"
+          Copy-Item $source.FullName $target -Force
+          $hash = (Get-FileHash $target -Algorithm SHA256).Hash.ToLower()
+          "$target  $hash" | Set-Content V67-SH0007-SHA256.txt -Encoding ascii
+          Get-Content V67-SH0007-SHA256.txt
+      - name: Upload SH-0007 V67 x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.4-beta.58.32-V67-SH0007-x64
+          path: |
+            Sharawla-POS-Setup-10.5.4-beta.58.32-V67-SH0007-x64.exe
+            V67-SH0007-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
