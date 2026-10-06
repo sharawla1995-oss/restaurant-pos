@@ -10,9 +10,9 @@ const sql=read('supabase-v10-5-14-ops-hr-notifications-summary.sql');
 const must=(s,n,m)=>assert(s.includes(n),m||('missing '+n));
 const mustNot=(s,n,m)=>assert(!s.includes(n),m||('forbidden '+n));
 
-assert.equal(pkg.version,'10.5.14');assert.equal(ver.version,'10.5.14');assert.equal(ver.channel,'candidate');
-must(index,'V10.5.14','UI version');must(index,'v10-5-14-ops-hr-summary.js?v=10.5.14','v14 runtime loaded');
-for(const asset of ['styles.css','sharawla-runtime-core.js','restaurant-engine.js','food-recipe-ui-v1.js','app.js','hr-core-admin-v1.js','hr-attendance-admin-v1.js'])must(index,asset+'?v=10.5.14','cache stamp '+asset);
+assert(['10.5.14','10.5.15'].includes(pkg.version),'supported package version');assert.equal(ver.version,pkg.version);assert.equal(ver.channel,'candidate');
+must(index,'V'+pkg.version,'UI version');must(index,'v10-5-14-ops-hr-summary.js?v='+pkg.version,'v14 runtime loaded');
+for(const asset of ['styles.css','sharawla-runtime-core.js','restaurant-engine.js','food-recipe-ui-v1.js','app.js','hr-core-admin-v1.js','hr-attendance-admin-v1.js'])must(index,asset+'?v='+pkg.version,'cache stamp '+asset);
 
 // Orders: day-first, date-bounded server query, 100/page, no old sequential online cache loop.
 must(app,'const today=()=>','orders today default');must(app,"created_at=gte.","orders server from");must(app,"created_at=lt.","orders server to");
