@@ -37,7 +37,6 @@ has(app,'الإضافات الداخلية','shift internal extras section');
 has(app,'الإضافات الخارجية','shift external extras section');
 has(app,"window.dispatchEvent(new Event('sharawla:auth-ready'))",'auth-ready event');
 has(app,'confirmDeliveryPaymentAtHandover','delivery handover payment confirmation');
-has(app,'business_summary_v2','Summary V2 RPC');
 
 has(engine,"foodRecipes:'food.recipes'",'recipe feature gate');
 has(core,'function featureEnabled','runtime feature engine');
