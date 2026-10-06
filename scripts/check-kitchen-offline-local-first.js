@@ -10,7 +10,7 @@ const cached=[
  {order:{id:'offline-b',status:'completed',created_at:'2026-09-28T07:00:00Z'},items:[]},
  {order:{id:'offline-c',status:'new',created_at:'2026-09-28T06:00:00Z'},items:[{product_name:'C',quantity:2}]}
 ];
-const ctx={navigator:{onLine:false},currentBranchId:()=>1,cachedOrderBundles:async()=>JSON.parse(JSON.stringify(cached)),rest:async()=>{restCalls++;throw new Error('cloud read must not run offline')},Date,console};
+const ctx={navigator:{onLine:false},window:{SharawlaOfflineV2Transport:{isActive:async()=>false}},currentBranchId:()=>1,cachedOrderBundles:async()=>JSON.parse(JSON.stringify(cached)),rest:async()=>{restCalls++;throw new Error('cloud read must not run offline')},Date,console};
 vm.createContext(ctx);vm.runInContext(fn+';globalThis.__testKitchen=kitchenOrderBundles;',ctx);
 (async()=>{
  const rows=await ctx.__testKitchen();
