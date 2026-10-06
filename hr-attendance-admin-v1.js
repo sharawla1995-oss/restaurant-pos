@@ -32,7 +32,9 @@ async function refreshPermissions(){
 }
 function syncNav(){
  const nav=$('#nav');if(!nav)return;let group=nav.querySelector('.hr-nav-group');if(!group){group=document.createElement('details');group.className='hr-nav-group';group.innerHTML='<summary>👥 Sharawla HR</summary><div data-hr-links></div>';const anchor=nav.querySelector('button[data-page="users"]')||nav.querySelector('button[data-page="settings"]');anchor?nav.insertBefore(group,anchor):nav.appendChild(group)}
- const links=group.querySelector('[data-hr-links]');for(const [key,[label,permission]] of Object.entries(PAGE_DEF)){let button=links.querySelector(`[data-hr-page="${key}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.hrPage=key;button.textContent=label;links.appendChild(button)}button.classList.toggle('hidden',!has(permission))}group.classList.toggle('hidden',!Object.values(PAGE_DEF).some(x=>has(x[1])));
+ const links=group.querySelector('[data-hr-links]');for(const [key,[label,permission]] of Object.entries(PAGE_DEF)){let button=links.querySelector(`[data-hr-page="${key}"]`);if(!button){button=document.createElement('button');button.type='button';button.dataset.hrPage=key;button.textContent=label;links.appendChild(button)}button.classList.toggle('hidden',!has(permission))}
+ group.classList.add('hidden');group.dataset.hrRouter='1';
+ global.dispatchEvent(new Event('sharawla:hr-nav-ready'));
 }
 async function renderAttendance(selectedDate=null,selectedBranchId=null){
  setPage('الحضور والانصراف','<div class="beta54-muted">جاري تحميل لوحة الحضور…</div>');const today=selectedDate||new Date().toISOString().slice(0,10),bid=Number(selectedBranchId||branchId());
