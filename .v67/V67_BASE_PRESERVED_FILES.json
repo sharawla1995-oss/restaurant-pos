@@ -1,0 +1,122 @@
+[
+  {
+    "path": "docs/SHARAWLA-RC1-ROOT-CAUSE-STABILIZATION-CONTRACT-2026-09-30.md",
+    "blob_sha": "2c0374da8a68b33d6db870a8d0342cb406cd50e5",
+    "size": 4409,
+    "mode": "100644"
+  },
+  {
+    "path": "docs/SHARAWLA-RC1-ROOT-CAUSE-STABILIZATION-PRACTICAL-MATRIX-2026-09-30.md",
+    "blob_sha": "ceff1335c30a2d991399bf65463ce41340339dd5",
+    "size": 8420,
+    "mode": "100644"
+  },
+  {
+    "path": "hr-employee-profile-model-v1.js",
+    "blob_sha": "324f0f268c6cdc13c3cb613acb883088d33dcd06",
+    "size": 5339,
+    "mode": "100644"
+  },
+  {
+    "path": "icon-192.png",
+    "blob_sha": "7c03c71adc2e3de5b1784a725d93428ffc628ea6",
+    "size": 10073,
+    "mode": "100644"
+  },
+  {
+    "path": "icon-512.png",
+    "blob_sha": "d51643ee28ef26bb7035c13ace128da9c6f67394",
+    "size": 9099,
+    "mode": "100644"
+  },
+  {
+    "path": "retail-website/styles.css",
+    "blob_sha": "0b636abe7f219a9b09611eb746e75969616f7c25",
+    "size": 5335,
+    "mode": "100644"
+  },
+  {
+    "path": "scripts/check-rc1-root-cause-stabilization-runtime.js",
+    "blob_sha": "e8ce23262db31064ec7e3dc704bd3c4d615c5a10",
+    "size": 2862,
+    "mode": "100644"
+  },
+  {
+    "path": "settings-hub-v1.css",
+    "blob_sha": "5b45086af0eff2b683bfb58c647ed7b759d669c6",
+    "size": 985,
+    "mode": "100644"
+  },
+  {
+    "path": "sharawla-web-v1/manifest.webmanifest",
+    "blob_sha": "4469ae744c392dc621deb4bcccbf4ccf94e5e8bc",
+    "size": 216,
+    "mode": "100644"
+  },
+  {
+    "path": "sharawla-web-v1/styles.css",
+    "blob_sha": "82c226171cbbf48bed7e63b07e711062d56ddccd",
+    "size": 2972,
+    "mode": "100644"
+  },
+  {
+    "path": "staff/icon-192.png",
+    "blob_sha": "4555978758b9b347389a7040db564c6a8d6b4a96",
+    "size": 5914,
+    "mode": "100644"
+  },
+  {
+    "path": "staff/icon-512.png",
+    "blob_sha": "adcc6ff9e28bce20fa2ddd0ec11e1195cec63ff4",
+    "size": 16089,
+    "mode": "100644"
+  },
+  {
+    "path": "staff/icon.svg",
+    "blob_sha": "47622fdc26095c19c3281a49e6f9c7ed01365255",
+    "size": 445,
+    "mode": "100644"
+  },
+  {
+    "path": "staff/manifest.webmanifest",
+    "blob_sha": "e5b7b0faf3b8c3b25aa8e0882536c91353c716f8",
+    "size": 612,
+    "mode": "100644"
+  },
+  {
+    "path": "staff/styles.css",
+    "blob_sha": "f86ceece78750ff041ecdaf67f3be12d574942d5",
+    "size": 4971,
+    "mode": "100644"
+  },
+  {
+    "path": "styles.css",
+    "blob_sha": "c10b8a2c94eaec1ecc041b8777883198edafebc4",
+    "size": 74447,
+    "mode": "100644"
+  },
+  {
+    "path": "touch-ux-v1.css",
+    "blob_sha": "cc608015fa48713452560c19d3d82514ec3ca30d",
+    "size": 1678,
+    "mode": "100644"
+  },
+  {
+    "path": "update-indicators.css",
+    "blob_sha": "83bd1aebc9f16defce1e875b59ced2681224074d",
+    "size": 1511,
+    "mode": "100644"
+  },
+  {
+    "path": "verification/RC1-BETA-58-31-NPM-CHECK.log",
+    "blob_sha": "97dbfc965bf9408c86da515a9cc6d9e9679b524c",
+    "size": 26504,
+    "mode": "100644"
+  },
+  {
+    "path": "verification/RC1-BETA-POST-DEPLOY-EVIDENCE.sha256",
+    "blob_sha": "01eb2d5d555d8f408d41a68377f4385d8cb54ed1",
+    "size": 110,
+    "mode": "100644"
+  }
+]

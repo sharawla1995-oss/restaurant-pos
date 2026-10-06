@@ -1,4 +1,4 @@
-name: SH0007 V67 Exact Direct x64 Build
+name: SH0007 V67 Buildable Composition x64 Build
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
         run: |
           git config core.autocrlf false
           git config core.eol lf
-          $archive = Join-Path $env:RUNNER_TEMP 'v67-exact-source.tar'
+          $archive = Join-Path $env:RUNNER_TEMP 'v67-buildable-source.tar'
           git archive --format=tar HEAD -o $archive
           tar -xf $archive -C .
       - uses: actions/setup-node@v4
@@ -34,14 +34,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Verify exact V67 source identity
+      - name: Verify V67 buildable composition identity
         shell: pwsh
         run: |
           @'
-          import hashlib, json, pathlib, sys
+          import hashlib, json, pathlib, subprocess, sys
           root=pathlib.Path('.')
           rows=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          kept=json.loads(pathlib.Path('.v67/V67_BASE_PRESERVED_FILES.json').read_text(encoding='utf-8'))
           expected={x['path']:x for x in rows}
+          preserved={x['path']:x for x in kept}
           bad=[]
           for p,m in expected.items():
               q=root/p
@@ -52,6 +54,15 @@ jobs:
               h=hashlib.sha256(b).hexdigest()
               if h!=m['sha256'] or len(b)!=m['size']:
                   bad.append((p,h,len(b),m['sha256'],m['size']))
+          preserved_bad=[]
+          for p,m in preserved.items():
+              q=root/p
+              if not q.is_file():
+                  preserved_bad.append((p,'MISSING'))
+                  continue
+              got=subprocess.check_output(['git','rev-parse',f'HEAD:{p}'],text=True).strip()
+              if got!=m['blob_sha'] or q.stat().st_size!=m['size']:
+                  preserved_bad.append((p,got,q.stat().st_size,m['blob_sha'],m['size']))
           actual=[]
           for q in root.rglob('*'):
               if not q.is_file():
@@ -60,15 +71,17 @@ jobs:
               if p.startswith('.git/') or p.startswith('.v67/') or p=='.github/workflows/sh0007-v67-exact-direct-build.yml':
                   continue
               actual.append(p)
-          extra=sorted(set(actual)-set(expected))
-          missing=sorted(set(expected)-set(actual))
-          print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD_HASH={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
-          if len(expected)!=1036 or bad or extra or missing:
-              for x in bad[:50]: print('BAD',*x)
+          allowed=set(expected)|set(preserved)
+          extra=sorted(set(actual)-allowed)
+          missing=sorted(allowed-set(actual))
+          print(f'V67_CORE={len(expected)} PRESERVED_BASE={len(preserved)} ACTUAL={len(actual)} BAD_CORE={len(bad)} BAD_BASE={len(preserved_bad)} EXTRA={len(extra)} MISSING={len(missing)}')
+          if len(expected)!=1036 or len(preserved)!=20 or len(actual)!=1056 or bad or preserved_bad or extra or missing:
+              for x in bad[:50]: print('BAD_CORE',*x)
+              for x in preserved_bad[:50]: print('BAD_BASE',*x)
               for x in extra[:50]: print('EXTRA',x)
               for x in missing[:50]: print('MISSING',x)
               sys.exit(1)
-          print('V67_EXACT_CANDIDATE_1036_1036_PASS')
+          print('V67_BUILD_COMPOSITION_1056_1056_PASS')
           '@ | python -
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           $ver = Get-Content version.json -Raw | ConvertFrom-Json
@@ -82,7 +95,7 @@ jobs:
           "npm_config_python=$python" >> $env:GITHUB_ENV
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
-      - name: Switch to Node 22 for V67 node:sqlite UI gate
+      - name: Switch to Node 22 for V67 node-sqlite UI gate
         uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -126,6 +139,7 @@ jobs:
               print(bad[:50]); sys.exit(1)
           print('V67_POST_CHECK_IDENTITY_PASS')
           '@ | python -
+          git diff --exit-code
       - name: Build Windows x64 candidate
         run: npx electron-builder --win nsis --x64 --publish never
       - name: Reverify V67 source after build
@@ -145,6 +159,7 @@ jobs:
               print(bad[:50]); sys.exit(1)
           print('V67_POST_BUILD_IDENTITY_PASS')
           '@ | python -
+          git diff --exit-code
       - name: Save V67 SH-0007 installer and SHA256
         shell: pwsh
         run: |

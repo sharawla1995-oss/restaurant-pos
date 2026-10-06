@@ -1,0 +1,48 @@
+/*
+ Sharawla Settings Hub V1
+ Presentation/organization only. Existing save handlers remain owners of settings writes.
+*/
+.settings-hub-v1{
+  margin-bottom:14px;
+}
+.settings-hub-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.settings-hub-head h2{margin:0}
+.settings-hub-tabs{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:4px 2px 8px;
+  scrollbar-width:thin;
+  -webkit-overflow-scrolling:touch;
+}
+.settings-hub-tabs button{
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+.settings-hub-tabs button.active{
+  outline:2px solid var(--business-primary,var(--accent,#2563eb));
+  outline-offset:1px;
+}
+#settingsSections>[data-settings-section]{
+  margin-top:0;
+}
+
+@media (any-pointer: coarse){
+  .settings-hub-tabs button{
+    min-height:48px;
+    padding:10px 16px;
+  }
+}
+@media (max-width:720px){
+  .settings-hub-head{align-items:flex-start}
+  .settings-hub-tabs{
+    margin-inline:-4px;
+    padding-inline:4px;
+  }
+}
