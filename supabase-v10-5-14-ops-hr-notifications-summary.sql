@@ -140,7 +140,7 @@ create or replace function public.hr_adjustment_create_v1(
  p_employee_id bigint,p_adjustment_type text,p_amount numeric,p_effective_date date default current_date,
  p_reason text default null,p_client_tx_id text default null
 ) returns bigint language plpgsql security definer set search_path=public as $$
-declare h public.hr_employees%rowtype;idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');
+declare h public.hr_employees%rowtype;idv bigint;e bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');dig text;old_dig text;
 begin
  if auth.uid() is null then raise exception 'غير مصرح';end if;
  if not (public.has_permission('hr.adjustments.manage') or public.has_permission('branch.hr.adjustments.request')) then
@@ -151,15 +151,19 @@ begin
  if not public.has_branch_access(h.home_branch_id) then raise exception 'ليس لديك صلاحية لهذا الفرع';end if;
  if p_adjustment_type not in ('deduction','bonus','overtime') or coalesce(p_amount,0)<=0 then raise exception 'بيانات الحركة غير صحيحة';end if;
  if k is null then raise exception 'معرف الحركة مطلوب';end if;
+ dig:=md5(jsonb_build_object('employee_id',p_employee_id,'branch_id',h.home_branch_id,'type',p_adjustment_type,'amount',round(p_amount,2),'effective_date',coalesce(p_effective_date,current_date),'reason',nullif(trim(coalesce(p_reason,'')),''))::text);
  perform pg_advisory_xact_lock(hashtextextended('hr-adjustment:'||k,0));
- select id into idv from public.hr_employee_adjustments where client_tx_id=k;
- if idv is not null then return idv;end if;
+ select id,request_digest into idv,old_dig from public.hr_employee_adjustments where client_tx_id=k;
+ if idv is not null then
+  if coalesce(old_dig,'')<>dig then raise exception 'client_tx_id مستخدم بطلب خصم/مكافأة مختلف';end if;
+  return idv;
+ end if;
  e:=public.current_employee_id();
  insert into public.hr_employee_adjustments(
-  employee_id,branch_id,adjustment_type,amount,effective_date,reason,client_tx_id,created_by_employee_id,approval_status
+  employee_id,branch_id,adjustment_type,amount,effective_date,reason,client_tx_id,created_by_employee_id,approval_status,request_digest
  ) values(
   p_employee_id,h.home_branch_id,p_adjustment_type,round(p_amount,2),coalesce(p_effective_date,current_date),
-  nullif(trim(coalesce(p_reason,'')),''),k,e,'pending'
+  nullif(trim(coalesce(p_reason,'')),''),k,e,'pending',dig
  ) returning id into idv;
  insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details)
  values(e,h.home_branch_id,'hr_adjustment_request','hr_adjustment',idv,jsonb_build_object('employee_id',p_employee_id,'type',p_adjustment_type,'amount',round(p_amount,2)));
@@ -207,32 +211,36 @@ drop trigger if exists trg_app_notify_adjustment_v14 on public.hr_employee_adjus
 create trigger trg_app_notify_adjustment_v14 after insert or update of approval_status on public.hr_employee_adjustments
 for each row execute function public.app_notify_adjustment_v14();
 
+alter table public.hr_employee_advances add column if not exists request_digest text;
+alter table public.hr_employee_adjustments add column if not exists request_digest text;
+
 -- Staff can request advances; HR still owns approve/reject.
 create or replace function public.hr_staff_advance_request_v1(
  p_session_token text,p_amount numeric,p_repayment_mode text,p_installment_amount numeric,
  p_installments_count integer,p_reason text,p_client_tx_id text
 ) returns bigint language plpgsql security definer set search_path=public as $$
-declare c record;idv bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');oldr public.hr_employee_advances%rowtype;
+declare c record;idv bigint;k text:=nullif(trim(coalesce(p_client_tx_id,'')),'');oldr public.hr_employee_advances%rowtype;dig text;
 begin
  select * into c from public.hr_staff_session_context_v1(p_session_token);
  if not found or c.must_change_pin then raise exception 'جلسة الموظف غير صالحة';end if;
  if coalesce(p_amount,0)<=0 or p_repayment_mode not in ('one_time','installments') then raise exception 'بيانات السلفة غير صحيحة';end if;
  if p_repayment_mode='installments' and (coalesce(p_installment_amount,0)<=0 or coalesce(p_installments_count,0)<=0) then raise exception 'بيانات الأقساط غير صحيحة';end if;
  if k is null then raise exception 'معرف الطلب مطلوب';end if;
+ dig:=md5(jsonb_build_object('employee_id',c.employee_id,'branch_id',c.branch_id,'amount',round(p_amount,2),'repayment_mode',p_repayment_mode,'installment_amount',case when p_repayment_mode='installments' then round(p_installment_amount,2) else null end,'installments_count',case when p_repayment_mode='installments' then p_installments_count else null end,'reason',nullif(trim(coalesce(p_reason,'')),''))::text);
  perform pg_advisory_xact_lock(hashtextextended('hr-staff-advance:'||c.staff_account_id||':'||k,0));
  select * into oldr from public.hr_employee_advances where client_tx_id=k;
  if found then
-  if oldr.employee_id<>c.employee_id or oldr.amount<>round(p_amount,2) or oldr.repayment_mode<>p_repayment_mode then raise exception 'نفس client_tx_id مستخدم بطلب مختلف';end if;
+  if coalesce(oldr.request_digest,'')<>dig then raise exception 'نفس client_tx_id مستخدم بطلب سلفة مختلف';end if;
   return oldr.id;
  end if;
  insert into public.hr_employee_advances(
   employee_id,branch_id,amount,outstanding_amount,repayment_mode,installment_amount,installments_count,
-  status,reason,client_tx_id,created_by_employee_id
+  status,reason,client_tx_id,created_by_employee_id,request_digest
  ) values(
   c.employee_id,c.branch_id,round(p_amount,2),round(p_amount,2),p_repayment_mode,
   case when p_repayment_mode='installments' then round(p_installment_amount,2) else null end,
   case when p_repayment_mode='installments' then p_installments_count else null end,
-  'draft',nullif(trim(coalesce(p_reason,'')),''),k,null
+  'draft',nullif(trim(coalesce(p_reason,'')),''),k,null,dig
  ) returning id into idv;
  return idv;
 end;$$;
@@ -367,6 +375,15 @@ begin
  return true;
 end;$$;
 
+create or replace function public.hr_payroll_pay_v1(p_payroll_period_id bigint,p_method text,p_reference text,p_shift_id bigint,p_client_tx_id text)
+returns boolean language plpgsql security definer set search_path=public as $
+begin
+ if auth.uid() is null or not public.has_permission('branch.hr.finance.disburse') or not public.has_permission('treasury.post') then
+  raise exception 'ليس لديك صلاحية صرف المرتبات المعتمدة من الفرع';
+ end if;
+ return public.hr_payroll_pay_attendance_v1(p_payroll_period_id,p_method,p_reference,p_shift_id,p_client_tx_id);
+end;$;
+
 create or replace function public.branch_hr_finance_queue_v1(p_branch_id bigint)
 returns jsonb language plpgsql security definer set search_path=public as $$
 begin
@@ -401,7 +418,8 @@ begin
    'orders_count',(select count(*) from public.orders o where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id)),
    'sales_total',(select round(coalesce(sum(o.total),0),2) from public.orders o where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id)),
    'returns_total',(select round(coalesce(sum(rn.total),0),2) from public.returns rn where rn.created_at>=vf and rn.created_at<vt and (p_branch_id is null or rn.branch_id=p_branch_id) and public.has_branch_access(rn.branch_id)),
-   'expenses_total',(select round(coalesce(sum(ex.amount),0),2) from public.expenses ex where ex.created_at>=vf and ex.created_at<vt and (p_branch_id is null or ex.branch_id=p_branch_id) and public.has_branch_access(ex.branch_id))
+   'expenses_total',(select round(coalesce(sum(ex.amount),0),2) from public.expenses ex where ex.created_at>=vf and ex.created_at<vt and (p_branch_id is null or ex.branch_id=p_branch_id) and public.has_branch_access(ex.branch_id)),
+   'discounts_total',(select round(coalesce(sum(coalesce(o.discount,0)+coalesce(o.promo_discount,0)),0),2) from public.orders o where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id))
   ),
   'order_types',coalesce((select jsonb_agg(to_jsonb(x) order by sales desc) from (
    select o.order_type,count(*) orders,round(sum(o.total),2) sales from public.orders o
@@ -430,6 +448,12 @@ begin
    from public.orders o left join public.branches b on b.id=o.branch_id
    where o.created_at>=vf and o.created_at<vt and o.status<>'cancelled' and public.has_branch_access(o.branch_id) and (p_branch_id is null or o.branch_id=p_branch_id)
    group by o.branch_id,b.name
+  )x),'[]'::jsonb),
+  'latest_orders',coalesce((select jsonb_agg(to_jsonb(x) order by created_at desc) from (
+   select o.id,o.bon_number,o.invoice_number,o.created_at,o.branch_id,o.order_type,o.payment_method,o.status,o.total,o.customer_name,o.customer_phone
+   from public.orders o
+   where o.created_at>=vf and o.created_at<vt and (p_branch_id is null or o.branch_id=p_branch_id) and public.has_branch_access(o.branch_id)
+   order by o.created_at desc limit 20
   )x),'[]'::jsonb)
  ) into r;
  r:=jsonb_set(r,'{summary,net_sales}',to_jsonb(round(coalesce((r#>>'{summary,sales_total}')::numeric,0)-coalesce((r#>>'{summary,returns_total}')::numeric,0),2)));
