@@ -74,6 +74,14 @@ create table public.returns(id bigint primary key,branch_id bigint references pu
 create table public.expenses(id bigint primary key,branch_id bigint references public.branches(id),created_at timestamptz default now(),amount numeric);
 create table public.order_payments(id bigint primary key,order_id bigint references public.orders(id),method text,amount numeric);
 create table public.order_items(id bigint primary key,order_id bigint references public.orders(id),product_name text,quantity numeric,total numeric);
+create table public.order_item_modifiers(
+ id bigserial primary key,
+ order_item_id bigint not null references public.order_items(id),
+ modifier_id bigint,
+ modifier_name text not null,
+ price numeric default 0
+);
+alter table public.order_item_modifiers enable row level security;
 
 create or replace function public.current_employee_id() returns bigint language sql stable as $$select 1::bigint$$;
 create or replace function public.is_admin() returns boolean language sql stable as $$select false$$;
