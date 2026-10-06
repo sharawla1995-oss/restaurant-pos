@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Candidate hotfix. HR navigation and HR permissions hydrate immediately from the already-loaded POS session, then reconcile server-side. No database migration."
+  "notes": "Candidate hotfix. HR navigation appears immediately as one hub entry. Internal sandwich extras use independent quantity counters, persist exact counts, print on customer/prep receipts, and are separated from external extras in shift closing. Adds branch-scoped authenticated read parity for order modifier rows."
 }
