@@ -82,7 +82,7 @@ jobs:
       - name: Verify version sync
         run: npm run sync-version
       - name: Build Windows x64 installer
-        run: npm run dist -- --win --x64 --publish never
+        run: npx --no-install electron-builder --win nsis --x64 --publish never
       - name: Save V67 SH-0007 installer and SHA256
         shell: pwsh
         run: |
