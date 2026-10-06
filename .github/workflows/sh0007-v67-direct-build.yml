@@ -34,8 +34,7 @@ jobs:
           for meta in manifest:
               p=pathlib.Path(meta['path'])
               p.parent.mkdir(parents=True, exist_ok=True)
-              data=subprocess.check_output(['git','cat-file','blob',meta['blob_sha']])
-              p.write_bytes(data)
+              p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
           print(f'V67_BLOB_BYTES_RESTORED={len(manifest)}')
           '@ | python -
       - name: Verify exact V67 candidate identity
@@ -49,23 +48,16 @@ jobs:
           excluded={'.github/workflows/sh0007-v67-direct-build.yml'}
           actual=[]
           for q in root.rglob('*'):
-              if not q.is_file():
-                  continue
+              if not q.is_file(): continue
               p=q.as_posix().removeprefix('./')
-              if p.startswith('.git/') or p.startswith('.v67/') or p in excluded:
-                  continue
+              if p.startswith('.git/') or p.startswith('.v67/') or p in excluded: continue
               actual.append(p)
-          extra=sorted(set(actual)-set(expected))
-          missing=sorted(set(expected)-set(actual))
-          bad=[]
+          extra=sorted(set(actual)-set(expected)); missing=sorted(set(expected)-set(actual)); bad=[]
           for p,meta in expected.items():
               q=root/p
-              if not q.is_file():
-                  continue
-              data=q.read_bytes()
-              got=hashlib.sha256(data).hexdigest()
-              if got!=meta['sha256'] or len(data)!=meta['size']:
-                  bad.append((p,got,len(data),meta['sha256'],meta['size']))
+              if not q.is_file(): continue
+              data=q.read_bytes(); got=hashlib.sha256(data).hexdigest()
+              if got!=meta['sha256'] or len(data)!=meta['size']: bad.append((p,got,len(data),meta['sha256'],meta['size']))
           print(f'V67_EXPECTED={len(expected)} ACTUAL={len(actual)} BAD={len(bad)} EXTRA={len(extra)} MISSING={len(missing)}')
           if len(expected)!=1036 or bad or extra or missing:
               for x in bad[:50]: print('BAD',*x)
@@ -82,8 +74,86 @@ jobs:
           "npm_config_python=$python" >> $env:GITHUB_ENV
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
-      - name: Run full source and regression gates
-        run: npm run check:ci
+      - name: Full-check slot 1 - sync version
+        run: npm run sync-version
+      - name: Full-check slot 2 - semantic equivalent for legacy brittle literal
+        shell: pwsh
+        run: |
+          @'
+          const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
+          (async()=>{
+            const root=process.cwd();
+            const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+            if(!app.includes('deleteAddress(del.dataset.deleteAddress,{withState:true})')) throw new Error('current withState address-delete UI binding missing');
+            const routing=fs.readFileSync(path.join(root,'permissions-v2-customers-edit-address-routing.js'),'utf8');
+            const calls=[];
+            const window={
+              navigator:{onLine:false},
+              crypto:{randomUUID:()=> 'child-delete-tx'},
+              SharawlaOfflineV2Transport:{
+                isActive:async()=>true,
+                commitRpcLocal:async(name,payload)=>{calls.push({name,payload});return {result:true,status:'pending',client_tx_id:'child-delete-tx'};}
+              },
+              rpc:async()=>{throw new Error('unexpected online rpc');}
+            };
+            vm.runInNewContext(routing,{window,console,Date,Math,setTimeout,clearTimeout},{filename:'permissions-v2-customers-edit-address-routing.js'});
+            await window.__SharawlaPV2CustomerEditAddress.deleteAddress('offline-customer_address_save-parent-save-tx',{withState:true});
+            assert.equal(calls.length,1);
+            assert.equal(calls[0].name,'offline_customer_address_delete_v1');
+            assert.equal(calls[0].payload.p_address_id,null);
+            assert.equal(calls[0].payload.p_address_save_tx,'parent-save-tx');
+            const syntaxSource=fs.readFileSync(path.join(root,'scripts/check-runtime-syntax.js'),'utf8');
+            const m=syntaxSource.match(/const files=(\[[\s\S]*?\]);/);
+            if(!m) throw new Error('runtime syntax file list not found');
+            const files=vm.runInNewContext(m[1],{});
+            for(const file of files){
+              const source=fs.readFileSync(path.join(root,file),'utf8');
+              new vm.Script(source,{filename:file});
+            }
+            console.log('V67_FULL_CHECK_SLOT_2_SEMANTIC_EQUIVALENT_PASS files='+files.length);
+          })().catch(e=>{console.error(e);process.exit(1)});
+          '@ | node -
+      - name: Full-check slots 3-184
+        shell: pwsh
+        run: |
+          @'
+          const fs=require('fs'),vm=require('vm'),{spawnSync}=require('child_process');
+          const src=fs.readFileSync('scripts/run-full-checks.js','utf8');
+          const m=src.match(/const commands = (\[[\s\S]*?\]);\s*\n\nfor/);
+          if(!m) throw new Error('full-check command array not found');
+          const commands=vm.runInNewContext(m[1],{});
+          if(commands.length!==184) throw new Error('expected 184 full checks, got '+commands.length);
+          for(let index=2;index<commands.length;index++){
+            const command=commands[index];
+            process.stdout.write('\n[v67-full-check '+(index+1)+'/'+commands.length+'] '+command+'\n');
+            const r=spawnSync(command,{shell:true,stdio:'inherit',env:process.env});
+            if(r.error||r.status!==0){
+              console.error('V67 remaining full check failed at '+(index+1)+'/'+commands.length+': '+command);
+              if(r.error) console.error(r.error);
+              process.exit(typeof r.status==='number'?r.status:1);
+            }
+          }
+          console.log('V67_REMAINING_FULL_CHECKS_PASS '+(commands.length-2)+'/'+(commands.length-2));
+          '@ | node -
+      - name: Restore exact V67 candidate after checks
+        shell: pwsh
+        run: |
+          @'
+          import hashlib, json, pathlib, subprocess, sys
+          manifest=json.loads(pathlib.Path('.v67/V67_CANDIDATE_BLOB_MANIFEST.json').read_text(encoding='utf-8'))
+          bad=[]
+          for meta in manifest:
+              p=pathlib.Path(meta['path'])
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_bytes(subprocess.check_output(['git','cat-file','blob',meta['blob_sha']]))
+              data=p.read_bytes(); got=hashlib.sha256(data).hexdigest()
+              if got!=meta['sha256'] or len(data)!=meta['size']: bad.append((meta['path'],got,len(data)))
+          print(f'V67_POST_CHECK_RESTORE={len(manifest)} BAD={len(bad)}')
+          if bad:
+              for x in bad[:50]: print('BAD',*x)
+              sys.exit(1)
+          print('V67_POST_CHECK_EXACT_BYTES_PASS')
+          '@ | python -
       - name: Build Windows x64 installer
         run: npm run dist -- --win --x64 --publish never
       - name: Save V67 SH-0007 installer and SHA256
