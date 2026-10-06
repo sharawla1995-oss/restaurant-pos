@@ -10,7 +10,7 @@
  <title>Sharawla Staff</title>
  <link rel="manifest" href="manifest.webmanifest">
  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
- <link rel="stylesheet" href="styles.css">
+ <link rel="stylesheet" href="styles.css?v=10.5.14">
 </head>
 <body>
  <div id="toast" role="status" aria-live="polite"></div>
@@ -46,7 +46,7 @@
     <button data-page="home" class="active"><span>⌂</span>الرئيسية</button>
     <button data-page="history"><span>◷</span>الحضور</button>
     <button data-page="schedule"><span>▦</span>الجدول</button>
-    <button data-page="summary"><span>≡</span>الملخص</button>
+    <button data-page="summary"><span>≡</span>ملفي</button>
     <button data-page="sync"><span>↻</span><b id="pendingBadge" class="badge hidden">0</b>المزامنة</button>
    </nav>
   </section>
@@ -56,8 +56,8 @@
   <div class="camera-card"><h2 id="cameraTitle">تسجيل الحضور</h2><p>سيلفي مباشر من الكاميرا — لا يوجد اختيار من المعرض.</p><video id="cameraVideo" autoplay playsinline muted></video><canvas id="cameraCanvas" class="hidden"></canvas><div id="gpsState" class="gps-state">سيتم التقاط الموقع عند الضغط.</div><div class="camera-actions"><button id="cancelCamera" type="button">إلغاء</button><button id="captureAttendance" class="primary" type="button">التقاط وتسجيل</button></div></div>
  </div>
 
- <script src="hr-staff-domain.js"></script>
- <script src="hr-staff-store.js"></script>
- <script src="app.js"></script>
+ <script src="hr-staff-domain.js?v=10.5.14"></script>
+ <script src="hr-staff-store.js?v=10.5.14"></script>
+ <script src="app.js?v=10.5.14"></script>
 </body>
 </html>
