@@ -45,10 +45,10 @@ for(const token of [
  versionConst,
  "allowed('customers.create')",
  "b.textContent='➕ عميل جديد'",
- 'p_client_tx_id:',
  'global.__SharawlaSharedBusinessCoreV1'
 ])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);
 assert(customerCreateRouting.includes("commitRpcLocal('offline_customer_create_v1'"),'Beta54 customer durable owner invariant missing: permissions-v2 customer-create commitRpcLocal');
+assert(customerCreateRouting.includes('p_client_tx_id:clientTx'),'Beta54 customer durable owner must preserve client_tx_id');
 
 for(const token of [
  'create table if not exists public.hr_employees',
