@@ -10,7 +10,7 @@
 
 
 /* V4: quantity + one note per item line */
-.item-qty-picker{display:flex;align-items:center;gap:10px;margin:8px 0 14px}.item-qty-picker button{width:44px;height:42px;font-size:22px;font-weight:700}.item-qty-picker input{width:90px;text-align:center;font-size:18px;font-weight:700;padding:8px}.kitchen-note{display:block;margin:5px 0 8px;padding:6px 8px;border:1px dashed #999;border-radius:8px;font-size:13px;font-weight:600}
+.item-qty-picker{display:flex;align-items:center;gap:10px;margin:8px 0 14px}.item-qty-picker button{width:44px;height:42px;font-size:22px;font-weight:700}.item-qty-picker input{width:90px;text-align:center;font-size:18px;font-weight:700;padding:8px}.modifier-qty-list{gap:8px}.modifier-qty-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--line,#d1d5db);border-radius:10px}.modifier-qty-row>span{display:flex;flex-direction:column;gap:2px}.modifier-qty-row small{opacity:.75}.modifier-qty-picker{display:flex;align-items:center;gap:6px;direction:ltr}.modifier-qty-picker button{width:34px;height:34px;font-size:20px;font-weight:800;padding:0}.modifier-qty-picker input{width:54px;text-align:center;padding:6px;font-weight:800}.kitchen-note{display:block;margin:5px 0 8px;padding:6px 8px;border:1px dashed #999;border-radius:8px;font-size:13px;font-weight:600}
 
 /* V5 Foundation */
 .catalog-tools{padding-bottom:10px}.catalog-tools input{background:#fff}
