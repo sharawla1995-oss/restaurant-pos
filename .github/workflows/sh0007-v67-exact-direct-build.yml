@@ -148,8 +148,10 @@ jobs:
           const b54ReadNew="const customerUi=read('shared-business-core-v1.js');\nconst customerCreateRoute=read('permissions-v2-customers-create-routing.js');";
           const b54TokenOld="\"commitOptionalTxRpc('offline_customer_create_v1'\",";
           const b54TokenNew="'global.__SharawlaPV2CustomerCreate',";
-          if(!b54.includes(b54ReadOld)||!b54.includes(b54TokenOld)) throw new Error('Expected Beta54 legacy customer direct-call checker not found');
-          b54=b54.replace(b54ReadOld,b54ReadNew).replace(b54TokenOld,b54TokenNew);
+          const b54TxOld="'p_client_tx_id:',";
+          const b54TxNew="'global.__SharawlaPV2CustomerCreate',";
+          if(!b54.includes(b54ReadOld)||!b54.includes(b54TokenOld)||!b54.includes(b54TxOld)) throw new Error('Expected Beta54 legacy customer direct-call checker not found');
+          b54=b54.replace(b54ReadOld,b54ReadNew).replace(b54TokenOld,b54TokenNew).replace(b54TxOld,b54TxNew);
           const b54Needle="])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);";
           const b54Extra="])assert(customerUi.includes(token),`Beta54 customer UI invariant missing: ${token}`);\nassert(customerCreateRoute.includes(\"commitRpcLocal('offline_customer_create_v1'\"),'Beta54 customer durable routing owner missing');";
           if(!b54.includes(b54Needle)) throw new Error('Beta54 customer assertion anchor missing');
