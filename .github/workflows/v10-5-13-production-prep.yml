@@ -16,14 +16,14 @@ jobs:
       - name: Checkout exact production-prep source
         uses: actions/checkout@v4
 
-      - name: Verify production metadata
+      - name: Verify pinned candidate source metadata
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           $ver = Get-Content version.json -Raw | ConvertFrom-Json
           if ($pkg.version -ne "10.5.13") { throw "Unexpected package version: $($pkg.version)" }
           if ($ver.version -ne "10.5.13") { throw "Unexpected version.json version: $($ver.version)" }
-          if ($ver.channel -ne "production") { throw "Expected production channel, got: $($ver.channel)" }
+          if ($ver.channel -ne "candidate") { throw "Expected candidate source channel, got: $($ver.channel)" }
 
       - uses: actions/setup-node@v4
         with:
