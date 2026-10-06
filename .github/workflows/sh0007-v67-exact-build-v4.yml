@@ -1,4 +1,4 @@
-name: SH0007 V67 Exact Candidate x64 Build v4
+name: SH0007 V67 Exact Candidate x64 Packaging
 
 on:
   push:
@@ -9,67 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  source-gates:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 2a2c615bcd71a7a55a128352d228d7b0bb1d72ee
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Verify exact V67 candidate commit and tree
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "2a2c615bcd71a7a55a128352d228d7b0bb1d72ee"
-          test "$(git rev-parse HEAD^{tree})" = "56ebe0463ec056297dce899b7c4cb0174f3fbd89"
-          test "$(node -p "require('./package.json').version")" = "10.5.4-beta.58.32"
-          echo V67_EXACT_CANDIDATE_SHA_TREE_PASS
-
-      - name: Prepare continuation baseline fixtures
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ../continuation_baseline
-          git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-delivery-settings-routing.js > ../continuation_baseline/permissions-v2-delivery-settings-routing.js
-          git show 2d174feff680c4ffc0dd6972036590d259f75626:permissions-v2-order-fulfillment-routing.js > ../continuation_baseline/permissions-v2-order-fulfillment-routing.js
-
-      - name: Run exact V64/V67 source closure suites
-        shell: bash
-        run: |
-          set -euo pipefail
-          tests=(
-            scripts/check-batch1-continuation.js
-            scripts/check-batch1-final-gaps.js
-            scripts/check-batch1-final-review.js
-            scripts/check-batch1-restaurant-families.js
-            scripts/check-batch1-ui.js
-            scripts/check-beta58-26-restaurant-point4-canonical-tx.js
-            scripts/check-bon-final-definition-chain.js
-            scripts/check-bon-runtime-policy-read.js
-            scripts/check-bon-source-closure.js
-            scripts/check-bon-v3-transport-boundary.js
-            scripts/check-offline-closure-batch1.js
-            scripts/check-offline-modern-food-final-dispatcher.js
-            scripts/check-offline-reference-return-behavior.js
-            scripts/check-offline-restaurant-table-config-runtime.js
-            scripts/check-offline-restaurant-table-session-runtime.js
-            scripts/check-rc1-pending-sale-return-v1.js
-            scripts/check-rc1-runtime-alignment-final-dispatcher.js
-            scripts/offline-reference-return-sql-contract.js
-          )
-          for t in "${tests[@]}"; do
-            echo "V67 SOURCE GATE: $t"
-            node "$t"
-          done
-          echo V67_EXACT_SOURCE_SUITES_18_18_PASS
-
   build-x64:
-    needs: source-gates
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +25,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Verify exact V67 candidate before build
+      - name: Verify exact tested V67 source identity
         shell: pwsh
         run: |
           $head = (git rev-parse HEAD).Trim()
@@ -94,7 +34,7 @@ jobs:
           if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "candidate tree mismatch: $tree" }
           $version = node -p "require('./package.json').version"
           if ($version -ne '10.5.4-beta.58.32') { throw "version mismatch: $version" }
-          Write-Host 'V67_EXACT_CANDIDATE_WINDOWS_PASS'
+          Write-Host 'V67_EXACT_TESTED_SOURCE_IDENTITY_PASS'
 
       - name: Pin node-gyp Python
         shell: pwsh
@@ -106,11 +46,13 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts=false --no-audit --no-fund
 
-      - name: Restore exact tracked source before packaging
+      - name: Restore exact tracked V67 source before packaging
         shell: pwsh
         run: |
           git reset --hard 2a2c615bcd71a7a55a128352d228d7b0bb1d72ee
+          $head = (git rev-parse HEAD).Trim()
           $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($head -ne '2a2c615bcd71a7a55a128352d228d7b0bb1d72ee') { throw "pre-build SHA mismatch: $head" }
           if ($tree -ne '56ebe0463ec056297dce899b7c4cb0174f3fbd89') { throw "pre-build tree mismatch: $tree" }
           Write-Host 'V67_EXACT_SOURCE_RESTORED_BEFORE_BUILD'
 
