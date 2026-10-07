@@ -140,6 +140,71 @@ begin
 end
 $add_business_fk$;
 
+-- Reservation Identity rows are deliberately immutable at runtime. Phase A needs
+-- to add business_id to the three historical identity rows without weakening that
+-- contract permanently. Temporarily allow ONLY a null -> non-null business_id
+-- backfill where every pre-existing column is byte/logically unchanged.
+create or replace function public.retail_reservation_identity_immutable_v1()
+returns trigger
+language plpgsql
+set search_path=''
+as $
+begin
+  if tg_op='UPDATE'
+     and old.business_id is null
+     and new.business_id is not null
+     and (to_jsonb(new)-'business_id') = (to_jsonb(old)-'business_id') then
+    return new;
+  end if;
+  raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IMMUTABLE';
+end
+$;
+
+create or replace function public.retail_reservation_mutation_guard_v1()
+returns trigger
+language plpgsql
+set search_path=''
+as $
+begin
+  if tg_op='UPDATE'
+     and old.business_id is null
+     and new.business_id is not null
+     and (to_jsonb(new)-'business_id') = (to_jsonb(old)-'business_id') then
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_IMMUTABLE';
+  end if;
+
+  if new.id is distinct from old.id
+     or new.reservation_document_id is distinct from old.reservation_document_id
+     or new.client_tx_id is distinct from old.client_tx_id
+     or new.mutation_type is distinct from old.mutation_type
+     or new.operation_digest is distinct from old.operation_digest
+     or new.requested_status is distinct from old.requested_status
+     or new.actor_kind is distinct from old.actor_kind
+     or new.actor_employee_id is distinct from old.actor_employee_id
+     or new.recorded_at is distinct from old.recorded_at then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_IDENTITY_IMMUTABLE';
+  end if;
+
+  if old.applied_at is not null
+     or old.result_status is not null
+     or old.result_payload is not null then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_RESULT_IMMUTABLE';
+  end if;
+
+  if new.applied_at is null
+     or new.result_status is null
+     or new.result_payload is null then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_RESULT_ATOMIC_REQUIRED';
+  end if;
+
+  return new;
+end
+$;
+
 -- Root entities are canonical tenant owners even when they have optional parent FKs.
 -- Historical rows in these roots belong to the one pre-existing Beta tenant.
 do $root_backfill$
@@ -361,6 +426,55 @@ begin
   end loop;
 end
 $parent_consistency$;
+
+-- Restore the exact runtime immutability guards before commit.
+create or replace function public.retail_reservation_identity_immutable_v1()
+returns trigger
+language plpgsql
+set search_path=''
+as $
+begin
+  raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IMMUTABLE';
+end
+$;
+
+create or replace function public.retail_reservation_mutation_guard_v1()
+returns trigger
+language plpgsql
+set search_path=''
+as $
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_IMMUTABLE';
+  end if;
+
+  if new.id is distinct from old.id
+     or new.reservation_document_id is distinct from old.reservation_document_id
+     or new.client_tx_id is distinct from old.client_tx_id
+     or new.mutation_type is distinct from old.mutation_type
+     or new.operation_digest is distinct from old.operation_digest
+     or new.requested_status is distinct from old.requested_status
+     or new.actor_kind is distinct from old.actor_kind
+     or new.actor_employee_id is distinct from old.actor_employee_id
+     or new.recorded_at is distinct from old.recorded_at then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_IDENTITY_IMMUTABLE';
+  end if;
+
+  if old.applied_at is not null
+     or old.result_status is not null
+     or old.result_payload is not null then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_RESULT_IMMUTABLE';
+  end if;
+
+  if new.applied_at is null
+     or new.result_status is null
+     or new.result_payload is null then
+    raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_RESULT_ATOMIC_REQUIRED';
+  end if;
+
+  return new;
+end
+$;
 
 -- Phase A finalization is additive only: validate business ownership FKs and
 -- add lookup/candidate indexes. Do NOT SET NOT NULL, drop constraints, change
