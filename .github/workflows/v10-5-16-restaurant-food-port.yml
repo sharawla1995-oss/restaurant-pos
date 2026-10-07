@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/v10.5.16-restaurant-inventory-food-ops-port
+      - release/v10.5.16-production-food
   workflow_dispatch:
 
 permissions:
