@@ -1,0 +1,20 @@
+name: Top Burger Mobile V10.5.16
+on:
+  push:
+    branches: [feature/top-burger-mobile-v10.5.16-sync]
+    paths:
+      - 'top-burger-mobile/**'
+      - 'scripts/check-top-burger-mobile-v10-5-16.js'
+      - '.github/workflows/top-burger-mobile-v10-5-16.yml'
+  workflow_dispatch:
+jobs:
+  mobile-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --check top-burger-mobile/app.js
+      - run: node --check top-burger-mobile/sw.js
+      - run: node scripts/check-top-burger-mobile-v10-5-16.js
