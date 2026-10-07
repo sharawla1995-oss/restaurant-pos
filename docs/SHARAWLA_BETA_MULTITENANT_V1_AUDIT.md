@@ -24,14 +24,19 @@ No migration, UPDATE, INSERT, DELETE, reset, deploy, or device operation was per
 
 V1 introduces `public.businesses` as the database tenant registry.
 
-The existing historical Beta dataset is assigned to one tenant:
+The existing historical Beta dataset uses the exact canonical Sharawla Cloud business UUID already issued to SH-0007:
 
+- canonical `business_id`: `91826502-590e-4afa-8826-2c0f4b99c490`
 - code: `beta-current`
 - name: `تجريبي`
 
-The POS already persists a canonical Sharawla Cloud `business_id` in License State and in the Offline V2 identity. The V1 registry therefore includes `external_business_id` so the existing licensed identity can later be bound to the database tenant without re-licensing SH-0007.
+Read-only verification against Sharawla Cloud confirmed that this exact `businesses.id` is active and named `تجريبي`. The same read-only checkpoint showed the current active device id `8c580a23-8711-4540-b6ca-f5c1725d5fcf` bound to that business.
 
-Authenticated requests resolve tenant from the employee tied to `auth.uid()`. Anonymous website requests will use the existing external business identity through the `x-sharawla-business` header after the website/client patch is proven.
+No parallel/local tenant UUID is generated. `public.businesses.id` is the Sharawla Cloud `businesses.id` itself.
+
+Authenticated tenant resolution is server-owned through `business_auth_memberships` plus the active employee row. `X-Sharawla-Business` is only a selector and cannot grant membership. Desktop requests may also send `X-Sharawla-Device`; when present, it must match `business_device_bindings`. Legacy SH-0007 remains compatible because a headerless authenticated request resolves only when the user belongs to exactly one active tenant.
+
+Anonymous website traffic has no Auth membership, so its canonical UUID acts only as a public tenant selector and remains limited by the restricted public RPC/RLS surface.
 
 ## Ownership/backfill rule
 
@@ -39,7 +44,7 @@ No child row may be assigned a tenant arbitrarily.
 
 The foundation draft applies this order:
 
-1. Seed the one historical tenant (`beta-current`).
+1. Seed the one historical tenant with canonical Cloud UUID `91826502-590e-4afa-8826-2c0f4b99c490` (never `gen_random_uuid()`).
 2. Backfill known root owners (branches, employees, products, categories, customers, suppliers, ingredients, settings, etc.).
 3. Backfill children with a real FK to `branches`.
 4. Iteratively propagate `business_id` from canonical parent rows through existing single-column FKs.
@@ -82,7 +87,7 @@ The current Beta client is patched on this preparation branch to stop filtering 
 2. Scope idempotency/receipt uniqueness by `business_id`.
 3. Patch every operational receipt lookup to include tenant identity before composite receipt keys are enabled.
 4. Add composite parent FKs for the core restaurant graph (order/items/payments, customer/address, purchase/items, return/items/payments, recipe/version/lines, website order/items, employee/branch, delivery, HR).
-5. Prove the current SH-0007 client still bootstraps/login/loads `TEST` with the schema changes in an isolated database.
+5. Prove the current SH-0007 client still preserves License State / Business Connection / Runtime Config mismatch checks and bootstraps/login/loads `TEST` with the schema changes in an isolated database.
 6. Create a second test tenant only after the first tenant backfill is proven.
 7. Run cross-tenant read/write/delete/RPC attacks plus Offline replay/idempotency.
 8. Only then may the Beta database migration be considered for execution.

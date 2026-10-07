@@ -27,8 +27,8 @@ function loadBusinessConnectionCache(businessId){
     return c;
   }catch{return null}
 }
-function saveBusinessConnectionCache(c){
-  const row={business_id:String(c.business_id),business_name:c.business_name||'',url:String(c.supabase_url||c.url||'').replace(/\/$/,''),key:String(c.supabase_publishable_key||c.key||''),updated_at:new Date().toISOString()};
+function saveBusinessConnectionCache(c,deviceId=null){
+  const row={business_id:String(c.business_id),device_id:String(deviceId||c.device_id||''),business_name:c.business_name||'',url:String(c.supabase_url||c.url||'').replace(/\/$/,''),key:String(c.supabase_publishable_key||c.key||''),updated_at:new Date().toISOString()};
   localStorage.setItem(BUSINESS_CONNECTION_CACHE_KEY,JSON.stringify(row));
   return row;
 }
@@ -45,7 +45,7 @@ async function ensureSharawlaBusinessConnection(){
       const d=await cloudRpc('get_sharawla_business_connection',{p_device_id:st.device_id,p_device_fingerprint:canonical});
       if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعدادات اتصال النشاط.'),false;
       if(String(d.business_id)!==String(st.business_id))return showActivation('بيانات اتصال النشاط غير متطابقة مع ترخيص الجهاز.'),false;
-      const c=saveBusinessConnectionCache(d);
+      const c=saveBusinessConnectionCache(d,st.device_id);
       cfg={url:c.url,key:c.key};
       return true;
     }catch(e){
@@ -416,12 +416,21 @@ function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';se
 function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const type=opts.type||'text';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||'✏️'}</div><h2>${esc(opts.title||'إدخال البيانات')}</h2><p class="dialog-message">${esc(message)}</p><input class="dialog-input" type="${esc(type)}" value="${esc(defaultValue)}" ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''} autocomplete="off"><div class="modal-actions"><button class="secondary" data-dialog-cancel>إلغاء</button><button class="primary" data-dialog-ok>${esc(opts.okText||'حفظ')}</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('.dialog-input');setTimeout(()=>{input.focus();if(type!=='password')input.select()},30);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-cancel]'))finish(null);if(e.target.closest('[data-dialog-ok]'))finish(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter')finish(input.value);if(e.key==='Escape')finish(null)})})}
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
 function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
-function tenantBusinessHeader(){try{const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),id=String(c?.business_id||'').trim();return id?{'X-Sharawla-Business':id}:{}}catch{return {}}}
-function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantBusinessHeader(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
+function tenantIdentityHeaders(){try{const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}catch{return {}}}
+function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){const method=String(opt?.method||'GET').toUpperCase();if(method!=='GET'&&method!=='HEAD'&&globalThis.navigator?.onLine===false){const e=new Error(`تعديل ${table} يحتاج اتصالًا بالسيرفر. لم يتم تغيير أي بيانات.`);e.code='REST_MUTATION_OFFLINE_BLOCKED';throw e}return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){if(globalThis.navigator?.onLine===false){const e=new Error(`تنفيذ ${name} يحتاج اتصالًا بالسيرفر. لم يتم تغيير أي بيانات.`);e.code='FUNCTION_MUTATION_OFFLINE_BLOCKED';throw e}return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function assertSharawlaTenantContext(){
+  if(!window.topBurgerDesktop?.isDesktop)return true;
+  const st=await loadLicenseState();
+  const businessId=String(st?.business_id||'').trim(),deviceId=String(st?.device_id||'').trim();
+  if(!businessId||!deviceId){const e=new Error('Canonical Sharawla tenant identity غير مكتملة');e.code='CANONICAL_TENANT_IDENTITY_REQUIRED';throw e}
+  const ok=await rpc('mt1_assert_device_business',{p_device_id:deviceId});
+  if(ok!==true){const e=new Error('ربط الجهاز بالنشاط غير مطابق');e.code='DEVICE_BUSINESS_MISMATCH';throw e}
+  return true;
+}
 async function rc1RequireCloudOnline(action='العملية'){
  const label=String(action||'العملية');
  const internetError=(cause=null)=>{const e=new Error(`${label} تحتاج اتصالًا ثابتًا بالإنترنت. لم يتم تغيير أي بيانات.`);e.code='ONLINE_ONLY_INTERNET_REQUIRED';if(cause)e.cause=cause;return e};
@@ -873,6 +882,7 @@ $('#loginForm').addEventListener('submit',async e=>{
   try{
     if(navigator.onLine){
       await signIn(email,password);
+      await assertSharawlaTenantContext();
       await bootstrap();
       try{
         await enrollOfflineAuthAfterOfficialBootstrap(email,password);

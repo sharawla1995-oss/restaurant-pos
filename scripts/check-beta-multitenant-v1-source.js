@@ -24,8 +24,12 @@ const webPortal=read('supabase-beta-multitenant-v1-web-portal-rpc-DRAFT.sql');
 const offlineReceipts=read('supabase-beta-multitenant-v1-offline-receipts-DRAFT.sql');
 
 for(const s of [f,r]) need(s,"current_setting('sharawla.multitenant_apply', true)",'explicit Beta apply guard');
-need(f,"values ('beta-current','تجريبي',false)",'historical tenant seed');
-need(f,'external_business_id text unique','external Sharawla business binding');
+need(f,"values ('91826502-590e-4afa-8826-2c0f4b99c490'::uuid,'beta-current','تجريبي',false)",'canonical Sharawla Cloud tenant seed');
+reject(f,/id uuid primary key\s+default\s+gen_random_uuid\(\)/i,'tenant UUID must never be locally generated');
+reject(f,/external_business_id\s+text/i,'parallel external business mapping must not exist');
+need(f,'business_auth_memberships','server-owned Auth tenant membership');
+need(f,'business_device_bindings','server-owned device tenant binding');
+need(f,"'8c580a23-8711-4540-b6ca-f5c1725d5fcf'::uuid",'current SH-0007 Cloud device binding');
 need(f,"c.relname not in (\n        'businesses',",'business table exclusion');
 need(f,"'permission_actions_v2'","platform-global permission catalog");
 need(f,'No random child mapping','canonical parent comment');
@@ -38,8 +42,12 @@ need(f,'website_settings_mt1_id_seq','website settings tenant sequence');
 need(f,'mt1_business_settings_business_uidx','business settings per-tenant uniqueness');
 need(f,'mt1_website_settings_business_uidx','website settings per-tenant uniqueness');
 
-need(r,'create or replace function public.header_business_id()','header tenant helper');
-need(r,'v_count=1 then return v_business','single-tenant legacy client fallback');
+need(r,'create or replace function public.header_business_id()','header tenant selector');
+need(r,'create or replace function public.header_device_id()','device selector helper');
+need(r,'from public.business_auth_memberships m','server-owned Auth membership lookup');
+need(r,'from public.business_device_bindings d','server-owned device binding lookup');
+need(r,'min(m.business_id::text)::uuid','single-tenant legacy client fallback');
+need(r,'create or replace function public.mt1_assert_device_business','explicit device/business assertion RPC');
 need(r,'create or replace function public.current_business_id()','authenticated tenant helper');
 need(r,'create or replace function public.current_employee_id()','tenant employee helper');
 need(r,'create or replace function public.request_business_id()','public tenant helper');
@@ -79,9 +87,17 @@ need(uniqueShadow,'mt1u_','business-scoped unique shadow indexes');
 need(uniqueShadow,'Do NOT drop legacy unique','pre-cutover uniqueness safety');
 need(uniqueFinalize,'MULTITENANT_V1_UNIQUE_FINALIZATION_GENERATOR_REQUIRED','unique finalization hard stop');
 need(d,'230','anon SECURITY DEFINER count evidence');
-need(app,"'X-Sharawla-Business'","tenant header on Beta REST requests");
+need(app,"'X-Sharawla-Business'","canonical tenant selector on Beta REST requests");
+need(app,"'X-Sharawla-Device'","canonical device selector on Beta REST requests");
+need(app,'saveBusinessConnectionCache(d,st.device_id)','Business Connection cache binds canonical device id');
+need(app,"if(String(d.business_id)!==String(st.business_id))return showActivation('بيانات اتصال النشاط غير متطابقة مع ترخيص الجهاز.'",'Business Connection mismatch protection preserved');
+need(app,"if(String(d.business_id)!==String(st.business_id))return showActivation('Runtime Config غير متطابقة مع ترخيص الجهاز.'",'Runtime Config mismatch protection preserved');
+need(app,'business_id:d.business_id,business_name:d.business_name','Cloud business id persisted in License State');
+need(app,"await rpc('mt1_assert_device_business',{p_device_id:deviceId})",'server-side device/business assertion before bootstrap');
 if(app.includes("rest('business_settings','select=*&id=eq.1"))throw new Error('business_settings still hard-codes id=1');
 if(app.includes("rest('website_settings','select=*&id=eq.1"))throw new Error('website_settings still hard-codes id=1');
 
 console.log('Beta Multi-Tenant V1 source-preparation gate PASS');
 console.log('DB apply remains blocked by explicit migration guard');
+
+if(!read('sharawla-web-v1/config.js').includes("91826502-590e-4afa-8826-2c0f4b99c490"))throw new Error('generic web config must use canonical Cloud business UUID');

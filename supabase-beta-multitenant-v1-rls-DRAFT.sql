@@ -12,28 +12,16 @@ begin
 end
 $guard$;
 
-do $external_binding_guard$
-begin
-  if exists(
-    select 1 from public.businesses
-    where code='beta-current'
-      and nullif(trim(coalesce(external_business_id,'')),'') is null
-  ) then
-    raise exception 'MULTITENANT_EXTERNAL_BUSINESS_BINDING_REQUIRED';
-  end if;
-end
-$external_binding_guard$;
-
 create or replace function public.header_business_id()
 returns uuid
 language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $$
+as $
 declare
   h jsonb;
-  ext text;
+  raw_id text;
   v uuid;
 begin
   begin
@@ -41,20 +29,55 @@ begin
   exception when others then
     h:='{}'::jsonb;
   end;
-  ext:=nullif(trim(coalesce(h->>'x-sharawla-business','')),'');
-  if ext is null then return null; end if;
+  raw_id:=nullif(trim(coalesce(h->>'x-sharawla-business','')),'');
+  if raw_id is null then return null; end if;
 
-  select b.id into v
-  from public.businesses b
-  where b.active=true
-    and (b.external_business_id=ext or b.code=ext)
-  limit 1;
-  return v;
+  begin
+    v:=raw_id::uuid;
+  exception when invalid_text_representation then
+    return null;
+  end;
+
+  if exists(select 1 from public.businesses b where b.id=v and b.active=true) then
+    return v;
+  end if;
+  return null;
 end
-$$;
+$;
 
 revoke all on function public.header_business_id() from public;
 grant execute on function public.header_business_id() to anon,authenticated;
+
+create or replace function public.header_device_id()
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path=pg_catalog,public
+as $
+declare
+  h jsonb;
+  raw_id text;
+  v uuid;
+begin
+  begin
+    h:=coalesce(current_setting('request.headers',true),'{}')::jsonb;
+  exception when others then
+    h:='{}'::jsonb;
+  end;
+  raw_id:=nullif(trim(coalesce(h->>'x-sharawla-device','')),'');
+  if raw_id is null then return null; end if;
+  begin
+    v:=raw_id::uuid;
+  exception when invalid_text_representation then
+    return null;
+  end;
+  return v;
+end
+$;
+
+revoke all on function public.header_device_id() from public;
+grant execute on function public.header_device_id() to authenticated;
 
 create or replace function public.current_business_id()
 returns uuid
@@ -62,38 +85,68 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $$
+as $
 declare
   v_header uuid;
+  v_device uuid;
   v_business uuid;
   v_count integer;
 begin
   if auth.uid() is null then return null; end if;
 
-  -- New clients bind the business explicitly.
   v_header:=public.header_business_id();
+  v_device:=public.header_device_id();
+
+  -- Header business_id is only a selector. Server-owned membership + active employee
+  -- must independently prove the caller belongs to the selected canonical Cloud tenant.
   if v_header is not null then
-    select e.business_id into v_business
-    from public.employees e
-    where e.auth_user_id=auth.uid()
-      and e.business_id=v_header
-      and e.active=true
+    select m.business_id into v_business
+    from public.business_auth_memberships m
+    where m.auth_user_id=auth.uid()
+      and m.business_id=v_header
+      and m.active=true
+      and exists(
+        select 1 from public.employees e
+        where e.auth_user_id=m.auth_user_id
+          and e.business_id=m.business_id
+          and e.active=true
+      )
     limit 1;
+
+    if v_business is null then return null; end if;
+
+    -- New desktop clients send the canonical Cloud device_id. If supplied, it must
+    -- match the server-owned device/business binding. A forged device header cannot widen access.
+    if v_device is not null and not exists(
+      select 1 from public.business_device_bindings d
+      where d.device_id=v_device
+        and d.business_id=v_business
+        and d.active=true
+    ) then
+      return null;
+    end if;
+
     return v_business;
   end if;
 
-  -- Compatibility for the existing SH-0007 client during cutover:
-  -- fallback is allowed only when auth.uid() belongs to exactly one active tenant.
-  select count(distinct e.business_id), min(e.business_id)
+  -- Legacy SH-0007 compatibility: no tenant is guessed unless the authenticated
+  -- user has exactly one active server-side membership and matching active employee.
+  select count(distinct m.business_id), min(m.business_id::text)::uuid
   into v_count,v_business
-  from public.employees e
-  where e.auth_user_id=auth.uid()
-    and e.active=true;
+  from public.business_auth_memberships m
+  where m.auth_user_id=auth.uid()
+    and m.active=true
+    and exists(
+      select 1 from public.employees e
+      where e.auth_user_id=m.auth_user_id
+        and e.business_id=m.business_id
+        and e.active=true
+    );
 
   if v_count=1 then return v_business; end if;
   return null;
 end
-$$;
+$;
 
 revoke all on function public.current_business_id() from public,anon;
 grant execute on function public.current_business_id() to authenticated;
@@ -104,17 +157,54 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $$
+as $
 begin
   if auth.uid() is not null then
     return public.current_business_id();
   end if;
+
+  -- Anonymous website traffic has no Auth membership; the UUID is only a public
+  -- tenant selector and remains constrained to public RPC/RLS surfaces.
   return public.header_business_id();
 end
-$$;
+$;
 
 revoke all on function public.request_business_id() from public;
 grant execute on function public.request_business_id() to anon,authenticated;
+
+create or replace function public.mt1_assert_device_business(p_device_id uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path=pg_catalog,public
+as $
+declare v_business uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'UNAUTHENTICATED' using errcode='42501';
+  end if;
+
+  v_business:=public.current_business_id();
+  if v_business is null then
+    raise exception 'MULTITENANT_CONTEXT_DENIED' using errcode='42501';
+  end if;
+
+  if p_device_id is null or not exists(
+    select 1 from public.business_device_bindings d
+    where d.device_id=p_device_id
+      and d.business_id=v_business
+      and d.active=true
+  ) then
+    raise exception 'DEVICE_BUSINESS_MISMATCH' using errcode='42501';
+  end if;
+
+  return true;
+end
+$;
+
+revoke all on function public.mt1_assert_device_business(uuid) from public,anon;
+grant execute on function public.mt1_assert_device_business(uuid) to authenticated;
 
 create or replace function public.current_employee_id()
 returns bigint

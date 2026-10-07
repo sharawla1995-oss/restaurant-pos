@@ -1,7 +1,7 @@
 window.SHARAWLA_WEB_V1=Object.freeze({
   supabaseUrl:'https://YOUR_PROJECT.supabase.co',
   publishableKey:'sb_publishable_...',
-  businessId:'YOUR-BUSINESS-ID-OR-CODE',
+  businessId:'YOUR-CANONICAL-SHARAWLA-CLOUD-BUSINESS-UUID',
   defaultProfile:'retail',
   allowProfileQuery:false,
   retailPortal:'../retail-website/index.html',

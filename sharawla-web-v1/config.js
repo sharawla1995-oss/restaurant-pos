@@ -1,7 +1,7 @@
 window.SHARAWLA_WEB_V1=Object.freeze({
   supabaseUrl:'https://xihcxydjnzemflhedzor.supabase.co',
   publishableKey:'sb_publishable_D8oSDUbbiw3ckn3XVO5QXw_hcnn-1UG',
-  businessId:'beta-current',
+  businessId:'91826502-590e-4afa-8826-2c0f4b99c490',
   defaultProfile:'retail',
   allowProfileQuery:true,
   retailPortal:'../retail-website/index.html',

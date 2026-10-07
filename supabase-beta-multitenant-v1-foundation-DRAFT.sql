@@ -18,10 +18,10 @@ end
 $guard$;
 
 create table if not exists public.businesses (
-  id uuid primary key default gen_random_uuid(),
+  -- Canonical identity comes from Sharawla Cloud businesses.id. Never mint a local tenant UUID.
+  id uuid primary key,
   code text not null unique,
   name text not null,
-  external_business_id text unique,
   active boolean not null default true,
   is_test boolean not null default false,
   created_at timestamptz not null default now(),
@@ -32,14 +32,61 @@ create table if not exists public.businesses (
 comment on table public.businesses is
   'Canonical tenant registry for Sharawla POS Beta Multi-Tenant V1.';
 
--- The current Beta data predates Multi-Tenant and is known to belong to one
--- existing business. Preserve it as the canonical tenant named "تجريبي".
-insert into public.businesses(code,name,is_test)
-values ('beta-current','تجريبي',false)
-on conflict(code) do update
-set name=excluded.name,
+-- The current Beta data predates Multi-Tenant. Its tenant UUID is NOT local:
+-- it is the exact canonical Sharawla Cloud businesses.id already stored by SH-0007.
+insert into public.businesses(id,code,name,is_test)
+values ('91826502-590e-4afa-8826-2c0f4b99c490'::uuid,'beta-current','تجريبي',false)
+on conflict(id) do update
+set code=excluded.code,
+    name=excluded.name,
     is_test=false,
     updated_at=now();
+
+do $canonical_business_seed_proof$
+begin
+  if not exists(
+    select 1 from public.businesses
+    where id='91826502-590e-4afa-8826-2c0f4b99c490'::uuid
+      and code='beta-current'
+  ) then
+    raise exception 'MULTITENANT_V1_CANONICAL_CLOUD_BUSINESS_SEED_MISSING';
+  end if;
+end
+$canonical_business_seed_proof$;
+
+-- Auth membership is server-owned tenant authority. Client business headers are selectors only.
+create table if not exists public.business_auth_memberships (
+  auth_user_id uuid not null references auth.users(id) on delete cascade,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  active boolean not null default true,
+  source text not null default 'migration',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key(auth_user_id,business_id)
+);
+
+-- Device/business binding is copied from read-only Sharawla Cloud evidence.
+-- Application roles cannot invent this mapping; RLS only consumes it for validation.
+create table if not exists public.business_device_bindings (
+  device_id uuid primary key,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  active boolean not null default true,
+  source text not null,
+  verified_at timestamptz not null default now()
+);
+
+insert into public.business_device_bindings(device_id,business_id,active,source)
+values (
+  '8c580a23-8711-4540-b6ca-f5c1725d5fcf'::uuid,
+  '91826502-590e-4afa-8826-2c0f4b99c490'::uuid,
+  true,
+  'sharawla-cloud-readonly-checkpoint'
+)
+on conflict(device_id) do update
+set business_id=excluded.business_id,
+    active=true,
+    source=excluded.source,
+    verified_at=now();
 
 -- Platform-global immutable/action catalog tables are deliberately not tenant-owned.
 -- Everything else in public is treated as tenant-owned unless explicitly reviewed.
@@ -98,7 +145,7 @@ $add_business_fk$;
 do $root_backfill$
 declare t text; seed uuid;
 begin
-  select id into seed from public.businesses where code='beta-current';
+  select id into seed from public.businesses where id='91826502-590e-4afa-8826-2c0f4b99c490'::uuid and code='beta-current';
   if seed is null then raise exception 'beta-current tenant missing'; end if;
 
   foreach t in array array[
@@ -136,12 +183,41 @@ begin
 end
 $root_backfill$;
 
+-- Preserve current login behavior while making Auth -> Tenant binding server-owned.
+insert into public.business_auth_memberships(auth_user_id,business_id,active,source)
+select distinct e.auth_user_id,e.business_id,true,'employees-backfill'
+from public.employees e
+where e.auth_user_id is not null
+  and e.business_id is not null
+on conflict(auth_user_id,business_id) do update
+set active=true,
+    source='employees-backfill',
+    updated_at=now();
+
+do $membership_seed_proof$
+begin
+  if exists(
+    select 1
+    from public.employees e
+    where e.auth_user_id is not null
+      and not exists(
+        select 1 from public.business_auth_memberships m
+        where m.auth_user_id=e.auth_user_id
+          and m.business_id=e.business_id
+          and m.active=true
+      )
+  ) then
+    raise exception 'MULTITENANT_V1_AUTH_MEMBERSHIP_BACKFILL_INCOMPLETE';
+  end if;
+end
+$membership_seed_proof$;
+
 -- Any tenant-owned table with no FK to another tenant-owned table is also a root.
 -- This covers legacy receipt/config tables that have no canonical parent relation.
 do $catalog_roots$
 declare r record; seed uuid;
 begin
-  select id into seed from public.businesses where code='beta-current';
+  select id into seed from public.businesses where id='91826502-590e-4afa-8826-2c0f4b99c490'::uuid and code='beta-current';
   for r in
     select c.oid,c.relname
     from pg_class c
