@@ -1,0 +1,5 @@
+const CACHE='top-burger-unified-v10.5.16-1';
+const ASSETS=['./','./index.html','./styles.css?v=10.5.16','./sharawla-runtime-core.js?v=10.5.16','./restaurant-engine.js?v=10.5.16','./food-recipe-ui-v1.js?v=10.5.16','./app.js?v=10.5.16','./food-recipe-runtime-bridge-v10-5-16.js?v=10.5.16','./v10-5-16-restaurant-closure-ui.js?v=10.5.16','./inventory-overview-v10-5-16.js?v=10.5.16','./food-advanced-ui-v10-5-16.js?v=10.5.16','./hr-core-admin-v1.js?v=10.5.16','./hr-attendance-admin-v1.js?v=10.5.16','./v10-5-14-ops-hr-summary.js?v=10.5.16'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(xs=>Promise.all(xs.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))))});
