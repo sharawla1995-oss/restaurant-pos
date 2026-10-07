@@ -104,6 +104,25 @@ function runtimePermissionGroups(){
   return runtimeCore()?.permissionGroups(sharawlaRuntimeConfig)||[];
 }
 async function ensureSharawlaRuntimeConfig(){
+  if(!window.topBurgerDesktop?.isDesktop){
+    const core=runtimeCore();
+    if(!core)return false;
+    try{
+      sharawlaRuntimeConfig=core.prepareConfig({
+        business_id:'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7',
+        business_name:'Top Burger',
+        pos_profile:'restaurant',
+        profile_active:true,
+        profile_implemented:true,
+        modules_configured:true,
+        enabled_modules:['customers','delivery','expenses','inventory','kitchen','pickup','pos','promocodes','reports','returns','website'],
+        features_configured:true,
+        enabled_features:['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'],
+        capability_version:2
+      });
+      return true;
+    }catch(e){console.error('Top Burger unified PWA runtime bootstrap failed',e);return false}
+  }
   const st=await loadLicenseState();
   if(!st?.device_id||!st?.business_id)return showActivation('بيانات النشاط غير مكتملة. أعد التحقق من الترخيص.'),false;
   const canonical=String(st.device_fingerprint||'').trim();
