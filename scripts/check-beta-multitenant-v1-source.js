@@ -16,6 +16,9 @@ const idem=read('supabase-beta-multitenant-v1-idempotency-DRAFT.sql');
 const anon=read('supabase-beta-multitenant-v1-anon-hardening-DRAFT.sql');
 const retailWeb=read('retail-website/app.js');
 const genericWeb=read('sharawla-web-v1/app.js');
+const restaurantPublic=read('supabase-beta-multitenant-v1-restaurant-public-rpc-DRAFT.sql');
+const uniqueShadow=read('supabase-beta-multitenant-v1-unique-shadow-DRAFT.sql');
+const uniqueFinalize=read('supabase-beta-multitenant-v1-unique-finalize-BLOCKED.sql');
 
 for(const s of [f,r]) need(s,"current_setting('sharawla.multitenant_apply', true)",'explicit Beta apply guard');
 need(f,"values ('beta-current','تجريبي',false)",'historical tenant seed');
@@ -57,6 +60,13 @@ need(anon,"current_setting('sharawla.multitenant_public_rpc_ready', true)",'publ
 need(anon,'revoke execute on function %s from anon','anonymous definer revoke');
 need(retailWeb,"'X-Sharawla-Business'",'retail website tenant header');
 need(genericWeb,"'X-Sharawla-Business'",'generic website tenant header');
+need(restaurantPublic,'mt1_require_public_branch','restaurant public branch tenant guard');
+need(restaurantPublic,'mt1_assert_restaurant_items','restaurant public item tenant guard');
+need(restaurantPublic,'business_id=v_business_id','restaurant public SQL tenant predicates');
+need(restaurantPublic,'revoke execute on function public.accept_website_order(bigint) from anon','staff accept not anonymous');
+need(uniqueShadow,'mt1u_','business-scoped unique shadow indexes');
+need(uniqueShadow,'Do NOT drop legacy unique','pre-cutover uniqueness safety');
+need(uniqueFinalize,'MULTITENANT_V1_UNIQUE_FINALIZATION_GENERATOR_REQUIRED','unique finalization hard stop');
 need(d,'230','anon SECURITY DEFINER count evidence');
 need(app,"'X-Sharawla-Business'","tenant header on Beta REST requests");
 if(app.includes("rest('business_settings','select=*&id=eq.1"))throw new Error('business_settings still hard-codes id=1');
