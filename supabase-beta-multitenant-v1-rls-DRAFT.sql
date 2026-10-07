@@ -18,7 +18,7 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $
+as $mt1_header_business$
 declare
   h jsonb;
   raw_id text;
@@ -43,7 +43,7 @@ begin
   end if;
   return null;
 end
-$;
+$mt1_header_business$;
 
 revoke all on function public.header_business_id() from public;
 grant execute on function public.header_business_id() to anon,authenticated;
@@ -54,7 +54,7 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $
+as $mt1_header_device$
 declare
   h jsonb;
   raw_id text;
@@ -74,7 +74,7 @@ begin
   end;
   return v;
 end
-$;
+$mt1_header_device$;
 
 revoke all on function public.header_device_id() from public;
 grant execute on function public.header_device_id() to authenticated;
@@ -85,7 +85,7 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $
+as $mt1_current_business$
 declare
   v_header uuid;
   v_device uuid;
@@ -146,7 +146,7 @@ begin
   if v_count=1 then return v_business; end if;
   return null;
 end
-$;
+$mt1_current_business$;
 
 revoke all on function public.current_business_id() from public,anon;
 grant execute on function public.current_business_id() to authenticated;
@@ -157,7 +157,7 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $
+as $mt1_request_business$
 begin
   if auth.uid() is not null then
     return public.current_business_id();
@@ -167,7 +167,7 @@ begin
   -- tenant selector and remains constrained to public RPC/RLS surfaces.
   return public.header_business_id();
 end
-$;
+$mt1_request_business$;
 
 revoke all on function public.request_business_id() from public;
 grant execute on function public.request_business_id() to anon,authenticated;
@@ -178,7 +178,7 @@ language plpgsql
 stable
 security definer
 set search_path=pg_catalog,public
-as $
+as $mt1_device_assert$
 declare v_business uuid;
 begin
   if auth.uid() is null then
@@ -201,7 +201,7 @@ begin
 
   return true;
 end
-$;
+$mt1_device_assert$;
 
 revoke all on function public.mt1_assert_device_business(uuid) from public,anon;
 grant execute on function public.mt1_assert_device_business(uuid) to authenticated;
