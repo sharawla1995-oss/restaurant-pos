@@ -1,0 +1,42 @@
+name: V10.5.16 Windows Stable Candidate
+on:
+  push:
+    branches:
+      - release/v10.5.16-production-food
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.ref_name == 'release/v10.5.16-production-food'
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - run: npm install
+      - run: npm run check
+      - name: Build ia32
+        run: npm run dist -- --win --ia32 --publish never
+      - name: Save ia32
+        shell: pwsh
+        run: |
+          $exe=Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if(-not $exe){throw "ia32 installer not found"}
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.16-ia32.exe"
+      - name: Build x64
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save x64
+        shell: pwsh
+        run: |
+          $exe=Get-ChildItem dist -Filter *.exe | Where-Object {$_.Name -notmatch "ia32|x86"} | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if(-not $exe){throw "x64 installer not found"}
+          Copy-Item $exe.FullName "Sharawla-POS-Setup-10.5.16-x64.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.16-production-food-candidate
+          path: |
+            Sharawla-POS-Setup-10.5.16-ia32.exe
+            Sharawla-POS-Setup-10.5.16-x64.exe
+          if-no-files-found: error
