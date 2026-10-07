@@ -51,6 +51,7 @@ jobs:
             supabase-v10-5-16-food-recipe-advanced-foundation.sql \
             supabase-v10-5-16-food-recipe-basic-runtime.sql \
             supabase-v10-5-16-food-recipe-advanced-runtime.sql \
+            supabase-v10-5-16-food-permissions-bootstrap.sql \
             supabase-v10-5-16-restaurant-operations.sql \
             supabase-v10-5-16-restaurant-operations-fixes.sql \
             supabase-v10-5-16-restaurant-permissions-runtime.sql \
