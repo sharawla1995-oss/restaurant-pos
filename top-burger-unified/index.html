@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Sharawla POS</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css?v=10.5.16">
+</head>
+<body>
+<div id="toast"></div>
+
+
+<section id="activationView" class="login-wrap hidden">
+  <form id="activationForm" class="card login-card">
+    <div class="brand-mark">POS</div>
+    <h1>تفعيل Sharawla POS</h1>
+    <p id="activationMessage">أدخل كود الترخيص الخاص بهذا الجهاز.</p>
+    <label id="licenseKeyLabel">License Key
+      <input id="licenseKey" placeholder="SHR-XXXX-XXXX-XXXX-XXXX" autocomplete="off" required>
+    </label>
+    <button id="activateBtn" class="primary" type="submit">تفعيل الجهاز</button>
+    <button id="retryLicenseBtn" class="primary hidden" type="button">إعادة التحقق</button>
+    <button id="changeLicenseBtn" class="hidden" type="button">إدخال كود ترخيص جديد</button>
+    <small id="deviceHint">سيتم ربط الترخيص بهذا الجهاز فقط.</small>
+  </form>
+</section>
+
+<section id="setupView" class="login-wrap hidden">
+  <form id="setupForm" class="card login-card">
+    <div class="brand-mark">POS</div>
+    <h1>ربط قاعدة البيانات</h1>
+    <p>يتم تنفيذ هذه الخطوة مرة واحدة على كل جهاز.</p>
+    <label>Supabase Project URL
+      <input id="supabaseUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" required>
+    </label>
+    <label>Publishable key
+      <textarea id="publishableKey" rows="4" placeholder="sb_publishable_..." required></textarea>
+    </label>
+    <button class="primary" type="submit">حفظ ومتابعة</button>
+    <small>استخدم Publishable key فقط. لا تستخدم Secret key أو service_role.</small>
+  </form>
+</section>
+
+<section id="loginView" class="login-wrap hidden">
+  <form id="loginForm" class="card login-card">
+    <div class="brand-mark">POS</div>
+    <h1>Sharawla POS</h1>
+    <p>دخول الإدارة والموظفين</p>
+    <label>البريد الإلكتروني<input id="email" type="email" autocomplete="username" required></label>
+    <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" required></label>
+    <button class="primary" type="submit">تسجيل الدخول</button>
+    <button id="developerContactBtn" class="developer-contact-login-btn" type="button"><span class="developer-contact-icon">💬</span><span><b>تواصل مع المطور</b><small>الدعم الفني لـ Sharawla POS</small></span></button>
+    <div id="loginSupportCode" class="login-support-code" aria-live="polite"><span class="login-support-code-icon">🆔</span><span><small>كود الجهاز</small><b id="loginSupportCodeValue" dir="ltr">—</b></span></div>
+  </form>
+</section>
+
+<section id="appView" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><b>POS</b><img id="appBrandLogo" class="app-brand-logo hidden" alt=""><span><span id="appBrandName">Sharawla POS</span> <small class="version-badge">V10.5.16</small></span><button id="sidebarCloseBtn" class="sidebar-close" type="button" aria-label="إغلاق القائمة">✕</button></div>
+    <nav id="nav">
+      <button data-page="home" class="active">🏠 الرئيسية</button>
+      <button data-page="pos">🧾 الكاشير</button>
+      <button data-page="orders">📋 الطلبات</button>
+      <button data-page="returns">↩️ المرتجعات</button>
+      <button data-page="approvals" id="navApprovalsBtn">✅ الموافقات <span id="returnApprovalBadge" class="hidden"></span></button>
+      <button data-page="customers">👤 العملاء</button>
+      <button data-page="deliveryOrders">🛵 طلبات الدليفري</button>
+      <button data-page="deliverySettings">📍 إعدادات الدليفري</button>
+      <button data-page="kitchen">👨‍🍳 المطبخ</button>
+      <button data-page="shifts">🕘 الشيفت</button>
+      <button data-page="inventory">📦 المخزون</button>
+      <button data-page="foodRecipes">🍲 الوصفات</button>
+      <button data-page="expenses">💸 المصروفات</button>
+      <button data-page="products">🍔 الأصناف</button>
+      <button data-page="promoCodes">🎟️ البرومو كود</button>
+      <button data-page="websiteManagement">🌐 إدارة الموقع</button>
+      <button data-page="reports">📊 التقارير</button>
+      <button data-page="users">👥 المستخدمون</button>
+      <button data-page="settings">⚙️ الإعدادات</button>
+      <button id="logoutMenuBtn" type="button">🚪 تسجيل الخروج</button>
+    </nav>
+    <div class="sidebar-foot"><span id="who"></span></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><button id="menuBtn" class="mobile-menu">☰</button><div><b id="pageTitle">الكاشير</b><small id="branchName"></small></div><div class="branch-top-actions"><button id="manageBranchesBtn" class="add-branch-btn manage-branch-btn hidden" type="button">⚙️ إدارة الفروع</button><button id="addBranchBtn" class="add-branch-btn hidden" type="button">➕ إضافة فرع</button><button id="changeBranchBtn" class="branch-switch hidden" type="button"></button></div><div id="clock"></div></header>
+    <div id="page" class="page"></div>
+  </main>
+</section>
+
+<div id="developerContactModal" class="modal hidden developer-contact-modal" role="dialog" aria-modal="true" aria-labelledby="developerContactTitle">
+  <div class="modal-card developer-contact-card">
+    <button id="developerContactClose" class="developer-contact-close" type="button" aria-label="إغلاق">✕</button>
+    <div class="developer-contact-badge">💬</div>
+    <h2 id="developerContactTitle">تواصل مع المطور</h2>
+    <p>للدعم الفني والاستفسارات الخاصة بـ Sharawla POS</p>
+    <div class="developer-phone-list">
+      <div class="developer-phone-row"><span>📞</span><div><small>هاتف</small><b dir="ltr">01555557202</b></div></div>
+      <div class="developer-phone-row"><span>📞</span><div><small>هاتف</small><b dir="ltr">01140642734</b></div></div>
+    </div>
+    <button id="developerWhatsappBtn" class="developer-whatsapp-btn" type="button"><span>🟢</span><span><b>تواصل عبر واتساب</b><small dir="ltr">01140642734</small></span></button>
+  </div>
+</div>
+
+<script src="sharawla-runtime-core.js?v=10.5.16"></script>
+<script src="restaurant-engine.js?v=10.5.16"></script>
+<script src="food-recipe-ui-v1.js?v=10.5.16"></script>
+<script src="app.js?v=10.5.16"></script>
+<script src="food-recipe-runtime-bridge-v10-5-16.js?v=10.5.16"></script>
+<script src="v10-5-16-restaurant-closure-ui.js?v=10.5.16"></script>
+<script src="inventory-overview-v10-5-16.js?v=10.5.16"></script>
+<script src="food-advanced-ui-v10-5-16.js?v=10.5.16"></script>
+<script src="hr-core-admin-v1.js?v=10.5.16"></script>
+<script src="hr-attendance-admin-v1.js?v=10.5.16"></script>\n<script src="v10-5-14-ops-hr-summary.js?v=10.5.16"></script>
+</body>
+</html>
