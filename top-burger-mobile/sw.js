@@ -5,7 +5,11 @@ const SHELL=[
   './sharawla-runtime-core.js?v=topburger-10.5.16.2',
   './restaurant-engine.js?v=topburger-10.5.16.2',
   './food-recipe-ui-v1.js?v=topburger-10.5.16.2',
-  './food-recipe-runtime-bridge-v10-5-16.js?v=topburger-10.5.16.2',\n  './inventory-overview-v10-5-16.js?v=topburger-10.5.16.2',\n  './food-advanced-ui-v10-5-16.js?v=topburger-10.5.16.2',\n  './v10-5-16-restaurant-closure-ui.js?v=topburger-10.5.16.2',\n  './app.js?v=topburger-10.5.16.2',
+  './food-recipe-runtime-bridge-v10-5-16.js?v=topburger-10.5.16.2',
+  './inventory-overview-v10-5-16.js?v=topburger-10.5.16.2',
+  './food-advanced-ui-v10-5-16.js?v=topburger-10.5.16.2',
+  './v10-5-16-restaurant-closure-ui.js?v=topburger-10.5.16.2',
+  './app.js?v=topburger-10.5.16.2',
   './hr-core-admin-v1.js?v=topburger-10.5.16.2',
   './hr-attendance-admin-v1.js?v=topburger-10.5.16.2',
   './v10-5-14-ops-hr-summary.js?v=topburger-10.5.16.2'
