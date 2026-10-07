@@ -757,7 +757,7 @@ async function renderFoodRecipes(){
   if(!ui?.renderPage)throw new Error('واجهة الوصفات غير محملة');
   return ui.renderPage();
 }
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}const foodPort=window.__SharawlaRestaurantFoodPortV10516;if(foodPort?.pages?.includes(p)){navActive(p);return foodPort.openPage(p)}if(foodPort?.sharedRoutes?.includes(p)){navActive(p);return foodPort.renderSharedRoute(p)}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -777,7 +777,7 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
-    ['foodRecipes','🍲','الوصفات','الخامات وتركيبات الأصناف','amber'],
+    ['suppliers','🚚','الموردين','إدارة موردي الخامات','blue'],\n    ['purchasing','🧾','المشتريات','شراء واستلام الخامات','green'],\n    ['stockCount','🧮','الجرد','جرد الخامات وترحيل الفروق','violet'],\n    ['transfers','🔄','التحويلات','تحويل الخامات بين الفروع','blue'],\n    ['foodIngredients','🧪','الخامات','الخامات والوحدات والأرصدة','amber'],\n    ['foodRecipes','🍲','الوصفات وFood Cost','تركيبات الأصناف والتكلفة','amber'],\n    ['foodOperations','🏭','الإنتاج والهالك','Prep والإنتاج والهالك والتكلفة','rose'],
     ['websiteManagement','🌐','إدارة الموقع','التحكم في الموقع وتوافر الأصناف','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
