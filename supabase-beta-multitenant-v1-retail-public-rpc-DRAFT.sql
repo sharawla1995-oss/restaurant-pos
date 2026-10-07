@@ -1420,6 +1420,7 @@ begin
       0
     )
     on conflict (
+      business_id,
       branch_id,
       product_id
     )
