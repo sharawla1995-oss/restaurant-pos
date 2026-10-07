@@ -444,9 +444,10 @@ begin
  -- Production preflight: validate every count line before the stock-count
  -- header becomes the first durable posting write.
  for v in
-   select x.ingredient_id,round(coalesce(x.counted_quantity,-1)::numeric,6) counted_quantity
-   from jsonb_to_recordset(p_items) with ordinality as x(ingredient_id bigint,counted_quantity numeric,ord bigint)
-   order by x.ord
+   select nullif(e.item->>'ingredient_id','')::bigint ingredient_id,
+          round(coalesce(nullif(e.item->>'counted_quantity','')::numeric,-1),6) counted_quantity
+   from jsonb_array_elements(p_items) with ordinality as e(item,ord)
+   order by e.ord
  loop
    if not exists(select 1 from public.ingredients where id=v.ingredient_id and active is distinct from false and track_inventory=true) then raise exception 'الخامة غير موجودة أو غير متتبعة %',v.ingredient_id; end if;
    if v.counted_quantity<0 then raise exception 'كمية الجرد لا يمكن أن تكون سالبة';end if;
@@ -454,9 +455,10 @@ begin
 
  insert into public.food_stock_counts(branch_id,notes,client_tx_id,created_by_employee_id) values(p_branch_id,nullif(trim(coalesce(p_notes,'')),''),v_key,v_emp) returning id into v_id;
  for v in
-   select x.ingredient_id,round(coalesce(x.counted_quantity,-1)::numeric,6) counted_quantity
-   from jsonb_to_recordset(p_items) with ordinality as x(ingredient_id bigint,counted_quantity numeric,ord bigint)
-   order by x.ord
+   select nullif(e.item->>'ingredient_id','')::bigint ingredient_id,
+          round(coalesce(nullif(e.item->>'counted_quantity','')::numeric,-1),6) counted_quantity
+   from jsonb_array_elements(p_items) with ordinality as e(item,ord)
+   order by e.ord
  loop
    insert into public.ingredient_stock(branch_id,ingredient_id,quantity) values(p_branch_id,v.ingredient_id,0) on conflict(branch_id,ingredient_id) do nothing;
    select * into v_stock from public.ingredient_stock where branch_id=p_branch_id and ingredient_id=v.ingredient_id for update;
