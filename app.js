@@ -1024,8 +1024,15 @@ async function checkout(payment,payments=null){
   const c=cartCalc(), orderType=$('#orderType').value;
   let openShift=await getOpenShift();if(!openShift){toast('لازم تفتح وردية قبل تسجيل البيع');setTimeout(()=>showPage('shifts'),700);return;}
   const phone=($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
+  const deliveryAddress=($('#deliveryAddress')?.value||'').trim(), deliveryZoneId=$('#deliveryZone')?.value||'';
+  const deliveryZone=orderType==='delivery'&&deliveryZoneId?state.deliveryZones.find(z=>String(z.id)===String(deliveryZoneId)):null;
+  if(orderType==='delivery'){
+    if(!normalizePhone(phone))throw new Error('اكتب رقم موبايل العميل للدليفري');
+    if(!deliveryAddress)throw new Error('اكتب عنوان التوصيل للدليفري');
+    if(!deliveryZone)throw new Error('اختار منطقة توصيل صحيحة');
+  }
   let customerId=state.selectedCustomer?.id||null;
-  const area=orderType==='delivery'?($('#deliveryZone')?.selectedOptions?.[0]?.textContent?.split('—')[0]?.trim()||null):null;
+  const area=deliveryZone?String(deliveryZone.name||'').trim():null;
   if(phone && !customerId){
     try{
       const createdCustomer=await rest('customers','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{name:name||phone,phone,address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,area}])});
@@ -1042,8 +1049,8 @@ async function checkout(payment,payments=null){
     branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
-    delivery_address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,delivery_area:area,
-    delivery_zone_id:orderType==='delivery'&&$('#deliveryZone')?.value?Number($('#deliveryZone').value):null,
+    delivery_address:orderType==='delivery'?deliveryAddress:null,delivery_area:area,
+    delivery_zone_id:orderType==='delivery'?Number(deliveryZoneId):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
   };
   const itemPayload=state.cart.map(i=>({
