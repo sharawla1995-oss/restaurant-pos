@@ -1,6 +1,6 @@
 -- Sharawla POS — Beta Multi-Tenant V1 anonymous SECURITY DEFINER hardening
 -- SOURCE PREPARATION ONLY.
--- Restaurant public allowlist only. This must run after website RPC tenant guards.
+-- Exact Restaurant + Retail + Generic Web public allowlist. Run only after all public RPC tenant-guard drafts.
 
 begin;
 
@@ -15,18 +15,34 @@ begin
 end
 $guard$;
 
--- The only SECURITY DEFINER functions intentionally callable by anon in the
--- Restaurant V1 surface after hardening.
-create temporary table mt1_anon_allowlist(name text primary key) on commit drop;
-insert into mt1_anon_allowlist(name) values
-  ('create_website_order'),
-  ('track_website_order'),
-  ('track_website_orders'),
-  ('cancel_website_order_customer'),
-  ('is_branch_website_open'),
-  ('is_branch_website_schedule_open'),
-  ('preview_promo_code'),
-  ('request_business_id');
+-- Exact public API signatures only. Name-only allowlists are forbidden because
+-- overloaded legacy functions must not inherit public access accidentally.
+create temporary table mt1_anon_allowlist(oid oid primary key) on commit drop;
+insert into mt1_anon_allowlist(oid) values
+  ('public.request_business_id()'::regprocedure),
+
+  ('public.create_website_order(bigint,text,text,text,text,jsonb,text,text,text,text,text,bigint)'::regprocedure),
+  ('public.track_website_order(bigint,text)'::regprocedure),
+  ('public.track_website_orders(text)'::regprocedure),
+  ('public.cancel_website_order_customer(bigint,text)'::regprocedure),
+  ('public.is_branch_website_open(bigint,timestamp with time zone)'::regprocedure),
+  ('public.is_branch_website_schedule_open(bigint,timestamp with time zone)'::regprocedure),
+  ('public.preview_promo_code(text,bigint,text,text,jsonb,numeric)'::regprocedure),
+
+  ('public.retail_website_bootstrap()'::regprocedure),
+  ('public.retail_website_branch_open(bigint)'::regprocedure),
+  ('public.retail_website_catalog(bigint)'::regprocedure),
+  ('public.retail_website_quote(bigint,text,bigint,jsonb)'::regprocedure),
+  ('public.retail_create_website_order(bigint,text,text,text,text,text,bigint,text,text,text,text,jsonb)'::regprocedure),
+  ('public.track_retail_website_order(text,text)'::regprocedure),
+  ('public.cancel_retail_website_order_customer(text,text)'::regprocedure),
+
+  ('public.web_profile_bootstrap_v1(text)'::regprocedure),
+  ('public.web_service_booking_v1(bigint,bigint,text,text,timestamp with time zone,text,text)'::regprocedure),
+  ('public.web_membership_request_v1(bigint,bigint,text,text,text,text)'::regprocedure),
+  ('public.web_membership_book_class_v1(bigint,text,text,text)'::regprocedure),
+  ('public.web_logistics_track_v1(text,text)'::regprocedure),
+  ('public.web_logistics_pickup_v1(bigint,text,text,text,timestamp with time zone,text,text)'::regprocedure);
 
 -- Every allowlisted SECURITY DEFINER must visibly bind tenant context in source.
 do $allowlist_source_proof$
@@ -36,7 +52,7 @@ begin
   into bad
   from pg_proc p
   join pg_namespace n on n.oid=p.pronamespace
-  join mt1_anon_allowlist a on a.name=p.proname
+  join mt1_anon_allowlist a on a.oid=p.oid
   where n.nspname='public'
     and p.prosecdef
     and pg_get_functiondef(p.oid) !~* '\m(request_business_id|current_business_id|has_branch_access)\M';
@@ -58,7 +74,7 @@ begin
     where n.nspname='public'
       and p.prosecdef
       and has_function_privilege('anon',p.oid,'EXECUTE')
-      and not exists(select 1 from mt1_anon_allowlist a where a.name=p.proname)
+      and not exists(select 1 from mt1_anon_allowlist a where a.oid=p.oid)
   loop
     execute format('revoke execute on function %s from anon',r.sig);
   end loop;
