@@ -18,5 +18,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Syntax-check modified runtimes
+        run: |
+          node --check app.js
+          node --check retail-website/app.js
+          node --check sharawla-web-v1/app.js
       - name: Verify Multi-Tenant V1 source preparation
         run: node scripts/check-beta-multitenant-v1-source.js
