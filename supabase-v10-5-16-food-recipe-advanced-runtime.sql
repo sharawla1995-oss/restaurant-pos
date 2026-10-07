@@ -151,7 +151,7 @@ declare
   v_prep public.food_prep_items%rowtype; v record; v_stock public.ingredient_stock%rowtype;
   v_actual numeric(18,6); v_new numeric(18,6); v_unit_cost numeric(18,6); v_total_cost numeric(18,6):=0;
   v_output_cost numeric(18,6); v_emp bigint; v_output_stock public.ingredient_stock%rowtype;
-  v_frozen_inputs jsonb:='[]'::jsonb; v_output_track boolean;
+  v_frozen_inputs jsonb:='[]'::jsonb;
 begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   if not (public.is_admin() or public.has_permission('inventory')) then raise exception 'ليس لديك صلاحية إكمال الإنتاج'; end if;
@@ -172,8 +172,8 @@ begin
   if not found then raise exception 'Prep Item غير موجود'; end if;
   v_emp:=public.current_employee_id();
 
-  -- Point 4 FT-5: compute the complete effective input evidence read-only before
-  -- the first production_consumptions write, then guard every affected owner.
+  -- Production preflight: freeze the effective input quantities before the
+  -- first production_consumptions or stock write.
   select coalesce(jsonb_agg(jsonb_build_object(
            'consumption_id',q.id,'ingredient_id',q.ingredient_id,
            'actual_base_quantity',q.actual_base_quantity,
@@ -199,21 +199,12 @@ begin
     raise exception 'استهلاك فعلي غير صحيح';
   end if;
 
-  select track_inventory into v_output_track
-  from public.ingredients where id=v_prep.output_ingredient_id and active is distinct from false;
-  if not found then raise exception 'خامة ناتج التحضير غير موجودة أو موقوفة'; end if;
-
-  for v in
-    select distinct x.ingredient_id
-    from jsonb_to_recordset(v_frozen_inputs)
-      as x(consumption_id bigint,ingredient_id bigint,actual_base_quantity numeric,track_inventory boolean,fallback_cost numeric)
-    where x.track_inventory=true and x.actual_base_quantity>0
-    union
-    select v_prep.output_ingredient_id where coalesce(v_output_track,false)=true
-    order by 1
-  loop
-  -- V10.5.16: Point4 legacy-write guard intentionally not imported.
-  end loop;
+  if not exists(
+    select 1 from public.ingredients
+    where id=v_prep.output_ingredient_id and active is distinct from false
+  ) then
+    raise exception 'خامة ناتج التحضير غير موجودة أو موقوفة';
+  end if;
 
   -- First new-execution commitment write: persist exactly the frozen effective quantities.
   update public.food_production_consumptions pc
