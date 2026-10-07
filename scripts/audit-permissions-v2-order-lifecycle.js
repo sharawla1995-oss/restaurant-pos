@@ -27,8 +27,10 @@ assert(/has_action_permission_v2\('delivery\.mark_delivered'\)/.test(delivery),
   'delivery_mark_delivered_v2 must keep delivery.mark_delivered Action guard');
 assert(/has_action_permission_v2\('delivery\.payment\.change_at_delivery'\)/.test(delivery),
   'delivery_mark_delivered_v2 must keep payment-change Action guard');
-assert(/commitOptionalTxRpc\('delivery_mark_delivered_v2'/.test(deliveryUi),
-  'live delivery completion runtime must route through unified Offline V2 transport to delivery_mark_delivered_v2');
+assert(deliveryUi.includes('async function commitDelivery(name,payload){return global.SharawlaOfflineV2Transport.commitOptionalTxRpc'),
+  'delivery completion wrapper must bind unified Offline V2 transport');
+assert(deliveryUi.includes("commitDelivery('delivery_mark_delivered_v2'"),
+  'live delivery completion runtime must route through durable delivery wrapper to delivery_mark_delivered_v2');
 
 assert(count(/create or replace function public\.accept_website_order\s*\(/gi,website)===1,
   'accepted website owner definition drift');

@@ -1817,7 +1817,7 @@
   },
   {
     "path": "scripts/audit-permissions-v2-order-lifecycle.js",
-    "blob_sha": "31c36637244030ed02ba857763847ca2fa16d3fc"
+    "blob_sha": "e7f65fd3c38f54fae35670231e9250231d7ea5d0"
   },
   {
     "path": "scripts/audit-permissions-v2-shift-expense-provenance.js",
