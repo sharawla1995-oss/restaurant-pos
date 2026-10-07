@@ -21,3 +21,45 @@ jobs:
         run: npm install
       - name: Source / syntax / regression gates
         run: npm run check
+
+  postgres-contract:
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sharawla_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sharawla_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load V10.5.15 production contract fixture
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f scripts/fixtures/v10-5-16-restaurant-food-contract.sql
+      - name: Apply V10.5.16 food migrations in dependency order
+        run: |
+          set -euo pipefail
+          for f in \
+            supabase-v10-5-16-food-recipe-basic-foundation.sql \
+            supabase-v10-5-16-food-recipe-advanced-foundation.sql \
+            supabase-v10-5-16-food-recipe-basic-runtime.sql \
+            supabase-v10-5-16-food-recipe-advanced-runtime.sql \
+            supabase-v10-5-16-restaurant-operations.sql \
+            supabase-v10-5-16-restaurant-operations-fixes.sql \
+            supabase-v10-5-16-restaurant-permissions-runtime.sql \
+            supabase-v10-5-16-restaurant-direct-dml-hardening.sql \
+            supabase-v10-5-16-return-approval-2h.sql \
+            supabase-v10-5-16-recipe-owner-transition.sql
+          do
+            echo "Applying $f"
+            psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Run V10.5.16 behavioral contract
+        run: psql -h 127.0.0.1 -U postgres -d sharawla_contract -v ON_ERROR_STOP=1 -f scripts/fixtures/v10-5-16-restaurant-food-assert.sql
