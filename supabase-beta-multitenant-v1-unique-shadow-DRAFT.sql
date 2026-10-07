@@ -127,10 +127,11 @@ begin
           and not b.attisdropped
       )
     group by i.indexrelid,i.indrelid,idx.relname,tbl.relname,am.amname
-    having not (
-      count(*)=1
-      and min(a.attname)='id'
-    )
+    having not ('business_id'=any(array_agg(a.attname order by u.ord)))
+      and not (
+        count(*)=1
+        and min(a.attname)='id'
+      )
   loop
     if r.access_method <> 'btree' then
       raise exception 'MULTITENANT_V1 unsupported primary index method %.% uses %',
@@ -200,7 +201,7 @@ begin
       join pg_namespace n on n.oid=tbl.relnamespace and n.nspname='public'
       where tbl.relname=r.table_name
         and i.indisunique
-        and idx.relname like 'mt1u_%'
+        and (idx.relname like 'mt1u_%' or idx.relname like 'mt1pk_%')
         and pg_get_indexdef(i.indexrelid) ilike '%business_id%'
         and pg_get_indexdef(i.indexrelid) ilike '%'||r.fragment||'%'
     )
