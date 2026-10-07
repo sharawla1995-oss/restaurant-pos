@@ -374,36 +374,61 @@ begin
 end
 $branch_backfill$;
 
--- Propagate tenant ownership through canonical single-column FK owners.
--- No random child mapping: a child receives business_id only from an existing parent row.
+-- Propagate tenant ownership through canonical FK owners, including composite FKs.
+-- No random child mapping: a child receives business_id only from a real parent row.
 do $parent_backfill$
-declare pass int; r record; changed bigint; total_changed bigint;
+declare
+  pass int;
+  r record;
+  changed bigint;
+  total_changed bigint;
 begin
   for pass in 1..32 loop
     total_changed:=0;
+
     for r in
-      select child.relname child_table,parent.relname parent_table,
-             ca.attname child_col,pa.attname parent_col
+      select
+        fk.oid,
+        child.relname child_table,
+        parent.relname parent_table,
+        string_agg(
+          format('c.%I=p.%I',ca.attname,pa.attname),
+          ' and ' order by u.ord
+        ) join_predicate
       from pg_constraint fk
       join pg_class child on child.oid=fk.conrelid
       join pg_namespace cn on cn.oid=child.relnamespace and cn.nspname='public'
       join pg_class parent on parent.oid=fk.confrelid
       join pg_namespace pn on pn.oid=parent.relnamespace and pn.nspname='public'
-      join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=fk.conkey[1]
-      join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=fk.confkey[1]
+      cross join lateral unnest(fk.conkey,fk.confkey) with ordinality u(catt,patt,ord)
+      join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=u.catt
+      join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=u.patt
       where fk.contype='f'
-        and array_length(fk.conkey,1)=1
-        and exists(select 1 from pg_attribute x where x.attrelid=child.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
-        and exists(select 1 from pg_attribute x where x.attrelid=parent.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
+        and exists(
+          select 1 from pg_attribute x
+          where x.attrelid=child.oid
+            and x.attname='business_id'
+            and x.attnum>0
+            and not x.attisdropped
+        )
+        and exists(
+          select 1 from pg_attribute x
+          where x.attrelid=parent.oid
+            and x.attname='business_id'
+            and x.attnum>0
+            and not x.attisdropped
+        )
+      group by fk.oid,child.relname,parent.relname
     loop
       execute format(
         'update public.%I c set business_id=p.business_id from public.%I p '||
-        'where c.business_id is null and c.%I=p.%I and p.business_id is not null',
-        r.child_table,r.parent_table,r.child_col,r.parent_col
+        'where c.business_id is null and p.business_id is not null and %s',
+        r.child_table,r.parent_table,r.join_predicate
       );
       get diagnostics changed = row_count;
       total_changed:=total_changed+changed;
     end loop;
+
     exit when total_changed=0;
   end loop;
 end
@@ -429,33 +454,49 @@ begin
 end
 $no_unresolved_rows$;
 
--- Detect any existing cross-parent mismatch before constraints become strict.
+-- Detect any existing cross-parent mismatch across single or composite FKs.
 do $parent_consistency$
 declare r record; n bigint;
 begin
   for r in
-    select child.relname child_table,parent.relname parent_table,
-           ca.attname child_col,pa.attname parent_col
+    select
+      fk.oid,
+      child.relname child_table,
+      parent.relname parent_table,
+      string_agg(
+        format('c.%I=p.%I',ca.attname,pa.attname),
+        ' and ' order by u.ord
+      ) join_predicate
     from pg_constraint fk
     join pg_class child on child.oid=fk.conrelid
     join pg_namespace cn on cn.oid=child.relnamespace and cn.nspname='public'
     join pg_class parent on parent.oid=fk.confrelid
     join pg_namespace pn on pn.oid=parent.relnamespace and pn.nspname='public'
-    join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=fk.conkey[1]
-    join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=fk.confkey[1]
+    cross join lateral unnest(fk.conkey,fk.confkey) with ordinality u(catt,patt,ord)
+    join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=u.catt
+    join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=u.patt
     where fk.contype='f'
-      and array_length(fk.conkey,1)=1
-      and exists(select 1 from pg_attribute x where x.attrelid=child.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
-      and exists(select 1 from pg_attribute x where x.attrelid=parent.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
+      and exists(
+        select 1 from pg_attribute x
+        where x.attrelid=child.oid and x.attname='business_id'
+          and x.attnum>0 and not x.attisdropped
+      )
+      and exists(
+        select 1 from pg_attribute x
+        where x.attrelid=parent.oid and x.attname='business_id'
+          and x.attnum>0 and not x.attisdropped
+      )
+    group by fk.oid,child.relname,parent.relname
   loop
     execute format(
-      'select count(*) from public.%I c join public.%I p on c.%I=p.%I '||
+      'select count(*) from public.%I c join public.%I p on %s '||
       'where c.business_id is distinct from p.business_id',
-      r.child_table,r.parent_table,r.child_col,r.parent_col
+      r.child_table,r.parent_table,r.join_predicate
     ) into n;
+
     if n>0 then
-      raise exception 'MULTITENANT_V1 parent tenant mismatch %.% -> %.% (% rows)',
-        r.child_table,r.child_col,r.parent_table,r.parent_col,n;
+      raise exception 'MULTITENANT_V1 parent tenant mismatch % -> % (% rows)',
+        r.child_table,r.parent_table,n;
     end if;
   end loop;
 end
