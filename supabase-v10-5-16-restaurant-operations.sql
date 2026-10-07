@@ -441,8 +441,8 @@ begin
  select id into v_id from public.food_stock_counts where client_tx_id=v_key;if v_id is not null then return v_id;end if;
  v_emp:=public.current_employee_id();
 
- -- Point 4 FT-5: validate and freeze the complete caller evidence before the
- -- stock-count header (the first new-execution commitment write).
+ -- Production preflight: validate every count line before the stock-count
+ -- header becomes the first durable posting write.
  for v in
    select x.ingredient_id,round(coalesce(x.counted_quantity,-1)::numeric,6) counted_quantity
    from jsonb_to_recordset(p_items) with ordinality as x(ingredient_id bigint,counted_quantity numeric,ord bigint)
@@ -450,16 +450,6 @@ begin
  loop
    if not exists(select 1 from public.ingredients where id=v.ingredient_id and active is distinct from false and track_inventory=true) then raise exception 'الخامة غير موجودة أو غير متتبعة %',v.ingredient_id; end if;
    if v.counted_quantity<0 then raise exception 'كمية الجرد لا يمكن أن تكون سالبة';end if;
- end loop;
-
- -- Guard every distinct affected tracked ingredient in deterministic order.
- for v in
-   select distinct x.ingredient_id
-   from jsonb_to_recordset(p_items) as x(ingredient_id bigint,counted_quantity numeric)
-   join public.ingredients i on i.id=x.ingredient_id and i.active is distinct from false and i.track_inventory=true
-   order by x.ingredient_id
- loop
-  -- V10.5.16: Point4 legacy-write guard intentionally not imported.
  end loop;
 
  insert into public.food_stock_counts(branch_id,notes,client_tx_id,created_by_employee_id) values(p_branch_id,nullif(trim(coalesce(p_notes,'')),''),v_key,v_emp) returning id into v_id;
