@@ -87,6 +87,85 @@ begin
 end
 $shadow_unique$;
 
+-- Natural/non-surrogate primary keys also need a business-scoped shadow before
+-- ON CONFLICT callsites can move to (business_id,...). We do NOT drop or replace
+-- the legacy PK here; this is a safe pre-cutover shadow only.
+do $shadow_natural_primary$
+declare
+  r record;
+  def text;
+  newdef text;
+  newname text;
+begin
+  for r in
+    select i.indexrelid,
+           i.indrelid,
+           idx.relname index_name,
+           tbl.relname table_name,
+           am.amname access_method,
+           pg_get_indexdef(i.indexrelid) indexdef,
+           array_agg(a.attname order by u.ord) cols
+    from pg_index i
+    join pg_class idx on idx.oid=i.indexrelid
+    join pg_class tbl on tbl.oid=i.indrelid
+    join pg_namespace n on n.oid=tbl.relnamespace and n.nspname='public'
+    join pg_am am on am.oid=idx.relam
+    cross join lateral unnest(i.indkey) with ordinality u(attnum,ord)
+    join pg_attribute a on a.attrelid=i.indrelid and a.attnum=u.attnum
+    where i.indisprimary
+      and tbl.relname not in (
+        'businesses',
+        'permission_actions_v2',
+        'permission_action_profiles_v2',
+        'permission_role_action_defaults_v2'
+      )
+      and exists(
+        select 1 from pg_attribute b
+        where b.attrelid=i.indrelid
+          and b.attname='business_id'
+          and b.attnum>0
+          and not b.attisdropped
+      )
+    group by i.indexrelid,i.indrelid,idx.relname,tbl.relname,am.amname
+    having not (
+      count(*)=1
+      and min(a.attname)='id'
+    )
+  loop
+    if r.access_method <> 'btree' then
+      raise exception 'MULTITENANT_V1 unsupported primary index method %.% uses %',
+        r.table_name,r.index_name,r.access_method;
+    end if;
+
+    newname:=left('mt1pk_'||r.index_name,52)||'_'||substr(md5(r.index_name),1,8);
+    if to_regclass('public.'||newname) is not null then
+      continue;
+    end if;
+
+    def:=r.indexdef;
+    newdef:=regexp_replace(
+      def,
+      '^CREATE UNIQUE INDEX [^ ]+ ',
+      'CREATE UNIQUE INDEX '||quote_ident(newname)||' '
+    );
+    newdef:=regexp_replace(
+      newdef,
+      'USING btree \(',
+      'USING btree (business_id, ',
+      1,
+      1
+    );
+
+    if newdef=def or newdef not ilike '%business_id%' then
+      raise exception 'MULTITENANT_V1 unable to build primary-key shadow for %.%',
+        r.table_name,r.index_name;
+    end if;
+
+    execute newdef;
+  end loop;
+end
+$shadow_natural_primary$;
+
 -- Core uniquenesses needed for a real second tenant.
 do $core_unique_proof$
 declare bad text;
@@ -101,7 +180,14 @@ begin
       ('hr_employees','employee_code'),
       ('retail_website_orders','idempotency_key'),
       ('retail_website_orders','public_order_code'),
-      ('retail_website_orders','reservation_key')
+      ('retail_website_orders','reservation_key'),
+      ('food_waste_reasons','code'),
+      ('inventory_units','code'),
+      ('employee_branches','employee_id'),
+      ('product_modifiers','product_id'),
+      ('retail_inventory_balances','branch_id'),
+      ('retail_variant_inventory_balances','branch_id'),
+      ('offline_v2_server_receipts','client_tx_id')
   ),
   bad_rows as (
     select r.*
