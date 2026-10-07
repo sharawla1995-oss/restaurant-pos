@@ -45,8 +45,8 @@ select public.create_food_pos_order_atomic_v1(
 do $$
 declare b numeric; m numeric; q integer; snap numeric;
 begin
-  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=:'base_ingredient';
-  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='BASE');
+  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if b<>970 then raise exception 'Exact Extras gate failed: base stock expected 970, got %',b; end if;
   if m<>980 then raise exception 'Exact Extras gate failed: modifier qty1 expected stock 980, got %',m; end if;
   select quantity into q
@@ -77,8 +77,8 @@ select public.create_food_pos_order_atomic_v1(
 do $$
 declare b numeric; m numeric; q integer; snap numeric;
 begin
-  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=:'base_ingredient';
-  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='BASE');
+  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if b<>940 then raise exception 'Exact Extras gate failed: second base stock expected 940, got %',b; end if;
   if m<>940 then raise exception 'Exact Extras gate failed: modifier qty2 expected stock 940, got %',m; end if;
   select quantity into q from public.order_item_modifiers where order_item_id=(select max(id) from public.order_items);
@@ -104,8 +104,8 @@ select public.create_food_order_return_idempotent_v1(
 do $$
 declare b numeric; m numeric;
 begin
-  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=:'base_ingredient';
-  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into b from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='BASE');
+  select quantity into m from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if b<>970 then raise exception 'Historical return expected base stock 970, got %',b; end if;
   if m<>960 then raise exception 'Historical return expected modifier stock 960, got %',m; end if;
 end $$;
@@ -130,9 +130,9 @@ select public.food_purchase_receive_v1(
 do $$
 declare st text; q numeric;
 begin
-  select status into st from public.purchases where id=:'purchase_id';
+  select status into st from public.purchases where id=(select id from public.purchases where client_tx_id='po-contract-1');
   if st<>'partially_received' then raise exception 'PO expected partially_received, got %',st; end if;
-  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>1960 then raise exception 'Partial receive expected cheddar stock 1960, got %',q; end if;
 end $$;
 
@@ -145,9 +145,9 @@ select public.food_purchase_receive_v1(
 do $$
 declare st text; q numeric;
 begin
-  select status into st from public.purchases where id=:'purchase_id';
+  select status into st from public.purchases where id=(select id from public.purchases where client_tx_id='po-contract-1');
   if st<>'received' then raise exception 'PO expected received, got %',st; end if;
-  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>2960 then raise exception 'Full receive expected cheddar stock 2960, got %',q; end if;
 end $$;
 
@@ -171,7 +171,7 @@ select public.food_stock_count_post_v1(
 do $$
 declare q numeric;
 begin
-  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>2800 then raise exception 'Stock count expected 2800, got %',q; end if;
 end $$;
 
@@ -185,7 +185,7 @@ select public.food_stock_transfer_create_v1(
 do $$
 declare q numeric;
 begin
-  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>2600 then raise exception 'Transfer send expected source 2600, got %',q; end if;
 end $$;
 
@@ -194,7 +194,7 @@ select public.food_stock_transfer_receive_v1(:transfer_id);
 do $$
 declare q numeric;
 begin
-  select quantity into q from public.ingredient_stock where branch_id=2 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=2 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>700 then raise exception 'Transfer receive expected destination 700, got %',q; end if;
 end $$;
 
@@ -209,9 +209,9 @@ select public.food_stock_transfer_cancel_v1(:transfer_cancel_id,'cancel test');
 do $$
 declare q numeric; st text;
 begin
-  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=:'cheddar_ingredient';
+  select quantity into q from public.ingredient_stock where branch_id=1 and ingredient_id=(select id from public.ingredients where sku='CHEDDAR');
   if q<>2600 then raise exception 'Transfer cancel expected restored source 2600, got %',q; end if;
-  select status into st from public.stock_transfers where id=:'transfer_cancel_id';
+  select status into st from public.stock_transfers where id=(select id from public.stock_transfers where client_tx_id='transfer-contract-2');
   if st<>'cancelled' then raise exception 'Transfer cancel status expected cancelled, got %',st; end if;
 end $$;
 
