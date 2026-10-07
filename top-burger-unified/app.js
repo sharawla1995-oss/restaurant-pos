@@ -1,5 +1,6 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
+const TOP_BURGER_WEB_CONNECTION={url:'https://kzokretuuigjhxjzdlmk.supabase.co',key:'sb_publishable_9PmytJQY2MhrYUVgMDHzVQ_Av8JH7mP'};
+let cfg=window.topBurgerDesktop?.isDesktop?{url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''}:{...TOP_BURGER_WEB_CONNECTION};
 let session=null;
 
 // ===== Sharawla Cloud device licensing V10.4.15 =====
@@ -2275,7 +2276,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.1',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.16-unified-1',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
