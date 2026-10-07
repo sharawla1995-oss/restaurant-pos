@@ -1,0 +1,18 @@
+name: Top Burger Unified PWA V10.5.16
+on:
+  push:
+    branches: [feature/v10.5.16-unified-desktop-pwa]
+  workflow_dispatch:
+jobs:
+  unified-pwa-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: node --check top-burger-unified/app.js
+      - run: node --check top-burger-unified/restaurant-engine.js
+      - run: node --check top-burger-unified/v10-5-16-restaurant-closure-ui.js
+      - run: node --check top-burger-unified/inventory-overview-v10-5-16.js
+      - run: node --check top-burger-unified/food-advanced-ui-v10-5-16.js
+      - run: node scripts/check-top-burger-unified-pwa-v10-5-16.js
