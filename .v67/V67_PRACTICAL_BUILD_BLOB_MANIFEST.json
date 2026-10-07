@@ -2065,7 +2065,7 @@
   },
   {
     "path": "scripts/check-beta58-30-offline-practical-rc1.js",
-    "blob_sha": "7d1238d82767cb783bb023b80dd2efd536501643"
+    "blob_sha": "5e128c225b2c7d91df7b6ed6d2b54360614731ee"
   },
   {
     "path": "scripts/check-bon-final-definition-chain.js",
