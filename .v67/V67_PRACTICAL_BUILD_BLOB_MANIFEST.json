@@ -2369,7 +2369,7 @@
   },
   {
     "path": "scripts/check-offline-runtime-acceptance-coverage.js",
-    "blob_sha": "5c976888158f3de417b6c51af65f8dfc272103ff"
+    "blob_sha": "322bef4ec2c09abd71cd7a4f5db5e3e88439ef84"
   },
   {
     "path": "scripts/check-offline-shift-expense-native-owner.js",

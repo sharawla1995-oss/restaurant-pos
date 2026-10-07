@@ -37,7 +37,8 @@ has(fulfillment,'return ov2.saveOrderStatus(localId,target)','fulfillment offlin
 has(driver,"commitRpcLocal('offline_delivery_assign_driver_v1'",'driver assignment durable local-success route');
 for(const t of ["id:'offline.customer-create-runtime-e2e'","id:'offline.customer-dependent-address-runtime-e2e'","id:'offline.customer-mutations-runtime-e2e'","id:'offline.delivery-driver-runtime-e2e'","id:'offline.delivery-economic-runtime-e2e'",'server_ack','sharawla_beta58_offline_driver_fixture_v1','sharawla_beta58_offline_status_fixture_v1','MUTATION_FIXTURE','delivery_payment_events','delivery_cash_custody_amount','economic replay=stable'])has(customerDeliveryE2E,t);
 has(lazy,'owner-acceptance-offline-customer-delivery-v58.js','customer/delivery runtime acceptance must be lazy-loaded');
-has(settlement,"commitOptionalTxRpc('delivery_mark_delivered_v2'",'interactive delivery completion/payment choice must use unified durable transport');
+has(settlement,'async function commitDelivery(name,payload){return global.SharawlaOfflineV2Transport.commitOptionalTxRpc','delivery wrapper must bind unified durable transport');
+has(settlement,"commitDelivery('delivery_mark_delivered_v2'",'interactive delivery completion/payment choice must use durable delivery wrapper');
 assert(!settlement.includes("ov2.saveOrderStatus(raw,'delivered')"),'legacy generic delivered interception must be retired');
 has(settlement,"global.state?.paymentMethods||[]",'offline delivery payment choice must use cached bootstrap eligibility');
 
