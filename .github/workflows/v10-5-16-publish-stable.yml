@@ -1,0 +1,54 @@
+name: Publish V10.5.16 Stable
+
+on:
+  push:
+    branches:
+      - release/v10.5.16-production-food
+    paths:
+      - .github/workflows/v10-5-16-publish-stable.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.ref_name == 'release/v10.5.16-production-food'
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - run: npm install
+      - run: npm run check
+      - name: Build ia32
+        run: npm run dist -- --win --ia32 --publish never
+      - name: Save ia32
+        shell: pwsh
+        run: |
+          $exe=Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if(-not $exe){throw 'ia32 installer not found'}
+          Copy-Item $exe.FullName 'Sharawla-POS-Setup-10.5.16-ia32.exe'
+      - name: Clean dist before x64
+        shell: pwsh
+        run: Remove-Item -Recurse -Force dist
+      - name: Build x64
+        run: npm run dist -- --win --x64 --publish never
+      - name: Save x64
+        shell: pwsh
+        run: |
+          $exe=Get-ChildItem dist -Filter *.exe | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if(-not $exe){throw 'x64 installer not found'}
+          Copy-Item $exe.FullName 'Sharawla-POS-Setup-10.5.16-x64.exe'
+      - name: Write SHA256
+        shell: pwsh
+        run: |
+          Get-FileHash Sharawla-POS-Setup-10.5.16-ia32.exe -Algorithm SHA256 | ForEach-Object { ($_.Hash.ToLower() + '  Sharawla-POS-Setup-10.5.16-ia32.exe') } | Set-Content production-v10.5.16-sha256.txt
+          Get-FileHash Sharawla-POS-Setup-10.5.16-x64.exe -Algorithm SHA256 | ForEach-Object { ($_.Hash.ToLower() + '  Sharawla-POS-Setup-10.5.16-x64.exe') } | Add-Content production-v10.5.16-sha256.txt
+      - name: Publish stable release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v10.5.16 Sharawla-POS-Setup-10.5.16-ia32.exe Sharawla-POS-Setup-10.5.16-x64.exe production-v10.5.16-sha256.txt --target $env:GITHUB_SHA --title 'Sharawla POS 10.5.16 — Production Stable' --notes 'Production stable 10.5.16. Restaurant Inventory/Food Operations port; Exact Extras preserved; return approval 2 hours; delivery validation and duplicate-sale retry hardening. Canary rollout: Branch 1 first.'
