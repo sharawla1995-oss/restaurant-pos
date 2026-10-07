@@ -2505,7 +2505,7 @@
   },
   {
     "path": "scripts/check-permissions-v2-orders-closure-readiness.js",
-    "blob_sha": "2792fdb0cb9666a1b2fd5cf83503582a9aff4eed"
+    "blob_sha": "da1ea8e5586ed787936870516eab3a90e5223eaa"
   },
   {
     "path": "scripts/check-permissions-v2-orders-privilege-closure.js",
