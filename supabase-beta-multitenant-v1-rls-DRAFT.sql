@@ -12,6 +12,18 @@ begin
 end
 $guard$;
 
+do $external_binding_guard$
+begin
+  if exists(
+    select 1 from public.businesses
+    where code='beta-current'
+      and nullif(trim(coalesce(external_business_id,'')),'') is null
+  ) then
+    raise exception 'MULTITENANT_EXTERNAL_BUSINESS_BINDING_REQUIRED';
+  end if;
+end
+$external_binding_guard$;
+
 create or replace function public.current_business_id()
 returns uuid
 language sql

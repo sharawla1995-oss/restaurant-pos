@@ -68,13 +68,13 @@ A row-level write trigger rejects:
 
 including requests that reach tables through SECURITY DEFINER RPCs.
 
-## Singleton compatibility
+## Settings compatibility
 
-`business_settings` and `website_settings` historically use logical `id=1`.
+`business_settings` and `website_settings` historically assume physical `id=1`.
 
-To keep old Restaurant clients compatible, V1 changes the primary key from global `id` to `(business_id,id)`. Each tenant can therefore have its own `id=1` row while RLS selects only its tenant.
+V1 deliberately keeps the existing Beta row at `id=1` so SH-0007 continues to load exactly the same record. Future tenants get their own physical row through a sequence plus a unique `business_id`.
 
-This is the key compatibility mechanism for a later Top Chicken tenant.
+The current Beta client is patched on this preparation branch to stop filtering settings with `id=eq.1`; RLS returns the single row for the active tenant. A Restaurant v10.5.15 build for Top Chicken therefore needs the same small compatibility patch before cutover. No re-licensing or data reset is required for SH-0007.
 
 ## Remaining gates before any Beta DB write
 

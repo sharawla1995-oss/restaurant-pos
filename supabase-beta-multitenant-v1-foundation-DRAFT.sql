@@ -317,25 +317,34 @@ end
 $finalize_business_id$;
 
 -- Legacy singleton compatibility:
--- keep logical id=1 for every tenant, so existing v10.5.x reads can continue.
--- Existing row stays id=1; future tenants can also own id=1 because uniqueness
--- is changed from global id to (business_id,id).
-do $singleton_compat$
-declare t text; pkname text;
-begin
-  foreach t in array array['business_settings','website_settings']
-  loop
-    if to_regclass('public.'||t) is null then continue; end if;
-    select co.conname into pkname
-    from pg_constraint co
-    where co.conrelid=to_regclass('public.'||t) and co.contype='p'
-    limit 1;
-    if pkname is not null then
-      execute format('alter table public.%I drop constraint %I',t,pkname);
-    end if;
-    execute format('alter table public.%I add primary key (business_id,id)',t);
-  end loop;
-end
-$singleton_compat$;
+-- Keep the existing Beta row id=1 untouched so SH-0007 keeps working.
+-- Future tenants receive different physical ids; RLS makes the row tenant-local.
+-- Restaurant v10.5.15 therefore needs only a small read/update patch that stops
+-- assuming id=1 and relies on tenant-scoped RLS.
+alter table public.business_settings
+  drop constraint if exists business_settings_id_check;
+
+create sequence if not exists public.business_settings_mt1_id_seq;
+select setval(
+  'public.business_settings_mt1_id_seq',
+  greatest(coalesce((select max(id) from public.business_settings),1),1),
+  true
+);
+alter table public.business_settings
+  alter column id set default nextval('public.business_settings_mt1_id_seq');
+
+create sequence if not exists public.website_settings_mt1_id_seq;
+select setval(
+  'public.website_settings_mt1_id_seq',
+  greatest(coalesce((select max(id) from public.website_settings),1),1),
+  true
+);
+alter table public.website_settings
+  alter column id set default nextval('public.website_settings_mt1_id_seq');
+
+create unique index if not exists mt1_business_settings_business_uidx
+  on public.business_settings(business_id);
+create unique index if not exists mt1_website_settings_business_uidx
+  on public.website_settings(business_id);
 
 commit;
