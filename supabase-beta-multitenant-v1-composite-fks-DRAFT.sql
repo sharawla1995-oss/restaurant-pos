@@ -38,6 +38,13 @@ begin
     join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=u.catt
     join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=u.patt
     where fk.contype='f'
+      and fk.conname not like 'mt1_%'
+      and not exists(
+        select 1
+        from unnest(fk.conkey) k
+        join pg_attribute ka on ka.attrelid=fk.conrelid and ka.attnum=k
+        where ka.attname='business_id'
+      )
       and child.relname not in (
         'business_auth_memberships',
         'business_device_bindings'
