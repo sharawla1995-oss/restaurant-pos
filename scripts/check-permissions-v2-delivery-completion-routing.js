@@ -7,7 +7,8 @@ function need(s,t,l){if(!s.includes(t))throw new Error(l+' missing: '+t)}
 need(sql,'create or replace function public.delivery_mark_delivered_v2','delivery owner');
 need(sql,"has_action_permission_v2('delivery.mark_delivered')",'delivery action gate');
 need(sql,"has_action_permission_v2('delivery.payment.change_at_delivery')",'payment-change action gate');
-need(wrapper,"commitOptionalTxRpc('delivery_mark_delivered_v2'",'unified local-first routing');
+need(wrapper,'async function commitDelivery(name,payload){return global.SharawlaOfflineV2Transport.commitOptionalTxRpc','unified local-first transport wrapper');
+need(wrapper,"commitDelivery('delivery_mark_delivered_v2'",'delivery completion routes through durable wrapper');
 need(wrapper,"const raw=btn.dataset.delivered||lastDeliveryDetailId||'';",'delivery click identity');
 if(wrapper.includes("saveOrderStatus(raw,'delivered')"))throw new Error('legacy generic delivered bridge must be retired');
 need(wrapper,'e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();','online interception');
@@ -19,6 +20,6 @@ const direct=(app.match(/rest\(\s*['"]orders['"][\s\S]{0,260}?method\s*:\s*['"]P
 if(direct.length!==0)throw new Error('PV2-F5C direct Orders PATCH paths must be fully retired, found '+direct.length);
 const delivered=direct.filter(x=>/status\s*:\s*['"]delivered['"]/.test(x)||/status\s*:\s*['"]delivered['"]/.test(x.replace(/"/g,"'")));
 if(delivered.length!==0)throw new Error('PV2-F5C legacy delivered PATCH bridges must be retired, found '+delivered.length);
-const transportCalls=(wrapper.match(/commitOptionalTxRpc\(\s*['"]delivery_mark_delivered_v2['"]/g)||[]).length;
+const transportCalls=(wrapper.match(/commitDelivery\(\s*['"]delivery_mark_delivered_v2['"]/g)||[]).length;
 if(transportCalls!==2)throw new Error('PV2-F5C expected exactly 2 unified transport calls, found '+transportCalls);
 console.log('PV2-F5C Delivery Completion routing proof PASS — direct Orders PATCH=0; unified transport calls='+transportCalls+'; custody/payment/settlement owner frozen');
