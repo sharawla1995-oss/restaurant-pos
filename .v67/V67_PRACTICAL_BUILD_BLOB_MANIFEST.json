@@ -2017,7 +2017,7 @@
   },
   {
     "path": "scripts/check-beta54-shared-core.js",
-    "blob_sha": "24a37e596491481d814b4aacaf25091a555c058f"
+    "blob_sha": "433926c82511a9778b7dbd888d520745c56eb1f0"
   },
   {
     "path": "scripts/check-beta55-5-runtime-hardening.js",
