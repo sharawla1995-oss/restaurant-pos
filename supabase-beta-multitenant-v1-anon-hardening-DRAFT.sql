@@ -64,8 +64,14 @@ end
 $allowlist_source_proof$;
 
 -- Revoke accidental anonymous EXECUTE from all other SECURITY DEFINER functions.
+-- Most legacy functions inherited EXECUTE from PUBLIC, so revoking anon alone is
+-- insufficient. Preserve existing authenticated/service_role capability explicitly
+-- before removing PUBLIC/anon.
 do $revoke_anon$
-declare r record;
+declare
+  r record;
+  keep_authenticated boolean;
+  keep_service_role boolean;
 begin
   for r in
     select p.oid,p.proname,p.oid::regprocedure sig
@@ -76,7 +82,17 @@ begin
       and has_function_privilege('anon',p.oid,'EXECUTE')
       and not exists(select 1 from mt1_anon_allowlist a where a.oid=p.oid)
   loop
-    execute format('revoke execute on function %s from anon',r.sig);
+    keep_authenticated:=has_function_privilege('authenticated',r.oid,'EXECUTE');
+    keep_service_role:=has_function_privilege('service_role',r.oid,'EXECUTE');
+
+    execute format('revoke execute on function %s from public, anon',r.sig);
+
+    if keep_authenticated then
+      execute format('grant execute on function %s to authenticated',r.sig);
+    end if;
+    if keep_service_role then
+      execute format('grant execute on function %s to service_role',r.sig);
+    end if;
   end loop;
 end
 $revoke_anon$;
