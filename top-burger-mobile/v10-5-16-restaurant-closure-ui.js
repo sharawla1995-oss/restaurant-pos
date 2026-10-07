@@ -32,11 +32,11 @@ function style(){if(document.querySelector('#v10516RestaurantFoodPortStyle'))ret
 
 function ensureNavButton(page,label,icon,afterPage){const nav=document.querySelector('#nav');if(!nav)return null;let b=nav.querySelector(`button[data-page="${page}"]`);if(!b){b=document.createElement('button');b.type='button';b.dataset.page=page;const after=nav.querySelector(`button[data-page="${afterPage}"]`);if(after)after.insertAdjacentElement('afterend',b);else nav.insertBefore(b,document.querySelector('#logoutMenuBtn'));}b.textContent=`${icon} ${label}`;return b}
 function mountNav(){if(!isRestaurant())return;style();ensureNavButton('foodOperations','الإنتاج والهالك','🏭','inventory');ensureNavButton('foodRecipes','الوصفات وFood Cost','🍲','inventory');ensureNavButton('foodIngredients','الخامات','🧪','inventory');for(const p of PAGES){const b=document.querySelector(`#nav button[data-page="${p}"]`);if(b)b.classList.toggle('hidden',!canPage(p))}}
-async function openPage(page){if(!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');setActive(page);const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';try{const fn=({foodIngredients:renderIngredients,foodRecipes:renderRecipes,foodOperations:renderFoodOperations}[page]);if(typeof fn!=='function')throw new Error('Restaurant Closure route غير معروف');await fn()}catch(e){if(root)root.innerHTML=`<div class="panel"><div class="empty">${esc(e?.message||String(e))}</div></div>`;toast(e?.message||String(e))}}
-async function renderSharedRoute(page){
+async function openPage(page,opts={}){if(!opts.mobileAuthorized&&!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');setActive(page);const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';try{const fn=({foodIngredients:renderIngredients,foodRecipes:renderRecipes,foodOperations:renderFoodOperations}[page]);if(typeof fn!=='function')throw new Error('Restaurant Closure route غير معروف');await fn()}catch(e){if(root)root.innerHTML=`<div class="panel"><div class="empty">${esc(e?.message||String(e))}</div></div>`;toast(e?.message||String(e))}}
+async function renderSharedRoute(page,opts={}){
   if(!isRestaurant())throw new Error('Restaurant shared adapter رفض Profile غير Restaurant');
   if(!SHARED_ROUTES.has(page))throw new Error('Shared inventory route غير معروف');
-  if(!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');
+  if(!opts.mobileAuthorized&&!canPage(page))return toast('القسم غير مفعّل أو ليس لديك صلاحية لفتحه');
   const root=pageRoot();if(root)root.innerHTML='<div class="panel"><div class="empty">جاري التحميل...</div></div>';
   try{
     const fn=({suppliers:renderSuppliers,purchasing:renderPurchasing,stockCount:renderStockCount,transfers:renderTransfers}[page]);
