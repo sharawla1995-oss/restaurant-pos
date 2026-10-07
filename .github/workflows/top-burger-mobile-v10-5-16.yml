@@ -18,3 +18,4 @@ jobs:
       - run: node --check top-burger-mobile/app.js
       - run: node --check top-burger-mobile/sw.js
       - run: node scripts/check-top-burger-mobile-v10-5-16.js
+
