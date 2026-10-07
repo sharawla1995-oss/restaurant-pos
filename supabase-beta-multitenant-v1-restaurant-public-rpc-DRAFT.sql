@@ -190,7 +190,7 @@ begin
 
   return false;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.is_branch_website_open(p_branch_id bigint, p_at timestamp with time zone DEFAULT now())
@@ -223,7 +223,7 @@ begin
 
   return public.is_branch_website_schedule_open(p_branch_id, p_at);
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.preview_promo_code(p_code text, p_branch_id bigint, p_channel text, p_customer_phone text, p_items jsonb, p_subtotal numeric)
@@ -304,7 +304,7 @@ begin
     'discount',v_discount,'eligible_subtotal',v_eligible,'discount_type',v.discount_type,'discount_value',v.discount_value
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.create_website_order(p_branch_id bigint, p_customer_name text, p_customer_phone text, p_customer_address text, p_customer_notes text, p_items jsonb, p_payment_method_code text DEFAULT 'cash'::text, p_payment_reference text DEFAULT NULL::text, p_payment_receipt_path text DEFAULT NULL::text, p_order_type text DEFAULT 'delivery'::text, p_promo_code text DEFAULT NULL::text, p_delivery_zone_id bigint DEFAULT NULL::bigint)
@@ -780,7 +780,7 @@ begin
 
   return v_order_id;
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.track_website_order(p_website_order_id bigint, p_phone text)
@@ -829,7 +829,7 @@ begin
       end
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.track_website_orders(p_phone text)
@@ -883,7 +883,7 @@ begin
 
   return coalesce(v_result,'[]'::jsonb);
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.cancel_website_order_customer(p_website_order_id bigint, p_phone text)
@@ -975,7 +975,7 @@ begin
 
   raise exception 'بدأ تجهيز الطلب ولا يمكن إلغاؤه من الموقع';
 end;
-$function$
+$function$;
 
 -- Old create_website_order overloads remain present for authenticated legacy use,
 -- but anonymous EXECUTE is explicitly revoked. Only the latest 12-argument public
