@@ -283,6 +283,8 @@ as $$
   )
 $$;
 
+-- Request-context write guard uses auth.role(), which safely supports both
+-- request.jwt.claim.role and request.jwt.claims. Do not parse one claim format manually.
 -- Request-context write guard also applies to writes performed by SECURITY DEFINER
 -- RPCs because JWT/request settings remain present during the request.
 create or replace function public.mt1_business_write_guard()
@@ -294,7 +296,7 @@ declare
   req uuid;
   role_name text;
 begin
-  role_name:=coalesce(current_setting('request.jwt.claim.role',true),'');
+  role_name:=coalesce(auth.role(),'');
   if role_name not in ('anon','authenticated') then
     return case when tg_op='DELETE' then old else new end;
   end if;
