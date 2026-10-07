@@ -118,9 +118,9 @@ async function ensureSharawlaRuntimeConfig(){
         profile_active:true,
         profile_implemented:true,
         modules_configured:true,
-        enabled_modules:['customers','delivery','expenses','kitchen','pickup','pos','promocodes','reports','returns','website'],
+        enabled_modules:['customers','delivery','expenses','inventory','kitchen','pickup','pos','promocodes','reports','returns','website'],
         features_configured:true,
-        enabled_features:['food.ingredients','food.recipes'],
+        enabled_features:['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'],
         capability_version:2
       });
       return true;
