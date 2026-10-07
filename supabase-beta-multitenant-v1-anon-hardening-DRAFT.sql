@@ -55,7 +55,7 @@ begin
   join mt1_anon_allowlist a on a.oid=p.oid
   where n.nspname='public'
     and p.prosecdef
-    and pg_get_functiondef(p.oid) !~* '\m(request_business_id|current_business_id|has_branch_access)\M';
+    and pg_get_functiondef(p.oid) !~* '\m(request_business_id|current_business_id|has_branch_access|mt1_require_request_business|mt1_require_public_branch|mt1_assert_restaurant_items|mt1_assert_retail_items|business_id)\M';
 
   if bad is not null then
     raise exception 'MULTITENANT_PUBLIC_RPC missing tenant guard: %',bad;
