@@ -28,6 +28,9 @@ ok(app.includes("if(orderType==='delivery')")&&app.includes("if(!normalizePhone(
 ok(app.includes("if(!deliveryAddress)throw new Error('اكتب عنوان التوصيل للدليفري')"),'delivery requires address before save');
 ok(app.includes("if(!deliveryZone&&!(manualDeliveryFee>0))throw new Error('اختار منطقة توصيل أو اكتب رسوم التوصيل')"),'delivery requires either a real zone or positive manual fee');
 ok(app.includes("const area=deliveryZone?String(deliveryZone.name||'').trim():null"),'delivery area comes from a valid zone, not placeholder text');
+ok(app.includes('checkoutAttemptTx:null')&&app.includes('const clientTx=state.checkoutAttemptTx||uuid();state.checkoutAttemptTx=clientTx'),'checkout retry reuses one sale transaction identity');
+ok(app.includes('function resetCheckoutAttempt(){state.checkoutAttemptTx=null}'),'sale transaction identity has an explicit reset');
+ok(app.includes('state.cart=[];state.selectedCustomer=null;state.activePromo=null;resetCheckoutAttempt()'),'sale transaction identity resets only after successful checkout cleanup');
 ok(!/tables/.test(ui.match(/const PAGES=new Set\([^\n]+/i)?.[0]||''),'tables route is excluded from production food port');
 ok(index.includes('food-recipe-runtime-bridge-v10-5-16.js'),'desktop loads exact-qty recipe bridge');
 ok(index.includes('v10-5-16-restaurant-closure-ui.js'),'desktop loads restaurant inventory/food UI');
