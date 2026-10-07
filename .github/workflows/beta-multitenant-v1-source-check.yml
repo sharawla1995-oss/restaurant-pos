@@ -1,0 +1,22 @@
+name: Beta Multi-Tenant V1 Source Check
+
+on:
+  push:
+    branches:
+      - beta-multitenant-v1-prep
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Multi-Tenant V1 source preparation
+        run: node scripts/check-beta-multitenant-v1-source.js
