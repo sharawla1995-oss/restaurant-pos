@@ -1026,10 +1026,11 @@ async function checkout(payment,payments=null){
   const phone=($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
   const deliveryAddress=($('#deliveryAddress')?.value||'').trim(), deliveryZoneId=$('#deliveryZone')?.value||'';
   const deliveryZone=orderType==='delivery'&&deliveryZoneId?state.deliveryZones.find(z=>String(z.id)===String(deliveryZoneId)):null;
+  const manualDeliveryFee=Number($('#manualDeliveryFee')?.value||0);
   if(orderType==='delivery'){
     if(!normalizePhone(phone))throw new Error('اكتب رقم موبايل العميل للدليفري');
     if(!deliveryAddress)throw new Error('اكتب عنوان التوصيل للدليفري');
-    if(!deliveryZone)throw new Error('اختار منطقة توصيل صحيحة');
+    if(!deliveryZone&&!(manualDeliveryFee>0))throw new Error('اختار منطقة توصيل أو اكتب رسوم التوصيل');
   }
   let customerId=state.selectedCustomer?.id||null;
   const area=deliveryZone?String(deliveryZone.name||'').trim():null;
