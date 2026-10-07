@@ -1,0 +1,17 @@
+name: V10.5.16 Unified Desktop PWA
+on:
+  push:
+    branches: [feature/v10.5.16-unified-desktop-pwa]
+  workflow_dispatch:
+jobs:
+  unified-source-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: node --check app.js
+      - run: node --check top-burger-unified/app.js
+      - run: node --check top-burger-unified/sw.js
+      - run: node --check top-burger-unified/v10-5-16-restaurant-closure-ui.js
+      - run: node scripts/check-v10-5-16-unified-pwa.js
