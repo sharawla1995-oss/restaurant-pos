@@ -83,6 +83,8 @@ need(offlineReceipts,'business_id=public.current_business_id()','offline receipt
 need(offlineReceipts,'MULTITENANT_V1 runtime receipt function missing tenant scope','offline receipt proof');
 need(offlineReceipts,'revoke all on function','maintenance receipt RPC revoke');
 need(offlineRuntimeFull,'business_id=public.current_business_id()','offline full runtime entity scope');
+if((offlineRuntimeFull.match(/create or replace function/gi)||[]).length!==53)throw new Error('offline runtime function count changed');
+if((offlineRuntimeFull.match(/\\$function\\$;/g)||[]).length!==53)throw new Error('offline runtime closing delimiters must be terminated');
 need(onConflict,'on conflict(business_id,','tenant-scoped explicit conflict targets');
 need(retailWeb,"'X-Sharawla-Business'",'retail website tenant header');
 need(genericWeb,"'X-Sharawla-Business'",'generic website tenant header');
