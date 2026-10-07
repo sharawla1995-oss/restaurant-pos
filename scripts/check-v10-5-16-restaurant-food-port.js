@@ -24,6 +24,10 @@ ok(owner.includes('drop trigger if exists trg_recipe_return_item_fail_open_v1'),
 ok(owner.includes("column_name='quantity'"),'owner transition requires V10.5.15 exact extras');
 ok(approval.includes("interval '2 hours'")&&!approval.includes("interval '5 minutes'"),'return approval lifetime is two hours');
 ok(app.includes('effectiveApprovalStatus')&&app.includes("'expired'"),'expired approval is displayed as expired');
+ok(app.includes("if(orderType==='delivery')")&&app.includes("if(!normalizePhone(phone))throw new Error('اكتب رقم موبايل العميل للدليفري')"),'delivery requires customer phone before save');
+ok(app.includes("if(!deliveryAddress)throw new Error('اكتب عنوان التوصيل للدليفري')"),'delivery requires address before save');
+ok(app.includes("if(!deliveryZone)throw new Error('اختار منطقة توصيل صحيحة')"),'delivery requires a real delivery zone before save');
+ok(app.includes("const area=deliveryZone?String(deliveryZone.name||'').trim():null"),'delivery area comes from a valid zone, not placeholder text');
 ok(!/tables/.test(ui.match(/const PAGES=new Set\([^\n]+/i)?.[0]||''),'tables route is excluded from production food port');
 ok(index.includes('food-recipe-runtime-bridge-v10-5-16.js'),'desktop loads exact-qty recipe bridge');
 ok(index.includes('v10-5-16-restaurant-closure-ui.js'),'desktop loads restaurant inventory/food UI');
