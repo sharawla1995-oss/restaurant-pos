@@ -22,6 +22,8 @@ const uniqueFinalize=read('supabase-beta-multitenant-v1-unique-finalize-BLOCKED.
 const retailPublic=read('supabase-beta-multitenant-v1-retail-public-rpc-DRAFT.sql');
 const webPortal=read('supabase-beta-multitenant-v1-web-portal-rpc-DRAFT.sql');
 const offlineReceipts=read('supabase-beta-multitenant-v1-offline-receipts-DRAFT.sql');
+const offlineRuntimeFull=read('supabase-beta-multitenant-v1-offline-runtime-full-DRAFT.sql');
+const onConflict=read('supabase-beta-multitenant-v1-on-conflict-DRAFT.sql');
 
 for(const s of [f,r]) need(s,"current_setting('sharawla.multitenant_apply', true)",'explicit Beta apply guard');
 need(f,"values ('91826502-590e-4afa-8826-2c0f4b99c490'::uuid,'beta-current','تجريبي',false)",'canonical Sharawla Cloud tenant seed');
@@ -63,7 +65,8 @@ reject(f,/kzokretuuigjhxjzdlmk/i,'Production project id must never appear in exe
 reject(r,/kzokretuuigjhxjzdlmk/i,'Production project id must never appear in executable SQL');
 need(d,'252','audit table count evidence');
 need(d,'405','SECURITY DEFINER count evidence');
-need(fk,'foreign key (%I,business_id) references public.%I(id,business_id)','composite tenant parent FK');
+need(fk,'foreign key (business_id,%s) references public.%I(business_id,%s)','generic composite tenant parent FK');
+need(fk,'MULTITENANT_V1 composite FK mirror missing','all tenant FK mirror proof');
 need(settings,'on conflict(business_id) do update','tenant settings upsert');
 need(idem,"current_setting('sharawla.multitenant_receipts_ready', true)",'receipt cutover guard');
 need(idem,'primary key (business_id,client_tx_id)','tenant receipt identity');
@@ -73,10 +76,13 @@ need(anon,"::regprocedure)",'regprocedure-scoped public API');
 need(anon,'revoke execute on function %s from anon','anonymous definer revoke');
 need(retailPublic,'mt1_assert_retail_items','retail item tenant guard');
 need(retailPublic,'v_business_id::text||','retail idempotency namespaced by tenant');
+need(retailPublic,'business_id,\n      branch_id,\n      product_id','retail public conflict target tenant scoped');
 need(webPortal,'v_business_id:=public.mt1_require_request_business()','generic web tenant context');
 need(offlineReceipts,'business_id=public.current_business_id()','offline receipt tenant predicate');
 need(offlineReceipts,'MULTITENANT_V1 runtime receipt function missing tenant scope','offline receipt proof');
 need(offlineReceipts,'revoke all on function','maintenance receipt RPC revoke');
+need(offlineRuntimeFull,'business_id=public.current_business_id()','offline full runtime entity scope');
+need(onConflict,'on conflict(business_id,','tenant-scoped explicit conflict targets');
 need(retailWeb,"'X-Sharawla-Business'",'retail website tenant header');
 need(genericWeb,"'X-Sharawla-Business'",'generic website tenant header');
 need(restaurantPublic,'mt1_require_public_branch','restaurant public branch tenant guard');
@@ -84,6 +90,7 @@ need(restaurantPublic,'mt1_assert_restaurant_items','restaurant public item tena
 need(restaurantPublic,'business_id=v_business_id','restaurant public SQL tenant predicates');
 need(restaurantPublic,'revoke execute on function public.accept_website_order(bigint) from anon','staff accept not anonymous');
 need(uniqueShadow,'mt1u_','business-scoped unique shadow indexes');
+need(uniqueShadow,'mt1pk_','business-scoped natural primary shadows');
 need(uniqueShadow,'Do NOT drop legacy unique','pre-cutover uniqueness safety');
 need(uniqueFinalize,'MULTITENANT_V1_UNIQUE_FINALIZATION_GENERATOR_REQUIRED','unique finalization hard stop');
 need(d,'230','anon SECURITY DEFINER count evidence');
