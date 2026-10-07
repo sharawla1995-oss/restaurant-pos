@@ -21,6 +21,7 @@ const uniqueShadow=read('supabase-beta-multitenant-v1-unique-shadow-DRAFT.sql');
 const uniqueFinalize=read('supabase-beta-multitenant-v1-unique-finalize-BLOCKED.sql');
 const retailPublic=read('supabase-beta-multitenant-v1-retail-public-rpc-DRAFT.sql');
 const webPortal=read('supabase-beta-multitenant-v1-web-portal-rpc-DRAFT.sql');
+const offlineReceipts=read('supabase-beta-multitenant-v1-offline-receipts-DRAFT.sql');
 
 for(const s of [f,r]) need(s,"current_setting('sharawla.multitenant_apply', true)",'explicit Beta apply guard');
 need(f,"values ('beta-current','تجريبي',false)",'historical tenant seed');
@@ -65,6 +66,9 @@ need(anon,'revoke execute on function %s from anon','anonymous definer revoke');
 need(retailPublic,'mt1_assert_retail_items','retail item tenant guard');
 need(retailPublic,'v_business_id::text||','retail idempotency namespaced by tenant');
 need(webPortal,'v_business_id:=public.mt1_require_request_business()','generic web tenant context');
+need(offlineReceipts,'business_id=public.current_business_id()','offline receipt tenant predicate');
+need(offlineReceipts,'MULTITENANT_V1 runtime receipt function missing tenant scope','offline receipt proof');
+need(offlineReceipts,'revoke all on function','maintenance receipt RPC revoke');
 need(retailWeb,"'X-Sharawla-Business'",'retail website tenant header');
 need(genericWeb,"'X-Sharawla-Business'",'generic website tenant header');
 need(restaurantPublic,'mt1_require_public_branch','restaurant public branch tenant guard');
