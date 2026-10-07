@@ -173,7 +173,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_website_branch_open(p_branch_id bigint)
@@ -217,7 +217,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_website_catalog(p_branch_id bigint)
@@ -521,7 +521,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_website_quote(p_branch_id bigint, p_order_type text, p_delivery_zone_id bigint, p_items jsonb)
@@ -912,7 +912,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_create_website_order_legacy_mt1_v1(p_branch_id bigint, p_idempotency_key text, p_reservation_key text, p_customer_name text, p_customer_phone text, p_order_type text, p_delivery_zone_id bigint, p_customer_address text, p_customer_notes text, p_payment_method_code text, p_payment_reference text, p_items jsonb)
@@ -1839,7 +1839,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_create_website_order(
@@ -2000,7 +2000,7 @@ begin
   );
 
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.cancel_retail_website_order_customer(p_order_code text, p_customer_phone text)
@@ -2078,7 +2078,7 @@ begin
   return true;
 
 end;
-$function$
+$function$;
 
 revoke all on function public.retail_create_website_order_legacy_mt1_v1(bigint,text,text,text,text,text,bigint,text,text,text,text,jsonb) from public,anon,authenticated;
 grant execute on function public.retail_create_website_order(bigint,text,text,text,text,text,bigint,text,text,text,text,jsonb) to anon;
