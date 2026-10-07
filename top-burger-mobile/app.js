@@ -59,7 +59,6 @@ async function ensureSharawlaBusinessConnection(){
 }
 
 function runtimeCore(){return window.SharawlaRuntimeCore||null}
-window.sharawlaMobileRuntimeConfig=function(){return sharawlaRuntimeConfig||null};
 function loadRuntimeConfigCache(businessId){
   const core=runtimeCore();
   return core?core.loadCache(RUNTIME_CONFIG_CACHE_KEY,businessId):null;
@@ -119,9 +118,9 @@ async function ensureSharawlaRuntimeConfig(){
         profile_active:true,
         profile_implemented:true,
         modules_configured:true,
-        enabled_modules:['customers','delivery','expenses','inventory','kitchen','pickup','pos','promocodes','reports','returns','website'],
+        enabled_modules:['customers','delivery','expenses','kitchen','pickup','pos','promocodes','reports','returns','website'],
         features_configured:true,
-        enabled_features:['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'],
+        enabled_features:['food.ingredients','food.recipes'],
         capability_version:2
       });
       return true;
@@ -758,7 +757,7 @@ async function renderFoodRecipes(){
   if(!ui?.renderPage)throw new Error('واجهة الوصفات غير محملة');
   return ui.renderPage();
 }
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}const foodPort=window.__SharawlaRestaurantFoodPortV10516;if(foodPort?.pages?.includes(p)||foodPort?.sharedRoutes?.includes(p)){if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);return foodPort.pages?.includes(p)?foodPort.openPage(p,{mobileAuthorized:true}):foodPort.renderSharedRoute(p,{mobileAuthorized:true})}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -778,13 +777,7 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
-    ['suppliers','🚚','الموردين','إدارة موردي الخامات','blue'],
-    ['purchasing','🧾','المشتريات','شراء واستلام الخامات','green'],
-    ['stockCount','🧮','الجرد','جرد الخامات وترحيل الفروق','violet'],
-    ['transfers','🔄','التحويلات','تحويل الخامات بين الفروع','blue'],
-    ['foodIngredients','🧪','الخامات','الخامات والوحدات والأرصدة','amber'],
-    ['foodRecipes','🍲','الوصفات وFood Cost','تركيبات الأصناف والتكلفة','amber'],
-    ['foodOperations','🏭','الإنتاج والهالك','Prep والإنتاج والهالك والتكلفة','rose'],
+    ['foodRecipes','🍲','الوصفات','الخامات وتركيبات الأصناف','amber'],
     ['websiteManagement','🌐','إدارة الموقع','التحكم في الموقع وتوافر الأصناف','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
