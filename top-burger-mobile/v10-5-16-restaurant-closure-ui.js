@@ -15,7 +15,7 @@ const rest=(t,q='',o={})=>global.rest(t,q,o);
 const rpc=(n,p={})=>global.rpc(n,p);
 const tx=()=>global.crypto?.randomUUID?.()||`restaurant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const branch=()=>Number(global.currentBranchId?.()||0);
-function cfg(){try{return JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
+function cfg(){try{return global.sharawlaMobileRuntimeConfig?.()||JSON.parse(localStorage.getItem('sharawlaRuntimeConfigV1')||'{}')||{}}catch{return {}}}
 function profile(){return String(cfg().pos_profile||'').trim().toLowerCase()}
 function isRestaurant(){return profile()==='restaurant'}
 function enabledFeatures(){return new Set((Array.isArray(cfg().enabled_features)?cfg().enabled_features:[]).map(x=>String(x||'').trim().toLowerCase()))}
