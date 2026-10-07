@@ -345,7 +345,7 @@ settings:{
   enable_inventory:false,enable_delivery:true,enable_customer_search:true,
   enable_delivery_drivers:true,enable_mixed_payment:true,returns_allow_closed_shifts:false
 },
-modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false};
+modifiers:[],productModifiers:[],productVariants:[],branchProducts:[],deliveryZones:[],drivers:[],branchPrintSettings:[],paymentMethods:[],branchPaymentMethods:[],branchFinancialSettings:[],websiteSettings:null,employeeBranches:[],userPermissions:null,selectedCustomer:null,activeBranchId:null,homeBranchId:null,customerAddresses:[],activePromo:null,checkoutInProgress:false,checkoutAttemptTx:null};
 let websiteOrderWatchTimer=null;
 let knownWebsiteOrderIds=new Set();
 let websiteOrderWatchPrimed=false;
@@ -437,6 +437,7 @@ async function setOfflineQueue(q){await odbSet('queue',q);try{if(window.topBurge
 function updatePendingSyncBadge(n){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('div');el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el)}const c=Number(n||0);el.textContent=c?`⟳ ${c} حركة في انتظار المزامنة`:'✓ كل الحركات متزامنة';el.classList.toggle('has-pending',c>0);el.classList.toggle('all-synced',c===0);el.classList.toggle('is-hidden',c===0);if(c===0){clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.add('is-hidden'),900)}else el.classList.remove('is-hidden')}
 async function refreshPendingSyncBadge(){try{updatePendingSyncBadge((await offlineQueue()).length)}catch{}}
 async function removeQueuedOperation(clientTx){let q=await offlineQueue();q=q.filter(x=>x.client_tx_id!==clientTx);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(clientTx,'synced',null)}catch{}return q}
+function resetCheckoutAttempt(){state.checkoutAttemptTx=null}
 function uuid(){return (crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`)}
 function offlineOrderNo(){return Number(localStorage.getItem('offlineOrderNo')||0)+1}
 function setOfflineOrderNo(n){localStorage.setItem('offlineOrderNo',String(n))}
@@ -1049,8 +1050,17 @@ async function checkout(payment,payments=null){
   const c=cartCalc(), orderType=$('#orderType').value;
   let openShift=await getOpenShift();if(!openShift){toast('لازم تفتح وردية قبل تسجيل البيع');setTimeout(()=>showPage('shifts'),700);return;}
   const phone=($('#customerPhone')?.value||'').trim(), name=($('#customerName')?.value||'').trim();
+  const deliveryAddress=($('#deliveryAddress')?.value||'').trim();
+  const deliveryZoneId=($('#deliveryZone')?.value||'').trim();
+  const deliveryZone=deliveryZoneId?state.deliveryZones.find(z=>String(z.id)===String(deliveryZoneId)):null;
+  const manualDeliveryFee=Number($('#manualDeliveryFee')?.value||0);
+  if(orderType==='delivery'){
+    if(!phone)throw new Error('رقم موبايل العميل مطلوب للدليفري');
+    if(!deliveryAddress)throw new Error('عنوان التوصيل مطلوب للدليفري');
+    if(!deliveryZone&&!(manualDeliveryFee>0))throw new Error('اختار منطقة توصيل أو اكتب رسوم التوصيل');
+  }
   let customerId=state.selectedCustomer?.id||null;
-  const area=orderType==='delivery'?($('#deliveryZone')?.selectedOptions?.[0]?.textContent?.split('—')[0]?.trim()||null):null;
+  const area=orderType==='delivery'&&deliveryZone?String(deliveryZone.name||'').trim()||null:null;
   if(phone && !customerId){
     try{
       const createdCustomer=await rest('customers','select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify([{name:name||phone,phone,address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,area}])});
@@ -1067,8 +1077,8 @@ async function checkout(payment,payments=null){
     branch_id:branchId,employee_id:state.employee.id,customer_id:customerId,shift_id:openShift?.id||null,order_type:orderType,
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
-    delivery_address:orderType==='delivery'?($('#deliveryAddress')?.value||null):null,delivery_area:area,
-    delivery_zone_id:orderType==='delivery'&&$('#deliveryZone')?.value?Number($('#deliveryZone').value):null,
+    delivery_address:orderType==='delivery'?(deliveryAddress||null):null,delivery_area:area,
+    delivery_zone_id:orderType==='delivery'&&deliveryZone?Number(deliveryZoneId):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
   };
   const itemPayload=state.cart.map(i=>({
@@ -1077,10 +1087,10 @@ async function checkout(payment,payments=null){
     modifiers:payloadItemModifiers(i)
   }));
   const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({method:x.method,amount:Number(x.amount)}));
-  let result;const clientTx=uuid();let localFirst=null;if(window.topBurgerDesktop?.isDesktop){if(state.activePromo&&!navigator.onLine)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');localFirst=await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx)}try{if(!navigator.onLine)throw new TypeError('Failed to fetch');result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows});if(window.topBurgerDesktop?.isDesktop)await removeQueuedOperation(clientTx)}catch(err){if(!isNetError(err)){if(window.topBurgerDesktop?.isDesktop){try{await window.topBurgerDesktop.operations.status(clientTx,'failed',String(err.message||err))}catch{}try{await removeQueuedOperation(clientTx)}catch{}}throw err}if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=localFirst||await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx);toast('تم حفظ الفاتورة محليًا وستتزامن عند رجوع النت')}
+  let result;const clientTx=state.checkoutAttemptTx||uuid();state.checkoutAttemptTx=clientTx;let localFirst=null;if(window.topBurgerDesktop?.isDesktop){if(state.activePromo&&!navigator.onLine)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');localFirst=await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx)}try{if(!navigator.onLine)throw new TypeError('Failed to fetch');result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows});if(window.topBurgerDesktop?.isDesktop)await removeQueuedOperation(clientTx)}catch(err){if(!isNetError(err)){if(window.topBurgerDesktop?.isDesktop){try{await window.topBurgerDesktop.operations.status(clientTx,'failed',String(err.message||err))}catch{}try{await removeQueuedOperation(clientTx)}catch{}}throw err}if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=localFirst||await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx);toast('تم حفظ الفاتورة محليًا وستتزامن عند رجوع النت')}
   const o=result?.order, savedItems=(result?.items||[]).map((row,idx)=>({...row,modifiers:itemPayload[idx]?.modifiers||row.modifiers||[]}));
   if(!o?.id)throw new Error('تمت العملية لكن تعذر قراءة الفاتورة');
-  state.cart=[];state.selectedCustomer=null;state.activePromo=null;document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
+  state.cart=[];state.selectedCustomer=null;state.activePromo=null;resetCheckoutAttempt();document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
  }catch(e){
   console.error('atomic checkout',e);
   const msg=String(e?.message||'تعذر حفظ الفاتورة');
