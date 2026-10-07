@@ -152,10 +152,34 @@ as $mt1_identity$
 begin
   if tg_op='UPDATE'
      and old.business_id is null
-     and new.business_id is not null
-     and (to_jsonb(new)-'business_id') = (to_jsonb(old)-'business_id') then
-    return new;
+     and new.business_id='91826502-590e-4afa-8826-2c0f4b99c490'::uuid then
+
+    if tg_table_name='retail_reservation_documents_identity_v1'
+       and new.id is not distinct from old.id
+       and new.retail_website_order_id is not distinct from old.retail_website_order_id
+       and new.document_uid is not distinct from old.document_uid
+       and new.source_document_id is not distinct from old.source_document_id
+       and new.creation_client_tx_id is not distinct from old.creation_client_tx_id
+       and new.creation_operation_digest is not distinct from old.creation_operation_digest
+       and new.identity_contract_version is not distinct from old.identity_contract_version
+       and new.created_at is not distinct from old.created_at then
+      return new;
+    end if;
+
+    if tg_table_name='retail_reservation_lines_identity_v1'
+       and new.id is not distinct from old.id
+       and new.reservation_document_id is not distinct from old.reservation_document_id
+       and new.line_uid is not distinct from old.line_uid
+       and new.product_id is not distinct from old.product_id
+       and new.quantity is not distinct from old.quantity
+       and new.normalized_notes is not distinct from old.normalized_notes
+       and new.reservation_effect_line_key is not distinct from old.reservation_effect_line_key
+       and new.canonical_line_digest is not distinct from old.canonical_line_digest
+       and new.created_at is not distinct from old.created_at then
+      return new;
+    end if;
   end if;
+
   raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IMMUTABLE';
 end
 $mt1_identity$;
@@ -168,8 +192,19 @@ as $mt1_mutation$
 begin
   if tg_op='UPDATE'
      and old.business_id is null
-     and new.business_id is not null
-     and (to_jsonb(new)-'business_id') = (to_jsonb(old)-'business_id') then
+     and new.business_id='91826502-590e-4afa-8826-2c0f4b99c490'::uuid
+     and new.id is not distinct from old.id
+     and new.reservation_document_id is not distinct from old.reservation_document_id
+     and new.client_tx_id is not distinct from old.client_tx_id
+     and new.mutation_type is not distinct from old.mutation_type
+     and new.operation_digest is not distinct from old.operation_digest
+     and new.requested_status is not distinct from old.requested_status
+     and new.result_status is not distinct from old.result_status
+     and new.result_payload is not distinct from old.result_payload
+     and new.actor_kind is not distinct from old.actor_kind
+     and new.actor_employee_id is not distinct from old.actor_employee_id
+     and new.recorded_at is not distinct from old.recorded_at
+     and new.applied_at is not distinct from old.applied_at then
     return new;
   end if;
 
