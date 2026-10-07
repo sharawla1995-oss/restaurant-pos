@@ -7,6 +7,7 @@ must(app,"sb_publishable_m8gAAZTKnOvCSWNvQijIXw_H1obE9vg",'verified publishable 
 must(app,"business_id:'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7'",'Top Burger business');
 for(const m of ['inventory','pos','returns','reports'])must(app,m,'module '+m);
 for(const f of ['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'])must(app,f,'feature '+f);
+for(const r of ['suppliers','purchasing','stockCount','transfers','foodIngredients','foodRecipes','foodOperations'])must(eng,r,'engine route '+r);
 for(const x of ['app.js','restaurant-engine.js','v10-5-16-restaurant-closure-ui.js','inventory-overview-v10-5-16.js','food-advanced-ui-v10-5-16.js']){must(idx,x,'index '+x);must(sw,x,'sw '+x)}
 must(app,'window.topBurgerDesktop?.isDesktop','desktop adapter boundary');
 must(app,'state.checkoutAttemptTx||uuid()','stable checkout identity');
