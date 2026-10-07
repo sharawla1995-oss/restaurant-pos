@@ -158,7 +158,6 @@ begin
       if new.id is not distinct from old.id
          and new.retail_website_order_id is not distinct from old.retail_website_order_id
          and new.document_uid is not distinct from old.document_uid
-         and new.source_document_id is not distinct from old.source_document_id
          and new.creation_client_tx_id is not distinct from old.creation_client_tx_id
          and new.creation_operation_digest is not distinct from old.creation_operation_digest
          and new.identity_contract_version is not distinct from old.identity_contract_version
