@@ -1981,7 +1981,7 @@
   },
   {
     "path": "scripts/check-beta45-offline-v2-transport.js",
-    "blob_sha": "8c95140620d8501c77cec1dc25b134328f1a4f8c"
+    "blob_sha": "208f6257ef49eda0b6d3111134765754c6048870"
   },
   {
     "path": "scripts/check-beta46-acceptance-center.js",
