@@ -58,6 +58,7 @@ jobs:
             supabase-v10-5-16-restaurant-direct-dml-hardening.sql \
             supabase-v10-5-16-return-approval-2h.sql \
             supabase-v10-5-16-recipe-owner-transition.sql \
+            supabase-v10-5-16-food-rpc-privilege-hardening.sql \
             supabase-v10-5-16-food-view-security-hardening.sql
           do
             echo "Applying $f"
