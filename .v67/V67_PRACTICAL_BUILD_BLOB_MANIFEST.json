@@ -2353,7 +2353,7 @@
   },
   {
     "path": "scripts/check-offline-reference-four-state-compatibility.js",
-    "blob_sha": "b4fc55f0a3a446b0f949dda54031dcb5bf925f34"
+    "blob_sha": "482b403e35f0193e89eed7674dad3c1f39fa4b5c"
   },
   {
     "path": "scripts/check-offline-reference-return-behavior.js",
