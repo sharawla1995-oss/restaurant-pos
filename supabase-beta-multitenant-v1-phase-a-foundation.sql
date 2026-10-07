@@ -140,6 +140,16 @@ begin
 end
 $add_business_fk$;
 
+-- Prevent migration-only business_id updates from emitting operational domain events.
+-- These three triggers are restored before COMMIT and transaction rollback also
+-- restores their state automatically on any failure.
+alter table public.customers
+  disable trigger trg_offline_v2_customer_event;
+alter table public.customer_addresses
+  disable trigger trg_offline_v2_customer_address_event;
+alter table public.orders
+  disable trigger trg_offline_v2_order_event;
+
 -- Reservation Identity rows are deliberately immutable at runtime. Phase A needs
 -- to add business_id to the three historical identity rows without weakening that
 -- contract permanently. Temporarily allow ONLY a null -> non-null business_id
@@ -501,6 +511,14 @@ begin
   end loop;
 end
 $parent_consistency$;
+
+-- Restore operational domain-event triggers before restoring runtime guards/commit.
+alter table public.customers
+  enable trigger trg_offline_v2_customer_event;
+alter table public.customer_addresses
+  enable trigger trg_offline_v2_customer_address_event;
+alter table public.orders
+  enable trigger trg_offline_v2_order_event;
 
 -- Restore the exact runtime immutability guards before commit.
 create or replace function public.retail_reservation_identity_immutable_v1()
