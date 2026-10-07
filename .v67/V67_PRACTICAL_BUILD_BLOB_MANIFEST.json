@@ -2165,7 +2165,7 @@
   },
   {
     "path": "scripts/check-kitchen-offline-local-first.js",
-    "blob_sha": "fd027a45a0fb273546654007e4d83fd2ff6ba4ee"
+    "blob_sha": "9c3288cc4f1ca994c30e94207ec7e1073c3fa704"
   },
   {
     "path": "scripts/check-legacy-settlement-v2-routing.js",
