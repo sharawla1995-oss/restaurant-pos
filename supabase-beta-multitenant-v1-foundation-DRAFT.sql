@@ -386,7 +386,7 @@ begin
     -- can be added without changing legacy global IDs.
     if exists(select 1 from pg_attribute x where x.attrelid=r.oid and x.attname='id' and x.attnum>0 and not x.attisdropped) then
       idx:=left('mt1_'||r.relname||'_id_business_uidx',63);
-      execute format('create unique index if not exists %I on public.%I(id,business_id)',idx,r.relname);
+      execute format('create unique index if not exists %I on public.%I(business_id,id)',idx,r.relname);
     end if;
   end loop;
 end

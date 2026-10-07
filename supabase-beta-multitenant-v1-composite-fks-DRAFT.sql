@@ -1,6 +1,10 @@
 -- Sharawla POS — Beta Multi-Tenant V1 composite parent FKs
 -- SOURCE PREPARATION ONLY.
--- Requires Foundation to have business_id and (id,business_id) unique candidate keys.
+-- Requires Foundation + tenant unique-shadow phase first.
+--
+-- Every legacy tenant-owned FK is mirrored by a business-aware FK:
+--   (business_id, child_fk...) -> (business_id, parent_key...)
+-- This prevents a valid ID/code from another tenant being used as a parent.
 
 begin;
 
@@ -12,32 +16,38 @@ begin
 end
 $guard$;
 
--- For every existing single-column FK that points at parent.id, add a second
--- FK binding the child business_id to the same parent business_id.
--- Existing legacy FK stays in place for compatibility.
 do $add_composite_fks$
 declare
   r record;
   cname text;
 begin
   for r in
-    select fk.oid,
-           fk.conname,
-           child.relname child_table,
-           parent.relname parent_table,
-           ca.attname child_col,
-           pa.attname parent_col
+    select
+      fk.oid,
+      fk.conname,
+      child.relname child_table,
+      parent.relname parent_table,
+      string_agg(quote_ident(ca.attname),',' order by u.ord) child_cols,
+      string_agg(quote_ident(pa.attname),',' order by u.ord) parent_cols
     from pg_constraint fk
     join pg_class child on child.oid=fk.conrelid
     join pg_namespace cn on cn.oid=child.relnamespace and cn.nspname='public'
     join pg_class parent on parent.oid=fk.confrelid
     join pg_namespace pn on pn.oid=parent.relnamespace and pn.nspname='public'
-    join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=fk.conkey[1]
-    join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=fk.confkey[1]
+    cross join lateral unnest(fk.conkey,fk.confkey) with ordinality u(catt,patt,ord)
+    join pg_attribute ca on ca.attrelid=child.oid and ca.attnum=u.catt
+    join pg_attribute pa on pa.attrelid=parent.oid and pa.attnum=u.patt
     where fk.contype='f'
-      and array_length(fk.conkey,1)=1
-      and array_length(fk.confkey,1)=1
-      and pa.attname='id'
+      and child.relname not in (
+        'business_auth_memberships',
+        'business_device_bindings'
+      )
+      and parent.relname not in (
+        'businesses',
+        'permission_actions_v2',
+        'permission_action_profiles_v2',
+        'permission_role_action_defaults_v2'
+      )
       and exists(
         select 1 from pg_attribute x
         where x.attrelid=child.oid and x.attname='business_id'
@@ -48,6 +58,7 @@ begin
         where x.attrelid=parent.oid and x.attname='business_id'
           and x.attnum>0 and not x.attisdropped
       )
+    group by fk.oid,fk.conname,child.relname,parent.relname
   loop
     cname:=left('mt1_'||r.conname,63);
     if not exists(
@@ -57,15 +68,14 @@ begin
     ) then
       execute format(
         'alter table public.%I add constraint %I '||
-        'foreign key (%I,business_id) references public.%I(id,business_id) not valid',
-        r.child_table,cname,r.child_col,r.parent_table
+        'foreign key (business_id,%s) references public.%I(business_id,%s) not valid',
+        r.child_table,cname,r.child_cols,r.parent_table,r.parent_cols
       );
     end if;
   end loop;
 end
 $add_composite_fks$;
 
--- Validate only the constraints created by this migration.
 do $validate_composite_fks$
 declare r record;
 begin
@@ -83,7 +93,52 @@ begin
 end
 $validate_composite_fks$;
 
--- Core graph proof: each relationship below must now have a composite tenant FK.
+-- Every original tenant-to-tenant FK must now have its mt1_ mirror.
+do $all_fk_proof$
+declare missing text;
+begin
+  with legacy as (
+    select fk.conrelid,fk.confrelid,fk.conname,
+           child.relname child_table,parent.relname parent_table
+    from pg_constraint fk
+    join pg_class child on child.oid=fk.conrelid
+    join pg_namespace cn on cn.oid=child.relnamespace and cn.nspname='public'
+    join pg_class parent on parent.oid=fk.confrelid
+    join pg_namespace pn on pn.oid=parent.relnamespace and pn.nspname='public'
+    where fk.contype='f'
+      and fk.conname not like 'mt1_%'
+      and child.relname not in ('business_auth_memberships','business_device_bindings')
+      and parent.relname not in (
+        'businesses',
+        'permission_actions_v2',
+        'permission_action_profiles_v2',
+        'permission_role_action_defaults_v2'
+      )
+      and exists(select 1 from pg_attribute x where x.attrelid=child.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
+      and exists(select 1 from pg_attribute x where x.attrelid=parent.oid and x.attname='business_id' and x.attnum>0 and not x.attisdropped)
+  ),
+  bad as (
+    select l.*
+    from legacy l
+    where not exists(
+      select 1 from pg_constraint c
+      where c.conrelid=l.conrelid
+        and c.confrelid=l.confrelid
+        and c.contype='f'
+        and c.conname=left('mt1_'||l.conname,63)
+        and c.convalidated
+    )
+  )
+  select string_agg(child_table||'.'||conname||'->'||parent_table,', ' order by child_table,conname)
+  into missing from bad;
+
+  if missing is not null then
+    raise exception 'MULTITENANT_V1 composite FK mirror missing: %',missing;
+  end if;
+end
+$all_fk_proof$;
+
+-- Core graph proof stays explicit so accidental schema drift cannot hide in the generic loop.
 do $core_fk_proof$
 declare missing text;
 begin
@@ -126,6 +181,7 @@ begin
         and c.conname like 'mt1_%'
         and ch.relname=r.child_table
         and pa.relname=r.parent_table
+        and c.convalidated
     )
   )
   select string_agg(child_table||'->'||parent_table,', ')
