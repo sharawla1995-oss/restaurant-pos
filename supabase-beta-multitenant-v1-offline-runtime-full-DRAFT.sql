@@ -38,7 +38,7 @@ begin
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'customer_address_delete',v_d,p_address_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_customer_address_save_v1(p_address_id bigint, p_customer_id bigint, p_label text, p_area text, p_address text, p_notes text, p_is_default boolean, p_client_tx_id text, p_payload_digest text)
@@ -64,7 +64,7 @@ begin
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'customer_address_save',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_customer_create_v1(p_name text, p_phone text, p_area text, p_address text, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -90,7 +90,7 @@ begin
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'customer_create',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_customer_update_v1(p_customer_id bigint, p_name text, p_phone text, p_area text, p_address text, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -116,7 +116,7 @@ begin
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'customer_update',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_delivery_assign_driver_v1(p_order_id bigint, p_driver_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -142,7 +142,7 @@ begin
  insert into public.offline_customer_delivery_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'delivery_assign_driver',v_d,p_order_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_delivery_driver_save_v1(p_driver_id bigint, p_branch_id bigint, p_name text, p_phone text, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -164,7 +164,7 @@ begin
  v_result:=jsonb_build_object('ok',true,'driver_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'driver_save',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_delivery_zone_save_v1(p_zone_id bigint, p_branch_id bigint, p_name text, p_delivery_fee numeric, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -186,7 +186,7 @@ begin
  v_result:=jsonb_build_object('ok',true,'zone_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'zone_save',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_ingredient_conversion_save_action_v2(p_ingredient_id bigint, p_from_unit_code text, p_to_unit_code text, p_factor numeric, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -203,7 +203,7 @@ begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_t
  if not exists(select 1 from public.ingredients where business_id=public.current_business_id() and id=p_ingredient_id) then raise exception 'OFFLINE_FOOD_CONVERSION_INGREDIENT_DEPENDENCY_UNRESOLVED';end if;
  if coalesce(p_factor,0)<=0 then raise exception 'OFFLINE_FOOD_CONVERSION_FACTOR_INVALID';end if;
  v_id:=public.food_ingredient_conversion_save_action_v2(p_ingredient_id,p_from_unit_code,p_to_unit_code,p_factor,p_active);
- v_result:=jsonb_build_object('ok',true,'conversion_id',v_id,'ingredient_id',p_ingredient_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_ingredient_conversion_save',v_d,v_id,v_result);return v_result;end;$function$
+ v_result:=jsonb_build_object('ok',true,'conversion_id',v_id,'ingredient_id',p_ingredient_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_ingredient_conversion_save',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_ingredient_conversion_save_v1(p_ingredient_id bigint, p_ingredient_create_tx text, p_from_unit_code text, p_to_unit_code text, p_factor numeric, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -223,7 +223,7 @@ begin
  v_id:=public.food_ingredient_conversion_save_v1(v_ingredient,p_from_unit_code,p_to_unit_code,p_factor,p_active);if v_id is null then raise exception 'OFFLINE_INGREDIENT_CONVERSION_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'conversion_id',v_id,'ingredient_id',v_ingredient,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'ingredient_conversion_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_ingredient_save_action_v2(p_ingredient_id bigint, p_name text, p_base_unit_code text, p_purchase_unit_code text, p_sku text, p_barcode text, p_cost_per_base_unit numeric, p_minimum_quantity numeric, p_track_inventory boolean, p_usable_yield_percent numeric, p_shelf_life_minutes integer, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -239,7 +239,7 @@ begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_t
  if found then if r.operation_type<>'food_ingredient_save' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
  if p_ingredient_id is not null and not exists(select 1 from public.ingredients where business_id=public.current_business_id() and id=p_ingredient_id) then raise exception 'OFFLINE_FOOD_INGREDIENT_DEPENDENCY_UNRESOLVED';end if;
  v_id:=public.food_ingredient_save_action_v2(p_ingredient_id,p_name,p_base_unit_code,p_purchase_unit_code,p_sku,p_barcode,p_cost_per_base_unit,p_minimum_quantity,p_track_inventory,p_usable_yield_percent,p_shelf_life_minutes,p_active);
- v_result:=jsonb_build_object('ok',true,'ingredient_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_ingredient_save',v_d,v_id,v_result);return v_result;end;$function$
+ v_result:=jsonb_build_object('ok',true,'ingredient_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_ingredient_save',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_ingredient_save_v1(p_ingredient_id bigint, p_name text, p_base_unit_code text, p_purchase_unit_code text, p_sku text, p_barcode text, p_cost_per_base_unit numeric, p_minimum_quantity numeric, p_track_inventory boolean, p_usable_yield_percent numeric, p_shelf_life_minutes integer, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -258,7 +258,7 @@ begin
  if v_id is null then raise exception 'OFFLINE_INGREDIENT_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'ingredient_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'ingredient_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_ingredient_stock_adjust_action_v2(p_branch_id bigint, p_ingredient_id bigint, p_quantity_delta numeric, p_unit_cost numeric, p_reason text, p_client_tx_id text, p_payload_digest text)
@@ -280,7 +280,7 @@ begin
  v_id:=public.food_ingredient_stock_adjust_action_v2(p_branch_id,p_ingredient_id,p_quantity_delta,p_unit_cost,p_reason,v_tx);
  v_result:=jsonb_build_object('ok',true,'adjustment_id',v_id,'branch_id',p_branch_id,'ingredient_id',p_ingredient_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_ingredient_stock_adjust',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_prep_item_save_action_v2(p_prep_item_id bigint, p_name text, p_output_ingredient_id bigint, p_base_unit_code text, p_default_batch_quantity numeric, p_shelf_life_minutes integer, p_notes text, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -296,7 +296,7 @@ begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_t
  if p_prep_item_id is not null and not exists(select 1 from public.food_prep_items where business_id=public.current_business_id() and id=p_prep_item_id) then raise exception 'OFFLINE_FOOD_PREP_ITEM_DEPENDENCY_UNRESOLVED';end if;
  if p_output_ingredient_id is not null and not exists(select 1 from public.ingredients where business_id=public.current_business_id() and id=p_output_ingredient_id) then raise exception 'OFFLINE_FOOD_PREP_OUTPUT_DEPENDENCY_UNRESOLVED';end if;
  v_id:=public.food_prep_item_save_action_v2(p_prep_item_id,p_name,p_output_ingredient_id,p_base_unit_code,p_default_batch_quantity,p_shelf_life_minutes,p_notes,p_active);select output_ingredient_id into v_out from public.food_prep_items where business_id=public.current_business_id() and id=v_id;
- v_result:=jsonb_build_object('ok',true,'prep_item_id',v_id,'output_ingredient_id',v_out,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_prep_item_save',v_d,v_id,v_result);return v_result;end;$function$
+ v_result:=jsonb_build_object('ok',true,'prep_item_id',v_id,'output_ingredient_id',v_out,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_prep_item_save',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_prep_item_save_v1(p_prep_item_id bigint, p_name text, p_output_ingredient_id bigint, p_base_unit_code text, p_default_batch_quantity numeric, p_shelf_life_minutes integer, p_notes text, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -317,7 +317,7 @@ begin
  select output_ingredient_id into v_output from public.food_prep_items where business_id=public.current_business_id() and id=v_id;if v_output is null then raise exception 'OFFLINE_PREP_OUTPUT_INGREDIENT_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'prep_item_id',v_id,'output_ingredient_id',v_output,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'prep_item_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_prep_recipe_save_draft_action_v2(p_prep_item_id bigint, p_output_quantity numeric, p_output_unit_code text, p_lines jsonb, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -333,7 +333,7 @@ begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_t
  if not exists(select 1 from public.food_prep_items where business_id=public.current_business_id() and id=p_prep_item_id and active is distinct from false) then raise exception 'OFFLINE_FOOD_PREP_ITEM_DEPENDENCY_UNRESOLVED';end if;
  if exists(select 1 from jsonb_to_recordset(coalesce(p_lines,'[]'::jsonb)) x(ingredient_id bigint) left join public.ingredients i on i.business_id=public.current_business_id() and i.id=x.ingredient_id where i.id is null) then raise exception 'OFFLINE_FOOD_PREP_INGREDIENT_DEPENDENCY_UNRESOLVED';end if;
  v_id:=public.food_prep_recipe_save_draft_action_v2(p_prep_item_id,p_output_quantity,p_output_unit_code,p_lines,p_notes);select recipe_id into v_recipe from public.food_recipe_versions where business_id=public.current_business_id() and id=v_id;
- v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'recipe_id',v_recipe,'prep_item_id',p_prep_item_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_prep_recipe_save_draft',v_d,v_id,v_result);return v_result;end;$function$
+ v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'recipe_id',v_recipe,'prep_item_id',p_prep_item_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_prep_recipe_save_draft',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_prep_recipe_save_draft_v1(p_prep_item_id bigint, p_output_quantity numeric, p_output_unit_code text, p_lines jsonb, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -353,7 +353,7 @@ begin
  v_id:=public.food_prep_recipe_save_draft_v1(p_prep_item_id,p_output_quantity,p_output_unit_code,p_lines,p_notes);
  v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'prep_item_id',p_prep_item_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'prep_recipe_draft_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_production_batch_complete_action_v2(p_production_batch_id bigint, p_actual_output_quantity numeric, p_consumptions jsonb, p_client_tx_id text, p_notes text, p_payload_digest text)
@@ -374,7 +374,7 @@ begin
  v_id:=public.food_production_batch_complete_action_v2(p_production_batch_id,p_actual_output_quantity,p_consumptions,v_tx,p_notes);
  v_result:=jsonb_build_object('ok',true,'production_batch_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_production_complete',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_production_batch_start_action_v2(p_branch_id bigint, p_prep_item_id bigint, p_planned_output_quantity numeric, p_batch_number text, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -394,7 +394,7 @@ begin
  v_id:=public.food_production_batch_start_action_v2(p_branch_id,p_prep_item_id,p_planned_output_quantity,p_batch_number,p_notes,v_tx);
  v_result:=jsonb_build_object('ok',true,'production_batch_id',v_id,'branch_id',p_branch_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_production_start',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_purchase_order_approve_v1(p_purchase_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -416,7 +416,7 @@ begin
  v_result:=jsonb_build_object('ok',true,'purchase_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_po_approve',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_purchase_order_cancel_v1(p_purchase_id bigint, p_reason text, p_client_tx_id text, p_payload_digest text)
@@ -438,7 +438,7 @@ begin
  v_result:=jsonb_build_object('ok',true,'purchase_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_po_cancel',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_purchase_order_create_v1(p_branch_id bigint, p_supplier_id bigint, p_invoice_number text, p_notes text, p_items jsonb, p_client_tx_id text, p_payload_digest text)
@@ -461,7 +461,7 @@ begin
  v_result:=jsonb_build_object('ok',true,'purchase_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_po_create',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_purchase_receive_v1(p_purchase_id bigint, p_items jsonb, p_client_tx_id text, p_payload_digest text)
@@ -495,7 +495,7 @@ begin
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'food_purchase_receive',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_recipe_activate_version_action_v2(p_recipe_version_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -509,7 +509,7 @@ declare v_tx text:=nullif(trim(coalesce(p_client_tx_id,'')),'');v_d text:=nullif
 begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_tx is null or v_d is null then raise exception 'OFFLINE_FOOD_RECIPE_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-food-recipe-activate:'||v_tx,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=v_tx;
  if found then if r.operation_type<>'food_recipe_activate' or r.payload_digest<>v_d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
  if not exists(select 1 from public.food_recipe_versions where business_id=public.current_business_id() and id=p_recipe_version_id) then raise exception 'OFFLINE_FOOD_RECIPE_VERSION_DEPENDENCY_UNRESOLVED';end if;
- v_id:=public.food_recipe_activate_version_action_v2(p_recipe_version_id);v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_recipe_activate',v_d,v_id,v_result);return v_result;end;$function$
+ v_id:=public.food_recipe_activate_version_action_v2(p_recipe_version_id);v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_recipe_activate',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_recipe_activate_version_v1(p_recipe_version_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -528,7 +528,7 @@ begin
  v_id:=public.food_recipe_activate_version_v1(p_recipe_version_id);if v_id is null then raise exception 'OFFLINE_RECIPE_ACTIVATE_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'recipe_version_activate',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_recipe_save_draft_action_v2(p_product_id bigint, p_variant_id bigint, p_name text, p_output_quantity numeric, p_output_unit_code text, p_lines jsonb, p_modifier_impacts jsonb, p_removal_mappings jsonb, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -545,7 +545,7 @@ begin if auth.uid() is null then raise exception 'UNAUTHENTICATED';end if;if v_t
  if p_variant_id is not null and not exists(select 1 from public.product_variants where business_id=public.current_business_id() and id=p_variant_id and product_id=p_product_id and active=true) then raise exception 'OFFLINE_FOOD_RECIPE_VARIANT_DEPENDENCY_UNRESOLVED';end if;
  if exists(select 1 from jsonb_to_recordset(coalesce(p_lines,'[]'::jsonb)) x(ingredient_id bigint) left join public.ingredients i on i.business_id=public.current_business_id() and i.id=x.ingredient_id where i.id is null) then raise exception 'OFFLINE_FOOD_RECIPE_INGREDIENT_DEPENDENCY_UNRESOLVED';end if;
  v_id:=public.food_recipe_save_draft_action_v2(p_product_id,p_variant_id,p_name,p_output_quantity,p_output_unit_code,p_lines,p_modifier_impacts,p_removal_mappings,p_notes);select recipe_id into v_recipe from public.food_recipe_versions where business_id=public.current_business_id() and id=v_id;
- v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'recipe_id',v_recipe,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_recipe_save_draft',v_d,v_id,v_result);return v_result;end;$function$
+ v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'recipe_id',v_recipe,'client_tx_id',v_tx,'idempotent_replay',false);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_recipe_save_draft',v_d,v_id,v_result);return v_result;end;$function$;
 
 
 -- offline_food_recipe_save_draft_v1(p_product_id bigint, p_variant_id bigint, p_name text, p_output_quantity numeric, p_output_unit_code text, p_lines jsonb, p_modifier_impacts jsonb, p_removal_mappings jsonb, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -572,7 +572,7 @@ begin
  if v_id is null then raise exception 'OFFLINE_RECIPE_DRAFT_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'recipe_version_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'recipe_draft_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_stock_count_post_v1(p_branch_id bigint, p_notes text, p_items jsonb, p_client_tx_id text, p_payload_digest text)
@@ -593,7 +593,7 @@ begin
  v_id:=public.food_stock_count_post_v1(p_branch_id,p_notes,p_items,v_tx);
  v_result:=jsonb_build_object('ok',true,'stock_count_id',v_id,'branch_id',p_branch_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_stock_count',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_stock_transfer_cancel_v1(p_transfer_id bigint, p_reason text, p_client_tx_id text, p_payload_digest text)
@@ -612,7 +612,7 @@ begin
  v_id:=public.food_stock_transfer_cancel_v1(p_transfer_id,p_reason);
  v_result:=jsonb_build_object('ok',true,'transfer_id',v_id,'client_tx_id',v_tx,'action','cancelled','idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_transfer_cancel',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_stock_transfer_create_v1(p_from_branch_id bigint, p_to_branch_id bigint, p_items jsonb, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -633,7 +633,7 @@ begin
  v_id:=public.food_stock_transfer_create_v1(p_from_branch_id,p_to_branch_id,p_items,p_notes,v_tx);
  v_result:=jsonb_build_object('ok',true,'transfer_id',v_id,'from_branch_id',p_from_branch_id,'to_branch_id',p_to_branch_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_transfer_create',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_stock_transfer_receive_v1(p_transfer_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -652,7 +652,7 @@ begin
  v_id:=public.food_stock_transfer_receive_v1(p_transfer_id);
  v_result:=jsonb_build_object('ok',true,'transfer_id',v_id,'client_tx_id',v_tx,'action','received','idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_transfer_receive',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_supplier_return_create_v1(p_branch_id bigint, p_supplier_id bigint, p_notes text, p_items jsonb, p_client_tx_id text, p_payload_digest text)
@@ -674,7 +674,7 @@ begin
  v_id:=public.food_supplier_return_create_v1(p_branch_id,p_supplier_id,p_notes,p_items,v_tx);
  v_result:=jsonb_build_object('ok',true,'supplier_return_id',v_id,'branch_id',p_branch_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_supplier_return',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_supplier_save_v1(p_supplier_id bigint, p_name text, p_phone text, p_email text, p_tax_no text, p_address text, p_notes text, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -704,7 +704,7 @@ begin
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)
  values(v_tx,'supplier_save',v_d,v_id,v_result);
  return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_food_waste_post_action_v2(p_branch_id bigint, p_ingredient_id bigint, p_prep_item_id bigint, p_shift_id bigint, p_reason_code text, p_quantity numeric, p_unit_code text, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -726,7 +726,7 @@ begin
  v_id:=public.food_waste_post_action_v2(p_branch_id,p_ingredient_id,p_prep_item_id,p_shift_id,p_reason_code,p_quantity,p_unit_code,p_notes,v_tx);
  v_result:=jsonb_build_object('ok',true,'waste_event_id',v_id,'branch_id',p_branch_id,'ingredient_id',p_ingredient_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'food_waste_post',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_inventory_supply_request_decide_v1(p_request_id bigint, p_approve boolean, p_approved_items jsonb, p_note text, p_client_tx_id text, p_payload_digest text)
@@ -738,7 +738,7 @@ CREATE OR REPLACE FUNCTION public.offline_inventory_supply_request_decide_v1(p_r
 AS $function$
 declare t text:=nullif(trim(coalesce(p_client_tx_id,'')),'');d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;i bigint;j jsonb;begin
  if auth.uid() is null or t is null or d is null then raise exception 'OFFLINE_SUPPLY_DECIDE_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-supply:'||t,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=t;if found then if r.operation_type<>'inventory_supply_request_decide' or r.payload_digest<>d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
- i:=public.inventory_supply_request_decide_v1(p_request_id,p_approve,p_approved_items,p_note);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_decide',d,i,j);return j;end;$function$
+ i:=public.inventory_supply_request_decide_v1(p_request_id,p_approve,p_approved_items,p_note);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_decide',d,i,j);return j;end;$function$;
 
 
 -- offline_inventory_supply_request_dispatch_v1(p_request_id bigint, p_items jsonb, p_note text, p_client_tx_id text, p_payload_digest text)
@@ -750,7 +750,7 @@ CREATE OR REPLACE FUNCTION public.offline_inventory_supply_request_dispatch_v1(p
 AS $function$
 declare t text:=nullif(trim(coalesce(p_client_tx_id,'')),'');d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;i bigint;j jsonb;begin
  if auth.uid() is null or t is null or d is null then raise exception 'OFFLINE_SUPPLY_DISPATCH_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-supply-stock:'||t,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=t;if found then if r.operation_type<>'inventory_supply_request_dispatch' or r.payload_digest<>d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
- i:=public.inventory_supply_request_dispatch_v1(p_request_id,p_items,p_note,t);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_dispatch',d,i,j);return j;end;$function$
+ i:=public.inventory_supply_request_dispatch_v1(p_request_id,p_items,p_note,t);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_dispatch',d,i,j);return j;end;$function$;
 
 
 -- offline_inventory_supply_request_prepare_v1(p_request_id bigint, p_note text, p_client_tx_id text, p_payload_digest text)
@@ -762,7 +762,7 @@ CREATE OR REPLACE FUNCTION public.offline_inventory_supply_request_prepare_v1(p_
 AS $function$
 declare t text:=nullif(trim(coalesce(p_client_tx_id,'')),'');d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;i bigint;j jsonb;begin
  if auth.uid() is null or t is null or d is null then raise exception 'OFFLINE_SUPPLY_PREPARE_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-supply:'||t,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=t;if found then if r.operation_type<>'inventory_supply_request_prepare' or r.payload_digest<>d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
- i:=public.inventory_supply_request_prepare_v1(p_request_id,p_note);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_prepare',d,i,j);return j;end;$function$
+ i:=public.inventory_supply_request_prepare_v1(p_request_id,p_note);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_prepare',d,i,j);return j;end;$function$;
 
 
 -- offline_inventory_supply_request_receive_v1(p_request_id bigint, p_items jsonb, p_final boolean, p_note text, p_client_tx_id text, p_payload_digest text)
@@ -774,7 +774,7 @@ CREATE OR REPLACE FUNCTION public.offline_inventory_supply_request_receive_v1(p_
 AS $function$
 declare t text:=nullif(trim(coalesce(p_client_tx_id,'')),'');d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;i bigint;j jsonb;begin
  if auth.uid() is null or t is null or d is null then raise exception 'OFFLINE_SUPPLY_RECEIVE_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-supply-stock:'||t,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=t;if found then if r.operation_type<>'inventory_supply_request_receive' or r.payload_digest<>d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
- i:=public.inventory_supply_request_receive_v1(p_request_id,p_items,p_final,p_note,t);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_receive',d,i,j);return j;end;$function$
+ i:=public.inventory_supply_request_receive_v1(p_request_id,p_items,p_final,p_note,t);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_receive',d,i,j);return j;end;$function$;
 
 
 -- offline_inventory_supply_request_submit_v1(p_request_id bigint, p_client_tx_id text, p_payload_digest text)
@@ -786,7 +786,7 @@ CREATE OR REPLACE FUNCTION public.offline_inventory_supply_request_submit_v1(p_r
 AS $function$
 declare t text:=nullif(trim(coalesce(p_client_tx_id,'')),'');d text:=nullif(trim(coalesce(p_payload_digest,'')),'');r public.offline_restaurant_reference_receipts_v1%rowtype;i bigint;j jsonb;begin
  if auth.uid() is null or t is null or d is null then raise exception 'OFFLINE_SUPPLY_SUBMIT_IDENTITY_REQUIRED';end if;perform pg_advisory_xact_lock(hashtextextended('offline-supply:'||t,0));select * into r from public.offline_restaurant_reference_receipts_v1 where business_id=public.current_business_id() and client_tx_id=t;if found then if r.operation_type<>'inventory_supply_request_submit' or r.payload_digest<>d then raise exception 'OFFLINE_RESTAURANT_REFERENCE_REPLAY_MISMATCH';end if;return r.result_json||jsonb_build_object('idempotent_replay',true);end if;
- i:=public.inventory_supply_request_submit_v1(p_request_id);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_submit',d,i,j);return j;end;$function$
+ i:=public.inventory_supply_request_submit_v1(p_request_id);j:=jsonb_build_object('ok',true,'request_id',i,'client_tx_id',t);insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json)values(t,'inventory_supply_request_submit',d,i,j);return j;end;$function$;
 
 
 -- offline_restaurant_floor_save_v1(p_floor_id bigint, p_branch_id bigint, p_name text, p_sort_order integer, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -804,7 +804,7 @@ begin
  v_id:=public.restaurant_floor_save_v1(p_floor_id,p_branch_id,p_name,p_sort_order,p_active);if v_id is null then raise exception 'OFFLINE_FLOOR_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'floor_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'floor_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_restaurant_table_save_v1(p_table_id bigint, p_branch_id bigint, p_floor_id bigint, p_name text, p_code text, p_capacity integer, p_active boolean, p_client_tx_id text, p_payload_digest text)
@@ -822,7 +822,7 @@ begin
  v_id:=public.restaurant_table_save_v1(p_table_id,p_branch_id,p_floor_id,p_name,p_code,p_capacity,p_active);if v_id is null then raise exception 'OFFLINE_TABLE_RESULT_MISSING';end if;
  v_result:=jsonb_build_object('ok',true,'table_id',v_id,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'table_save',v_d,v_id,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_restaurant_table_session_attach_v1(p_session_id bigint, p_session_open_tx text, p_order_id bigint, p_order_sale_tx text, p_client_tx_id text, p_payload_digest text)
@@ -844,7 +844,7 @@ begin
  perform public.restaurant_table_session_attach_order_v1(v_session,v_order);
  v_result:=jsonb_build_object('ok',true,'session_id',v_session,'order_id',v_order,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'table_session_attach',v_d,v_session,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_restaurant_table_session_close_v1(p_session_id bigint, p_session_open_tx text, p_notes text, p_client_tx_id text, p_payload_digest text)
@@ -864,7 +864,7 @@ begin
  perform public.restaurant_table_session_close_v1(v_session,p_notes);
  v_result:=jsonb_build_object('ok',true,'session_id',v_session,'client_tx_id',v_tx,'idempotent_replay',false);
  insert into public.offline_restaurant_reference_receipts_v1(client_tx_id,operation_type,payload_digest,entity_id,result_json) values(v_tx,'table_session_close',v_d,v_session,v_result);return v_result;
-end;$function$
+end;$function$;
 
 
 -- offline_retail_purchase_order_approve_v1(p_purchase_order_id bigint, p_client_tx_id text)
@@ -893,7 +893,7 @@ begin
  update public.retail_purchase_orders set status='approved',approved_by_employee_id=v_emp,approved_at=now(),updated_at=now() where business_id=public.current_business_id() and id=v_po.id;
  insert into public.retail_offline_po_approval_receipts(client_tx_id,purchase_order_id) values(v_tx,v_po.id);
  return jsonb_build_object('purchase_order_id',v_po.id,'replayed',false);
-end;$function$
+end;$function$;
 
 
 -- offline_retail_supplier_create_v1(p_name text, p_phone text, p_tax_no text, p_client_tx_id text)
@@ -917,7 +917,7 @@ begin
  returning id into v_id;
  insert into public.retail_offline_supplier_receipts(client_tx_id,supplier_id) values(v_tx,v_id);
  return jsonb_build_object('supplier_id',v_id,'replayed',false);
-end;$function$
+end;$function$;
 
 
 -- offline_v2_merge_customer_v1(p_name text, p_phone text, p_area text, p_address text, p_notes text, p_client_tx_id text)
@@ -974,7 +974,7 @@ begin
   values(v_tx,v_phone,v_customer.id,v_result,auth.uid());
   return v_result;
 end;
-$function$
+$function$;
 
 
 -- order_status_apply_offline_v2(p_order_id bigint, p_target_status text, p_client_tx_id text)
@@ -1024,7 +1024,7 @@ begin
    'ok',true,'client_tx_id',v_tx,'order_id',p_order_id,'target_status',v_target,'idempotent_replay',false
  );
 end;
-$function$
+$function$;
 
 
 -- sharawla_offline_v2_apply_event_alignment_special_v1(p_event jsonb)
@@ -1164,7 +1164,7 @@ begin
     'server_version','runtime-alignment-v1','result',v_result
   );
 end;
-$function$
+$function$;
 
 
 -- sharawla_offline_v2_apply_event_core_v1(p_event jsonb)
@@ -1236,7 +1236,7 @@ begin
  v_event_id:='ov2-'||md5(v_tx||':'||v_digest);
  insert into public.offline_v2_server_receipts(client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id,server_version,result_json) values(v_tx,v_event_id,2,v_digest,v_operation,v_rpc,v_device_id,v_sequence,v_branch,v_employee,auth.uid(),v_entity_id,'transport-v1',v_result);
  return jsonb_build_object('ok',true,'acknowledged',true,'duplicate',false,'idempotent_replay',false,'client_tx_id',v_tx,'protocol_version',2,'payload_digest',v_digest,'server_event_id',v_event_id,'server_entity_id',v_entity_id,'server_version','transport-v1','result',v_result);
-end;$function$
+end;$function$;
 
 
 -- sharawla_offline_v2_apply_event_modern_v1(p_event jsonb)
@@ -1414,7 +1414,7 @@ begin
     'client_tx_id',v_tx,'protocol_version',2,'payload_digest',v_digest,'server_event_id',v_event_id,
     'server_entity_id',v_entity_id,'server_version','transport-v1','result',v_result);
 end;
-$function$
+$function$;
 
 
 -- sharawla_offline_v2_apply_event_reference_v1(p_event jsonb)
@@ -1726,7 +1726,7 @@ begin
     'result',v_result
   );
 end;
-$function$
+$function$;
 
 
 -- sharawla_offline_v2_apply_retail_resume_event_v1(p_event jsonb)
@@ -1746,7 +1746,7 @@ begin
  delete from public.retail_suspended_sales where business_id=public.current_business_id() and business_id=public.current_business_id() and id=v_id and branch_id=v_branch;
  v_event:='ov2-'||md5(v_tx||':'||v_digest); insert into public.offline_v2_server_receipts(client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id,server_version,result_json) values(v_tx,v_event,2,v_digest,'retail_resume_sale','offline_retail_resume_sale_v1',p_event->>'device_id',(p_event->>'device_sequence')::bigint,v_branch,v_employee,auth.uid(),v_id::text,'retail-hold-v1',jsonb_build_object('suspended_sale_id',v_id,'resumed',true));
  return jsonb_build_object('ok',true,'acknowledged',true,'duplicate',false,'idempotent_replay',false,'client_tx_id',v_tx,'protocol_version',2,'payload_digest',v_digest,'server_event_id',v_event,'server_entity_id',v_id::text,'server_version','retail-hold-v1','result',jsonb_build_object('suspended_sale_id',v_id,'resumed',true));
-end $function$
+end $function$;
 
 
 -- sharawla_offline_v2_apply_retail_suspend_event_v1(p_event jsonb)
@@ -1765,7 +1765,7 @@ begin
  insert into public.retail_suspended_sales(branch_id,employee_id,label,cart,customer,financial) values(v_branch,v_employee,nullif(trim(coalesce(v_payload->>'p_label','')),''),coalesce(v_payload->'p_cart','[]'::jsonb),coalesce(v_payload->'p_customer','{}'::jsonb),coalesce(v_payload->'p_financial','{}'::jsonb)) returning id into v_id;
  v_event:='ov2-'||md5(v_tx||':'||v_digest); insert into public.offline_v2_server_receipts(client_tx_id,server_event_id,protocol_version,payload_digest,operation_type,rpc_name,device_id,device_sequence,branch_id,employee_id,auth_user_id,server_entity_id,server_version,result_json) values(v_tx,v_event,2,v_digest,'retail_suspend_sale','offline_retail_suspend_sale_v1',p_event->>'device_id',(p_event->>'device_sequence')::bigint,v_branch,v_employee,auth.uid(),v_id::text,'retail-hold-v1',jsonb_build_object('suspended_sale_id',v_id));
  return jsonb_build_object('ok',true,'acknowledged',true,'duplicate',false,'idempotent_replay',false,'client_tx_id',v_tx,'protocol_version',2,'payload_digest',v_digest,'server_event_id',v_event,'server_entity_id',v_id::text,'server_version','retail-hold-v1','result',jsonb_build_object('suspended_sale_id',v_id));
-end $function$
+end $function$;
 
 
 -- sharawla_offline_v2_prepare_stock_event_v1(p_event jsonb)
@@ -1817,7 +1817,7 @@ begin
   end if;
  end if;
  return jsonb_build_object('classification','EXECUTION_REQUIRED','client_tx_id',v_tx,'payload_digest',v_digest,'operation_type',v_operation,'rpc_name',v_rpc,'branch_id',v_branch,'authoritative_for_execution',false,'context_envelope',v_envelope,'stock_identities',coalesce(v_stock_identities,'[]'::jsonb));
-end;$function$
+end;$function$;
 
 
 commit;
