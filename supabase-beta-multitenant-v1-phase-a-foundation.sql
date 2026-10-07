@@ -148,7 +148,7 @@ create or replace function public.retail_reservation_identity_immutable_v1()
 returns trigger
 language plpgsql
 set search_path=''
-as $
+as $mt1_identity$
 begin
   if tg_op='UPDATE'
      and old.business_id is null
@@ -158,13 +158,13 @@ begin
   end if;
   raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IMMUTABLE';
 end
-$;
+$mt1_identity$;
 
 create or replace function public.retail_reservation_mutation_guard_v1()
 returns trigger
 language plpgsql
 set search_path=''
-as $
+as $mt1_mutation$
 begin
   if tg_op='UPDATE'
      and old.business_id is null
@@ -203,7 +203,7 @@ begin
 
   return new;
 end
-$;
+$mt1_mutation$;
 
 -- Root entities are canonical tenant owners even when they have optional parent FKs.
 -- Historical rows in these roots belong to the one pre-existing Beta tenant.
@@ -432,17 +432,17 @@ create or replace function public.retail_reservation_identity_immutable_v1()
 returns trigger
 language plpgsql
 set search_path=''
-as $
+as $mt1_identity$
 begin
   raise exception 'RETAIL_RESERVATION_IDENTITY_V1_IMMUTABLE';
 end
-$;
+$mt1_identity$;
 
 create or replace function public.retail_reservation_mutation_guard_v1()
 returns trigger
 language plpgsql
 set search_path=''
-as $
+as $mt1_mutation$
 begin
   if tg_op = 'DELETE' then
     raise exception 'RETAIL_RESERVATION_IDENTITY_V1_MUTATION_IMMUTABLE';
@@ -474,7 +474,7 @@ begin
 
   return new;
 end
-$;
+$mt1_mutation$;
 
 -- Phase A finalization is additive only: validate business ownership FKs and
 -- add lookup/candidate indexes. Do NOT SET NOT NULL, drop constraints, change
