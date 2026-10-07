@@ -22,7 +22,7 @@
   async function rpc(name,payload={}){
     if(!apiReady())throw new Error('إعداد الموقع غير مكتمل: Supabase URL / Publishable Key');
     const url=String(C.supabaseUrl).replace(/\/$/,'')+'/rest/v1/rpc/'+name;
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','apikey':C.publishableKey,'Authorization':'Bearer '+C.publishableKey},body:JSON.stringify(payload)});
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','apikey':C.publishableKey,'Authorization':'Bearer '+C.publishableKey,...(String(C.businessId||'').trim()?{'X-Sharawla-Business':String(C.businessId||'').trim()}:{})},body:JSON.stringify(payload)});
     let d=null;try{d=await r.json()}catch{}
     if(!r.ok)throw new Error(d?.message||d?.hint||('خطأ '+r.status));
     return d;

@@ -10,6 +10,12 @@ const f=read('supabase-beta-multitenant-v1-foundation-DRAFT.sql');
 const r=read('supabase-beta-multitenant-v1-rls-DRAFT.sql');
 const d=read('docs/SHARAWLA_BETA_MULTITENANT_V1_AUDIT.md');
 const app=read('app.js');
+const fk=read('supabase-beta-multitenant-v1-composite-fks-DRAFT.sql');
+const settings=read('supabase-beta-multitenant-v1-settings-compat-DRAFT.sql');
+const idem=read('supabase-beta-multitenant-v1-idempotency-DRAFT.sql');
+const anon=read('supabase-beta-multitenant-v1-anon-hardening-DRAFT.sql');
+const retailWeb=read('retail-website/app.js');
+const genericWeb=read('sharawla-web-v1/app.js');
 
 for(const s of [f,r]) need(s,"current_setting('sharawla.multitenant_apply', true)",'explicit Beta apply guard');
 need(f,"values ('beta-current','تجريبي',false)",'historical tenant seed');
@@ -26,7 +32,10 @@ need(f,'website_settings_mt1_id_seq','website settings tenant sequence');
 need(f,'mt1_business_settings_business_uidx','business settings per-tenant uniqueness');
 need(f,'mt1_website_settings_business_uidx','website settings per-tenant uniqueness');
 
+need(r,'create or replace function public.header_business_id()','header tenant helper');
+need(r,'v_count=1 then return v_business','single-tenant legacy client fallback');
 need(r,'create or replace function public.current_business_id()','authenticated tenant helper');
+need(r,'create or replace function public.current_employee_id()','tenant employee helper');
 need(r,'create or replace function public.request_business_id()','public tenant helper');
 need(r,"h->>'x-sharawla-business'",'public tenant header');
 need(r,'as restrictive for all to authenticated','restrictive authenticated RLS');
@@ -40,6 +49,14 @@ reject(f,/kzokretuuigjhxjzdlmk/i,'Production project id must never appear in exe
 reject(r,/kzokretuuigjhxjzdlmk/i,'Production project id must never appear in executable SQL');
 need(d,'252','audit table count evidence');
 need(d,'405','SECURITY DEFINER count evidence');
+need(fk,'foreign key (%I,business_id) references public.%I(id,business_id)','composite tenant parent FK');
+need(settings,'on conflict(business_id) do update','tenant settings upsert');
+need(idem,"current_setting('sharawla.multitenant_receipts_ready', true)",'receipt cutover guard');
+need(idem,'primary key (business_id,client_tx_id)','tenant receipt identity');
+need(anon,"current_setting('sharawla.multitenant_public_rpc_ready', true)",'public RPC cutover guard');
+need(anon,'revoke execute on function %s from anon','anonymous definer revoke');
+need(retailWeb,"'X-Sharawla-Business'",'retail website tenant header');
+need(genericWeb,"'X-Sharawla-Business'",'generic website tenant header');
 need(d,'230','anon SECURITY DEFINER count evidence');
 need(app,"'X-Sharawla-Business'","tenant header on Beta REST requests");
 if(app.includes("rest('business_settings','select=*&id=eq.1"))throw new Error('business_settings still hard-codes id=1');

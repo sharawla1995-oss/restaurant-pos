@@ -3,6 +3,7 @@
 window.SHARAWLA_RETAIL_SITE = window.SHARAWLA_RETAIL_SITE || {
   supabaseUrl: '',
   publishableKey: '',
+  businessId:'',
   displayName: 'Sharawla Retail',
   logoUrl: '',
   heroTitle: 'اختار احتياجاتك وإحنا نجهزها',

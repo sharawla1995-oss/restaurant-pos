@@ -4,6 +4,7 @@
 window.SHARAWLA_RETAIL_SITE = {
   supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
   publishableKey: 'sb_publishable_...',
+  businessId:'YOUR-BUSINESS-ID-OR-CODE',
   displayName: 'اسم المتجر',
   logoUrl: '',
   heroTitle: 'اختار احتياجاتك وإحنا نجهزها',

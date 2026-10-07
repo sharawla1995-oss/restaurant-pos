@@ -24,26 +24,7 @@ begin
 end
 $external_binding_guard$;
 
-create or replace function public.current_business_id()
-returns uuid
-language sql
-stable
-security definer
-set search_path=pg_catalog,public
-as $$
-  select e.business_id
-  from public.employees e
-  where e.auth_user_id=auth.uid()
-    and e.active=true
-  limit 1
-$$;
-
-revoke all on function public.current_business_id() from public,anon;
-grant execute on function public.current_business_id() to authenticated;
-
--- Public/website requests must identify tenant explicitly. Staff requests use
--- the authenticated employee mapping and therefore do not require a header.
-create or replace function public.request_business_id()
+create or replace function public.header_business_id()
 returns uuid
 language plpgsql
 stable
@@ -51,14 +32,10 @@ security definer
 set search_path=pg_catalog,public
 as $$
 declare
-  v uuid;
   h jsonb;
   ext text;
+  v uuid;
 begin
-  if auth.uid() is not null then
-    return public.current_business_id();
-  end if;
-
   begin
     h:=coalesce(current_setting('request.headers',true),'{}')::jsonb;
   exception when others then
@@ -76,8 +53,103 @@ begin
 end
 $$;
 
+revoke all on function public.header_business_id() from public;
+grant execute on function public.header_business_id() to anon,authenticated;
+
+create or replace function public.current_business_id()
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+declare
+  v_header uuid;
+  v_business uuid;
+  v_count integer;
+begin
+  if auth.uid() is null then return null; end if;
+
+  -- New clients bind the business explicitly.
+  v_header:=public.header_business_id();
+  if v_header is not null then
+    select e.business_id into v_business
+    from public.employees e
+    where e.auth_user_id=auth.uid()
+      and e.business_id=v_header
+      and e.active=true
+    limit 1;
+    return v_business;
+  end if;
+
+  -- Compatibility for the existing SH-0007 client during cutover:
+  -- fallback is allowed only when auth.uid() belongs to exactly one active tenant.
+  select count(distinct e.business_id), min(e.business_id)
+  into v_count,v_business
+  from public.employees e
+  where e.auth_user_id=auth.uid()
+    and e.active=true;
+
+  if v_count=1 then return v_business; end if;
+  return null;
+end
+$$;
+
+revoke all on function public.current_business_id() from public,anon;
+grant execute on function public.current_business_id() to authenticated;
+
+create or replace function public.request_business_id()
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+begin
+  if auth.uid() is not null then
+    return public.current_business_id();
+  end if;
+  return public.header_business_id();
+end
+$$;
+
 revoke all on function public.request_business_id() from public;
 grant execute on function public.request_business_id() to anon,authenticated;
+
+create or replace function public.current_employee_id()
+returns bigint
+language sql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+  select e.id
+  from public.employees e
+  where e.auth_user_id=auth.uid()
+    and e.business_id=public.current_business_id()
+    and e.active=true
+  limit 1
+$$;
+
+create or replace function public.current_employee_role()
+returns text
+language sql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+  select e.role
+  from public.employees e
+  where e.auth_user_id=auth.uid()
+    and e.business_id=public.current_business_id()
+    and e.active=true
+  limit 1
+$$;
+
+revoke all on function public.current_employee_id() from public,anon;
+revoke all on function public.current_employee_role() from public,anon;
+grant execute on function public.current_employee_id() to authenticated;
+grant execute on function public.current_employee_role() to authenticated;
 
 create or replace function public.is_admin()
 returns boolean
