@@ -358,7 +358,7 @@ AS $function$
     p.name,
     p.id;
 
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.retail_website_offer_discount(p_branch_id bigint, p_product_id bigint, p_quantity numeric, p_unit_price numeric)
