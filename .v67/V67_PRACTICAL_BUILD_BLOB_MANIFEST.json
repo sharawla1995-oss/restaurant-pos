@@ -2477,7 +2477,7 @@
   },
   {
     "path": "scripts/check-permissions-v2-delivery-completion-routing.js",
-    "blob_sha": "f8b042511f11e568725377b6ecb6a9cacfc55d3e"
+    "blob_sha": "39be0ad742d69a008e6ba5c1637ae88b54d166fd"
   },
   {
     "path": "scripts/check-permissions-v2-effective-evaluator.js",
