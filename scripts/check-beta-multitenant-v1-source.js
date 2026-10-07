@@ -23,6 +23,7 @@ const uniqueCutover=read('supabase-beta-multitenant-v1-unique-cutover-DRAFT.sql'
 const retailPublic=read('supabase-beta-multitenant-v1-retail-public-rpc-DRAFT.sql');
 const webPortal=read('supabase-beta-multitenant-v1-web-portal-rpc-DRAFT.sql');
 const offlineReceipts=read('supabase-beta-multitenant-v1-offline-receipts-DRAFT.sql');
+const securityInvokerViews=read('supabase-beta-multitenant-v1-security-invoker-views-DRAFT.sql');
 const offlineRuntimeFull=read('supabase-beta-multitenant-v1-offline-runtime-full-DRAFT.sql');
 const onConflict=read('supabase-beta-multitenant-v1-on-conflict-DRAFT.sql');
 
@@ -82,6 +83,9 @@ need(retailPublic,'v_business_id::text||','retail idempotency namespaced by tena
 need(retailPublic,'business_id,\n      branch_id,\n      product_id','retail public conflict target tenant scoped');
 need(webPortal,'v_business_id:=public.mt1_require_request_business()','generic web tenant context');
 need(offlineReceipts,'business_id=public.current_business_id()','offline receipt tenant predicate');
+if((securityInvokerViews.match(/alter view public\./g)||[]).length!==13)throw new Error('expected 13 security-invoker views');
+if((securityInvokerViews.match(/security_invoker = true/g)||[]).length!==13)throw new Error('all 13 views must be security_invoker');
+if((securityInvokerViews.match(/revoke select on public\./g)||[]).length!==13)throw new Error('all 13 internal views must revoke anon SELECT');
 need(offlineReceipts,'MULTITENANT_V1 runtime receipt function missing tenant scope','offline receipt proof');
 need(offlineReceipts,'revoke all on function','maintenance receipt RPC revoke');
 need(offlineRuntimeFull,'business_id=public.current_business_id()','offline full runtime entity scope');
