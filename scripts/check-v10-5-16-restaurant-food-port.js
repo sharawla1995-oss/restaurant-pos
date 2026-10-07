@@ -26,7 +26,7 @@ ok(approval.includes("interval '2 hours'")&&!approval.includes("interval '5 minu
 ok(app.includes('effectiveApprovalStatus')&&app.includes("'expired'"),'expired approval is displayed as expired');
 ok(app.includes("if(orderType==='delivery')")&&app.includes("if(!normalizePhone(phone))throw new Error('اكتب رقم موبايل العميل للدليفري')"),'delivery requires customer phone before save');
 ok(app.includes("if(!deliveryAddress)throw new Error('اكتب عنوان التوصيل للدليفري')"),'delivery requires address before save');
-ok(app.includes("if(!deliveryZone)throw new Error('اختار منطقة توصيل صحيحة')"),'delivery requires a real delivery zone before save');
+ok(app.includes("if(!deliveryZone&&!(manualDeliveryFee>0))throw new Error('اختار منطقة توصيل أو اكتب رسوم التوصيل')"),'delivery requires either a real zone or positive manual fee');
 ok(app.includes("const area=deliveryZone?String(deliveryZone.name||'').trim():null"),'delivery area comes from a valid zone, not placeholder text');
 ok(!/tables/.test(ui.match(/const PAGES=new Set\([^\n]+/i)?.[0]||''),'tables route is excluded from production food port');
 ok(index.includes('food-recipe-runtime-bridge-v10-5-16.js'),'desktop loads exact-qty recipe bridge');
