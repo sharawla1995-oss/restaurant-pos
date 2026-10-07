@@ -68,6 +68,18 @@ jobs:
               sys.exit(1)
           print('V67_PRACTICAL_COMPLETE_1056_1056_PASS')
           PY
+      - name: Prepare pinned continuation baseline fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA=2d174feff680c4ffc0dd6972036590d259f75626
+          mkdir -p ../continuation_baseline
+          git show "$BASE_SHA:permissions-v2-delivery-settings-routing.js" > ../continuation_baseline/permissions-v2-delivery-settings-routing.js
+          git show "$BASE_SHA:permissions-v2-order-fulfillment-routing.js" > ../continuation_baseline/permissions-v2-order-fulfillment-routing.js
+          test -s ../continuation_baseline/permissions-v2-delivery-settings-routing.js
+          test -s ../continuation_baseline/permissions-v2-order-fulfillment-routing.js
+          echo V67_CONTINUATION_BASELINE_FIXTURE_READY
+
       - name: Run accepted V67 source closure suites
         shell: bash
         run: |
