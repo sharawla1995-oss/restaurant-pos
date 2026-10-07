@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const TOP_BURGER_WEB_CONNECTION={url:'https://kzokretuuigjhxjzdlmk.supabase.co',key:'sb_publishable_9PmytJQY2MhrYUVgMDHzVQ_Av8JH7mP'};
+const TOP_BURGER_WEB_CONNECTION={url:'https://kzokretuuigjhxjzdlmk.supabase.co',key:'sb_publishable_m8gAAZTKnOvCSWNvQijIXw_H1obE9vg'};
 let cfg=window.topBurgerDesktop?.isDesktop?{url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''}:{...TOP_BURGER_WEB_CONNECTION};
 let session=null;
 
