@@ -1,6 +1,6 @@
 (function(global){
 'use strict';
-const APP_VERSION='10.5.14-hr2';
+const APP_VERSION='10.5.16';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const store=global.SharawlaStaffStore,domain=global.SharawlaStaffDomain;
 const queue=new domain.DurableAttendanceQueue(store.queueStore);
