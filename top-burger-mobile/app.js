@@ -59,6 +59,7 @@ async function ensureSharawlaBusinessConnection(){
 }
 
 function runtimeCore(){return window.SharawlaRuntimeCore||null}
+window.sharawlaMobileRuntimeConfig=function(){return sharawlaRuntimeConfig||null};
 function loadRuntimeConfigCache(businessId){
   const core=runtimeCore();
   return core?core.loadCache(RUNTIME_CONFIG_CACHE_KEY,businessId):null;
