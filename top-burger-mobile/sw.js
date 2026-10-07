@@ -1,4 +1,4 @@
-const CACHE='top-burger-mobile-10.5.16-full-4';
+const CACHE='top-burger-mobile-10.5.16-full-5';
 const SHELL=[
   './','./index.html','./manifest.json','./icon-192.png','./icon-512.png',
   './styles.css?v=topburger-10.5.16.2',
@@ -8,8 +8,8 @@ const SHELL=[
   './food-recipe-runtime-bridge-v10-5-16.js?v=topburger-10.5.16.2',
   './inventory-overview-v10-5-16.js?v=topburger-10.5.16.2',
   './food-advanced-ui-v10-5-16.js?v=topburger-10.5.16.2',
-  './v10-5-16-restaurant-closure-ui.js?v=topburger-10.5.16.2',
-  './app.js?v=topburger-10.5.16.2',
+  './v10-5-16-restaurant-closure-ui.js?v=topburger-10.5.16.5',
+  './app.js?v=topburger-10.5.16.5',
   './hr-core-admin-v1.js?v=topburger-10.5.16.2',
   './hr-attendance-admin-v1.js?v=topburger-10.5.16.2',
   './v10-5-14-ops-hr-summary.js?v=topburger-10.5.16.2'
