@@ -1072,7 +1072,7 @@ async function checkout(payment,payments=null){
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
     delivery_address:orderType==='delivery'?deliveryAddress:null,delivery_area:area,
-    delivery_zone_id:orderType==='delivery'?Number(deliveryZoneId):null,
+    delivery_zone_id:orderType==='delivery'&&deliveryZone?Number(deliveryZoneId):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
   };
   const itemPayload=state.cart.map(i=>({
