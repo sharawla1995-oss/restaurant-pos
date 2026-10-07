@@ -16,6 +16,8 @@ ok(basic.includes('oim.quantity')&&basic.includes('v_line.modifier_qty'),'food o
 ok(!basic.includes('base_quantity_delta*v_qty'),'modifier stock is not multiplied by sandwich qty');
 ok(!/inventory_stock_assert_legacy_write_allowed_v2/i.test(advanced),'advanced runtime does not import Point4 legacy-write guard');
 ok(!/inventory_stock_assert_legacy_write_allowed_v2/i.test(ops),'restaurant operations do not import Point4 legacy-write guard');
+ok(!/Point\s*4|Point4|Canonical Stock/i.test(ops),'restaurant operations contain no Point4/Canonical Stock residue');
+ok(!/jsonb_to_recordset\([^\n]*\)\s+with\s+ordinality/i.test(ops),'stock count does not use invalid recordset ordinality syntax');
 ok(!/restaurant\.tables|restaurant_table|restaurant_floor/i.test(ops),'tables runtime is excluded');
 ok(owner.includes('drop trigger if exists trg_recipe_order_item_fail_open_v1'),'legacy sale recipe trigger transition exists');
 ok(owner.includes('drop trigger if exists trg_recipe_return_item_fail_open_v1'),'legacy return recipe trigger transition exists');
