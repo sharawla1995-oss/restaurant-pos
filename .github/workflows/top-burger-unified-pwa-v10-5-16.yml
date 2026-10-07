@@ -2,6 +2,7 @@ name: Top Burger Unified PWA V10.5.16
 on:
   push:
     branches: [feature/v10.5.16-unified-desktop-pwa]
+    paths: ['top-burger-unified/**','scripts/check-top-burger-unified-pwa-v10-5-16.js','.github/workflows/top-burger-unified-pwa-v10-5-16.yml']
   workflow_dispatch:
 jobs:
   unified-pwa-gate:
@@ -16,6 +17,3 @@ jobs:
       - run: node --check top-burger-unified/inventory-overview-v10-5-16.js
       - run: node --check top-burger-unified/food-advanced-ui-v10-5-16.js
       - run: node scripts/check-top-burger-unified-pwa-v10-5-16.js
-
-
-# unified source parity rerun
