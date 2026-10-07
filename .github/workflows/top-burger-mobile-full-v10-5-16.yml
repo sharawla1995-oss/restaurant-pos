@@ -17,3 +17,4 @@ jobs:
       - run: node --check top-burger-mobile/food-advanced-ui-v10-5-16.js
       - run: node --check top-burger-mobile/food-recipe-runtime-bridge-v10-5-16.js
       - run: node scripts/check-top-burger-mobile-full-v10-5-16.js
+
