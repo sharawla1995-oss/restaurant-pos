@@ -6,7 +6,7 @@
   "author": "Sharawla POS",
   "license": "UNLICENSED",
   "scripts": {
-    "check": "node scripts/check-version.js && node --check app.js && node --check v10-5-14-ops-hr-summary.js && node --check staff/app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-hr-staff-port.js && node scripts/check-v10-5-14-ops-hr-summary.js && node scripts/check-v10-5-15-hr-nav-immediate.js && node --check food-recipe-runtime-bridge-v10-5-16.js && node --check v10-5-16-restaurant-closure-ui.js && node --check inventory-overview-v10-5-16.js && node --check food-advanced-ui-v10-5-16.js",
+    "check": "node scripts/check-version.js && node --check app.js && node --check v10-5-14-ops-hr-summary.js && node --check staff/app.js && node scripts/check-v10-5-13-branch-open-regression.js && node scripts/check-v10-5-13-hr-staff-port.js && node scripts/check-v10-5-14-ops-hr-summary.js && node scripts/check-v10-5-15-hr-nav-immediate.js && node --check food-recipe-runtime-bridge-v10-5-16.js && node --check v10-5-16-restaurant-closure-ui.js && node --check inventory-overview-v10-5-16.js && node --check food-advanced-ui-v10-5-16.js && node scripts/check-v10-5-16-restaurant-food-port.js",
     "start": "npm run check && electron .",
     "dist": "npm run check && electron-builder --win nsis"
   },
