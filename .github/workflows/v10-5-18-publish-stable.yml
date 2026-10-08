@@ -1,5 +1,5 @@
 name: Publish V10.5.18 Stable
-# release trigger: exact extras review restored
+# release trigger: parity gate corrected
 on:
   push:
     branches:
@@ -34,7 +34,7 @@ jobs:
           foreach($page in @('suppliers','purchasing','stockCount','transfers','foodIngredients','foodRecipes','foodOperations')){
             if(-not $html.Contains('data-page="'+$page+'"')){ throw "Missing desktop nav page: $page" }
           }
-          if(-not $app.Contains("foodPort?.sharedRoutes?.includes?.(p)")){ throw "Missing shared restaurant route dispatch" }
+          if(-not $app.Contains("foodPort?.sharedRoutes?.includes(p)")){ throw "Missing shared restaurant route dispatch" }
           foreach($token in @('id="settlementHistoryBody" hidden','settlements.slice(0,3)','id="showAllSettlements"','toggleSettlementHistory.onclick')){
             if(-not $app.Contains($token)){ throw "Missing collapsed settlement history token: $token" }
           }
