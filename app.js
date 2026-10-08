@@ -387,6 +387,29 @@ async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function assertSharawlaTenantContext(){
+  if(!window.topBurgerDesktop?.isDesktop)return true;
+  const st=await loadLicenseState();
+  const businessId=String(st?.business_id||'').trim(),deviceId=String(st?.device_id||'').trim();
+  if(!businessId||!deviceId){
+    const e=new Error('Canonical Sharawla tenant identity غير مكتملة');
+    e.code='CANONICAL_TENANT_IDENTITY_REQUIRED';
+    throw e;
+  }
+  const h=tenantIdentityHeaders();
+  if(String(h['X-Sharawla-Business']||'')!==businessId||String(h['X-Sharawla-Device']||'')!==deviceId){
+    const e=new Error('Business Connection cache غير مطابق لترخيص الجهاز');
+    e.code='DEVICE_BUSINESS_CACHE_MISMATCH';
+    throw e;
+  }
+  const ok=await rpc('mt1_assert_device_business',{p_device_id:deviceId});
+  if(ok!==true){
+    const e=new Error('ربط الجهاز بالنشاط غير مطابق');
+    e.code='DEVICE_BUSINESS_MISMATCH';
+    throw e;
+  }
+  return true;
+}
 
 // ===== V9.8 Offline Core =====
 const OFFLINE_DB='topburger-pos-offline-v98', OFFLINE_STORE='kv';
@@ -719,7 +742,7 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
 });
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine){await assertSharawlaTenantContext();await bootstrap()}else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
 function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.toggle('open',!!open)}
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
@@ -2184,7 +2207,7 @@ async function uploadBusinessLogo(file){
  if(file.size>5*1024*1024)throw new Error('حجم اللوجو لازم يكون أقل من 5 ميجا');
  const ext=(file.name.split('.').pop()||'png').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()||'png';
  const path=`${activeTenantBusinessId()}/branding/logo-${Date.now()}.${ext}`;
- const r=await fetch(`${cfg.url}/storage/v1/object/business-assets/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
+ const r=await fetch(`${cfg.url}/storage/v1/object/business-assets/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,...tenantIdentityHeaders(),'Content-Type':file.type,'x-upsert':'true'},body:file});
  if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||'تعذر رفع اللوجو');}
  const url=`${cfg.url}/storage/v1/object/public/business-assets/${path}`;
  await rpc('update_business_settings',businessSettingsPayload(url));await refreshBusinessSettings();toast('تم رفع اللوجو وربطه بالـPOS والموقع والفواتير');renderSettings();
