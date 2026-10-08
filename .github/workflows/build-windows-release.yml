@@ -2,6 +2,9 @@ name: Build Windows Release
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - release/v10.5.18-desktop-inventory-parity
 
 permissions:
   contents: write
