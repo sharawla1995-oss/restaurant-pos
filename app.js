@@ -417,6 +417,7 @@ function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
 function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
 function tenantIdentityHeaders(){try{const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}catch{return {}}}
+function activeTenantBusinessId(){const id=String(tenantIdentityHeaders()['X-Sharawla-Business']||'').trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))throw new Error('Canonical Business ID غير متاح لهذا الجهاز');return id}
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){const method=String(opt?.method||'GET').toUpperCase();if(method!=='GET'&&method!=='HEAD'&&globalThis.navigator?.onLine===false){const e=new Error(`تعديل ${table} يحتاج اتصالًا بالسيرفر. لم يتم تغيير أي بيانات.`);e.code='REST_MUTATION_OFFLINE_BLOCKED';throw e}return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
@@ -2038,7 +2039,7 @@ async function rc1RemoveStorageObject(bucket,path){
 async function uploadProductImage(product,file){
  if(!file)return; if(!/^image\//.test(file.type))return toast('اختر ملف صورة'); if(file.size>5*1024*1024)return toast('الصورة أكبر من 5MB');
  await rc1RequireCloudOnline('رفع صورة الصنف');
- const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();const path=`products/${product.id}-${Date.now()}.${ext}`;let uploaded=false;
+ const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();const path=`${activeTenantBusinessId()}/products/${product.id}-${Date.now()}.${ext}`;let uploaded=false;
  try{
   const r=await fetch(`${cfg.url}/storage/v1/object/product-images/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
   if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||`خطأ رفع الصورة ${r.status}`)}uploaded=true;
@@ -2637,7 +2638,7 @@ async function uploadBusinessLogo(file){
  if(file.size>5*1024*1024)throw new Error('حجم اللوجو لازم يكون أقل من 5 ميجا');
  await rc1RequireCloudOnline('رفع لوجو النشاط');
  const ext=(file.name.split('.').pop()||'png').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()||'png';
- const path=`branding/logo-${Date.now()}.${ext}`;let uploaded=false;
+ const path=`${activeTenantBusinessId()}/branding/logo-${Date.now()}.${ext}`;let uploaded=false;
  try{
   const r=await fetch(`${cfg.url}/storage/v1/object/business-assets/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
   if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||'تعذر رفع اللوجو');}uploaded=true;
