@@ -53,3 +53,4 @@ jobs:
           gh release create v10.5.17 Sharawla-POS-Setup-10.5.17-ia32.exe Sharawla-POS-Setup-10.5.17-x64.exe production-v10.5.17-sha256.txt --target $env:GITHUB_SHA --title 'Sharawla POS 10.5.17 — Production Stable' --notes 'Production Stable 10.5.17. Exact Extras quantity is preserved end-to-end for internal POS and website orders: counters, pricing, persistence, website acceptance into POS, receipt/BON and prep output. Production database quantity persistence closure already applied and verified.'
 
 
+
