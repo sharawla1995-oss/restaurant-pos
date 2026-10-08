@@ -1,5 +1,6 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
+const TOP_BURGER_WEB_CONNECTION={url:'https://kzokretuuigjhxjzdlmk.supabase.co',key:'sb_publishable_m8gAAZTKnOvCSWNvQijIXw_H1obE9vg'};
+let cfg=window.topBurgerDesktop?.isDesktop?{url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''}:{...TOP_BURGER_WEB_CONNECTION};
 let session=null;
 
 // ===== Sharawla Cloud device licensing V10.4.15 =====
@@ -104,6 +105,25 @@ function runtimePermissionGroups(){
   return runtimeCore()?.permissionGroups(sharawlaRuntimeConfig)||[];
 }
 async function ensureSharawlaRuntimeConfig(){
+  if(!window.topBurgerDesktop?.isDesktop){
+    const core=runtimeCore();
+    if(!core)return false;
+    try{
+      sharawlaRuntimeConfig=core.prepareConfig({
+        business_id:'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7',
+        business_name:'Top Burger',
+        pos_profile:'restaurant',
+        profile_active:true,
+        profile_implemented:true,
+        modules_configured:true,
+        enabled_modules:['customers','delivery','expenses','inventory','kitchen','pickup','pos','promocodes','reports','returns','website'],
+        features_configured:true,
+        enabled_features:['food.ingredients','food.recipes','food.prep','food.production','food.waste','food.costing'],
+        capability_version:2
+      });
+      return true;
+    }catch(e){console.error('Top Burger unified PWA runtime bootstrap failed',e);return false}
+  }
   const st=await loadLicenseState();
   if(!st?.device_id||!st?.business_id)return showActivation('بيانات النشاط غير مكتملة. أعد التحقق من الترخيص.'),false;
   const canonical=String(st.device_fingerprint||'').trim();
@@ -731,7 +751,7 @@ async function renderFoodRecipes(){
   if(!ui?.renderPage)throw new Error('واجهة الوصفات غير محملة');
   return ui.renderPage();
 }
-async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
+async function showPage(p){try{if(!state.activeBranchId){renderBranchPicker();return;}if(!canAccessPage(p)){toast('ليس لديك صلاحية لفتح هذا القسم');return showPage('home');}navActive(p);const foodPort=window.__SharawlaRestaurantFoodPortV10516;if(foodPort?.pages?.includes(p))return foodPort.openPage(p);if(foodPort?.sharedRoutes?.includes(p))return foodPort.renderSharedRoute(p);$('#pageTitle').textContent=runtimePageTitle(p);await ({home:renderHome,pos:renderPOS,orders:renderOrders,returns:renderReturns,approvals:renderReturnApprovals,customers:renderCustomers,deliveryOrders:renderDeliveryOrders,deliverySettings:renderDeliverySettings,delivery:renderDeliveryOrders,kitchen:renderKitchen,shifts:renderShifts,inventory:renderInventory,foodRecipes:renderFoodRecipes,expenses:renderExpenses,products:renderProducts,promoCodes:renderPromoCodes,branchProductAvailability:renderWebsiteAvailability,websiteManagement:renderWebsiteManagement,websiteBranchSettings:renderWebsiteBranchSettings,websitePayments:renderWebsitePayments,websiteAppearance:renderWebsiteAppearance,reports:renderReports,users:renderUsers,settings:renderSettings}[p]||renderPOS)()}catch(e){toast(e.message)}}
 
 
 async function renderHome(){
@@ -751,7 +771,14 @@ async function renderHome(){
     ['reports','📊','التقارير','المبيعات والورديات والتحليلات','blue'],
     ['expenses','💸','المصروفات','تسجيل ومراجعة المصروفات','rose'],
     ['products','🍔','الأصناف','الأصناف والأسعار','amber'],
-    ['foodRecipes','🍲','الوصفات','الخامات وتركيبات الأصناف','amber'],
+    ['inventory','📦','المخزون','نظرة عامة على مخزون الخامات','blue'],
+    ['suppliers','🚚','الموردين','إدارة موردي الخامات','blue'],
+    ['purchasing','🧾','المشتريات','شراء واستلام الخامات','green'],
+    ['stockCount','🧮','الجرد','جرد الخامات وترحيل الفروق','violet'],
+    ['transfers','🔄','التحويلات','تحويل الخامات بين الفروع','blue'],
+    ['foodIngredients','🧪','الخامات','الخامات والوحدات والأرصدة','amber'],
+    ['foodRecipes','🍲','الوصفات وFood Cost','الخامات وتركيبات الأصناف والتكلفة','amber'],
+    ['foodOperations','🏭','الإنتاج والهالك','Prep والإنتاج والهالك والتكلفة','rose'],
     ['websiteManagement','🌐','إدارة الموقع','التحكم في الموقع وتوافر الأصناف','green'],
     ['deliverySettings','📍','إعدادات الدليفري','المناطق والمناديب','violet'],
     ['users','👥','المستخدمون والصلاحيات','الفروع وصلاحيات الموظفين','blue'],
@@ -1052,7 +1079,7 @@ async function checkout(payment,payments=null){
     payment_method:payment,subtotal:c.subtotal,discount:c.discount,discount_type:c.discountType,discount_value:c.discountValue,tax_amount:c.taxAmount,service_amount:c.serviceAmount,delivery_fee:c.deliveryFee,total:c.total,promo_code_id:state.activePromo?.id||null,promo_code:state.activePromo?.code||null,promo_discount:c.promoDiscount||0,
     status:orderType==='delivery'?'new':'completed',source,customer_phone:phone||null,customer_name:name||state.selectedCustomer?.name||null,
     delivery_address:orderType==='delivery'?deliveryAddress:null,delivery_area:area,
-    delivery_zone_id:orderType==='delivery'?Number(deliveryZoneId):null,
+    delivery_zone_id:orderType==='delivery'&&deliveryZone?Number(deliveryZoneId):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
   };
   const itemPayload=state.cart.map(i=>({
@@ -2256,7 +2283,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.1',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.16-unified-1',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
@@ -2301,7 +2328,7 @@ async function getWebsiteOrderDetails(id){
 }
 function websiteOrderDetailsHTML(d){
  const w=d.order,addr=w.order_type==='pickup'?'استلام من الفرع':(w.customer_address||w.delivery_address||'العنوان غير مسجل');
- const itemRows=d.items.map(i=>{const mods=d.modifiers.filter(m=>String(m.website_order_item_id)===String(i.id));return `<div class="web-detail-item"><div><b>${Number(i.quantity||1)} × ${esc(i.product_name||'صنف')}</b>${i.variant_name?`<small>${esc(i.variant_name)}</small>`:''}${mods.length?`<small>إضافات: ${mods.map(m=>`${esc(m.modifier_name)}${Number(m.quantity||1)>1?' ×'+Number(m.quantity||1):''}`).join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${esc(i.notes)}</small>`:''}</div><strong>${money(i.line_total)}</strong></div>`}).join('');
+ const itemRows=d.items.map(i=>{const mods=d.modifiers.filter(m=>String(m.website_order_item_id)===String(i.id));return `<div class="web-detail-item"><div><b>${Number(i.quantity||1)} × ${esc(i.product_name||'صنف')}</b>${i.variant_name?`<small>${esc(i.variant_name)}</small>`:''}${mods.length?`<small>إضافات: ${mods.map(m=>esc(m.modifier_name)).join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${esc(i.notes)}</small>`:''}</div><strong>${money(i.line_total)}</strong></div>`}).join('');
  return `<div class="web-order-review"><div class="web-review-address"><b>📍 ${w.order_type==='pickup'?'طريقة الاستلام':'عنوان التوصيل'}</b><span>${esc(addr)}</span>${w.order_type==='delivery'?`<small>المنطقة: ${esc(d.zone?.name||'غير محددة')} • توصيل ${money(w.delivery_fee||d.zone?.delivery_fee||0)}</small>`:''}</div><div class="web-review-customer"><b>👤 ${esc(w.customer_name)}</b><span dir="ltr">${esc(w.customer_phone)}</span></div>${w.customer_notes?`<div class="web-review-note"><b>📝 ملاحظات العميل</b><span>${esc(w.customer_notes)}</span></div>`:''}<div class="web-detail-items">${itemRows||'<div class="empty">لا توجد أصناف</div>'}</div><div class="web-review-total"><span>الإجمالي</span><b>${money(w.total)}</b></div></div>`;
 }
 async function openWebsiteOrderReview(id,action=null){
