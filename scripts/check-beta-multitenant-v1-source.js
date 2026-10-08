@@ -111,7 +111,7 @@ need(websiteSettingsCompat,'v_business_id:=public.current_business_id()','tenant
 need(websiteSettingsCompat,'on conflict(business_id) do update','tenant-local website settings owner');
 need(websiteSettingsCompat,'revoke all on function public.update_website_settings_v1','website settings anon revoke');
 need(app,"rpc('update_website_settings_v1',payload)",'website settings client RPC binding');
-forbid(app,"const row={id:1,theme_name:theme",'legacy website settings id=1 write');
+reject(app,/const row=\{id:1,theme_name:theme/,'legacy website settings id=1 write');
 need(d,'230','anon SECURITY DEFINER count evidence');
 need(app,"'X-Sharawla-Business'","canonical tenant selector on Beta REST requests");
 need(app,"'X-Sharawla-Device'","canonical device selector on Beta REST requests");
