@@ -1,0 +1,26 @@
+name: V10.5.15 Desktop Multi-Tenant Client Compatibility
+
+on:
+  push:
+    branches:
+      - compat/v10.5.15-desktop-multitenant-client-prep
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Preserve immutable baseline version
+        run: |
+          node -e "const p=require('./package.json'),v=require('./version.json'); if(p.version!=='10.5.15'||v.version!=='10.5.15') process.exit(1)"
+      - name: Existing v10.5.15 checks
+        run: npm run check
+      - name: Multi-Tenant client compatibility
+        run: node scripts/check-v10-5-15-mt1-client.js
