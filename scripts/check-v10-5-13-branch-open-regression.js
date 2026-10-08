@@ -19,8 +19,8 @@ for(const [name,src] of [['app.js',app],['main.js',main],['sharawla-runtime-core
   try{new Function(src)}catch(e){console.error('FAIL:',name,'syntax',e);process.exit(1)}
 }
 
-assert(['10.5.13','10.5.14','10.5.15','10.5.16'].includes(pkg.version),'package version');
-assert(ver.version===pkg.version&&ver.channel==='candidate','version candidate');
+assert(['10.5.13','10.5.14','10.5.15','10.5.16','10.5.17'].includes(pkg.version),'package version');
+assert(ver.version===pkg.version&&['candidate','stable'].includes(ver.channel),'version candidate');
 assert(index.includes('V'+pkg.version),'UI badge');
 for(const asset of ['styles.css','sharawla-runtime-core.js','restaurant-engine.js','food-recipe-ui-v1.js','app.js'])
   assert(index.includes(asset+'?v='+pkg.version),'cache stamp '+asset);
