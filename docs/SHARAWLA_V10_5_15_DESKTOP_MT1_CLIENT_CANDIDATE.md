@@ -24,3 +24,25 @@ Safety:
 - no SH-0007 installation
 - no Production changes
 - no Top Chicken cutover
+
+
+## Live Beta smoke
+
+Target:
+- Beta only: `xihcxydjnzemflhedzor`
+- Current canonical business: `91826502-590e-4afa-8826-2c0f4b99c490`
+- Current Beta device binding tested with SH-0007 canonical device ID
+
+Rollback-only authenticated smoke result:
+- canonical business header resolved to current tenant = PASS
+- `mt1_assert_device_business` = PASS
+- `update_website_settings_v1` returned the same tenant business_id = PASS
+- transaction intentionally raised `V10_5_15_MT1_SMOKE_PASS` to force rollback
+- no persistent settings/test data change
+
+## Candidate lineage
+
+- release baseline SHA: `d2d581c345acf3d3ce14ba0fc7293517ff762e07`
+- candidate is exactly one commit ahead of the release baseline
+- candidate is zero commits behind the release baseline
+- application diff is limited to the Multi-Tenant compatibility patch; checker/workflow/evidence are additional files
