@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.17",
+  "version": "10.5.18",
   "channel": "stable",
   "source": "github",
   "windows": {
@@ -8,5 +8,5 @@
     "electron": "22.3.27",
     "electronBuilder": "22.10.5"
   },
-  "notes": "Production Stable 10.5.17. Exact Extras quantity is preserved end-to-end for internal POS and website orders, including pricing, persistence, acceptance into POS, receipts and prep output."
+  "notes": "Production Stable 10.5.18. Cumulative from V10.5.17 with Desktop inventory/food parity and collapsed settlement history; Exact Extras remains preserved."
 }
