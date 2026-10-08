@@ -1,4 +1,5 @@
 name: Publish V10.5.18 Stable
+# release trigger: metadata aligned
 on:
   push:
     branches:
