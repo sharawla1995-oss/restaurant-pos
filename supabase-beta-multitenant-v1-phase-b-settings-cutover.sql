@@ -107,7 +107,7 @@ begin
     v_business_id,trim(p_business_name),nullif(trim(coalesce(p_tagline,'')),''),
     nullif(trim(coalesce(p_phone,'')),''),nullif(trim(coalesce(p_address,'')),''),
     nullif(trim(coalesce(p_logo_url,'')),''),coalesce(nullif(trim(p_currency_symbol),''),'ج.م'),
-    coalesce(nullif(trim(p_receipt_footer,'')),'شكرًا لزيارتكم'),
+    coalesce(nullif(trim(p_receipt_footer),''),'شكرًا لزيارتكم'),
     p_primary_color,p_accent_color,now()
   )
   on conflict(business_id) do update set
