@@ -1,5 +1,5 @@
 name: Publish V10.5.18 Stable
-# release trigger: staff cache aligned
+# release trigger: exact extras review restored
 on:
   push:
     branches:
