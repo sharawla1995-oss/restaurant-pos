@@ -60,6 +60,20 @@ alter table public.website_settings
 create unique index if not exists mt1_website_settings_business_uidx
   on public.website_settings(business_id);
 
+drop policy if exists business_settings_public_read on public.business_settings;
+create policy business_settings_public_read
+on public.business_settings
+for select
+to anon,authenticated
+using (business_id=public.request_business_id());
+
+drop policy if exists website_settings_public_read on public.website_settings;
+create policy website_settings_public_read
+on public.website_settings
+for select
+to anon,authenticated
+using (business_id=public.request_business_id());
+
 create or replace function public.update_business_settings(
   p_business_name text,
   p_tagline text default null,
