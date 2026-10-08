@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   release:
-    if: github.ref_name == 'release/v10.5.8-production-recipe'
+    if: github.ref_name == 'release/v10.5.18-desktop-inventory-parity'
     runs-on: windows-2022
 
     steps:
@@ -112,8 +112,8 @@ jobs:
 
           gh release create $tag `
             --target "${{ github.sha }}" `
-            --title "Sharawla POS $version — Production 10.5.8 — Maintenance + Recipe" `
-            --notes "Production cumulative stable roll-forward: preserves all reviewed maintenance fixes and adds Recipe Production V1 backend integration. Recipe stock consumption is fail-open so sales/returns remain authoritative even if stock processing fails; returns restore frozen sale snapshots."
+            --title "Sharawla POS $version — Stable — Desktop Inventory Parity" `
+            --notes "Stable cumulative roll-forward from V10.5.17. Adds Desktop navigation/runtime parity for Suppliers, Purchasing, Stock Count, Transfers, Ingredients, Recipes/Food Cost, and Production/Waste using the already-shipped restaurant inventory/food runtimes. Preserves V10.5.17 exact-extras and production behavior."
 
           gh release upload $tag `
             "Sharawla-POS-Setup-$version-x64.exe" `
