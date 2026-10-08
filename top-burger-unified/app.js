@@ -1115,7 +1115,7 @@ function printableItemModifiers(i){
  const product=normalizedDisplayText(i?.product_name||i?.name),by=new Map();
  for(const m of rows){
   const nameRaw=m?.modifier_name||m?.name,name=normalizedDisplayText(nameRaw);if(!name||product.includes(name))continue;
-  const price=Number(m?.price||0),qty=Math.max(1,Math.floor(Number(m?.qty||1))),key=`${String(m?.modifier_id||m?.id||'')}|${name}|${price}`;
+  const price=Number(m?.price||0),qty=Math.max(1,Math.floor(Number(m?.quantity??m?.qty??1))),key=`${String(m?.modifier_id||m?.id||'')}|${name}|${price}`;
   const old=by.get(key)||{name:nameRaw,price,qty:0};old.qty+=qty;by.set(key,old);
  }
  return [...by.values()];
