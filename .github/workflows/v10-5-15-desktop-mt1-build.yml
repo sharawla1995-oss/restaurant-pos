@@ -1,0 +1,74 @@
+name: V10.5.15 Desktop MT1 Candidate x64 Build
+
+on:
+  push:
+    branches:
+      - compat/v10.5.15-desktop-multitenant-client-v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-x64:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout candidate head
+        uses: actions/checkout@v4
+
+      - name: Verify candidate branch and version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_name }}" -ne "compat/v10.5.15-desktop-multitenant-client-v2") {
+            throw "Unexpected branch: ${{ github.ref_name }}"
+          }
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $ver = Get-Content version.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "10.5.15" -or $ver.version -ne "10.5.15") {
+            throw "Unexpected version"
+          }
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Existing v10.5.15 checks
+        run: npm run check
+
+      - name: Multi-Tenant client compatibility
+        run: node scripts/check-v10-5-15-mt1-client.js
+
+      - name: Build Windows x64 candidate
+        shell: pwsh
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Save candidate installer and evidence
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist -Filter *.exe |
+            Where-Object { $_.Name -notmatch "ia32|x86" } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $exe) { throw "x64 installer not found" }
+
+          $out = "Sharawla-POS-Setup-10.5.15-MT1-CANDIDATE-x64.exe"
+          Copy-Item $exe.FullName $out
+
+          $sha=(Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
+          "$out  $sha" | Set-Content "V10.5.15-MT1-CANDIDATE-SHA256.txt" -Encoding ascii
+          "${{ github.sha }}" | Set-Content "V10.5.15-MT1-CANDIDATE-SOURCE-SHA.txt" -Encoding ascii
+
+      - name: Upload x64 candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sharawla-pos-10.5.15-mt1-candidate-x64
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            Sharawla-POS-Setup-10.5.15-MT1-CANDIDATE-x64.exe
+            V10.5.15-MT1-CANDIDATE-SHA256.txt
+            V10.5.15-MT1-CANDIDATE-SOURCE-SHA.txt
