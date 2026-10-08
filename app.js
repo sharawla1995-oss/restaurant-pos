@@ -1088,7 +1088,7 @@ function printableItemModifiers(i){
  const product=normalizedDisplayText(i?.product_name||i?.name),by=new Map();
  for(const m of rows){
   const nameRaw=m?.modifier_name||m?.name,name=normalizedDisplayText(nameRaw);if(!name||product.includes(name))continue;
-  const price=Number(m?.price||0),qty=Math.max(1,Math.floor(Number(m?.qty||1))),key=`${String(m?.modifier_id||m?.id||'')}|${name}|${price}`;
+  const price=Number(m?.price||0),qty=Math.max(1,Math.floor(Number(m?.quantity??m?.qty??1))),key=`${String(m?.modifier_id||m?.id||'')}|${name}|${price}`;
   const old=by.get(key)||{name:nameRaw,price,qty:0};old.qty+=qty;by.set(key,old);
  }
  return [...by.values()];
@@ -2301,7 +2301,7 @@ async function getWebsiteOrderDetails(id){
 }
 function websiteOrderDetailsHTML(d){
  const w=d.order,addr=w.order_type==='pickup'?'استلام من الفرع':(w.customer_address||w.delivery_address||'العنوان غير مسجل');
- const itemRows=d.items.map(i=>{const mods=d.modifiers.filter(m=>String(m.website_order_item_id)===String(i.id));return `<div class="web-detail-item"><div><b>${Number(i.quantity||1)} × ${esc(i.product_name||'صنف')}</b>${i.variant_name?`<small>${esc(i.variant_name)}</small>`:''}${mods.length?`<small>إضافات: ${mods.map(m=>esc(m.modifier_name)).join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${esc(i.notes)}</small>`:''}</div><strong>${money(i.line_total)}</strong></div>`}).join('');
+ const itemRows=d.items.map(i=>{const mods=d.modifiers.filter(m=>String(m.website_order_item_id)===String(i.id));return `<div class="web-detail-item"><div><b>${Number(i.quantity||1)} × ${esc(i.product_name||'صنف')}</b>${i.variant_name?`<small>${esc(i.variant_name)}</small>`:''}${mods.length?`<small>إضافات: ${mods.map(m=>`${esc(m.modifier_name)}${Number(m.quantity||1)>1?' ×'+Number(m.quantity||1):''}`).join('، ')}</small>`:''}${i.notes?`<small>ملاحظة: ${esc(i.notes)}</small>`:''}</div><strong>${money(i.line_total)}</strong></div>`}).join('');
  return `<div class="web-order-review"><div class="web-review-address"><b>📍 ${w.order_type==='pickup'?'طريقة الاستلام':'عنوان التوصيل'}</b><span>${esc(addr)}</span>${w.order_type==='delivery'?`<small>المنطقة: ${esc(d.zone?.name||'غير محددة')} • توصيل ${money(w.delivery_fee||d.zone?.delivery_fee||0)}</small>`:''}</div><div class="web-review-customer"><b>👤 ${esc(w.customer_name)}</b><span dir="ltr">${esc(w.customer_phone)}</span></div>${w.customer_notes?`<div class="web-review-note"><b>📝 ملاحظات العميل</b><span>${esc(w.customer_notes)}</span></div>`:''}<div class="web-detail-items">${itemRows||'<div class="empty">لا توجد أصناف</div>'}</div><div class="web-review-total"><span>الإجمالي</span><b>${money(w.total)}</b></div></div>`;
 }
 async function openWebsiteOrderReview(id,action=null){
