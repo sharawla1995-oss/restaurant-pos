@@ -48,7 +48,7 @@ must(sql,'hr_staff_advance_request_v1','Staff advance RPC');must(sql,'hr_staff_n
 must(sql,'request_digest text','request digest');must(sql,'client_tx_id مستخدم بطلب خصم/مكافأة مختلف','adjustment changed-payload rejection');must(sql,'نفس client_tx_id مستخدم بطلب سلفة مختلف','advance changed-payload rejection');
 must(edge,'action==="advance-request"','Edge advance route');must(edge,'action==="notification-read"','Edge notification route');
 must(staff,'openAdvanceRequest','Staff advance UI');must(staff,'advance_requests','Staff advance snapshot');must(staff,'notifications','Staff notifications');must(staff,'payroll','Staff payroll view');
-must(staffSw,'sharawla-staff-v'+pkg.version,'Staff cache generation');must(staffIndex,'app.js?v='+pkg.version,'Staff app cache stamp');
+must(staffSw,"const CACHE='sharawla-staff-v"+pkg.version+"'",'Staff cache generation');must(staffIndex,'app.js?v='+pkg.version,'Staff app cache stamp');
 must(hrStaffHost,'/functions/v1/hr-staff-app','production Staff host route');must(hrStaffHost,'https://kzokretuuigjhxjzdlmk.supabase.co','production Staff project');must(hrStaffHost,'10.5.14-hr2','production Staff host embeds current app');mustNot(hrStaffHost,'xihcxydjnzemflhedzor','production Staff host must not target Beta');
 mustNot(staff,'SUPABASE_SERVICE_ROLE_KEY','Staff client must not contain service key');
 
