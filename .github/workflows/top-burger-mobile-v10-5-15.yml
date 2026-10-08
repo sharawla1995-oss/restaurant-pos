@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/top-burger-mobile-v10.5.15-sync
+      - compat/v10.5.15-multitenant-client-prep
       - main
     paths:
       - 'top-burger-mobile/**'

@@ -1,14 +1,14 @@
-const CACHE='top-burger-mobile-10.5.15-1';
+const CACHE='top-burger-mobile-10.5.15-mt1-1';
 const SHELL=[
   './','./index.html','./manifest.json','./icon-192.png','./icon-512.png',
-  './styles.css?v=topburger-10.5.15.1',
-  './sharawla-runtime-core.js?v=topburger-10.5.15.1',
-  './restaurant-engine.js?v=topburger-10.5.15.1',
-  './food-recipe-ui-v1.js?v=topburger-10.5.15.1',
-  './app.js?v=topburger-10.5.15.1',
-  './hr-core-admin-v1.js?v=topburger-10.5.15.1',
-  './hr-attendance-admin-v1.js?v=topburger-10.5.15.1',
-  './v10-5-14-ops-hr-summary.js?v=topburger-10.5.15.1'
+  './styles.css?v=topburger-10.5.15-mt1.1',
+  './sharawla-runtime-core.js?v=topburger-10.5.15-mt1.1',
+  './restaurant-engine.js?v=topburger-10.5.15-mt1.1',
+  './food-recipe-ui-v1.js?v=topburger-10.5.15-mt1.1',
+  './app.js?v=topburger-10.5.15-mt1.1',
+  './hr-core-admin-v1.js?v=topburger-10.5.15-mt1.1',
+  './hr-attendance-admin-v1.js?v=topburger-10.5.15-mt1.1',
+  './v10-5-14-ops-hr-summary.js?v=topburger-10.5.15-mt1.1'
 ];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('top-burger-mobile-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});

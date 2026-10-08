@@ -1,6 +1,9 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let cfg={url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''};
 let session=null;
+const BROWSER_BUSINESS_ID_KEY='sharawlaBrowserBusinessIdV1';
+const canonicalBusinessUuid=v=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v||'').trim());
+function browserBusinessId(){return String(localStorage.getItem(BROWSER_BUSINESS_ID_KEY)||'').trim()}
 
 // ===== Sharawla Cloud device licensing V10.4.15 =====
 const SHARAWLA_CLOUD_URL='https://ikppryeavoabnugcijeq.supabase.co';
@@ -26,8 +29,8 @@ function loadBusinessConnectionCache(businessId){
     return c;
   }catch{return null}
 }
-function saveBusinessConnectionCache(c){
-  const row={business_id:String(c.business_id),business_name:c.business_name||'',url:String(c.supabase_url||c.url||'').replace(/\/$/,''),key:String(c.supabase_publishable_key||c.key||''),updated_at:new Date().toISOString()};
+function saveBusinessConnectionCache(c,deviceId=null){
+  const row={business_id:String(c.business_id),device_id:String(deviceId||c.device_id||''),business_name:c.business_name||'',url:String(c.supabase_url||c.url||'').replace(/\/$/,''),key:String(c.supabase_publishable_key||c.key||''),updated_at:new Date().toISOString()};
   localStorage.setItem(BUSINESS_CONNECTION_CACHE_KEY,JSON.stringify(row));
   return row;
 }
@@ -44,7 +47,7 @@ async function ensureSharawlaBusinessConnection(){
       const d=await cloudRpc('get_sharawla_business_connection',{p_device_id:st.device_id,p_device_fingerprint:canonical});
       if(!d?.ok)return showActivation(d?.message||'تعذر تحميل إعدادات اتصال النشاط.'),false;
       if(String(d.business_id)!==String(st.business_id))return showActivation('بيانات اتصال النشاط غير متطابقة مع ترخيص الجهاز.'),false;
-      const c=saveBusinessConnectionCache(d);
+      const c=saveBusinessConnectionCache(d,st.device_id);
       cfg={url:c.url,key:c.key};
       return true;
     }catch(e){
@@ -104,16 +107,16 @@ function runtimePermissionGroups(){
   return runtimeCore()?.permissionGroups(sharawlaRuntimeConfig)||[];
 }
 async function ensureSharawlaRuntimeConfig(){
-  // Top Burger Mobile/PWA has no Windows device fingerprint. Use a fixed
-  // compatibility snapshot matching the Top Burger 10.5.15 production
-  // entitlements while keeping the exact 10.5.15 Restaurant Engine behavior.
+  // Browser/PWA has no Windows device fingerprint. The business UUID is only a
+  // selector; authenticated backend membership/RLS remains authoritative.
   if(!window.topBurgerDesktop?.isDesktop){
-    const core=runtimeCore();
+    const core=runtimeCore(),businessId=browserBusinessId();
     if(!core)return false;
+    if(!canonicalBusinessUuid(businessId)){show('setupView');return false}
     try{
       sharawlaRuntimeConfig=core.prepareConfig({
-        business_id:'top-burger-mobile',
-        business_name:'Top Burger',
+        business_id:businessId,
+        business_name:'Sharawla Business',
         pos_profile:'restaurant',
         profile_active:true,
         profile_implemented:true,
@@ -405,7 +408,8 @@ function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';se
 function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const type=opts.type||'text';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||'✏️'}</div><h2>${esc(opts.title||'إدخال البيانات')}</h2><p class="dialog-message">${esc(message)}</p><input class="dialog-input" type="${esc(type)}" value="${esc(defaultValue)}" ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''} autocomplete="off"><div class="modal-actions"><button class="secondary" data-dialog-cancel>إلغاء</button><button class="primary" data-dialog-ok>${esc(opts.okText||'حفظ')}</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('.dialog-input');setTimeout(()=>{input.focus();if(type!=='password')input.select()},30);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-cancel]'))finish(null);if(e.target.closest('[data-dialog-ok]'))finish(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter')finish(input.value);if(e.key==='Escape')finish(null)})})}
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
 function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
-function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
+function tenantIdentityHeaders(){try{if(window.topBurgerDesktop?.isDesktop){const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}const businessId=browserBusinessId();return canonicalBusinessUuid(businessId)?{'X-Sharawla-Business':businessId}:{}}catch{return {}}}
+function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
@@ -697,8 +701,8 @@ async function bootstrap(){
     rest('branch_financial_settings','select=*').catch(()=>[])
   ]);
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
-  try{const br=await rest('business_settings','select=*&id=eq.1&limit=1');if(br?.[0])state.business={...state.business,...br[0]}}catch(e){}
-  try{const wr=await rest('website_settings','select=*&id=eq.1&limit=1');if(wr?.[0])state.websiteSettings=wr[0]}catch(e){state.websiteSettings=null}
+  try{const br=await rest('business_settings','select=*&limit=1');if(br?.[0])state.business={...state.business,...br[0]}}catch(e){}
+  try{const wr=await rest('website_settings','select=*&limit=1');if(wr?.[0])state.websiteSettings=wr[0]}catch(e){state.websiteSettings=null}
   state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.branchProducts=branchProducts||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];state.branchPrintSettings=printSettings||[];state.paymentMethods=paymentMethods||[];state.branchPaymentMethods=branchPaymentMethods||[];state.branchFinancialSettings=branchFinancialSettings||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
   applyBusinessBranding();
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
@@ -740,7 +744,8 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
     toast('تم تفعيل الجهاز بنجاح');setTimeout(()=>location.reload(),500);
   }catch(err){toast(err.message)}finally{btn.disabled=false}
 });
-$('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
+$('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim(),businessId=$('#businessId').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');if(!canonicalBusinessUuid(businessId))return toast('راجع Canonical Business UUID');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);localStorage.setItem(BROWSER_BUSINESS_ID_KEY,businessId);location.reload()});
+if($('#businessId'))$('#businessId').value=browserBusinessId();
 
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
@@ -1730,12 +1735,12 @@ async function renderWebsitePayments(){
 
 async function renderWebsiteAppearance(){
  if(!(isAdmin()||hasFeaturePermission('websiteAppearance'))){toast('ليس لديك صلاحية تصميم الموقع');return showPage('websiteManagement')}
- let wr=[];try{wr=await rest('website_settings','select=*&id=eq.1&limit=1')}catch(e){throw new Error('شغّل SQL الخاص بـ V9.5.0 أولًا')}
- const w=wr?.[0]||{id:1,theme_name:'topburger',page_background:'#b51f2b',surface_color:'#ffffff',text_color:'#171717',card_radius:22,show_contact:true,show_locations:true,show_track_order:true,show_cancel_order:true,allow_customer_cancel:true,show_whatsapp:false,show_facebook:false,show_instagram:false,show_payment_reference:true,show_payment_receipt_upload:true,show_payment_status:true};
+ let wr=[];try{wr=await rest('website_settings','select=*&limit=1')}catch(e){throw new Error('شغّل SQL الخاص بـ V9.5.0 أولًا')}
+ const w=wr?.[0]||{theme_name:'topburger',page_background:'#b51f2b',surface_color:'#ffffff',text_color:'#171717',card_radius:22,show_contact:true,show_locations:true,show_track_order:true,show_cancel_order:true,allow_customer_cancel:true,show_whatsapp:false,show_facebook:false,show_instagram:false,show_payment_reference:true,show_payment_receipt_upload:true,show_payment_status:true};
  $('#page').innerHTML=`<div class="panel"><div class="section-head"><div><h2>🎨 تصميم وقائمة الموقع</h2><p class="muted">التغييرات تظهر على الموقع مباشرة من غير تعديل ملفات.</p></div></div><h3>الثيم</h3><div class="theme-presets"><button type="button" data-theme="topburger">🔴 Top Burger</button><button type="button" data-theme="dark">🌑 Dark</button><button type="button" data-theme="light">☀️ Light</button><button type="button" data-theme="custom">🎨 Custom</button></div><div class="form-grid"><label>خلفية الموقع<input id="siteBg" type="color" value="${esc(w.page_background||'#b51f2b')}"></label><label>لون الكروت<input id="siteSurface" type="color" value="${esc(w.surface_color||'#ffffff')}"></label><label>لون النص<input id="siteText" type="color" value="${esc(w.text_color||'#171717')}"></label><label>استدارة الكروت<input id="siteRadius" type="number" min="0" max="40" value="${Number(w.card_radius||22)}"></label></div><h3>القائمة الجانبية</h3><div class="settings-list"><label class="setting-switch"><span>☎ اتصل بنا</span><input id="siteContact" type="checkbox" ${w.show_contact?'checked':''}></label><label class="setting-switch"><span>📍 العناوين واللوكيشن</span><input id="siteLocations" type="checkbox" ${w.show_locations?'checked':''}></label><label class="setting-switch"><span>🔎 متابعة الطلب</span><input id="siteTrack" type="checkbox" ${w.show_track_order?'checked':''}></label><label class="setting-switch"><span>❌ إلغاء الطلب</span><input id="siteCancel" type="checkbox" ${w.show_cancel_order?'checked':''}></label><label class="setting-switch"><span>السماح للعميل بالإلغاء قبل استلام الفرع</span><input id="siteCancelAllowed" type="checkbox" ${w.allow_customer_cancel?'checked':''}></label><label class="setting-switch"><span>🧾 رقم مرجع الدفع</span><input id="sitePaymentRef" type="checkbox" ${w.show_payment_reference?'checked':''}></label><label class="setting-switch"><span>📷 رفع إيصال الدفع</span><input id="sitePaymentReceipt" type="checkbox" ${w.show_payment_receipt_upload?'checked':''}></label><label class="setting-switch"><span>💰 إظهار حالة الدفع للعميل</span><input id="sitePaymentStatus" type="checkbox" ${w.show_payment_status?'checked':''}></label></div><h3>روابط التواصل</h3><div class="form-grid"><label>واتساب<input id="siteWhats" value="${esc(w.whatsapp_url||'')}" placeholder="https://wa.me/20..."></label><label>فيسبوك<input id="siteFacebook" value="${esc(w.facebook_url||'')}" placeholder="https://facebook.com/..."></label><label>إنستجرام<input id="siteInstagram" value="${esc(w.instagram_url||'')}" placeholder="https://instagram.com/..."></label></div><div class="settings-list"><label class="setting-switch"><span>إظهار واتساب</span><input id="siteWhatsOn" type="checkbox" ${w.show_whatsapp?'checked':''}></label><label class="setting-switch"><span>إظهار فيسبوك</span><input id="siteFacebookOn" type="checkbox" ${w.show_facebook?'checked':''}></label><label class="setting-switch"><span>إظهار إنستجرام</span><input id="siteInstagramOn" type="checkbox" ${w.show_instagram?'checked':''}></label></div><p class="muted">روابط خرائط الفروع تتعدل من ⚙️ إدارة الفروع → تعديل الفرع.</p><button id="saveWebsiteAppearance" class="primary">💾 حفظ تصميم وإعدادات الموقع</button></div>`;
  let theme=w.theme_name||'topburger';
  $$('#page [data-theme]').forEach(b=>b.onclick=()=>{theme=b.dataset.theme;if(theme==='topburger'){$('#siteBg').value='#b51f2b';$('#siteSurface').value='#ffffff';$('#siteText').value='#171717'}else if(theme==='dark'){$('#siteBg').value='#151515';$('#siteSurface').value='#242424';$('#siteText').value='#f5f5f5'}else if(theme==='light'){$('#siteBg').value='#f7f7f7';$('#siteSurface').value='#ffffff';$('#siteText').value='#171717'}toast(`تم اختيار ثيم ${b.textContent.trim()} — اضغط حفظ`) });
- $('#saveWebsiteAppearance').onclick=async()=>{try{const row={id:1,theme_name:theme,page_background:$('#siteBg').value,surface_color:$('#siteSurface').value,text_color:$('#siteText').value,card_radius:Number($('#siteRadius').value||22),show_contact:$('#siteContact').checked,show_locations:$('#siteLocations').checked,show_track_order:$('#siteTrack').checked,show_cancel_order:$('#siteCancel').checked,allow_customer_cancel:$('#siteCancelAllowed').checked,show_whatsapp:$('#siteWhatsOn').checked,whatsapp_url:$('#siteWhats').value.trim()||null,show_facebook:$('#siteFacebookOn').checked,facebook_url:$('#siteFacebook').value.trim()||null,show_instagram:$('#siteInstagramOn').checked,instagram_url:$('#siteInstagram').value.trim()||null,show_payment_reference:$('#sitePaymentRef').checked,show_payment_receipt_upload:$('#sitePaymentReceipt').checked,show_payment_status:$('#sitePaymentStatus').checked,updated_at:new Date().toISOString()};await rest('website_settings','',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([row])});state.websiteSettings=row;toast('تم حفظ تصميم وقائمة الموقع')}catch(e){toast(e.message)}};
+ $('#saveWebsiteAppearance').onclick=async()=>{try{const payload={p_theme_name:theme,p_page_background:$('#siteBg').value,p_surface_color:$('#siteSurface').value,p_text_color:$('#siteText').value,p_card_radius:Number($('#siteRadius').value||22),p_show_contact:$('#siteContact').checked,p_show_locations:$('#siteLocations').checked,p_show_track_order:$('#siteTrack').checked,p_show_cancel_order:$('#siteCancel').checked,p_allow_customer_cancel:$('#siteCancelAllowed').checked,p_show_whatsapp:$('#siteWhatsOn').checked,p_whatsapp_url:$('#siteWhats').value.trim()||null,p_show_facebook:$('#siteFacebookOn').checked,p_facebook_url:$('#siteFacebook').value.trim()||null,p_show_instagram:$('#siteInstagramOn').checked,p_instagram_url:$('#siteInstagram').value.trim()||null,p_show_payment_reference:$('#sitePaymentRef').checked,p_show_payment_receipt_upload:$('#sitePaymentReceipt').checked,p_show_payment_status:$('#sitePaymentStatus').checked};const saved=await rpc('update_website_settings_v1',payload);state.websiteSettings=saved||w;toast('تم حفظ تصميم وقائمة الموقع')}catch(e){toast(e.message)}};
 }
 
 const WEBSITE_WEEK_DAYS=[
@@ -2200,7 +2205,7 @@ function businessSettingsPayload(logoOverride){
  const currentLogo=(logoOverride!==undefined?logoOverride:($('#bizLogoUrl')?.value||state.business?.logo_url||''));
  return {p_business_name:$('#bizName').value.trim(),p_tagline:$('#bizTagline').value.trim()||null,p_phone:$('#bizPhone')?.value.trim()||null,p_address:$('#bizAddress')?.value.trim()||null,p_logo_url:currentLogo||null,p_currency_symbol:$('#bizCurrency').value.trim()||'ج.م',p_receipt_footer:$('#bizFooter').value.trim()||'شكرًا لزيارتكم',p_primary_color:$('#bizPrimary').value,p_accent_color:$('#bizAccent').value};
 }
-async function refreshBusinessSettings(){const rows=await rest('business_settings','select=*&id=eq.1&limit=1');if(rows?.[0])state.business={...state.business,...rows[0]};applyBusinessBranding();}
+async function refreshBusinessSettings(){const rows=await rest('business_settings','select=*&limit=1');if(rows?.[0])state.business={...state.business,...rows[0]};applyBusinessBranding();}
 async function uploadBusinessLogo(file){
  if(!file)throw new Error('اختر صورة اللوجو أولاً');
  if(!file.type?.startsWith('image/'))throw new Error('الملف لازم يكون صورة');
@@ -2268,10 +2273,10 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key||!canonicalBusinessUuid(browserBusinessId()))return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.15',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.15-mt1.1',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
