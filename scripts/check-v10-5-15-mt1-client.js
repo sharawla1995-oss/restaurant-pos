@@ -15,9 +15,14 @@ has(app,"const c=saveBusinessConnectionCache(d,st.device_id)",'canonical device 
 has(app,"'X-Sharawla-Business']=businessId",'business selector header');
 has(app,"'X-Sharawla-Device']=deviceId",'device selector header');
 has(app,"...tenantIdentityHeaders()",'central REST/RPC tenant headers');
+has(app,"async function assertSharawlaTenantContext()",'explicit desktop tenant assertion');
+has(app,"rpc('mt1_assert_device_business',{p_device_id:deviceId})",'server-side device/business assertion');
+has(app,"DEVICE_BUSINESS_CACHE_MISMATCH",'license/cache identity mismatch hard stop');
+has(app,"if(navigator.onLine){await assertSharawlaTenantContext();await bootstrap()}else await loadOfflineBootstrap()",'tenant assertion before online bootstrap');
 has(app,"rpc('update_website_settings_v1',payload)",'tenant-local website settings save');
 has(app,'${activeTenantBusinessId()}/products/','tenant-prefixed product image path');
 has(app,'${activeTenantBusinessId()}/branding/','tenant-prefixed business branding path');
+has(app,"storage/v1/object/business-assets/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,...tenantIdentityHeaders()",'business asset upload carries tenant identity');
 
 no(app,"rest('business_settings','select=*&id=eq.1&limit=1')",'legacy business_settings id=1 read');
 no(app,"rest('website_settings','select=*&id=eq.1&limit=1')",'legacy website_settings id=1 read');
