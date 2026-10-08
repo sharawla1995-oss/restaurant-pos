@@ -1,5 +1,5 @@
 name: Publish V10.5.18 Stable
-# release trigger: metadata aligned
+# release trigger: regression gate aligned
 on:
   push:
     branches:
