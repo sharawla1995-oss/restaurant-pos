@@ -43,6 +43,7 @@ begin
       and child.relname not in ('business_auth_memberships','business_device_bindings')
       and parent.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -87,6 +88,7 @@ begin
       and idx.relname not like 'mt1pk_%'
       and tbl.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -127,6 +129,7 @@ begin
     where i.indisprimary
       and tbl.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -134,6 +137,7 @@ begin
       and exists(select 1 from pg_attribute b where b.attrelid=i.indrelid and b.attname='business_id' and b.attnum>0 and not b.attisdropped)
     group by i.indexrelid,idx.relname,tbl.relname
     having not(count(*)=1 and min(a.attname)='id')
+       and not bool_or(a.attname='business_id')
   )
   select string_agg(table_name||'.'||index_name,', ' order by table_name,index_name)
   into bad
@@ -164,6 +168,7 @@ begin
       and child.relname not in ('business_auth_memberships','business_device_bindings')
       and parent.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -197,6 +202,7 @@ begin
     where i.indisprimary
       and tbl.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -204,6 +210,7 @@ begin
       and exists(select 1 from pg_attribute b where b.attrelid=i.indrelid and b.attname='business_id' and b.attnum>0 and not b.attisdropped)
     group by i.indexrelid,i.indrelid,idx.relname,tbl.relname,c.conname
     having not(count(*)=1 and min(a.attname)='id')
+       and not bool_or(a.attname='business_id')
   loop
     shadow_name:=left('mt1pk_'||r.index_name,52)||'_'||substr(md5(r.index_name),1,8);
     if to_regclass('public.'||shadow_name) is null then
@@ -240,6 +247,7 @@ begin
       and idx.relname not like 'mt1pk_%'
       and tbl.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
@@ -276,6 +284,7 @@ begin
     where i.indisunique
       and tbl.relname not in (
         'businesses',
+        'business_device_bindings',
         'permission_actions_v2',
         'permission_action_profiles_v2',
         'permission_role_action_defaults_v2'
