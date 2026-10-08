@@ -14,6 +14,7 @@
   // Restaurant-only page → module ownership. Multi-Industry Core never needs to
   // know these page names or module relationships.
   const PAGE_FEATURE=Object.freeze({
+    foodIngredients:'food.ingredients',
     foodRecipes:'food.recipes'
   });
 
@@ -30,6 +31,8 @@
     delivery:'delivery',
     kitchen:'kitchen',
     inventory:'inventory',
+    suppliers:'inventory', purchasing:'inventory', stockCount:'inventory', transfers:'inventory',
+    foodIngredients:'inventory', foodRecipes:'inventory', foodOperations:'inventory',
     expenses:'expenses',
     promoCodes:'promocodes',
     reports:'reports',
@@ -43,7 +46,7 @@
   const PAGE_TITLES=Object.freeze({
     home:'الرئيسية',pos:'الكاشير',orders:'الطلبات',returns:'المرتجعات',approvals:'موافقات المدير',customers:'العملاء',
     deliveryOrders:'طلبات الدليفري',deliverySettings:'إعدادات الدليفري',delivery:'الدليفري',
-    kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',foodRecipes:'الوصفات',expenses:'المصروفات',products:'الأصناف',
+    kitchen:'المطبخ',shifts:'الشيفت',inventory:'المخزون',suppliers:'الموردين',purchasing:'المشتريات',stockCount:'الجرد',transfers:'التحويلات',foodIngredients:'الخامات',foodRecipes:'الوصفات وFood Cost',foodOperations:'الإنتاج والهالك',expenses:'المصروفات',products:'الأصناف',
     promoCodes:'البرومو كود',branchProductAvailability:'توافر أصناف الموقع',websiteManagement:'إدارة الموقع',
     websiteBranchSettings:'استقبال الطلبات ومدة التجهيز',websitePayments:'طرق الدفع على الموقع',
     websiteAppearance:'تصميم وقائمة الموقع',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات'
@@ -51,7 +54,7 @@
 
   const ALL_PAGES=Object.freeze([
     'home','pos','orders','returns','approvals','customers','deliveryOrders','deliverySettings','delivery','kitchen',
-    'shifts','inventory','foodRecipes','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
+    'shifts','inventory','suppliers','purchasing','stockCount','transfers','foodIngredients','foodRecipes','foodOperations','expenses','products','promoCodes','branchProductAvailability','reports','users','settings'
   ]);
 
   const ROLE_PAGES=Object.freeze({
