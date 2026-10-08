@@ -1,0 +1,15 @@
+name: V10.5.16 Website Exact Extras
+on:
+  push:
+    branches: [fix/v10.5.16-exact-extras-web-e2e]
+    paths: ['app.js','supabase-v10-5-16-website-exact-extras.sql','scripts/check-v10-5-16-website-exact-extras.js','.github/workflows/v10-5-16-website-exact-extras.yml']
+  workflow_dispatch:
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: node --check app.js
+      - run: node scripts/check-v10-5-16-website-exact-extras.js
