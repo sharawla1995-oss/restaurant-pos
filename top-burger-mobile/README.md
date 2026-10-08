@@ -18,7 +18,7 @@ Browser/PWA differences only:
 - every REST/RPC request carries `X-Sharawla-Business`;
 - Business/Website Settings are tenant-local; Website Settings save through `update_website_settings_v1` instead of legacy `id=1`;
 - browser printing uses the browser print dialog; silent Windows printer selection is desktop-only;
-- PWA cache is `top-burger-mobile-10.5.15-mt1-1` on the compatibility candidate.
+- PWA cache is `top-burger-mobile-10.5.15-mt1-2` on the compatibility candidate.
 
 No Production SQL migration is applied by this mobile sync. The PWA consumes the same
 Production backend already upgraded for 10.5.15.
@@ -27,3 +27,5 @@ Production backend already upgraded for 10.5.15.
 ## Multi-Tenant compatibility candidate
 
 Source/test preparation only. No Top Chicken UUID is embedded. Do not deploy a Top Chicken cutover until Sharawla Cloud issues its canonical business UUID and the Beta tenant smoke suite is PASS.
+
+- Storage object paths are tenant-prefixed by canonical `business_id` for product images and business branding. Website payment receipts are expected under the same first-folder tenant convention enforced by the Beta backend.

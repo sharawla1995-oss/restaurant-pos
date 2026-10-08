@@ -409,6 +409,7 @@ function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
 function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
 function tenantIdentityHeaders(){try{if(window.topBurgerDesktop?.isDesktop){const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}const businessId=browserBusinessId();return canonicalBusinessUuid(businessId)?{'X-Sharawla-Business':businessId}:{}}catch{return {}}}
+function activeTenantBusinessId(){const id=String(tenantIdentityHeaders()['X-Sharawla-Business']||'').trim();if(!canonicalBusinessUuid(id))throw new Error('Canonical Business UUID غير متاح');return id}
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
@@ -1828,8 +1829,8 @@ async function renderWebsiteAvailability(){
 
 async function uploadProductImage(product,file){
  if(!file)return; if(!/^image\//.test(file.type))return toast('اختر ملف صورة'); if(file.size>5*1024*1024)return toast('الصورة أكبر من 5MB');
- const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();const path=`products/${product.id}-${Date.now()}.${ext}`;
- const r=await fetch(`${cfg.url}/storage/v1/object/product-images/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
+ const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();const path=`${activeTenantBusinessId()}/products/${product.id}-${Date.now()}.${ext}`;
+ const r=await fetch(`${cfg.url}/storage/v1/object/product-images/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,...tenantIdentityHeaders(),'Content-Type':file.type,'x-upsert':'true'},body:file});
  if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||`خطأ رفع الصورة ${r.status}`)}
  const url=`${cfg.url}/storage/v1/object/public/product-images/${path}`;await rest('products',`id=eq.${product.id}`,{method:'PATCH',body:JSON.stringify({image_url:url})});await reloadCatalog();toast('تم حفظ صورة الصنف');renderProducts();
 }
@@ -2211,7 +2212,7 @@ async function uploadBusinessLogo(file){
  if(!file.type?.startsWith('image/'))throw new Error('الملف لازم يكون صورة');
  if(file.size>5*1024*1024)throw new Error('حجم اللوجو لازم يكون أقل من 5 ميجا');
  const ext=(file.name.split('.').pop()||'png').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()||'png';
- const path=`branding/logo-${Date.now()}.${ext}`;
+ const path=`${activeTenantBusinessId()}/branding/logo-${Date.now()}.${ext}`;
  const r=await fetch(`${cfg.url}/storage/v1/object/business-assets/${path}`,{method:'POST',headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,'Content-Type':file.type,'x-upsert':'true'},body:file});
  if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.message||d.error||'تعذر رفع اللوجو');}
  const url=`${cfg.url}/storage/v1/object/public/business-assets/${path}`;
@@ -2276,7 +2277,7 @@ initDeveloperContact();
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key||!canonicalBusinessUuid(browserBusinessId()))return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.15-mt1.1',{updateViaCache:'none'})
+    navigator.serviceWorker.register('./sw.js?v=10.5.15-mt1.2',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
@@ -2306,7 +2307,7 @@ function openDriverPicker(orderId, drivers, onDone){
 
 function paymentStatusLabel(v){return ({unpaid:'💰 غير مدفوع',proof_submitted:'🧾 إيصال للمراجعة',confirmed:'✅ الدفع مؤكد',rejected:'❌ إثبات مرفوض'}[v]||'💰 غير مدفوع')}
 function paymentStatusHTML(v){const x=v||'unpaid';return `<span class="payment-status-chip payment-status-${esc(x)}">${paymentStatusLabel(x)}</span>`}
-async function openPaymentReceipt(path){if(!path)return toast('لا يوجد إيصال مرفوع');try{const r=await fetch(`${cfg.url}/storage/v1/object/authenticated/website-payment-receipts/${encodeURI(path)}`,{headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`}});if(!r.ok)throw new Error('تعذر تحميل الإيصال');const blob=await r.blob(),url=URL.createObjectURL(blob);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>🧾 إيصال الدفع</h2><img class="receipt-preview" src="${url}" alt="إيصال الدفع"><div class="modal-actions"><button class="secondary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){URL.revokeObjectURL(url);m.remove()}}}catch(e){toast(e.message)}}
+async function openPaymentReceipt(path){if(!path)return toast('لا يوجد إيصال مرفوع');try{const r=await fetch(`${cfg.url}/storage/v1/object/authenticated/website-payment-receipts/${encodeURI(path)}`,{headers:{apikey:cfg.key,Authorization:`Bearer ${session.access_token}`,...tenantIdentityHeaders()}});if(!r.ok)throw new Error('تعذر تحميل الإيصال');const blob=await r.blob(),url=URL.createObjectURL(blob);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>🧾 إيصال الدفع</h2><img class="receipt-preview" src="${url}" alt="إيصال الدفع"><div class="modal-actions"><button class="secondary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]')){URL.revokeObjectURL(url);m.remove()}}}catch(e){toast(e.message)}}
 async function getWebsiteOrderDetails(id){
  const [orders,items,zones]=await Promise.all([
   rest('website_orders',`select=*&id=eq.${Number(id)}&limit=1`),
