@@ -20,6 +20,7 @@ const restaurantPublic=read('supabase-beta-multitenant-v1-restaurant-public-rpc-
 const uniqueShadow=read('supabase-beta-multitenant-v1-unique-shadow-DRAFT.sql');
 const uniqueFinalize=read('supabase-beta-multitenant-v1-unique-finalize-BLOCKED.sql');
 const uniqueCutover=read('supabase-beta-multitenant-v1-unique-cutover-DRAFT.sql');
+const websiteSettingsCompat=read('supabase-beta-multitenant-v1-client-website-settings.sql');
 const retailPublic=read('supabase-beta-multitenant-v1-retail-public-rpc-DRAFT.sql');
 const webPortal=read('supabase-beta-multitenant-v1-web-portal-rpc-DRAFT.sql');
 const offlineReceipts=read('supabase-beta-multitenant-v1-offline-receipts-DRAFT.sql');
@@ -106,6 +107,11 @@ need(uniqueCutover,'MULTITENANT_V1_COMPOSITE_FKS_NOT_READY','unique cutover comp
 need(uniqueCutover,'scope_natural_primary_keys','natural primary-key tenant cutover');
 need(uniqueCutover,'drop_global_nonprimary_unique','legacy global unique removal');
 need(uniqueCutover,'MULTITENANT_V1 global tenant uniqueness remains','final unique-scope proof');
+need(websiteSettingsCompat,'v_business_id:=public.current_business_id()','tenant-local website settings context');
+need(websiteSettingsCompat,'on conflict(business_id) do update','tenant-local website settings owner');
+need(websiteSettingsCompat,'revoke all on function public.update_website_settings_v1','website settings anon revoke');
+need(app,"rpc('update_website_settings_v1',payload)",'website settings client RPC binding');
+forbid(app,"const row={id:1,theme_name:theme",'legacy website settings id=1 write');
 need(d,'230','anon SECURITY DEFINER count evidence');
 need(app,"'X-Sharawla-Business'","canonical tenant selector on Beta REST requests");
 need(app,"'X-Sharawla-Device'","canonical device selector on Beta REST requests");
