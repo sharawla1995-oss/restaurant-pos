@@ -8,12 +8,14 @@ import { createHash } from 'node:crypto';
 const BUSINESS='5358328c-9724-49aa-affc-1bce8be90f92';
 const BRANCH=22;
 const USERNAME='topchicken';
+const APPLY=process.argv.includes('--apply');
 const EXPECTED_URL='https://xihcxydjnzemflhedzor.supabase.co';
 const url=process.env.SUPABASE_URL;
 const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
 const password=process.env.FIRST_ADMIN_PASSWORD;
 if(url!==EXPECTED_URL)throw new Error('Refusing non-Beta Supabase target');
-if(!key||!password||password.length<12||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password))throw new Error('Provide a new strong password via FIRST_ADMIN_PASSWORD (12+ mixed-case letters and digits)');
+if(!key)throw new Error('Missing operator key');
+if(APPLY&&(!password||password.length<12||!/[A-Z]/.test(password)||!/[a-z]/.test(password)||!/[0-9]/.test(password)))throw new Error('Provide a new strong password via FIRST_ADMIN_PASSWORD (12+ mixed-case letters and digits)');
 const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const one=async(table,filter)=>{let q=db.from(table).select('*');for(const [k,v] of Object.entries(filter))q=q.eq(k,v);const {data,error}=await q.maybeSingle();if(error)throw error;return data};
 const business=await one('businesses',{id:BUSINESS});
@@ -23,6 +25,7 @@ const existing=await one('employees',{username:USERNAME});
 if(existing)throw new Error('Username already exists; refusing overwrite');
 const hash=createHash('sha256').update(USERNAME).digest('hex');
 const internalEmail=`u-${hash.slice(0,32)}@sharawla.local`;
+if(!APPLY){console.log('DRY RUN: tenant and branch verified; username available');process.exit(0)}
 let authId=null,employeeId=null;
 try{
  const {data:auth,error:authError}=await db.auth.admin.createUser({email:internalEmail,password,email_confirm:true,user_metadata:{sharawla_username:USERNAME}});
