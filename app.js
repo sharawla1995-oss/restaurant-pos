@@ -457,7 +457,7 @@ async function offlinePasswordHash(password,saltHex){
 async function rememberOfflineLogin(email,password){
   const salt=crypto.getRandomValues(new Uint8Array(16)),saltHex=bytesHex(salt);
   const hash=await offlinePasswordHash(password,saltHex);
-  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),salt:saltHex,hash}));
+  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),business_id:activeTenantBusinessId(),salt:saltHex,hash}));
 }
 async function usernameLogin(username,password){
   // The existing function's CORS policy allows apikey/content-type but not
@@ -493,7 +493,7 @@ async function signIn(email,password){
     await rememberOfflineLogin(email,password);return d;
   }
   const v=JSON.parse(localStorage.getItem('offlineLoginVerifier')||'null');
-  if(!v||v.email!==email||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
+  if(!v||v.email!==email||v.business_id!==activeTenantBusinessId()||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
   if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
   session=resumeSession;return session;
 }
