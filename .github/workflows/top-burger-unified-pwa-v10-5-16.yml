@@ -4,6 +4,13 @@ on:
     branches: [feature/v10.5.16-unified-desktop-pwa]
     paths: ['top-burger-unified/**','scripts/check-top-burger-unified-pwa-v10-5-16.js','.github/workflows/top-burger-unified-pwa-v10-5-16.yml']
   workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: top-burger-unified-pages
+  cancel-in-progress: true
 jobs:
   unified-pwa-gate:
     runs-on: ubuntu-latest
@@ -17,3 +24,25 @@ jobs:
       - run: node --check top-burger-unified/inventory-overview-v10-5-16.js
       - run: node --check top-burger-unified/food-advanced-ui-v10-5-16.js
       - run: node scripts/check-top-burger-unified-pwa-v10-5-16.js
+
+  deploy-pages:
+    needs: unified-pwa-gate
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Pages artifact
+        run: |
+          rm -rf _site
+          mkdir -p _site/top-burger-unified
+          cp -a top-burger-unified/. _site/top-burger-unified/
+          cp icon-192.png icon-512.png _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
