@@ -459,6 +459,19 @@ async function rememberOfflineLogin(email,password){
   const hash=await offlinePasswordHash(password,saltHex);
   localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),salt:saltHex,hash}));
 }
+async function usernameLogin(username,password){
+  // The existing function's CORS policy allows apikey/content-type but not
+  // tenant headers. Verify tenant ownership with the authenticated RLS query
+  // in signIn() before persisting the returned session.
+  const response=await fetch(cfg.url+'/functions/v1/smart-function',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',apikey:cfg.key},
+    body:JSON.stringify({action:'login',username,password})
+  });
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||result?.ok===false)throw new Error(result?.message||'بيانات الدخول غير صحيحة');
+  return result;
+}
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
@@ -466,7 +479,7 @@ async function signIn(email,password){
     // Keep legacy email login for already deployed users.
     const d=email.includes('@')
       ? await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})
-      : await req('/functions/v1/smart-function',{method:'POST',auth:false,body:JSON.stringify({action:'login',username:email,password})});
+      : await usernameLogin(email,password);
     if(d?.ok===false||!d?.access_token||!d?.refresh_token)throw new Error(d?.message||'بيانات الدخول غير صحيحة');
     // Verify the issued session belongs to an active employee of the device's
     // canonical tenant BEFORE caching it or enabling offline login.
