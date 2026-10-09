@@ -21,6 +21,8 @@ const one=async(table,filter)=>{let q=db.from(table).select('*');for(const [k,v]
 const business=await one('businesses',{id:BUSINESS});
 const branch=await one('branches',{id:BRANCH});
 if(!business||business.active!==true||business.code!=='top-chicken'||!branch||branch.business_id!==BUSINESS||branch.name!=='TOP CHICKEN 20')throw new Error('Canonical Beta tenant/branch mismatch');
+const binding=await one('business_device_bindings',{device_id:'44162475-3ca2-4a2b-8bd5-aee1c7bb1c73'});
+if(!binding||binding.business_id!==BUSINESS||binding.active!==true)throw new Error('Device binding mismatch');
 const existing=await one('employees',{username:USERNAME});
 if(existing)throw new Error('Username already exists; refusing overwrite');
 const hash=createHash('sha256').update(USERNAME).digest('hex');
