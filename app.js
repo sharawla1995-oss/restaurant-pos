@@ -383,7 +383,7 @@ function show(id){['activationView','setupView','loginView','appView'].forEach(x
 function tenantIdentityHeaders(){try{const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}catch{return {}}}
 function activeTenantBusinessId(){const id=String(tenantIdentityHeaders()['X-Sharawla-Business']||'').trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))throw new Error('Canonical Business ID غير متاح لهذا الجهاز');return id}
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
-async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
+async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok){const endpoint=String(path).split('?')[0];const detail=String(d?.message||d?.error_description||d?.hint||d?.error||'').slice(0,180);throw new Error(`HTTP ${r.status} — ${endpoint}${detail?' — '+detail:''}`)}return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
@@ -457,17 +457,43 @@ async function offlinePasswordHash(password,saltHex){
 async function rememberOfflineLogin(email,password){
   const salt=crypto.getRandomValues(new Uint8Array(16)),saltHex=bytesHex(salt);
   const hash=await offlinePasswordHash(password,saltHex);
-  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),salt:saltHex,hash}));
+  localStorage.setItem('offlineLoginVerifier',JSON.stringify({email:String(email).trim().toLowerCase(),business_id:activeTenantBusinessId(),salt:saltHex,hash}));
+}
+async function usernameLogin(username,password){
+  // The existing function's CORS policy allows apikey/content-type but not
+  // tenant headers. Verify tenant ownership with the authenticated RLS query
+  // in signIn() before persisting the returned session.
+  const response=await fetch(cfg.url+'/functions/v1/smart-function',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',apikey:cfg.key},
+    body:JSON.stringify({action:'login',username,password})
+  });
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||result?.ok===false){const detail=String(result?.message||result?.error||'').slice(0,180);throw new Error(`HTTP ${response.status} — /functions/v1/smart-function${detail?' — '+detail:''}`)}
+  return result;
 }
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
-    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+    // Username logins use the existing server-side username-to-Auth mapping.
+    // Keep legacy email login for already deployed users.
+    const d=email.includes('@')
+      ? await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})
+      : await usernameLogin(email,password);
+    if(d?.ok===false||!d?.access_token||!d?.refresh_token)throw new Error(d?.message||'بيانات الدخول غير صحيحة');
+    // Verify the issued session belongs to an active employee of the device's
+    // canonical tenant BEFORE caching it or enabling offline login.
+    const tenantId=activeTenantBusinessId();
+    if(!d.user?.id)throw new Error('جلسة الدخول غير مكتملة');
+    const check=await req('/rest/v1/employees?select=id,business_id,active&auth_user_id=eq.'+encodeURIComponent(d.user.id)+'&business_id=eq.'+encodeURIComponent(tenantId)+'&active=eq.true&limit=1',{
+      auth:false,headers:{Authorization:'Bearer '+d.access_token}
+    });
+    if(!Array.isArray(check)||check.length!==1)throw new Error('حساب المستخدم غير مرتبط بالنشاط الحالي');
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
   const v=JSON.parse(localStorage.getItem('offlineLoginVerifier')||'null');
-  if(!v||v.email!==email||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
+  if(!v||v.email!==email||v.business_id!==activeTenantBusinessId()||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
   if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
   session=resumeSession;return session;
 }
@@ -719,7 +745,7 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
 });
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();let stage='تسجيل الدخول';try{await signIn($('#email').value.trim(),$('#password').value);stage='تحميل بيانات النشاط';if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;const message=`${stage}: ${err?.message||'خطأ غير معروف'}`;console.error('Sharawla login/bootstrap failure',message);toast(message)}});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
 function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.toggle('open',!!open)}
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));

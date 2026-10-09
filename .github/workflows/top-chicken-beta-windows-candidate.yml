@@ -1,0 +1,36 @@
+name: Top Chicken Beta Windows Candidate
+on:
+  push:
+    branches:
+      - codex/top-chicken-first-admin-beta-only
+    paths:
+      - .github/workflows/top-chicken-beta-windows-candidate.yml
+  workflow_dispatch:
+jobs:
+  windows-candidate:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate source
+        run: |
+          npm run check
+          node --check scripts/top-chicken-first-admin-beta.mjs
+          node --test tests/top-chicken-login-source.test.mjs
+      - name: Build isolated x64 Windows installer
+        run: npx electron-builder --win nsis --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Upload candidate artifact (not deployed)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Top-Chicken-Beta-Windows-x64-Candidate
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 7
