@@ -468,6 +468,14 @@ async function signIn(email,password){
       ? await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})
       : await req('/functions/v1/smart-function',{method:'POST',auth:false,body:JSON.stringify({action:'login',username:email,password})});
     if(d?.ok===false||!d?.access_token||!d?.refresh_token)throw new Error(d?.message||'بيانات الدخول غير صحيحة');
+    // Verify the issued session belongs to an active employee of the device's
+    // canonical tenant BEFORE caching it or enabling offline login.
+    const tenantId=activeTenantBusinessId();
+    if(!d.user?.id)throw new Error('جلسة الدخول غير مكتملة');
+    const check=await req('/rest/v1/employees?select=id,business_id,active&auth_user_id=eq.'+encodeURIComponent(d.user.id)+'&business_id=eq.'+encodeURIComponent(tenantId)+'&active=eq.true&limit=1',{
+      auth:false,headers:{Authorization:'Bearer '+d.access_token}
+    });
+    if(!Array.isArray(check)||check.length!==1)throw new Error('حساب المستخدم غير مرتبط بالنشاط الحالي');
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
