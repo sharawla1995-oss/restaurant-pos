@@ -1,7 +1,7 @@
 {
-  "enabled": true,
+  "enabled": false,
   "owner": "sharawla1995-oss",
   "repo": "restaurant-pos",
-  "channel": "stable",
+  "channel": "top-chicken-beta-disabled",
   "checkEveryHours": 6
 }
