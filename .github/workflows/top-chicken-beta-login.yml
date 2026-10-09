@@ -1,0 +1,19 @@
+name: Top Chicken Beta Login Source Checks
+on:
+  push:
+    branches:
+      - codex/top-chicken-first-admin-beta-only
+  workflow_dispatch:
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check app.js
+      - run: node --check scripts/top-chicken-first-admin-beta.mjs
+      - run: node --test tests/top-chicken-login-source.test.mjs
