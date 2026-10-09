@@ -1,5 +1,10 @@
 name: Top Chicken Beta Windows Candidate
 on:
+  push:
+    branches:
+      - codex/top-chicken-first-admin-beta-only
+    paths:
+      - .github/workflows/top-chicken-beta-windows-candidate.yml
   workflow_dispatch:
 jobs:
   windows-candidate:
