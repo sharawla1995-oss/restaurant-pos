@@ -22,7 +22,6 @@ jobs:
       - run: node --test tests/top-chicken-login-source.test.mjs
 
   windows-candidate:
-    if: github.event_name == 'push'
     needs: source-contract
     runs-on: windows-latest
     permissions:
