@@ -383,7 +383,7 @@ function show(id){['activationView','setupView','loginView','appView'].forEach(x
 function tenantIdentityHeaders(){try{const c=JSON.parse(localStorage.getItem(BUSINESS_CONNECTION_CACHE_KEY)||'null'),businessId=String(c?.business_id||'').trim(),deviceId=String(c?.device_id||'').trim(),h={};if(businessId)h['X-Sharawla-Business']=businessId;if(deviceId)h['X-Sharawla-Device']=deviceId;return h}catch{return {}}}
 function activeTenantBusinessId(){const id=String(tenantIdentityHeaders()['X-Sharawla-Business']||'').trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))throw new Error('Canonical Business ID غير متاح لهذا الجهاز');return id}
 function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...tenantIdentityHeaders(),...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
-async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
+async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok){const endpoint=String(path).split('?')[0];const detail=String(d?.message||d?.error_description||d?.hint||d?.error||'').slice(0,180);throw new Error(`HTTP ${r.status} — ${endpoint}${detail?' — '+detail:''}`)}return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
@@ -469,7 +469,7 @@ async function usernameLogin(username,password){
     body:JSON.stringify({action:'login',username,password})
   });
   const result=await response.json().catch(()=>null);
-  if(!response.ok||result?.ok===false)throw new Error(result?.message||'بيانات الدخول غير صحيحة');
+  if(!response.ok||result?.ok===false){const detail=String(result?.message||result?.error||'').slice(0,180);throw new Error(`HTTP ${response.status} — /functions/v1/smart-function${detail?' — '+detail:''}`)}
   return result;
 }
 async function signIn(email,password){
@@ -745,7 +745,7 @@ if($('#activationForm'))$('#activationForm').addEventListener('submit',async e=>
 });
 $('#setupForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('#supabaseUrl').value.trim().replace(/\/$/,'');const key=$('#publishableKey').value.trim();if(!/^https:\/\/.+\.supabase\.co$/.test(url))return toast('راجع Project URL');if(!key.startsWith('sb_'))return toast('راجع Publishable key');localStorage.setItem('sbUrl',url);localStorage.setItem('sbKey',key);location.reload()});
 
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('#email').value.trim(),$('#password').value);if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;toast(err.message)}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();let stage='تسجيل الدخول';try{await signIn($('#email').value.trim(),$('#password').value);stage='تحميل بيانات النشاط';if(navigator.onLine)await bootstrap();else await loadOfflineBootstrap()}catch(err){session=null;const message=`${stage}: ${err?.message||'خطأ غير معروف'}`;console.error('Sharawla login/bootstrap failure',message);toast(message)}});
 if($('#logoutBtn'))$('#logoutBtn').onclick=logout;if($('#logoutMenuBtn'))$('#logoutMenuBtn').onclick=logout;
 function setSidebarOpen(open){const sb=$('.sidebar');if(!sb)return;sb.classList.toggle('open',!!open)}
 if($('#menuBtn'))$('#menuBtn').onclick=()=>setSidebarOpen(!$('.sidebar')?.classList.contains('open'));
