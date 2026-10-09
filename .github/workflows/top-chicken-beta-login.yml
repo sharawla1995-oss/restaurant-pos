@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - codex/top-chicken-first-admin-beta-only
+  pull_request:
+    branches:
+      - compat/v10.5.15-desktop-multitenant-client-v2
   workflow_dispatch:
 jobs:
   source-contract:
