@@ -41,3 +41,8 @@ test('operator-only first-admin script is beta-pinned and opt-in',()=>{
   assert.match(provision,/business_auth_memberships/);
   assert.doesNotMatch(provision,/123456/);
 });
+
+test('offline login verifier is bound to canonical tenant',()=>{
+  assert.match(app,/business_id:activeTenantBusinessId\(\)/);
+  assert.match(app,/v\.business_id!==activeTenantBusinessId\(\)/);
+});
