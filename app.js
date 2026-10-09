@@ -462,7 +462,12 @@ async function rememberOfflineLogin(email,password){
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
-    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+    // Username logins use the existing server-side username-to-Auth mapping.
+    // Keep legacy email login for already deployed users.
+    const d=email.includes('@')
+      ? await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})
+      : await req('/functions/v1/smart-function',{method:'POST',auth:false,body:JSON.stringify({action:'login',username:email,password})});
+    if(d?.ok===false||!d?.access_token||!d?.refresh_token)throw new Error(d?.message||'بيانات الدخول غير صحيحة');
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
