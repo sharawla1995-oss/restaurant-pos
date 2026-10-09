@@ -442,3 +442,8 @@ input,select,textarea{background:#0d1724;color:#f4f7fb;border-color:#33445a}inpu
  .customer-360-kpis b,.v14-summary-kpis b{color:#f8fafc!important}
  .notification-row.unread{background:#0f2f2b;border-color:#14b8a6}
 }
+
+/* PWA install affordance — mobile only */
+.pwa-install-btn{position:fixed;left:16px;bottom:16px;z-index:9999;padding:12px 16px;border:0;border-radius:14px;font:inherit;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.22);cursor:pointer}
+.pwa-install-btn.hidden{display:none!important}
+@media (display-mode:standalone){.pwa-install-btn{display:none!important}}
