@@ -2254,9 +2254,32 @@ function initDeveloperContact(){
 initDeveloperContact();
 
 async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
+let sharawlaPwaInstallPrompt=null;
+function ensurePwaInstallButton(){
+  if(window.topBurgerDesktop?.isDesktop||document.getElementById('pwaInstallBtn'))return;
+  const btn=document.createElement('button');
+  btn.id='pwaInstallBtn';btn.type='button';btn.className='pwa-install-btn hidden';
+  btn.textContent='📲 تثبيت Sharawla POS';
+  btn.onclick=async()=>{
+    if(!sharawlaPwaInstallPrompt)return toast('التثبيت غير متاح من المتصفح حاليًا');
+    const prompt=sharawlaPwaInstallPrompt;sharawlaPwaInstallPrompt=null;
+    await prompt.prompt();await prompt.userChoice.catch(()=>null);
+    btn.classList.add('hidden');
+  };
+  document.body.appendChild(btn);
+}
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();sharawlaPwaInstallPrompt=e;ensurePwaInstallButton();
+  document.getElementById('pwaInstallBtn')?.classList.remove('hidden');
+});
+window.addEventListener('appinstalled',()=>{
+  sharawlaPwaInstallPrompt=null;document.getElementById('pwaInstallBtn')?.classList.add('hidden');
+  try{toast('تم تثبيت Sharawla POS')}catch{}
+});
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v=10.5.1',{updateViaCache:'none'})
+    ensurePwaInstallButton();
+    navigator.serviceWorker.register('./sw.js?v=10.5.18-unified-2',{updateViaCache:'none'})
       .then(reg=>reg.update().catch(()=>{}))
       .catch(()=>{});
   });
