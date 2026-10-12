@@ -1079,7 +1079,7 @@ async function checkout(payment,payments=null){
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:isRetailProfile()&&c.retailOfferDiscount?`Retail Offers: ${c.retailOfferDiscount}`:null
   };
   const itemPayload=state.cart.map(i=>({
-    product_id:i.product_id,product_name:i.name,quantity:i.qty,unit_price:i.price,cost:i.cost,total:i.price*i.qty,
+    product_id:i.product_id,product_name:i.name,variant_id:i.variant_id||null,variant_name:i.variant_name||null,quantity:i.qty,unit_price:i.price,cost:i.cost,total:i.price*i.qty,
     notes:[i.removed?.length?`بدون: ${i.removed.map(esc).join('، ')}`:'',i.notes||''].filter(Boolean).join(' | ')||null,
     modifiers:(i.modifiers||[]).map(md=>({id:md.id,name:md.name,price:Number(md.price||0),quantity:Number(md.quantity||1)}))
   }));
