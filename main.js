@@ -586,7 +586,7 @@ async function checkForWindowsUpdate({interactive=false,checkOnly=false}={}){
   // implemented. This is intentionally device-scoped, not a global
   // updater change for SH-0005/SH-0006/SH-0007.
   const updateIdentity=licenseIdentitySnapshot();
-  if(updateIdentity.deviceId==='SH-0008'){
+  if(!updateIdentity.deviceId || updateIdentity.deviceId==='SH-0008'){
     const result={blocked:true,reason:'top-chicken-dedicated-feed-required',local,channel};
     sendUpdateProgress({state:'idle',local,channel,message:'تحديثات Top Chicken غير مفعّلة حتى اعتماد قناة مستقلة'});
     return result;
