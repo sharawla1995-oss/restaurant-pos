@@ -8,7 +8,7 @@ let db,NativeClient;
 if(pgURL){
  const u=new URL(pgURL);
  if(!['127.0.0.1','localhost'].includes(u.hostname)||u.pathname!=='/top_chicken_prelaunch')throw new Error('LOCAL TEST DATABASE ONLY');
- ({Client:NativeClient}=await import('pg'));const client=new NativeClient({connectionString:pgURL});await client.connect();
+ const pgModule=await import('pg');NativeClient=pgModule.Client||pgModule.default.Client;const client=new NativeClient({connectionString:pgURL});await client.connect();
  db={query:(...args)=>client.query(...args),exec:sql=>client.query(sql)};
 }else db=new PGlite();
 const results=[];

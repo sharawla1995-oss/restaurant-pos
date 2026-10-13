@@ -1,0 +1,87 @@
+{
+  "scope": "Actual smart-function v2 source executed in a Node24 VM; mock Auth/REST. PostgreSQL payload failure separately reproduced on restored dependency schema.",
+  "live_auth_create": "NOT RUN",
+  "results": [
+    {
+      "name": "unauthenticated create blocked",
+      "result": "PASS"
+    },
+    {
+      "name": "cashier cannot create employees",
+      "result": "PASS"
+    },
+    {
+      "name": "successful admin employee create contract",
+      "result": "FAIL",
+      "cause": "Employee INSERT omits required id and business_id; mock returns actual schema 23502 condition"
+    },
+    {
+      "name": "cross-tenant admin cannot begin Top Chicken account provisioning",
+      "result": "FAIL",
+      "cause": "Retrieved handler selects actor by auth_user_id only and accepts branch 22 without tenant check; mock Auth creation reached"
+    },
+    {
+      "name": "atomic employee/branches/permissions/membership provisioning",
+      "result": "NOT PROVEN",
+      "cause": "Separate writes; permissions are saved afterwards by app.js; no trusted membership insert in retrieved handler"
+    }
+  ],
+  "trace": {
+    "admin": {
+      "http": 400,
+      "body": {
+        "ok": false,
+        "error": "تعذر إنشاء المستخدم",
+        "message": "تعذر إنشاء المستخدم"
+      },
+      "calls": [
+        {
+          "action": "mock_auth_create"
+        },
+        {
+          "action": "employee_insert",
+          "table": "employees",
+          "payload": {
+            "name": "Fixture User",
+            "username": "fixture_user",
+            "role": "cashier",
+            "branch_id": 22,
+            "active": true,
+            "auth_user_id": "fixture-new-auth"
+          }
+        },
+        {
+          "action": "mock_auth_compensation"
+        }
+      ]
+    },
+    "other": {
+      "http": 400,
+      "body": {
+        "ok": false,
+        "error": "تعذر إنشاء المستخدم",
+        "message": "تعذر إنشاء المستخدم"
+      },
+      "calls": [
+        {
+          "action": "mock_auth_create"
+        },
+        {
+          "action": "employee_insert",
+          "table": "employees",
+          "payload": {
+            "name": "Fixture User",
+            "username": "fixture_user",
+            "role": "cashier",
+            "branch_id": 22,
+            "active": true,
+            "auth_user_id": "fixture-new-auth"
+          }
+        },
+        {
+          "action": "mock_auth_compensation"
+        }
+      ]
+    }
+  }
+}

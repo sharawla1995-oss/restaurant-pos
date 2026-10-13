@@ -23,12 +23,12 @@ jobs:
     timeout-minutes: 15
     services:
       pg:
-        image: postgres:16
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: tc_fixture
           POSTGRES_PASSWORD: local-ci-fixture-only
           POSTGRES_DB: top_chicken_prelaunch
-        ports: ['5432:5432']
+        ports: ['127.0.0.1:5432:5432']
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 15
     env:
