@@ -580,6 +580,18 @@ async function checkForWindowsUpdate({interactive=false,checkOnly=false}={}){
   const local=app.getVersion();
   const channel=readDeviceUpdateChannel(cfg);
 
+  // SH-0008 is a Top Chicken isolated Beta device. Generic Sharawla
+  // stable/beta GitHub releases are not authorized for this device.
+  // Fail closed until a dedicated, verified Top Chicken update feed is
+  // implemented. This is intentionally device-scoped, not a global
+  // updater change for SH-0005/SH-0006/SH-0007.
+  const updateIdentity=licenseIdentitySnapshot();
+  if(updateIdentity.deviceId==='SH-0008'){
+    const result={blocked:true,reason:'top-chicken-dedicated-feed-required',local,channel};
+    sendUpdateProgress({state:'idle',local,channel,message:'تحديثات Top Chicken غير مفعّلة حتى اعتماد قناة مستقلة'});
+    return result;
+  }
+
   if(updateCheckBusy){
     const result={busy:true,local,channel};
     if(interactive)sendUpdateProgress({state:'busy',local,channel,message:'يوجد فحص تحديثات جارٍ بالفعل'});
