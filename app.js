@@ -377,16 +377,25 @@ async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function transitionTopChickenOrderStatus(orderId,expectedStatus,nextStatus){
-  // Requires the tenant/branch-scoped, audited server RPC. Fail closed if
-  // the Beta migration is absent: never fall back to a broad orders PATCH.
-  const requestId=globalThis.crypto?.randomUUID?.();
-  if(!requestId)throw new Error('تعذر إنشاء معرّف آمن لتحديث حالة الطلب');
-  return rpc('top_chicken_transition_order_status',{
+  // Requires the audited server RPC. Never fall back to a broad orders PATCH.
+  // Retain the request ID across retries and app restart; only clear on success.
+  if(!expectedStatus || !nextStatus)throw new Error('حالة الطلب غير معروفة؛ حدّث الشاشة أولًا');
+  const key=['tc-status-v1',String(orderId),String(expectedStatus),String(nextStatus)].join(':');
+  let requestId=localStorage.getItem(key);
+  if(!requestId){
+    requestId=globalThis.crypto?.randomUUID?.();
+    if(!requestId)throw new Error('تعذر إنشاء معرّف آمن لتحديث حالة الطلب');
+    localStorage.setItem(key,requestId);
+  }
+  const result=await rpc('top_chicken_transition_order_status',{
     p_order_id:Number(orderId),
     p_expected_status:String(expectedStatus),
     p_new_status:String(nextStatus),
     p_request_id:requestId
   });
+  if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تغيير حالة الطلب');
+  localStorage.removeItem(key);
+  return result;
 }
 
 
