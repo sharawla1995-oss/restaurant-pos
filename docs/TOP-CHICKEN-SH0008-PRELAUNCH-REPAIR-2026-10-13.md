@@ -15,3 +15,16 @@ Beta Supabase xihcxydjnzemflhedzor; business 5358328c-9724-49aa-affc-1bce8be90f9
 - No proof SH-0008 local SQLite/offline queue is drained; no active shift clearance.
 - No authorization to delete or reset counters.
 Do not DELETE/TRUNCATE/RESET, alter counters, deploy, or install. After repair tests, re-inventory, create verified backup, run isolated restore/cleanup rehearsal, show exact rows and rollback, request final explicit deletion approval.
+
+## Implementation progress (source-only)
+- `main.js`: SH-0008 canonical license device ID is blocked from generic GitHub updater feed before fetching a release. Commit `5558432c4e3850cb3926c4bf29a8612553a4e73b`. Dedicated release feed remains future work. Installed SH-0008 is unchanged.
+- `app.js`: create-employee form switched from required email to username; create action no longer passes misleading email. Server `smart-function` version 2 explicitly rejects usernames containing @, creates an internal email, and requires admin authorization. Commit `96ae5867445e5894fa4d9cf9b892924d4353acc1`. Runtime tests not yet executed.
+- Delivery order modal uses direct `PATCH orders` for preparing and ready, and other paths use direct PATCH for delivered. Authenticated role lacks table UPDATE in Beta. Needs safe audited RPC and client migration, plus isolated end-to-end test; **not fixed**.
+- Backup/restore and local offline drain **not verified**; deletion is not authorized. No deploy, SQL writes, or device update occurred.
+
+## Required validation before release
+1. Verify updater on isolated Windows Electron instance with canonical device SH-0008, assert generic feed never queried, no download/install; verify non-SH-0008 behavior unchanged. Do not simulate by rebinding real device identities.
+2. Test username creation with isolated admin and tenant/branch scoping; confirm permissions saved, login works, duplicate/invalid input rejected and no orphan auth accounts.
+3. Implement status transition RPC in isolated Beta only after reviewing authoritative business permissions and permitted state graph; test unauthorized cross-tenant/branch, duplicate, changed payload, all delivery states.
+4. Confirm site→POS delivery/pickup and printing, then take restorable snapshot and audit all FK descendants and offline replay receipts.
+5. Obtain **separate final approval** before any operational test data removal and invoice counter restart.
