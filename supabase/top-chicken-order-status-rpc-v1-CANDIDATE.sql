@@ -72,6 +72,12 @@ BEGIN
   INSERT INTO public.top_chicken_order_status_receipts_v1
     (business_id,branch_id,request_id,actor_id,order_id,expected_status,new_status)
     VALUES(v_business,v_branch,p_request_id,v_actor.id,p_order_id,p_expected_status,p_new_status);
+  -- Audit and state mutation must commit atomically, not via a best-effort UI call.
+  INSERT INTO public.audit_logs
+    (employee_id,branch_id,business_id,action,entity_type,entity_id,details)
+    VALUES(v_actor.id,v_branch,v_business,'top_chicken_order_status_transition',
+      'order',p_order_id,
+      jsonb_build_object('request_id',p_request_id,'from',p_expected_status,'to',p_new_status));
   RETURN jsonb_build_object('ok',true,'replayed',false,'order_id',p_order_id,'status',p_new_status);
 END;
 $$;
