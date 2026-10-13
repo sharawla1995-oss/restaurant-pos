@@ -34,12 +34,13 @@ BEGIN
   END IF;
   SELECT * INTO v_actor FROM public.employees
   WHERE auth_user_id=auth.uid() AND business_id=v_business AND active IS TRUE;
-  IF NOT FOUND OR v_actor.role NOT IN ('admin','cashier','call_center') THEN
+  IF NOT FOUND OR v_actor.role <> 'admin' THEN
     RAISE EXCEPTION 'Employee not authorized' USING ERRCODE='42501';
   END IF;
+  -- Restrict V1 to explicitly branch-assigned admins until per-action staff permissions are audited.
   IF NOT EXISTS(SELECT 1 FROM public.employee_branches eb
     WHERE eb.employee_id=v_actor.id AND eb.branch_id=v_branch AND eb.business_id=v_business)
-    AND NOT (v_actor.role='admin' AND v_actor.branch_id=v_branch) THEN
+  THEN
     RAISE EXCEPTION 'Branch access denied' USING ERRCODE='42501';
   END IF;
   -- Lock request key before checking replay, including concurrent first writers.
