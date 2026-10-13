@@ -376,6 +376,19 @@ async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function transitionTopChickenOrderStatus(orderId,expectedStatus,nextStatus){
+  // Requires the tenant/branch-scoped, audited server RPC. Fail closed if
+  // the Beta migration is absent: never fall back to a broad orders PATCH.
+  const requestId=globalThis.crypto?.randomUUID?.();
+  if(!requestId)throw new Error('تعذر إنشاء معرّف آمن لتحديث حالة الطلب');
+  return rpc('top_chicken_transition_order_status',{
+    p_order_id:Number(orderId),
+    p_expected_status:String(expectedStatus),
+    p_new_status:String(nextStatus),
+    p_request_id:requestId
+  });
+}
+
 
 // ===== V9.8 Offline Core =====
 const OFFLINE_DB='topburger-pos-offline-v98', OFFLINE_STORE='kv';
@@ -1208,13 +1221,13 @@ async function renderDelivery(){
    }
    const done=e.target.closest('[data-delivered]');
    if(done){
-     await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});
+     await transitionTopChickenOrderStatus(done.dataset.delivered,'out_for_delivery','delivered');
      toast('تم تسجيل التسليم');renderDelivery()
    }
  };
 }
 
-async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;await rest('orders',`id=eq.${b.dataset.id}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})});toast('تم تحديث حالة الطلب');renderKitchen()}}
+async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;await transitionTopChickenOrderStatus(b.dataset.id,rows.find(o=>String(o.id)===String(b.dataset.id))?.status,b.dataset.status);toast('تم تحديث حالة الطلب');renderKitchen()}}
 
 async function shiftMetrics(shift){
  const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id);
@@ -2181,15 +2194,15 @@ async function openDeliveryOrderDetails(id){
  m.onclick=async e=>{
    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
-   if(e.target.closest('[data-preparing]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});await audit('mark_preparing','order',o.id,{});m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
-   if(e.target.closest('[data-ready]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'ready'})});await audit('mark_ready','order',o.id,{});m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-preparing]')){await transitionTopChickenOrderStatus(o.id,o.status,'preparing');await audit('mark_preparing','order',o.id,{});m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-ready]')){await transitionTopChickenOrderStatus(o.id,o.status,'ready');await audit('mark_ready','order',o.id,{});m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
    if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));m.remove();openDriverPicker(o.id,list,()=>renderDeliveryOrders());return}
    if(e.target.closest('[data-view-payment-receipt]')){return openPaymentReceipt(o.payment_receipt_path)}
    if(e.target.closest('[data-payment-confirm]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'confirmed'});o.payment_status='confirmed';m.remove();toast('تم تأكيد الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-reject]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'rejected'});o.payment_status='rejected';m.remove();toast('تم رفض إثبات الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
-   if(e.target.closest('[data-completed]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'completed',delivered_at:new Date().toISOString()})});await audit('mark_pickup_completed','order',o.id,{});m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
-   if(e.target.closest('[data-delivered]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+   if(e.target.closest('[data-completed]')){await transitionTopChickenOrderStatus(o.id,o.status,'completed');await audit('mark_pickup_completed','order',o.id,{});m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
+   if(e.target.closest('[data-delivered]')){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');await audit('mark_delivered','order',o.id,{});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
  };
 }
 
