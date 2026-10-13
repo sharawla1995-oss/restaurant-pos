@@ -28,3 +28,9 @@ Do not DELETE/TRUNCATE/RESET, alter counters, deploy, or install. After repair t
 3. Implement status transition RPC in isolated Beta only after reviewing authoritative business permissions and permitted state graph; test unauthorized cross-tenant/branch, duplicate, changed payload, all delivery states.
 4. Confirm site→POS delivery/pickup and printing, then take restorable snapshot and audit all FK descendants and offline replay receipts.
 5. Obtain **separate final approval** before any operational test data removal and invoice counter restart.
+
+## 2026-10-14 continuation
+- Commit `d451d8b1b65ade93b6b2e7bff78e4f459d2491e9`: generic updater also fails closed when canonical device identity cannot be read.
+- Commit `9e0ddc3f325b55aba660788c0fd0ae68a2cf990e`: delivery modal, kitchen, and delivery management status writes routed through `top_chicken_transition_order_status` client helper; no direct PATCH fallback for those paths. The server RPC does not yet exist in Beta. **DO NOT DEPLOY THIS BRANCH** until RPC deployed and full tests PASS.
+- Supabase SQL inspection was blocked by tool safety checks in this session. No DB migration was attempted, no source was merged, no installer built, no device modified, no data deleted.
+- Next blocker: inspect live orders/employee/tenant/RLS schema through authorized read-only channel; implement audited RPC in isolated Beta; test tenant, branch, role, transition, idempotency, concurrency, replay; only then release candidate and isolated Windows test.
