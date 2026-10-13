@@ -25,7 +25,7 @@ async function run(label){
   if(label==='A')await page.evaluate(()=>window.topBurgerDesktop.db.set('tc-test-sentinel',{test:true,amount:170}));
   else assert.deepEqual(await page.evaluate(()=>window.topBurgerDesktop.db.get('tc-test-sentinel')),{test:true,amount:170});
   const pid=child.pid;
-  await app.close();assert.notEqual(child.exitCode,null,'Full Electron process exit required');app=null;
+  await app.close();if(child.exitCode===null)await Promise.race([new Promise(r=>child.once('exit',r)),new Promise(r=>setTimeout(r,5000))]);assert.notEqual(child.exitCode,null,'Full Electron process exit required');app=null;
   runs.push({process:label,pid,runtime,info,paths,update,live_network:network,sqlite_persistence:'PASS',full_exit:'PASS'});
  }finally{
   if(app)await app.close().catch(()=>{});

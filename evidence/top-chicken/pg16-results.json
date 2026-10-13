@@ -43,11 +43,19 @@
       "result": "PASS"
     },
     {
+      "name": "another activity profile binding fails closed",
+      "result": "PASS"
+    },
+    {
       "name": "cashier pickup full SQL state cycle",
       "result": "PASS"
     },
     {
       "name": "exact replay returns original result without audit/event duplication",
+      "result": "PASS"
+    },
+    {
+      "name": "revoked membership cannot replay a prior successful receipt",
       "result": "PASS"
     },
     {

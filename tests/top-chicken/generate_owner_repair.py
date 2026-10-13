@@ -4,7 +4,7 @@ import hashlib, re
 root = Path(__file__).resolve().parents[2]
 source = (root/'evidence/top-chicken/deployed-owner-snapshot.sql').read_text()
 tc = "5358328c-9724-49aa-affc-1bce8be90f92"
-out = ['-- CANDIDATE ONLY: preserve canonical owners; guarded Top Chicken ID allocation.\nBEGIN;']
+out = ['-- CANDIDATE ONLY: preserve canonical owners; guarded Top Chicken ID allocation.\nBEGIN;', "DO $tc_preflight$ BEGIN IF NOT EXISTS(SELECT 1 FROM sharawla_internal.operational_business_identity_v1 WHERE cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid AND profile_code='restaurant') THEN RAISE EXCEPTION 'TOP_CHICKEN_OPERATIONAL_PROFILE_BINDING_REQUIRED'; END IF; END $tc_preflight$;"]
 for name in ('order_assign_driver_v2', 'order_fulfillment_transition_v2', 'delivery_mark_delivered_v2'):
     original = re.search(r'CREATE OR REPLACE FUNCTION public\.'+name+r'\([\s\S]*?AS \$function\$[\s\S]*?\$function\$\n', source).group(0)
     fixed = original

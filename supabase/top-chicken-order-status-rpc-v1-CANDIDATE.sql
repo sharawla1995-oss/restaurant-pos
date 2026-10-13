@@ -1,5 +1,12 @@
 -- CANDIDATE ONLY. Durable wrappers delegate writes to the canonical owners.
 BEGIN;
+-- Do not use another activity's Cloud profile/feature binding to authorize this tenant.
+DO $tc_preflight$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM sharawla_internal.operational_business_identity_v1
+  WHERE cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid AND profile_code='restaurant') THEN
+  RAISE EXCEPTION 'TOP_CHICKEN_OPERATIONAL_PROFILE_BINDING_REQUIRED';
+ END IF;
+END $tc_preflight$;
 CREATE TABLE IF NOT EXISTS public.top_chicken_order_status_receipts_v1 (
  business_id uuid NOT NULL,branch_id bigint NOT NULL,request_id text NOT NULL,
  actor_id bigint NOT NULL,order_id bigint NOT NULL,expected_status text NOT NULL,new_status text NOT NULL,
@@ -20,6 +27,10 @@ DECLARE
 BEGIN
  IF auth.uid() IS NULL OR public.current_business_id() IS DISTINCT FROM v_business THEN
   RAISE EXCEPTION 'Top Chicken authenticated membership required' USING ERRCODE='42501';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM sharawla_internal.operational_business_identity_v1
+  WHERE cloud_business_id=v_business AND profile_code='restaurant') THEN
+  RAISE EXCEPTION 'Top Chicken profile binding required' USING ERRCODE='42501';
  END IF;
  IF p_order_id IS NULL OR p_order_id<=0 OR p_request_id IS NULL OR p_request_id !~ '^[A-Za-z0-9_-]{8,128}$'
   OR p_expected_status IS NULL OR p_new_status IS NULL THEN

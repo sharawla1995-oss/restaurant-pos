@@ -10,7 +10,7 @@ Scope: restaurant-pos / codex/top-chicken-sh0008-prelaunch-fixes. Starting HEAD 
 - A separate Windows ZIP build has its own appId/productName and prelaunch metadata. It blocks live HTTP/S and generic updater feeds, and places backups in its isolated userData. Existing builds without the metadata retain original behavior. It is a TEST build, not an installable release.
 
 ## Executed local tests
-26 PostgreSQL16.3 WASM dependency-fixture tests PASS, including pickup/delivery state cycles, permissions, forbidden scopes, replay, audit/receipt rollback and one-time cash custody/payment. Eight actual-source client helper tests PASS. This is not a live Supabase Auth/PostgREST or site-to-cashier interface test. Native PostgreSQL cannot run under a non-root UID in this execution environment; WASM is single backend and does not prove multi-session races.
+28 PostgreSQL16.3 WASM dependency-fixture tests PASS, including pickup/delivery state cycles, permissions, forbidden scopes, replay, audit/receipt rollback and one-time cash custody/payment. Eight actual-source client helper tests PASS. This is not a live Supabase Auth/PostgREST or site-to-cashier interface test. Native PostgreSQL cannot run under a non-root UID in this execution environment; WASM is single backend and does not prove multi-session races.
 
 The existing smart-function v2 create payload was executed against the deployed employee dependency schema and rejected with 23502 (missing id). The retrieved Edge source also omits business_id, trusted membership creation and atomic permissions. Successful employee creation/Auth login is NOT proven and remains a release blocker. No live employee was created.
 
@@ -24,5 +24,8 @@ The new workflow runs only on this exact branch. Native PostgreSQL16 uses an eph
 - Native CI results and isolated Windows runtime evidence are pending at this source commit.
 - Full authenticated website pickup/delivery → cashier cycle is NOT RUN. Public intake remains closed; no live isolated session/test-only ingress is available.
 - Employee create/login/provisioning must be repaired and tested atomically with tenant membership before release.
-- Live operational profile identity currently belongs to another Beta business. Do not rebind it or interpret the local synthetic feature fixture as proof of Top Chicken Cloud entitlement behavior.
+- Live operational profile identity currently belongs to another Beta business. The candidate preflight and runtime now fail closed until a Top Chicken binding is independently verified. Do not rebind it or interpret the local synthetic feature fixture as proof of Top Chicken Cloud entitlement behavior.
 - No cleanup, counter reset, migration apply, device update or intake opening is authorized by this report.
+
+## Native CI follow-up
+Attempt 2 (65b9618edda96d65732b2e9cf95c41ce66fe564b) executed PostgreSQL16.15 successfully, including two-connection races and synthetic backup/restore. The packaged Windows application ran and exposed a renderer, but the first SQLite write failed with EPERM on the fixed .tmp path. The separately flagged prelaunch build now uses unique temporary SQLite filenames; existing builds retain their original behavior. Full Windows exit/restart is still pending revalidation.
