@@ -1,0 +1,54 @@
+name: Top Chicken isolated installer validation
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-prelaunch-fixes]
+    paths: ['.github/workflows/top-chicken-prelaunch-installer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installer:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - run: npx electron-builder --config top-chicken-test-build.json --win nsis --x64 --publish never
+      - name: Install only inside fresh ephemeral Windows test runner
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist-top-chicken-test -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw "Test installer missing" }
+          $target = Join-Path $env:RUNNER_TEMP "Top-Chicken-Beta-Isolated-Install"
+          if (Test-Path $target) { throw "Install target must be new" }
+          $p = Start-Process $installer.FullName -ArgumentList @('/S', "/D=$target") -PassThru
+          if (-not $p.WaitForExit(180000)) { throw "Isolated installer timed out" }
+          if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
+          $app = Join-Path $target "Top Chicken Beta TEST.exe"
+          if (-not (Test-Path $app)) { throw "Installed test executable missing" }
+          # Preserve the unpacked build and point the existing runtime test at the installed app.
+          Rename-Item dist-top-chicken-test/win-unpacked win-unpacked-source
+          New-Item -ItemType Junction -Path dist-top-chicken-test/win-unpacked -Target $target | Out-Null
+          @{
+            result = "PASS"
+            installation = "ephemeral CI only"
+            installer = $installer.Name
+            sha256 = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+            install_exit_code = $p.ExitCode
+          } | ConvertTo-Json | Set-Content evidence/top-chicken/windows-installer-results.json
+      - name: Verify installed app, full exit and second process SQLite persistence
+        run: node tests/top-chicken/windows-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-installer-TEST-${{ github.sha }}
+          path: |
+            dist-top-chicken-test/*.exe
+            evidence/top-chicken/windows-installer-results.json
+            evidence/top-chicken/windows-runtime-results.json
+            evidence/top-chicken/windows-process-*.log
