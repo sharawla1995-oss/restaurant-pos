@@ -1,0 +1,7 @@
+{
+  "name":"top-chicken-prelaunch-tests",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "dependencies":{"@electric-sql/pglite":"0.2.0","pg":"8.13.1","playwright":"1.48.2"}
+}

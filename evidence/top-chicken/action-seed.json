@@ -1,0 +1,181 @@
+[
+  {
+    "data": {
+      "defaults": [
+        {
+          "active": true,
+          "source": "restaurant-runtime-role-pages-58.29",
+          "allowed": true,
+          "role_code": "admin",
+          "created_at": "2026-09-25T07:28:47.40327+00:00",
+          "updated_at": "2026-09-25T07:28:47.40327+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-role-pages-58.29",
+          "allowed": true,
+          "role_code": "cashier",
+          "created_at": "2026-09-25T07:28:47.40327+00:00",
+          "updated_at": "2026-09-25T07:28:47.40327+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-role-pages-58.29",
+          "allowed": true,
+          "role_code": "callcenter",
+          "created_at": "2026-09-25T07:28:47.40327+00:00",
+          "updated_at": "2026-09-25T07:28:47.40327+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-role-pages-58.29",
+          "allowed": true,
+          "role_code": "delivery",
+          "created_at": "2026-09-25T07:28:47.40327+00:00",
+          "updated_at": "2026-09-25T07:28:47.40327+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-orders-page-58.29",
+          "allowed": true,
+          "role_code": "admin",
+          "created_at": "2026-09-25T07:32:04.77671+00:00",
+          "updated_at": "2026-09-25T07:32:04.77671+00:00",
+          "action_code": "orders.fulfillment.manage",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-orders-page-58.29",
+          "allowed": true,
+          "role_code": "cashier",
+          "created_at": "2026-09-25T07:32:04.77671+00:00",
+          "updated_at": "2026-09-25T07:32:04.77671+00:00",
+          "action_code": "orders.fulfillment.manage",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-orders-page-58.29",
+          "allowed": true,
+          "role_code": "callcenter",
+          "created_at": "2026-09-25T07:32:04.77671+00:00",
+          "updated_at": "2026-09-25T07:32:04.77671+00:00",
+          "action_code": "orders.fulfillment.manage",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-orders-page-58.29",
+          "allowed": true,
+          "role_code": "delivery",
+          "created_at": "2026-09-25T07:32:04.77671+00:00",
+          "updated_at": "2026-09-25T07:32:04.77671+00:00",
+          "action_code": "orders.fulfillment.manage",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-delivery-assignment-58.29",
+          "allowed": true,
+          "role_code": "admin",
+          "created_at": "2026-09-25T07:32:21.551871+00:00",
+          "updated_at": "2026-09-25T07:32:21.551871+00:00",
+          "action_code": "orders.delivery.assign_driver",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-delivery-assignment-58.29",
+          "allowed": true,
+          "role_code": "cashier",
+          "created_at": "2026-09-25T07:32:21.551871+00:00",
+          "updated_at": "2026-09-25T07:32:21.551871+00:00",
+          "action_code": "orders.delivery.assign_driver",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-delivery-assignment-58.29",
+          "allowed": true,
+          "role_code": "callcenter",
+          "created_at": "2026-09-25T07:32:21.551871+00:00",
+          "updated_at": "2026-09-25T07:32:21.551871+00:00",
+          "action_code": "orders.delivery.assign_driver",
+          "profile_code": "restaurant"
+        },
+        {
+          "active": true,
+          "source": "restaurant-runtime-delivery-assignment-58.29",
+          "allowed": false,
+          "role_code": "delivery",
+          "created_at": "2026-09-25T07:32:21.551871+00:00",
+          "updated_at": "2026-09-25T07:32:21.551871+00:00",
+          "action_code": "orders.delivery.assign_driver",
+          "profile_code": "restaurant"
+        }
+      ],
+      "identity": [
+        {
+          "id": 1,
+          "source": "sharawla-cloud-pos-profile-2026-09-25",
+          "bound_at": "2026-09-25T07:23:25.198528+00:00",
+          "updated_at": "2026-09-25T07:23:25.198528+00:00",
+          "profile_code": "restaurant",
+          "binding_version": 1,
+          "cloud_business_id": "91826502-590e-4afa-8826-2c0f4b99c490"
+        }
+      ],
+      "profiles": [
+        {
+          "active": true,
+          "created_at": "2026-09-25T07:23:14.715104+00:00",
+          "updated_at": "2026-09-25T07:23:14.715104+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "pharmacy",
+          "required_feature_code": "commerce.delivery"
+        },
+        {
+          "active": true,
+          "created_at": "2026-09-25T07:23:14.715104+00:00",
+          "updated_at": "2026-09-25T07:23:14.715104+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "restaurant",
+          "required_feature_code": "commerce.delivery"
+        },
+        {
+          "active": true,
+          "created_at": "2026-09-25T07:23:14.715104+00:00",
+          "updated_at": "2026-09-25T07:23:14.715104+00:00",
+          "action_code": "delivery.mark_delivered",
+          "profile_code": "retail",
+          "required_feature_code": "commerce.delivery"
+        },
+        {
+          "active": true,
+          "created_at": "2026-09-25T07:32:21.551871+00:00",
+          "updated_at": "2026-09-25T07:32:21.551871+00:00",
+          "action_code": "orders.delivery.assign_driver",
+          "profile_code": "restaurant",
+          "required_feature_code": "commerce.delivery"
+        },
+        {
+          "active": true,
+          "created_at": "2026-09-25T07:32:04.77671+00:00",
+          "updated_at": "2026-09-25T07:32:04.77671+00:00",
+          "action_code": "orders.fulfillment.manage",
+          "profile_code": "restaurant",
+          "required_feature_code": null
+        }
+      ]
+    }
+  }
+]

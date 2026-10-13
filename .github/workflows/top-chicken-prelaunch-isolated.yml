@@ -1,0 +1,75 @@
+name: Top Chicken isolated prelaunch validation
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-prelaunch-fixes]
+    paths:
+      - 'app.js'
+      - 'main.js'
+      - 'supabase/top-chicken-*-CANDIDATE.sql'
+      - 'tests/top-chicken/**'
+      - 'evidence/top-chicken/**'
+      - 'top-chicken-test-build.json'
+      - '.github/workflows/top-chicken-prelaunch-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: top-chicken-prelaunch-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  postgres16:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tc_fixture
+          POSTGRES_PASSWORD: local-ci-fixture-only
+          POSTGRES_DB: top_chicken_prelaunch
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      TOP_CHICKEN_PG_URL: postgresql://tc_fixture:local-ci-fixture-only@127.0.0.1:5432/top_chicken_prelaunch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: node tests/top-chicken/client-retry.cjs
+      - run: node tests/top-chicken/pg16.mjs
+      - name: Backup and restore the synthetic fixture to a second isolated database
+        run: |
+          container='${{ job.services.pg.id }}'
+          docker exec "$container" pg_dump -U tc_fixture -d top_chicken_prelaunch > evidence/top-chicken/synthetic-pg16-backup.sql
+          docker exec "$container" createdb -U tc_fixture top_chicken_prelaunch_restore
+          docker exec -i "$container" psql -U tc_fixture -d top_chicken_prelaunch_restore -v ON_ERROR_STOP=1 < evidence/top-chicken/synthetic-pg16-backup.sql
+          docker exec "$container" psql -U tc_fixture -d top_chicken_prelaunch_restore -Atc 'select count(*) from public.top_chicken_order_status_receipts_v1' > evidence/top-chicken/synthetic-restore-count.txt
+          test "$(cat evidence/top-chicken/synthetic-restore-count.txt)" = '9'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-postgres16-${{ github.sha }}
+          path: evidence/top-chicken/
+  windows:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: npm run check
+      - run: npx electron-builder --config top-chicken-test-build.json --win zip --x64 --publish never
+      - run: node tests/top-chicken/windows-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-windows-TEST-${{ github.sha }}
+          path: |
+            dist-top-chicken-test/*.zip
+            evidence/top-chicken/

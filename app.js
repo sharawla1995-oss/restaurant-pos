@@ -376,26 +376,37 @@ async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function topChickenOrderOperation(name,payload){
+  // Tenant and actor bind the durable retry key; a new login cannot reuse another actor's receipt.
+  const business=String(state.employee?.business_id||'');
+  if(business!=='5358328c-9724-49aa-affc-1bce8be90f92'||Number(currentBranchId())!==22
+     ||String(cfg.url).replace(/\/$/,'')!=='https://xihcxydjnzemflhedzor.supabase.co'){
+    throw new Error('هذا المسار متاح لتوب تشيكن بيتا فقط');
+  }
+  const actor=String(session?.user?.id||'');
+  if(!actor)throw new Error('جلسة الدخول غير صالحة');
+  const key=['tc-order-v2',business,actor,name,JSON.stringify(payload)].join(':');
+  let requestId=localStorage.getItem(key);
+  if(!requestId){
+    requestId=globalThis.crypto?.randomUUID?.();
+    if(!requestId)throw new Error('تعذر إنشاء معرّف آمن للطلب');
+    localStorage.setItem(key,requestId);
+    if(localStorage.getItem(key)!==requestId)throw new Error('تعذر حفظ معرّف المحاولة');
+  }
+  const result=await rpc(name,{...payload,p_request_id:requestId});
+  if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تنفيذ العملية');
+  localStorage.removeItem(key);
+  return result;
+}
 async function transitionTopChickenOrderStatus(orderId,expectedStatus,nextStatus){
   // Requires the audited server RPC. Never fall back to a broad orders PATCH.
   // Retain the request ID across retries and app restart; only clear on success.
   if(!expectedStatus || !nextStatus)throw new Error('حالة الطلب غير معروفة؛ حدّث الشاشة أولًا');
-  const key=['tc-status-v1',String(orderId),String(expectedStatus),String(nextStatus)].join(':');
-  let requestId=localStorage.getItem(key);
-  if(!requestId){
-    requestId=globalThis.crypto?.randomUUID?.();
-    if(!requestId)throw new Error('تعذر إنشاء معرّف آمن لتحديث حالة الطلب');
-    localStorage.setItem(key,requestId);
-  }
-  const result=await rpc('top_chicken_transition_order_status',{
+  return topChickenOrderOperation('top_chicken_transition_order_status',{
     p_order_id:Number(orderId),
     p_expected_status:String(expectedStatus),
-    p_new_status:String(nextStatus),
-    p_request_id:requestId
+    p_new_status:String(nextStatus)
   });
-  if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تغيير حالة الطلب');
-  localStorage.removeItem(key);
-  return result;
 }
 
 
@@ -2120,7 +2131,7 @@ function openDriverPicker(orderId, drivers, onDone){
  const m=document.createElement('div');m.className='modal';
  m.innerHTML=`<div class="modal-card driver-picker"><h2>🛵 تسليم الطلب لمندوب</h2><p>اختر المندوب</p><div class="driver-picker-list">${available.map(d=>`<button class="driver-pick-btn" data-driver-pick="${d.id}"><b>🛵 ${esc(d.name)}</b><small>${esc(d.phone||'بدون رقم')}</small></button>`).join('')}</div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button></div></div>`;
  document.body.appendChild(m);
- m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();const b=e.target.closest('[data-driver-pick]');if(!b)return;const d=available.find(x=>String(x.id)===String(b.dataset.driverPick));if(!d)return;try{await rest('orders',`id=eq.${orderId}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',orderId,{driver_id:d.id});m.remove();toast(`تم التسليم إلى ${d.name}`);if(onDone)onDone(d)}catch(err){toast(err.message)}};
+ m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();const b=e.target.closest('[data-driver-pick]');if(!b)return;const d=available.find(x=>String(x.id)===String(b.dataset.driverPick));if(!d)return;try{await topChickenOrderOperation('top_chicken_assign_order_driver',{p_order_id:Number(orderId),p_driver_id:Number(d.id)});m.remove();toast(`تم التسليم إلى ${d.name}`);if(onDone)onDone(d)}catch(err){toast(err.message)}};
 }
 
 function paymentStatusLabel(v){return ({unpaid:'💰 غير مدفوع',proof_submitted:'🧾 إيصال للمراجعة',confirmed:'✅ الدفع مؤكد',rejected:'❌ إثبات مرفوض'}[v]||'💰 غير مدفوع')}
@@ -2200,19 +2211,19 @@ async function openDeliveryOrderDetails(id){
          :'';
  m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(bonDisplay(o))}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div>${o.source==='website'?`<div class="payment-review-box"><h3>💳 حالة الدفع</h3><p>${paymentStatusHTML(o.payment_status)}</p><p><b>الطريقة:</b> ${esc(paymentLabel(o.payment_method))}${o.payment_reference?` • <b>المرجع:</b> ${esc(o.payment_reference)}`:''}</p><div class="payment-review-actions">${o.payment_receipt_path?`<button class="secondary" data-view-payment-receipt>🧾 عرض الإيصال</button>`:''}<button class="primary" data-payment-confirm>✅ تأكيد الدفع</button><button class="danger" data-payment-reject>رفض الإثبات</button><button class="secondary" data-payment-unpaid>غير مدفوع</button></div></div>`:''}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${action}</div></div>`;
  document.body.appendChild(m);
- m.onclick=async e=>{
+ m.onclick=async e=>{try{
    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
-   if(e.target.closest('[data-preparing]')){await transitionTopChickenOrderStatus(o.id,o.status,'preparing');await audit('mark_preparing','order',o.id,{});m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
-   if(e.target.closest('[data-ready]')){await transitionTopChickenOrderStatus(o.id,o.status,'ready');await audit('mark_ready','order',o.id,{});m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-preparing]')){await transitionTopChickenOrderStatus(o.id,o.status,'preparing');m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-ready]')){await transitionTopChickenOrderStatus(o.id,o.status,'ready');m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
    if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id));m.remove();openDriverPicker(o.id,list,()=>renderDeliveryOrders());return}
    if(e.target.closest('[data-view-payment-receipt]')){return openPaymentReceipt(o.payment_receipt_path)}
    if(e.target.closest('[data-payment-confirm]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'confirmed'});o.payment_status='confirmed';m.remove();toast('تم تأكيد الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-reject]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'rejected'});o.payment_status='rejected';m.remove();toast('تم رفض إثبات الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
-   if(e.target.closest('[data-completed]')){await transitionTopChickenOrderStatus(o.id,o.status,'completed');await audit('mark_pickup_completed','order',o.id,{});m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
-   if(e.target.closest('[data-delivered]')){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');await audit('mark_delivered','order',o.id,{});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
- };
+   if(e.target.closest('[data-completed]')){await transitionTopChickenOrderStatus(o.id,o.status,'completed');m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
+   if(e.target.closest('[data-delivered]')){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+ }catch(err){toast(err.message)} };
 }
 
 async function renderDeliverySettings(){

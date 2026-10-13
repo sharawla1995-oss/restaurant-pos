@@ -5,11 +5,20 @@ const os = require('os');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
+// Only the separate prelaunch build carries this metadata. It cannot contact live services.
+const TOP_CHICKEN_PRELAUNCH = require('./package.json').topChickenPrelaunch === true;
+if(TOP_CHICKEN_PRELAUNCH){
+  const isolatedPath=process.env.TOP_CHICKEN_TEST_USER_DATA;
+  if(isolatedPath)app.setPath('userData',path.resolve(isolatedPath));
+  app.on('web-contents-created',(_event,contents)=>{
+    contents.session.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_details,callback)=>callback({cancel:true}));
+  });
+}
 let db, SQL, mainWindow;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
-function backupDir(){const d=path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
+function backupDir(){const d=TOP_CHICKEN_PRELAUNCH?path.join(app.getPath('userData'),'prelaunch-backups'):path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
 
 function licenseStatePath(){return path.join(dataDir(),'sharawla-license-state.json')}
 function readLicenseStateFile(){
@@ -478,6 +487,7 @@ const https = require('https');
 const { spawn } = require('child_process');
 let updateCheckBusy = false;
 function readUpdateConfig(){
+  if(TOP_CHICKEN_PRELAUNCH)return {enabled:false,channel:'beta'};
   try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
 }
 function normalizeUpdateChannel(value){return String(value||'').trim().toLowerCase()==='beta'?'beta':'stable'}

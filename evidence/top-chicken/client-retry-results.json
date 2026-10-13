@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "name": "lost status response retains identity through full JS context restart",
+      "result": "PASS"
+    },
+    {
+      "name": "driver retry preserves identity after transport failure",
+      "result": "PASS"
+    },
+    {
+      "name": "actor identity separates durable requests",
+      "result": "PASS"
+    },
+    {
+      "name": "wrong tenant fails before RPC",
+      "result": "PASS"
+    },
+    {
+      "name": "lookalike Beta hostname rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "unconfirmed RPC result retains retry identity",
+      "result": "PASS"
+    },
+    {
+      "name": "storage write failure prevents network mutation",
+      "result": "PASS"
+    },
+    {
+      "name": "driver picker has RPC and no direct orders PATCH",
+      "result": "PASS"
+    }
+  ],
+  "scope": "actual app helper source in Node VM; no browser, Auth, Electron or external API"
+}

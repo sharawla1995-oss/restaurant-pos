@@ -1,0 +1,38 @@
+{
+  "extends": null,
+  "appId": "com.sharawla.topchicken.beta.prelaunch",
+  "productName": "Top Chicken Beta TEST",
+  "asar": true,
+  "files": [
+    "*.js",
+    "*.css",
+    "*.html",
+    "*.png",
+    "*.json",
+    "!package-lock.json",
+    "!top-chicken-test-build.json",
+    "!node_modules/@electric-sql/**"
+  ],
+  "directories": {
+    "output": "dist-top-chicken-test"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "zip",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "signAndEditExecutable": false
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "artifactName": "Top-Chicken-Beta-TEST-${version}-${arch}.${ext}",
+  "extraMetadata": {
+    "topChickenPrelaunch": true
+  }
+}
