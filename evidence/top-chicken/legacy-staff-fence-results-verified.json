@@ -1,0 +1,32 @@
+{
+  "scope": "Handler executed with mocked service clients; no hosted endpoint deployment",
+  "results": [
+    {
+      "name": "TC administrator fenced before Auth mutation",
+      "result": "PASS"
+    },
+    {
+      "name": "Other admin cannot create in TC branch",
+      "result": "PASS"
+    },
+    {
+      "name": "Other admin cannot reset TC password",
+      "result": "PASS"
+    },
+    {
+      "name": "TC legacy login fenced",
+      "result": "PASS"
+    },
+    {
+      "name": "Other activity password behavior preserved",
+      "result": "PASS"
+    },
+    {
+      "name": "Other activity login behavior preserved",
+      "result": "PASS"
+    }
+  ],
+  "source_commit": "04c90867498b2b2d32d6c81aa8c626edb8b067ca",
+  "run_id": 38511567411,
+  "job_id": 115681069016
+}

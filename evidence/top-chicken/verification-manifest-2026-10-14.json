@@ -1,0 +1,46 @@
+{
+  "source_commit": "fbcfdb7f53baf954cb0d72d3c4746496cf35b025",
+  "validation_commit": "04c90867498b2b2d32d6c81aa8c626edb8b067ca",
+  "native_sql": {
+    "run_id": 38510637731,
+    "job_id": 115678086410,
+    "result": "PASS",
+    "checks": 32
+  },
+  "windows": {
+    "run_id": 38510637731,
+    "job_id": 115678086214,
+    "result": "PASS",
+    "artifact_id": 11869692683,
+    "sha256": "634f0b3d198589ed460f757f5fea6160b6c954782775653156209893c06096d8",
+    "installed": false
+  },
+  "staff_browser": {
+    "run_id": 38511567411,
+    "job_id": 115681069016,
+    "result": "PASS",
+    "checks": 15,
+    "legacy_checks": 6,
+    "artifact_id": 11869911625,
+    "sha256": "ab648d87dcce20e13606fd3c3974bc642198fc6e1532df9367e16211f6479f11"
+  },
+  "failed_attempts": [
+    {
+      "run_id": 38510637731,
+      "reason": "Local Auth schema missing (SQL and Windows jobs PASS)"
+    },
+    {
+      "run_id": 38510881009,
+      "reason": "Local Auth migration expected postgres role"
+    },
+    {
+      "run_id": 38511075510,
+      "reason": "Local Auth connection search_path missing identities"
+    },
+    {
+      "run_id": 38511330901,
+      "reason": "Legacy identity fixture missing id; 14 Auth/browser checks PASS before final profile check"
+    }
+  ],
+  "live_changes": "NONE: no hosted SQL/Edge deployment, license/device changes, deletions, public intake changes or physical installation."
+}

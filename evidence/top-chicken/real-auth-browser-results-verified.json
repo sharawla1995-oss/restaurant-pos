@@ -1,0 +1,132 @@
+{
+  "auth": "EXECUTED: local supabase/gotrue:v2.196.0 with real Auth users and sessions; native PostgreSQL16",
+  "licensing": "Synthetic only; no physical devices or Cloud license writes",
+  "results": [
+    {
+      "name": "TC staff: unauthenticated and foreign admin rejected before provisioning",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: wrong branch, role and unknown permission rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: successful atomic employee/branch/permissions/membership binding",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: new cashier cannot administer staff or bypass service-only RPCs",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: exact replay and changed payload/password conflict",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: successful login uses active TC membership and real request handler",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: another activity password target rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: password change and replay preserve same target",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: permission-write failure leaves no partial staff membership, retry recovers",
+      "result": "PASS"
+    },
+    {
+      "name": "TC staff: revoked membership cannot log in or replay",
+      "result": "PASS"
+    },
+    {
+      "name": "Browser: administrator login and staff creation through actual POS form",
+      "result": "PASS"
+    },
+    {
+      "name": "Browser: website pickup \u2192 cashier acceptance \u2192 full fulfillment",
+      "result": "PASS"
+    },
+    {
+      "name": "Browser: website delivery \u2192 cashier acceptance \u2192 full fulfillment",
+      "result": "PASS"
+    },
+    {
+      "name": "Browser: closed fixture intake blocks customer submission",
+      "result": "PASS"
+    },
+    {
+      "name": "Operational profile: legacy activity binding remains unchanged; TC selects its own cache",
+      "result": "PASS"
+    }
+  ],
+  "browser": {
+    "api_trace": [
+      {
+        "method": "POST",
+        "rpc": "create_website_order",
+        "result_id": "20000"
+      },
+      {
+        "method": "POST",
+        "rpc": "accept_website_order",
+        "result_id": "20000"
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20000
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20000
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20000
+      },
+      {
+        "method": "POST",
+        "rpc": "create_website_order",
+        "result_id": "20001"
+      },
+      {
+        "method": "POST",
+        "rpc": "accept_website_order",
+        "result_id": "20001"
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20001
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20001
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_assign_order_driver",
+        "result_id": 20001
+      },
+      {
+        "method": "POST",
+        "rpc": "top_chicken_transition_order_status",
+        "result_id": 20001
+      }
+    ],
+    "unexpected_external": [],
+    "page_errors": [],
+    "website_source_sha": "fa1537646aa0c5e1177910314b8595c3b2da3af5",
+    "scope": "Actual customer and POS UI, loopback SQL adapter; licensing synthetic; no real devices or physical printing"
+  },
+  "source_commit": "04c90867498b2b2d32d6c81aa8c626edb8b067ca",
+  "run_id": 38511567411,
+  "job_id": 115681069016
+}

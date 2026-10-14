@@ -1,0 +1,147 @@
+{
+  "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "engine": "native PostgreSQL16 loopback-only isolated CI",
+  "native_pg16": "EXECUTED",
+  "fixture": "21 deployed table column definitions; selected PK/check constraints, canonical owners and selected real triggers; synthetic auth claims, profile/feature fixtures",
+  "concurrency": "EXECUTED: two independent connections",
+  "website_to_pos_ui": "NOT RUN",
+  "results": [
+    {
+      "name": "pinned canonical owner repair applies without definition drift",
+      "result": "PASS"
+    },
+    {
+      "name": "candidate SQL compiles on PostgreSQL16",
+      "result": "PASS"
+    },
+    {
+      "name": "anonymous rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "wrong tenant rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "forged selector rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "forged device binding rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "inactive employee rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "wrong branch admin rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "cross-tenant and cross-branch order rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "invalid TC binding fails closed",
+      "result": "PASS"
+    },
+    {
+      "name": "cashier pickup full SQL state cycle",
+      "result": "PASS"
+    },
+    {
+      "name": "exact replay returns original result without audit/event duplication",
+      "result": "PASS"
+    },
+    {
+      "name": "revoked membership cannot replay a prior successful receipt",
+      "result": "PASS"
+    },
+    {
+      "name": "changed payload and actor replay rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "stale and cancelled transition rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "explicit employee action deny overrides cashier default",
+      "result": "PASS"
+    },
+    {
+      "name": "feature denial remains fail closed for assignment",
+      "result": "PASS"
+    },
+    {
+      "name": "cashier delivery preparing and ready",
+      "result": "PASS"
+    },
+    {
+      "name": "delivery cannot complete as pickup",
+      "result": "PASS"
+    },
+    {
+      "name": "unknown order type cannot complete as pickup",
+      "result": "PASS"
+    },
+    {
+      "name": "inactive/cross-branch/cross-tenant drivers rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "delivery role cannot assign driver",
+      "result": "PASS"
+    },
+    {
+      "name": "driver assignment and exact replay",
+      "result": "PASS"
+    },
+    {
+      "name": "delivery without driver rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "canonical delivery owner finalizes cash payment and custody once",
+      "result": "PASS"
+    },
+    {
+      "name": "audit failure rolls status, event and receipt back atomically",
+      "result": "PASS"
+    },
+    {
+      "name": "receipt failure rolls canonical state and audit back",
+      "result": "PASS"
+    },
+    {
+      "name": "authenticated broad table UPDATE remains absent",
+      "result": "PASS"
+    },
+    {
+      "name": "anon execute and private receipt access absent",
+      "result": "PASS"
+    },
+    {
+      "name": "existing staff-create payload is rejected by deployed dependency schema",
+      "result": "PASS"
+    },
+    {
+      "name": "native simultaneous same request commits once and replays once",
+      "result": "PASS"
+    },
+    {
+      "name": "native different request IDs racing same order reject stale writer",
+      "result": "PASS"
+    }
+  ],
+  "counts": [
+    {
+      "audit_count": "9",
+      "receipt_count": "9"
+    }
+  ],
+  "source_commit": "fbcfdb7f53baf954cb0d72d3c4746496cf35b025",
+  "run_id": 38510637731,
+  "job_id": 115678086410
+}

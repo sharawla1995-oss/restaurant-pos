@@ -1,0 +1,50 @@
+{
+  "result": "PASS",
+  "commit": "fbcfdb7f53baf954cb0d72d3c4746496cf35b025",
+  "checks": [
+    "Distinct TEST appId and metadata",
+    "Packaged app.js exactly matches tested source",
+    "ZIP and NSIS generated with publish never"
+  ],
+  "artifacts": [
+    {
+      "name": "Top-Chicken-Beta-TEST-10.5.4-beta.17-x64.zip",
+      "bytes": 101192274,
+      "sha256": "2e703a2eb9ea5d2e469cf808354905554ff49be13a04466fbddcf5b27cb15b10"
+    },
+    {
+      "name": "Top-Chicken-Beta-TEST-10.5.4-beta.17.exe",
+      "bytes": 75035854,
+      "sha256": "19078acb80dacf0d53ca493984845aec559a4ec39cf50c86b9534cde9f563db9"
+    }
+  ],
+  "closed_runtime_files": [
+    {
+      "name": "main.js",
+      "sha256": "d11a78186d3ee878eb6347c897c2214e8cb137819cc7c7a227e9d9909795fe78"
+    },
+    {
+      "name": "preload.js",
+      "sha256": "68d96952327e487dc7e90081549d67fa118fb90010c341457e4022de30ec98f8"
+    }
+  ],
+  "installation": "NOT EXECUTED: candidate only; prior isolated installation closure retained",
+  "download_sha256": "634f0b3d198589ed460f757f5fea6160b6c954782775653156209893c06096d8",
+  "local_asar_verification": [
+    {
+      "file": "app.js",
+      "normalized_sha256": "069e7a857224172e00c7c8b75aa0656ab13399f79a1b1050edf7954d420160f5",
+      "matches_tested_source_and_current_HEAD": true
+    },
+    {
+      "file": "main.js",
+      "normalized_sha256": "80d7fd412f141c5f5eccd4dc9999d8ea9cbb9ff2de4e9b99aaad55afcd3686c0",
+      "matches_tested_source_and_current_HEAD": true
+    },
+    {
+      "file": "preload.js",
+      "normalized_sha256": "89a2854f4b16f94650f38374278d8cc9c95e98d547514f00de3ff862175bacab",
+      "matches_tested_source_and_current_HEAD": true
+    }
+  ]
+}
