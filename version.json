@@ -1,6 +1,6 @@
 {
   "product": "Sharawla POS",
-  "version": "10.5.19-rc.3",
+  "version": "10.5.19-rc.4",
   "channel": "beta",
   "source": "github",
   "windows": {
