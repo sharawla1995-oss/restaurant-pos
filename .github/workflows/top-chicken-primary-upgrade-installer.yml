@@ -14,6 +14,7 @@ on:
       - 'top-chicken-updates/sh0008.json'
       - 'tests/top-chicken/primary-*.cjs'
       - 'tests/top-chicken/top-chicken-update-channel.cjs'
+      - 'tests/top-chicken/login-edge-route-regression.cjs'
       - '.github/workflows/top-chicken-primary-upgrade-installer.yml'
   workflow_dispatch:
 permissions:
@@ -40,6 +41,7 @@ jobs:
         run: |
           npm run check
           node tests/top-chicken/primary-base-port-check.cjs
+          node tests/top-chicken/login-edge-route-regression.cjs
           node --check main.js
       - name: Ensure official installer identity is unchanged, stable releases not published
         shell: pwsh
