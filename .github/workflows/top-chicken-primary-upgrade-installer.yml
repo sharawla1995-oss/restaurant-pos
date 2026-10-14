@@ -53,7 +53,7 @@ jobs:
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           if ($pkg.name -ne 'sharawla-pos-windows' -or $pkg.build.appId -ne 'com.topburger.pos' -or $pkg.build.productName -ne 'Sharawla POS') { throw 'Not an in-place main POS update' }
-          if ($pkg.version -ne '10.5.19-rc.5') { throw 'Candidate version drift' }
+          if ($pkg.version -ne '10.5.19-rc.6') { throw 'Candidate version drift' }
           $updates = Get-Content update-config.json -Raw | ConvertFrom-Json
           if (-not $updates.enabled -or $updates.channel -ne 'top-chicken-sh0008') { throw 'Dedicated TC channel required; general latest forbidden' }
       - name: Verify tenant-scoped update selector
@@ -114,7 +114,7 @@ jobs:
           if ($proc.ExitCode -ne 0) { throw "rc.4 install exit $($proc.ExitCode)" }
       - name: Verify existing rc.4 startup and same SQLite data before hotfix
         run: node tests/top-chicken/primary-install-upgrade-smoke.cjs middle
-      - name: Upgrade IN PLACE to Top Chicken primary 10.5.19-rc.5 on disposable Windows
+      - name: Upgrade IN PLACE to Top Chicken primary 10.5.19-rc.6 on disposable Windows
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: top-chicken-SH0008-primary-10.5.19-rc.5-${{ github.sha }}
+          name: top-chicken-SH0008-primary-10.5.19-rc.6-${{ github.sha }}
           retention-days: 30
           path: |
             dist/Top-Chicken-SH0008-Primary-*.exe
