@@ -1,0 +1,75 @@
+name: Top Chicken connected QA off-device Windows installer
+on:
+  push:
+    branches: [build/top-chicken-connected-qa-20261014]
+    paths:
+      - 'main.js'
+      - 'app.js'
+      - 'preload.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'version.json'
+      - 'index.html'
+      - 'sw.js'
+      - 'top-chicken-connected-qa-build.json'
+      - 'tests/top-chicken/connected-qa-*.mjs'
+      - 'tests/top-chicken/connected-qa-*.cjs'
+      - '.github/workflows/top-chicken-connected-qa-windows.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+concurrency:
+  group: top-chicken-connected-qa-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  windows-qa:
+    if: github.ref == 'refs/heads/build/top-chicken-connected-qa-20261014'
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated Windows test dependencies
+        run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - name: Validate source and version
+        run: npm run check
+      - name: Verify checked-in version files not rewritten by build
+        shell: bash
+        run: test -z "$(git status --porcelain package.json package-lock.json version.json index.html sw.js)"
+      - name: Build separately identified connected QA installer (no publish)
+        run: npx electron-builder --config top-chicken-connected-qa-build.json --win nsis --x64 --publish never
+      - name: Validate actual packaged app and installer checksum
+        run: node tests/top-chicken/connected-qa-package-check.cjs
+      - name: Install only on disposable Windows CI, no real user devices
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Get-ChildItem dist-top-chicken-connected-qa -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw 'Connected QA installer missing' }
+          $target = Join-Path $env:RUNNER_TEMP 'Top-Chicken-QA-Isolated-Install'
+          if (Test-Path $target) { throw 'CI target already exists' }
+          $proc = Start-Process $installer.FullName -ArgumentList @('/S', "/D=$target") -PassThru
+          if (-not $proc.WaitForExit(180000)) { throw 'QA installation timeout' }
+          if ($proc.ExitCode -ne 0) { throw "QA installer returned $($proc.ExitCode)" }
+          $app = Join-Path $target 'Top Chicken Connected QA.exe'
+          if (-not (Test-Path $app)) { throw 'Installed QA executable missing' }
+          Rename-Item dist-top-chicken-connected-qa/win-unpacked win-unpacked-source
+          New-Item -ItemType Junction -Path dist-top-chicken-connected-qa/win-unpacked -Target $target | Out-Null
+          @{
+            result = 'PASS'
+            installed_in = 'ephemeral CI only'
+            physical_device = 'NOT INSTALLED'
+            sha256 = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          } | ConvertTo-Json | Set-Content evidence/top-chicken/connected-qa-installer-result.json
+      - name: Execute isolated QA app, full exit, second process, and SQLite persistence (network OFF)
+        run: node tests/top-chicken/connected-qa-windows-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-connected-QA-offdevice-${{ github.sha }}
+          retention-days: 30
+          path: |
+            dist-top-chicken-connected-qa/*.exe
+            evidence/top-chicken/connected-qa-*.json
