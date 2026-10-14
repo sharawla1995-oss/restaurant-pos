@@ -1,5 +1,5 @@
-const CACHE='sharawla-pos-v10.5.19-rc.1';
-const SHELL=['./','./index.html','./styles.css?v=10.5.19-rc.1','./sharawla-runtime-core.js?v=10.5.19-rc.1','./restaurant-engine.js?v=10.5.19-rc.1','./app.js?v=10.5.19-rc.1','./manifest.json','./icon-192.png','./icon-512.png'];
+const CACHE='sharawla-pos-v10.5.19-rc.2';
+const SHELL=['./','./index.html','./styles.css?v=10.5.19-rc.2','./sharawla-runtime-core.js?v=10.5.19-rc.2','./restaurant-engine.js?v=10.5.19-rc.2','./app.js?v=10.5.19-rc.2','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{
