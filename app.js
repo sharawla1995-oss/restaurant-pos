@@ -2589,7 +2589,23 @@ async function openDeliveryOrderDetails(id){
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
    if(e.target.closest('[data-change-payment]')){return openDeliveryPaymentChange(o,async()=>{m.remove();await renderDeliveryOrders()})}
    if(e.target.closest('[data-settle-order]')){if(!await uiConfirm(`تسوية بون ${bonDisplay(o)} بإجمالي ${money(o.total)}؟`))return;try{await settleDeliveryOrders([o.id],o.driver_id,o.branch_id);await audit('driver_settlement','order',o.id,{orders_count:1,amount:Number(o.total||0),driver_id:o.driver_id});m.remove();toast('تمت تسوية الأوردر');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
-   if(e.target.closest('[data-preparing]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'preparing');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});await audit('mark_preparing','order',o.id,{});}m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-preparing]')){
+     const btn=e.target.closest('[data-preparing]');
+     if(btn.disabled)return;
+     btn.disabled=true;btn.textContent='جارٍ تسجيل حالة التجهيز...';
+     try{
+       if(await isTopChickenStaffContext()){
+         await transitionTopChickenOrderStatus(o.id,o.status,'preparing');
+       }else{
+         await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});
+         await audit('mark_preparing','order',o.id,{});
+       }
+     }catch(err){
+       btn.disabled=false;btn.textContent='🍳 جاري التجهيز';
+       throw err;
+     }
+     m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()
+   }
    if(e.target.closest('[data-ready]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'ready');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'ready'})});await audit('mark_ready','order',o.id,{});}m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
    if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id)&&d.active!==false);m.remove();openDriverPicker(o.id,list,()=>renderDeliveryOrders());return}
    if(e.target.closest('[data-view-payment-receipt]')){return openPaymentReceipt(o.payment_receipt_path)}
@@ -2598,7 +2614,27 @@ async function openDeliveryOrderDetails(id){
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
    if(e.target.closest('[data-completed]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'completed');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'completed',delivered_at:new Date().toISOString()})});await audit('mark_pickup_completed','order',o.id,{});}m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
    if(e.target.closest('[data-delivered]')){if(!await confirmDeliveryPaymentAtHandover(o))return;if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{payment_method:o.payment_method});}m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
-  }catch(err){toast('تعذر تغيير حالة الطلب: '+String(err?.message||err));console.warn('delivery-order-action',err)}
+  }catch(err){
+    const reason=String(err?.message||err);
+    toast('تعذر تغيير حالة الطلب: '+reason);
+    // The 2.6s toast disappears too quickly to diagnose an operator's failed tap.
+    // Keep the exact server/client rejection visible in this order's own modal,
+    // scoped to the licensed Top Chicken Beta business, without any DB write.
+    if(String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'
+       &&Number(currentBranchId())===22){
+      let alert=m.querySelector('[data-tc-order-action-error]');
+      if(!alert){
+        alert=document.createElement('div');
+        alert.dataset.tcOrderActionError='1';
+        alert.setAttribute('role','alert');
+        alert.style.cssText='padding:12px;margin:10px 0;border:2px solid #f59e0b;border-radius:8px;white-space:pre-wrap;font-weight:bold;overflow-wrap:anywhere';
+        const actions=m.querySelector('.modal-actions');
+        if(actions)actions.before(alert);else m.querySelector('.modal-card')?.append(alert);
+      }
+      alert.textContent='تعذر تحديث حالة أوردر #'+String(o.id)+' من '+String(o.status)+' — '+reason+'.\nصوّر هذه الرسالة قبل إعادة المحاولة.';
+    }
+    console.warn('delivery-order-action',err)
+  }
  };
 }
 
