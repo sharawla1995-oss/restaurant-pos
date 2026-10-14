@@ -1,0 +1,42 @@
+{
+  "extends": null,
+  "appId": "com.sharawla.topchicken.qa.connected20261014",
+  "productName": "Top Chicken Connected QA",
+  "asar": true,
+  "files": [
+    "*.js",
+    "*.css",
+    "*.html",
+    "*.png",
+    "*.json",
+    "!package-lock.json",
+    "!top-chicken-test-build.json",
+    "!top-chicken-connected-qa-build.json",
+    "!node_modules/@electric-sql/**"
+  ],
+  "directories": {
+    "output": "dist-top-chicken-connected-qa"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "signAndEditExecutable": false
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": false,
+    "createStartMenuShortcut": false
+  },
+  "artifactName": "Top-Chicken-Connected-QA-${version}-${arch}.${ext}",
+  "extraMetadata": {
+    "topChickenConnectedQa": true,
+    "topChickenPrelaunch": false
+  }
+}
