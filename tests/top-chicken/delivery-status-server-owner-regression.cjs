@@ -12,6 +12,10 @@ assert.ok(snippet.includes("rpc('order_status_apply_offline_v2'"),'existing audi
 assert.ok(snippet.includes("rpc('offline_delivery_assign_driver_v1'"),'existing audited driver idempotency owner required');
 assert.ok(!snippet.includes("rest('orders'"),'no broad PATCH fallback');
 assert.ok(source.includes("toast('تعذر تغيير حالة الطلب: '"),'errors must be visible in modal');
+assert.ok(source.includes("alert.dataset.tcOrderActionError='1'"),'persistent modal error must survive 2.6s toast');
+assert.ok(source.includes("btn.disabled=true;btn.textContent='جارٍ تسجيل حالة التجهيز...'"),'preparing button must block double-submit');
+assert.ok(source.includes("btn.disabled=false;btn.textContent='🍳 جاري التجهيز'"),'retry button restored on server error');
+assert.ok(source.includes("alert.textContent='تعذر تحديث حالة أوردر #'"),'failed order and actual rejection reason displayed');
 const kept=new Map(),calls=[];
 let failOnce=false,number=0,branch=22;
 const business='5358328c-9724-49aa-affc-1bce8be90f92';
