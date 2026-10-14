@@ -5,7 +5,7 @@ const TC_DEVICE = '44162475-3ca2-4a2b-8bd5-aee1c7bb1c73';
 const TC_CHANNEL = 'top-chicken-sh0008';
 const SUPABASE_CENTRAL = 'https://ikppryeavoabnugcijeq.supabase.co';
 const CENTRAL_PUBLISHABLE_KEY = 'sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
-const FEED_URL = 'https://raw.githubusercontent.com/sharawla1995-oss/restaurant-pos/release/top-chicken-sh0008-primary-v10.5.19-candidate/top-chicken-updates/sh0008.json';
+const FEED_URL = 'https://raw.githubusercontent.com/sharawla1995-oss/restaurant-pos/refs/heads/release/top-chicken-sh0008-primary-v10.5.19-candidate/top-chicken-updates/sh0008.json';
 const RELEASE_BASE = 'https://github.com/sharawla1995-oss/restaurant-pos/releases/download/';
 function identify(state, fingerprintCandidates){
   if (!state || String(state.business_id||'')!==TC_BUSINESS || String(state.device_id||'')!==TC_DEVICE) return false;
