@@ -1,4 +1,4 @@
-// Windows-only disposable-runner upgrade acceptance: official 10.5.15 -> Top Chicken 10.5.19-rc.2.
+// Windows-only disposable-runner upgrade acceptance: official 10.5.15 -> Top Chicken 10.5.19-rc.3.
 // No hosted credentials, SQL, Edge changes, physical devices or real customer data.
 const assert=require('node:assert/strict');
 const path=require('node:path');
@@ -30,8 +30,8 @@ async function launch(label,version,seed=false){
     assert.ok(paths.data.startsWith(observed.userData),'DB within fixed legacy userData');
     if(!seed){
       assert.deepEqual(await win.evaluate(()=>window.topBurgerDesktop.db.get('tc-primary-upgrade-fixture')),{kind:'CI-ONLY',amount:319,from:'10.5.15'},'local DB survives main installer upgrade');
-      await win.evaluate(()=>window.topBurgerDesktop.db.set('tc-primary-new-writer-proof',{written:'10.5.19-rc.2'}));
-      assert.deepEqual(await win.evaluate(()=>window.topBurgerDesktop.db.get('tc-primary-new-writer-proof')),{written:'10.5.19-rc.2'},'new Windows SQLite writer works');
+      await win.evaluate(()=>window.topBurgerDesktop.db.set('tc-primary-new-writer-proof',{written:'10.5.19-rc.3'}));
+      assert.deepEqual(await win.evaluate(()=>window.topBurgerDesktop.db.get('tc-primary-new-writer-proof')),{written:'10.5.19-rc.3'},'new Windows SQLite writer works');
     }
     const pid=instance.process().pid;
     results.push({label,version:observed.version,userData:observed.userData,database:paths.database,pid,preservedFixture:true});
@@ -65,7 +65,7 @@ async function seedSyntheticLegacyRecord(userData){
      await seedSyntheticLegacyRecord(previous.userData);
      fs.writeFileSync('evidence/top-chicken/primary-upgrade-before-state.json',JSON.stringify(previous));
    }else if(v==='after'){
-     previous=await launch('candidate-10.5.19-rc.2','10.5.19-rc.2',false);
+     previous=await launch('candidate-10.5.19-rc.3','10.5.19-rc.3',false);
      const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
      assert.equal(previous.userData,original.userData,'same installed app userData before/after upgrade');
    }else throw Error('Expected "before" or "after"');
