@@ -1,0 +1,12 @@
+{
+  "source_commit": "fc4ca195a9e96c26a9a8c9b98eb0b2ea8a7b01c0",
+  "workflow_run": 38590271013,
+  "job": 115943058200,
+  "artifact": 11906618822,
+  "archive_sha256": "2f67af2348db10685240656dfe44cdefc9c1017577ba0b54f4a513d44904683b",
+  "installer_filename": "Top-Chicken-Beta-TEST-10.5.4-beta.17.exe",
+  "installer_sha256": "2922f192d57ee637040e34b999d3dd228f027b62819f63b9d05db63172962814",
+  "result": "PASS: build and final ASAR/package check only",
+  "installation": "NOT EXECUTED this revision",
+  "runtime": "Previous accepted runtime retained; main/preload unchanged"
+}

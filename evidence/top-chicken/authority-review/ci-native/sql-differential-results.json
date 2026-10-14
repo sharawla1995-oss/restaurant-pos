@@ -1,0 +1,334 @@
+{
+  "engine": "native PostgreSQL16",
+  "scope": "Original deployed owners/shared functions vs TC candidate, synthetic non-TC activity, real identity semantics; timestamps/random event UUIDs normalized only",
+  "results": [
+    {
+      "name": "enabled: identity selects original other business",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: profile normalizes legacy value",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: enabled entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: trimmed entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: unknown entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: empty entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: null entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "enabled: other activity fulfillment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": null,
+      "behavior_sha256": "0adac9032fd043f8f666c45039274e1dc2741e2d6403a71f035ef6333bf9ea4c"
+    },
+    {
+      "name": "enabled: other activity invalid status",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "178e994028886af6434f219279b9c266b76bfd305c7274be9b140fbe9c8bc8ec"
+    },
+    {
+      "name": "enabled: other activity missing order",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b99086a59329f898543a7b760d5a066b62e16bfcfea532a8d69b2d3e25b25534"
+    },
+    {
+      "name": "enabled: other activity driver assignment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": null,
+      "behavior_sha256": "006e485cbbd58664a71a01da61de9c2b5ef9c4ebc31892ad9c9f70514c2823be"
+    },
+    {
+      "name": "enabled: other activity inactive driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "7ffd904aca17c4b5cbec6ab7785a5b08af02d22ab3f0dae79715e1ed83f13fe3"
+    },
+    {
+      "name": "enabled: other activity wrong-branch driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "27a1bc542a6290bea561787c4923fadfb29d4975beb43ee402142cc5218ef34f"
+    },
+    {
+      "name": "enabled: other activity missing driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "7ffd904aca17c4b5cbec6ab7785a5b08af02d22ab3f0dae79715e1ed83f13fe3"
+    },
+    {
+      "name": "enabled: other activity cash delivery and custody with identity IDs",
+      "result": "PASS",
+      "baseline_error": null,
+      "behavior_sha256": "c0e99f0847bfb41a03d81314749cbd723837a9bcaa7d73623d56814f109d037c"
+    },
+    {
+      "name": "enabled: other activity unavailable payment",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "2ce3477064d78561d576f8509257096793d27299864abf77336374654e231207"
+    },
+    {
+      "name": "enabled: other activity mixed payment denial",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "a3d92036cc1465fbb54a1e8ecdc4673e9bc56d90fbdd4d5a22dab766bd463206"
+    },
+    {
+      "name": "enabled: other activity actor cannot access another branch",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "21857cd00759d588ea59f4342381c311e2375b0ef1b0e9de6637f00320fb3a18"
+    },
+    {
+      "name": "disabled: identity selects original other business",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: profile normalizes legacy value",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: enabled entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: trimmed entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: unknown entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: empty entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: null entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "disabled: other activity fulfillment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": null,
+      "behavior_sha256": "0adac9032fd043f8f666c45039274e1dc2741e2d6403a71f035ef6333bf9ea4c"
+    },
+    {
+      "name": "disabled: other activity invalid status",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "178e994028886af6434f219279b9c266b76bfd305c7274be9b140fbe9c8bc8ec"
+    },
+    {
+      "name": "disabled: other activity missing order",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b99086a59329f898543a7b760d5a066b62e16bfcfea532a8d69b2d3e25b25534"
+    },
+    {
+      "name": "disabled: other activity driver assignment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "disabled: other activity inactive driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "disabled: other activity wrong-branch driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "disabled: other activity missing driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "disabled: other activity cash delivery and custody with identity IDs",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b9e7ad6d835547f27df7e313974759d00c7f1d028a1072eea3c6df5e5da2ce4e"
+    },
+    {
+      "name": "disabled: other activity unavailable payment",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b9e7ad6d835547f27df7e313974759d00c7f1d028a1072eea3c6df5e5da2ce4e"
+    },
+    {
+      "name": "disabled: other activity mixed payment denial",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "a3d92036cc1465fbb54a1e8ecdc4673e9bc56d90fbdd4d5a22dab766bd463206"
+    },
+    {
+      "name": "disabled: other activity actor cannot access another branch",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "21857cd00759d588ea59f4342381c311e2375b0ef1b0e9de6637f00320fb3a18"
+    },
+    {
+      "name": "expired: identity selects original other business",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: profile normalizes legacy value",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: enabled entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: trimmed entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: unknown entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: empty entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: null entitlement",
+      "result": "PASS",
+      "baseline_error": "42501",
+      "behavior_sha256": "a5d6bd5e3f55cb7214317d887386f9172a9f250031e036dc9463d119ec7f683b"
+    },
+    {
+      "name": "expired: other activity fulfillment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": null,
+      "behavior_sha256": "0adac9032fd043f8f666c45039274e1dc2741e2d6403a71f035ef6333bf9ea4c"
+    },
+    {
+      "name": "expired: other activity invalid status",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "178e994028886af6434f219279b9c266b76bfd305c7274be9b140fbe9c8bc8ec"
+    },
+    {
+      "name": "expired: other activity missing order",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b99086a59329f898543a7b760d5a066b62e16bfcfea532a8d69b2d3e25b25534"
+    },
+    {
+      "name": "expired: other activity driver assignment with identity-generated IDs",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "expired: other activity inactive driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "expired: other activity wrong-branch driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "expired: other activity missing driver",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "af3462ea0e4c92a7f99d328b3f55453e6a8bc5c2ab565f53d3c1978606f75f8b"
+    },
+    {
+      "name": "expired: other activity cash delivery and custody with identity IDs",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b9e7ad6d835547f27df7e313974759d00c7f1d028a1072eea3c6df5e5da2ce4e"
+    },
+    {
+      "name": "expired: other activity unavailable payment",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "b9e7ad6d835547f27df7e313974759d00c7f1d028a1072eea3c6df5e5da2ce4e"
+    },
+    {
+      "name": "expired: other activity mixed payment denial",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "a3d92036cc1465fbb54a1e8ecdc4673e9bc56d90fbdd4d5a22dab766bd463206"
+    },
+    {
+      "name": "expired: other activity actor cannot access another branch",
+      "result": "PASS",
+      "baseline_error": "P0001",
+      "behavior_sha256": "21857cd00759d588ea59f4342381c311e2375b0ef1b0e9de6637f00320fb3a18"
+    },
+    {
+      "name": "All five non-TC INSERT statements remain literal original source (identity/default behavior)",
+      "result": "PASS"
+    }
+  ]
+}

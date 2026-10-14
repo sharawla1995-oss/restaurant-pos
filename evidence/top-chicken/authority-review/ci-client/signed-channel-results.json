@@ -1,0 +1,53 @@
+{
+  "transport": "Local HTTP Request/Response with real WebCrypto HMAC; no hosted deployment",
+  "results": [
+    {
+      "name": "Real HMAC transport succeeds using only a public API key and dedicated TC secret",
+      "result": "PASS"
+    },
+    {
+      "name": "Wrong signature cannot reach the Cloud reader",
+      "result": "PASS"
+    },
+    {
+      "name": "stale request is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "future request is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "foreign business selector is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "device selector is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "invalid nonce is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "arbitrary RPC is rejected before database reads",
+      "result": "PASS"
+    },
+    {
+      "name": "wrong nonce response is rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "wrong RPC response is rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "foreign business snapshot response is rejected",
+      "result": "PASS"
+    },
+    {
+      "name": "Cloud network failure is denied without fallback",
+      "result": "PASS"
+    }
+  ]
+}

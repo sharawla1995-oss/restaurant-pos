@@ -1,0 +1,32 @@
+{
+  "result": "PASS",
+  "commit": "fc4ca195a9e96c26a9a8c9b98eb0b2ea8a7b01c0",
+  "checks": [
+    "Distinct TEST appId and metadata",
+    "Packaged app.js exactly matches tested source",
+    "ZIP and NSIS generated with publish never"
+  ],
+  "artifacts": [
+    {
+      "name": "Top-Chicken-Beta-TEST-10.5.4-beta.17-x64.zip",
+      "bytes": 101192291,
+      "sha256": "9bd3874ba533067daa399a817d5286bbc3ead66e4fc71a0a40ed5be86706fc2e"
+    },
+    {
+      "name": "Top-Chicken-Beta-TEST-10.5.4-beta.17.exe",
+      "bytes": 75035877,
+      "sha256": "2922f192d57ee637040e34b999d3dd228f027b62819f63b9d05db63172962814"
+    }
+  ],
+  "closed_runtime_files": [
+    {
+      "name": "main.js",
+      "sha256": "d11a78186d3ee878eb6347c897c2214e8cb137819cc7c7a227e9d9909795fe78"
+    },
+    {
+      "name": "preload.js",
+      "sha256": "68d96952327e487dc7e90081549d67fa118fb90010c341457e4022de30ec98f8"
+    }
+  ],
+  "installation": "NOT EXECUTED: candidate only; prior isolated installation closure retained"
+}

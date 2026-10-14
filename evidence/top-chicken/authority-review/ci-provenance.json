@@ -1,0 +1,52 @@
+{
+  "base": "c65d3311811db7ac33b2ed77e3b365e17839622b",
+  "source_fix": "fc4ca195a9e96c26a9a8c9b98eb0b2ea8a7b01c0",
+  "final_ci_configuration": "bf11c9a8a7ee6a42c4eea84287ced0047d70f218",
+  "native_run": 38590617113,
+  "native_entitlement_job": 115944214874,
+  "native_compatibility_job": 115944214488,
+  "native_compatibility_note": "SQL55 and smart40 steps PASS; job failed later on missing frontend baseline history. Only client/channel rerun after checkout fix.",
+  "final_run": 38591052485,
+  "final_client_job": 115945841167,
+  "final_run_result": "success",
+  "closed_tests": "Previous accepted suites retained. No rerun of prior Auth/browser/installer/runtime suites.",
+  "new_ci_assertions": 147,
+  "suites": [
+    {
+      "file": "evidence/top-chicken/authority-review/ci-native/entitlement-results.json",
+      "assertions": 36,
+      "result": "PASS",
+      "sha256": "66f07308eb1eb78828a4ad6f5da7818f607d3689d49773e2269421249c84ea29"
+    },
+    {
+      "file": "evidence/top-chicken/authority-review/ci-native/smart-differential-results.json",
+      "assertions": 40,
+      "result": "PASS",
+      "sha256": "8d8cf4ed3ca5b09700c94bc876d06214ca08bb6a32ee6dec597669f2aa64a67d"
+    },
+    {
+      "file": "evidence/top-chicken/authority-review/ci-native/sql-differential-results.json",
+      "assertions": 55,
+      "result": "PASS",
+      "sha256": "b94618fe66d4eca3c3260c01ebe7e0d21d854ddfcfe67635dc37c29071edfa8d"
+    },
+    {
+      "file": "evidence/top-chicken/authority-review/ci-client/client-routing-results.json",
+      "assertions": 4,
+      "result": "PASS",
+      "sha256": "371cb8ca682bb8dac2a2d182e0907353fd038dd36fcba395a38ed94f7b6be025"
+    },
+    {
+      "file": "evidence/top-chicken/authority-review/ci-client/signed-channel-results.json",
+      "assertions": 12,
+      "result": "PASS",
+      "sha256": "682e28c31764f76916cdc1c486819b32196ed7af18de5c7c9ee77f681053bd42"
+    }
+  ],
+  "release_result": "BLOCKED",
+  "full_backup": "NOT EXECUTED: no approved PostgreSQL export connection",
+  "full_restore": "NOT EXECUTED",
+  "scoped_restore": "PASS8 local only; see scoped-restore-results.json",
+  "cloud_commercial_grants": "16 NOT_ENTITLED in actual read-only snapshot; no grants changed",
+  "deployment": "NOT EXECUTED; independent approval required"
+}
