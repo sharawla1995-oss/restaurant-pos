@@ -34,7 +34,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 15
     env:
-      TC_REVIEW_OUTPUT: ${{ runner.temp }}/tc-authority-results
+      TC_REVIEW_OUTPUT: evidence/top-chicken/authority-review/ci-results
       TOP_CHICKEN_PG_URL: postgresql://postgres:isolated-review-only@127.0.0.1:5432/top_chicken_prelaunch
     steps:
       - uses: actions/checkout@v4
