@@ -524,7 +524,57 @@ async function offlineQueue(){
   return q
 }
 async function setOfflineQueue(q){await odbSet('queue',q);try{if(window.topBurgerDesktop?.db?.set)await window.topBurgerDesktop.db.set('queueCount',q.length)}catch{}updatePendingSyncBadge(q.length);return q}
-function updatePendingSyncBadge(n){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('div');el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el)}const c=Number(n||0);el.textContent=c?`⟳ ${c} حركة في انتظار المزامنة`:'✓ كل الحركات متزامنة';el.classList.toggle('has-pending',c>0);el.classList.toggle('all-synced',c===0);el.classList.toggle('is-hidden',c===0);if(c===0){clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.add('is-hidden'),900)}else el.classList.remove('is-hidden')}
+const TOP_CHICKEN_SYNC_PAUSE_KEY='top-chicken-sh0008-sync-diagnostics-paused-v1';
+function isTopChickenSyncDiagnosticsScope(){
+  return String(cfg.url||'').replace(/\\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'
+    && String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'
+    && Number(currentBranchId())===22;
+}
+function isTopChickenSyncPaused(){return isTopChickenSyncDiagnosticsScope()&&localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)==='1'}
+async function showTopChickenSyncDiagnostics(){
+  if(!isTopChickenSyncDiagnosticsScope())return;
+  const queue=await offlineQueue();
+  const persisted=window.topBurgerDesktop?.operations?.list
+    ?(await window.topBurgerDesktop.operations.list('pending')):[];
+  const infoByTx=new Map((persisted||[]).map(x=>[String(x.client_tx_id),x]));
+  const typeLabels={sale:'فاتورة بيع',shift_open:'فتح وردية',shift_close:'إغلاق وردية',return:'مرتجع',expense:'مصروف'};
+  const safe=(val,max=210)=>String(val??'غير متاح')
+    .replace(/(?:\\+?20|0)1\\d{9}/g,'[رقم محجوب]')
+    .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}/ig,'[بريد محجوب]').slice(0,max);
+  const lines=queue.map(job=>{
+    const r=infoByTx.get(String(job.client_tx_id))||{};
+    return '<div class="panel" style="margin:8px 0;padding:12px">'+
+      '<b>'+esc(typeLabels[job.type]||'نوع حركة غير معروف')+'</b>'+
+      '<div>المعرف: '+esc(String(job.client_tx_id||'').slice(-8).padStart(8,'*'))+'</div>'+
+      '<div>منذ: '+esc(safe(job.created_at||r.created_at,45))+'</div>'+
+      '<div>المحاولات المسجلة: '+Number(r.attempts||0)+'</div>'+
+      '<div>آخر سبب فشل: '+esc(safe(r.last_error,260))+'</div></div>'
+  }).join('');
+  const m=document.createElement('div');
+  m.className='modal';
+  m.innerHTML='<div class="modal-card" style="max-width:680px">'+
+    '<h2>تشخيص مزامنة Top Chicken — SH-0008</h2>'+
+    '<p class="muted">عرض فقط: لا يتم مسح أي فاتورة أو حركة أو تغيير حالة مالية.</p>'+
+    '<p>الحركات في الطابور: <b>'+queue.length+'</b> — المسجلة محليًا: <b>'+persisted.length+'</b>'+
+    ' — الإنترنت: '+(navigator.onLine?'متصل':'غير متصل')+'</p>'+
+    (lines||'<p>لا توجد حركات في الطابور الحالي؛ لو العداد قديم اقفل النافذة وحدّث الصفحة.</p>')+
+    '<div class="modal-actions">'+
+    '<button class="secondary" data-tc-sync-pause>'+ (isTopChickenSyncPaused()?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا')+'</button>'+
+    '<button class="secondary" data-tc-sync-close>إغلاق</button></div></div>';
+  document.body.appendChild(m);
+  m.onclick=e=>{
+    if(e.target===m||e.target.closest('[data-tc-sync-close]')){m.remove();return}
+    if(e.target.closest('[data-tc-sync-pause]')){
+      if(!isTopChickenSyncDiagnosticsScope()){m.remove();return}
+      const paused=!isTopChickenSyncPaused();
+      if(paused)localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,'1');
+      else localStorage.removeItem(TOP_CHICKEN_SYNC_PAUSE_KEY);
+      m.querySelector('[data-tc-sync-pause]').textContent=paused?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا';
+      toast(paused?'تم إيقاف إعادة محاولة المزامنة مؤقتًا دون حذف أي حركة':'تم السماح بإعادة المحاولة؛ قد تبدأ تلقائيًا عند الاتصال');
+    }
+  };
+}
+function updatePendingSyncBadge(n){let el=document.getElementById('pendingSyncBadge');if(!el){el=document.createElement('div');el.id='pendingSyncBadge';el.className='pending-sync-badge';document.body.appendChild(el);el.onclick=()=>{if(isTopChickenSyncDiagnosticsScope())showTopChickenSyncDiagnostics().catch(e=>toast('تعذر عرض التشخيص: '+String(e?.message||e)))}}const c=Number(n||0);el.textContent=c?`⟳ ${c} حركة في انتظار المزامنة`:'✓ كل الحركات متزامنة';el.classList.toggle('has-pending',c>0);el.classList.toggle('all-synced',c===0);el.classList.toggle('is-hidden',c===0);if(c===0){clearTimeout(el._hideTimer);el._hideTimer=setTimeout(()=>el.classList.add('is-hidden'),900)}else el.classList.remove('is-hidden')}
 async function refreshPendingSyncBadge(){try{updatePendingSyncBadge((await offlineQueue()).length)}catch{}}
 async function removeQueuedOperation(clientTx){let q=await offlineQueue();q=q.filter(x=>x.client_tx_id!==clientTx);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(clientTx,'synced',null)}catch{}return q}
 function uuid(){return (crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`)}
@@ -558,7 +608,7 @@ async function refreshSessionIfNeeded(force=false){
   const d=await req('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:JSON.stringify({refresh_token:session.refresh_token})});
   session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));return d
 }
-async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token)return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
+async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token||isTopChickenSyncPaused())return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){if(isTopChickenSyncPaused())break;try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
 window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
 function bytesHex(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
