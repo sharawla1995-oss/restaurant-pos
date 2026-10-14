@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -42,7 +42,7 @@ function writeLicenseStateFile(v){
     if(wroteTmp)try{fs.unlinkSync(tmp)}catch{}
   }
 }
-function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
+function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=`${p}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}try{fs.writeFileSync(tmp,bytes,{flag:'wx'});try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p)}finally{try{fs.unlinkSync(tmp)}catch{}}}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
   const p=dbPath();
@@ -299,6 +299,11 @@ function registerIpc(){
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(async resolve=>{const w=new BrowserWindow({show:false,width:420,height:900,webPreferences:{sandbox:true}});try{let deviceName=String(opts.deviceName||'');if(deviceName){const ps=await w.webContents.getPrintersAsync();const wanted=deviceName.trim().toLowerCase();const hit=ps.find(p=>String(p.name||'').trim().toLowerCase()===wanted||String(p.displayName||'').trim().toLowerCase()===wanted);if(hit)deviceName=hit.name}const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));await w.loadURL(data);setTimeout(()=>{if(w.isDestroyed())return resolve({ok:false,error:'print window closed'});w.webContents.print({silent:!!opts.silent,deviceName,printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null,deviceName})})},300)}catch(err){try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})}}));
 }
 function createWindow(){mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:700,autoHideMenuBar:true,backgroundColor:'#fff',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:false}});mainWindow.loadFile('index.html')}
-app.whenReady().then(async()=>{await openDb();registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
+app.whenReady().then(async()=>{
+  // CI upgrade acceptance only; never activated by an installed production user.
+  if(process.env.TOP_CHICKEN_PRIMARY_CI_NO_NETWORK==='1'){
+    session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_details,done)=>done({cancel:true}));
+  }
+  await openDb();registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
 app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
