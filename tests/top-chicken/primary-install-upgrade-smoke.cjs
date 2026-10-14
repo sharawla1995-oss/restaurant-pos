@@ -1,4 +1,4 @@
-// Windows-only disposable-runner acceptance: stable 10.5.15 -> installed Top Chicken rc.3 -> repaired rc.4.
+// Windows-only disposable-runner acceptance: stable 10.5.15 -> installed Top Chicken rc.4 -> repaired rc.5.
 // No hosted credentials, SQL, Edge changes, physical devices or real customer data.
 const assert=require('node:assert/strict');
 const path=require('node:path');
@@ -65,11 +65,11 @@ async function seedSyntheticLegacyRecord(userData){
      await seedSyntheticLegacyRecord(previous.userData);
      fs.writeFileSync('evidence/top-chicken/primary-upgrade-before-state.json',JSON.stringify(previous));
    }else if(v==='middle'){
-     previous=await launch('existing-top-chicken-10.5.19-rc.3','10.5.19-rc.3',false);
+     previous=await launch('existing-top-chicken-10.5.19-rc.4','10.5.19-rc.4',false);
      const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
      assert.equal(previous.userData,original.userData,'same main-app namespace after existing tc rc3');
    }else if(v==='after'){
-     previous=await launch('candidate-10.5.19-rc.4','10.5.19-rc.4',false);
+     previous=await launch('candidate-10.5.19-rc.5','10.5.19-rc.5',false);
      const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
      assert.equal(previous.userData,original.userData,'same installed app userData before/after upgrade');
    }else throw Error('Expected "before", "middle", or "after"');

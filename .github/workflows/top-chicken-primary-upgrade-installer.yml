@@ -16,6 +16,7 @@ on:
       - 'tests/top-chicken/top-chicken-update-channel.cjs'
       - 'tests/top-chicken/login-edge-route-regression.cjs'
       - 'tests/top-chicken/food-line-uid-regression.cjs'
+      - 'tests/top-chicken/delivery-status-server-owner-regression.cjs'
       - '.github/workflows/top-chicken-primary-upgrade-installer.yml'
   workflow_dispatch:
 permissions:
@@ -45,13 +46,14 @@ jobs:
           node tests/top-chicken/primary-base-port-check.cjs
           node tests/top-chicken/login-edge-route-regression.cjs
           node tests/top-chicken/food-line-uid-regression.cjs
+          node tests/top-chicken/delivery-status-server-owner-regression.cjs
           node --check main.js
       - name: Ensure official installer identity is unchanged, stable releases not published
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
           if ($pkg.name -ne 'sharawla-pos-windows' -or $pkg.build.appId -ne 'com.topburger.pos' -or $pkg.build.productName -ne 'Sharawla POS') { throw 'Not an in-place main POS update' }
-          if ($pkg.version -ne '10.5.19-rc.4') { throw 'Candidate version drift' }
+          if ($pkg.version -ne '10.5.19-rc.5') { throw 'Candidate version drift' }
           $updates = Get-Content update-config.json -Raw | ConvertFrom-Json
           if (-not $updates.enabled -or $updates.channel -ne 'top-chicken-sh0008') { throw 'Dedicated TC channel required; general latest forbidden' }
       - name: Verify tenant-scoped update selector
@@ -90,29 +92,29 @@ jobs:
         run: npm install --no-save --no-package-lock playwright@1.58.2
       - name: Open official 10.5.15 and seed local synthetic SQLite test record
         run: node tests/top-chicken/primary-install-upgrade-smoke.cjs before
-      - name: Download genuine existing SH-0008 rc.3 build and verify SHA-256
+      - name: Download genuine existing SH-0008 rc.4 build and verify SHA-256
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          gh run download 38633915762 --repo ${{ github.repository }} --name 'top-chicken-SH0008-primary-10.5.19-rc.3-fbd0a2b847dd1ce38577e59dd18167ba10d1fa09' --dir .tc-previous
-          if ($LASTEXITCODE -ne 0) { throw 'Previous rc.3 artifact download failed' }
-          $list = @(Get-ChildItem .tc-previous -Filter 'Top-Chicken-SH0008-Primary-10.5.19-rc.3.exe' -Recurse -File)
+          gh run download 38647634165 --repo ${{ github.repository }} --name 'top-chicken-SH0008-primary-10.5.19-rc.4-a45d902d95cb22560b20a809d2fc9e8c5fd3fa90' --dir .tc-previous
+          if ($LASTEXITCODE -ne 0) { throw 'Previous rc.4 artifact download failed' }
+          $list = @(Get-ChildItem .tc-previous -Filter 'Top-Chicken-SH0008-Primary-10.5.19-rc.4.exe' -Recurse -File)
           if ($list.Count -ne 1) { throw "Expected one previous installer, got $($list.Count)" }
           $digest = (Get-FileHash $list[0].FullName -Algorithm SHA256).Hash.ToLower()
-          if ($digest -ne '5a5ba1cf001737d6f53c1ae84cbda9ffb0d2d9acf2a144c518903217d15aa14b') { throw 'Previous rc.3 installer SHA256 mismatch' }
-          "TC_RC3_INSTALLER=$($list[0].FullName)" >> $env:GITHUB_ENV
-      - name: Install actual Top Chicken rc.3 on top of original 10.5.15
+          if ($digest -ne '63ba9517754983c7c96e617917fcf8af9539856f45ccffa02b3915c1f834fa62') { throw 'Previous rc.4 installer SHA256 mismatch' }
+          "TC_RC4_INSTALLER=$($list[0].FullName)" >> $env:GITHUB_ENV
+      - name: Install actual Top Chicken rc.4 on top of original 10.5.15
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $proc = Start-Process $env:TC_RC3_INSTALLER -ArgumentList @('/S', "/D=$env:TC_PRIMARY_INSTALL_DIR") -PassThru
-          if (-not $proc.WaitForExit(180000)) { throw 'rc.3 installer timeout' }
-          if ($proc.ExitCode -ne 0) { throw "rc.3 install exit $($proc.ExitCode)" }
-      - name: Verify existing rc.3 startup and same SQLite data before hotfix
+          $proc = Start-Process $env:TC_RC4_INSTALLER -ArgumentList @('/S', "/D=$env:TC_PRIMARY_INSTALL_DIR") -PassThru
+          if (-not $proc.WaitForExit(180000)) { throw 'rc.4 installer timeout' }
+          if ($proc.ExitCode -ne 0) { throw "rc.4 install exit $($proc.ExitCode)" }
+      - name: Verify existing rc.4 startup and same SQLite data before hotfix
         run: node tests/top-chicken/primary-install-upgrade-smoke.cjs middle
-      - name: Upgrade IN PLACE to Top Chicken primary 10.5.19-rc.4 on disposable Windows
+      - name: Upgrade IN PLACE to Top Chicken primary 10.5.19-rc.5 on disposable Windows
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -128,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: top-chicken-SH0008-primary-10.5.19-rc.4-${{ github.sha }}
+          name: top-chicken-SH0008-primary-10.5.19-rc.5-${{ github.sha }}
           retention-days: 30
           path: |
             dist/Top-Chicken-SH0008-Primary-*.exe

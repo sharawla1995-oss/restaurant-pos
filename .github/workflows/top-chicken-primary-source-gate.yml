@@ -6,6 +6,7 @@ on:
       - 'app.js'
       - 'tests/top-chicken/primary-base-port-check.cjs'
       - 'tests/top-chicken/food-line-uid-regression.cjs'
+      - 'tests/top-chicken/delivery-status-server-owner-regression.cjs'
       - '.github/workflows/top-chicken-primary-source-gate.yml'
   workflow_dispatch:
 permissions: {contents: read}
@@ -25,6 +26,7 @@ jobs:
         run: |
           node tests/top-chicken/primary-base-port-check.cjs
           node tests/top-chicken/food-line-uid-regression.cjs
+          node tests/top-chicken/delivery-status-server-owner-regression.cjs
       - name: Preserve unmodified preload and dependency lock from stable baseline
         run: git diff --exit-code v10.5.18 -- preload.js package-lock.json
       - name: Validate in-place identity and dedicated SH-0008 updater
