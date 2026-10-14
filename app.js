@@ -444,7 +444,34 @@ async function topChickenOrderOperation(name,payload){
     localStorage.setItem(key,requestId);
     if(localStorage.getItem(key)!==requestId)throw new Error('تعذر حفظ معرّف المحاولة');
   }
-  const result=await callFunction('top-chicken-operations',{rpc:name,params:{...payload,p_request_id:requestId}});
+  // Existing Beta authoritative RPCs: audited, branch/tenant-bound and idempotent.
+  // The old top-chicken-operations Edge is NOT deployed; never PATCH orders directly.
+  let result;
+  if(name==='top_chicken_transition_order_status'){
+    const allowed={new:'preparing',preparing:'ready',ready:'completed',out_for_delivery:'delivered'};
+    const from=String(payload.p_expected_status||'').toLowerCase();
+    const to=String(payload.p_new_status||'').toLowerCase();
+    if(allowed[from]!==to)throw new Error('انتقال الحالة غير صحيح؛ حدّث قائمة الطلبات أولًا');
+    if(!Number.isSafeInteger(Number(payload.p_order_id))||Number(payload.p_order_id)<=0)
+      throw new Error('رقم الطلب غير صالح');
+    result=await rpc('order_status_apply_offline_v2',{
+      p_order_id:Number(payload.p_order_id),
+      p_target_status:to,
+      p_client_tx_id:requestId
+    });
+  }else if(name==='top_chicken_assign_order_driver'){
+    if(!Number.isSafeInteger(Number(payload.p_order_id))||Number(payload.p_order_id)<=0
+      || !Number.isSafeInteger(Number(payload.p_driver_id))||Number(payload.p_driver_id)<=0)
+      throw new Error('الطلب أو المندوب غير صالح');
+    result=await rpc('offline_delivery_assign_driver_v1',{
+      p_order_id:Number(payload.p_order_id),
+      p_driver_id:Number(payload.p_driver_id),
+      p_client_tx_id:requestId,
+      p_payload_digest:JSON.stringify({scope:'top-chicken-sh0008',order_id:Number(payload.p_order_id),driver_id:Number(payload.p_driver_id)})
+    });
+  }else{
+    throw new Error('عملية Top Chicken غير مدعومة');
+  }
   if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تنفيذ العملية');
   localStorage.removeItem(key);
   return result;
@@ -2545,6 +2572,7 @@ async function openDeliveryOrderDetails(id){
  m.innerHTML=`<div class="modal-card delivery-detail-modal"><div class="detail-head"><div><small>${branchName(o.branch_id)}</small><h2>${esc(bonDisplay(o))}</h2></div><span class="status-pill">${statusLabel(o.status)}</span></div>${customerInfoHTML(o)}<div class="detail-items">${items.map(i=>`<div><span>${i.quantity} × ${esc(i.product_name)}${receiptModifierHTML(i,false)}</span><b>${money(i.total)}</b></div>`).join('')}</div><div class="detail-total"><span>المطلوب</span><strong>${money(o.total)}</strong></div>${o.source==='website'?`<div class="payment-review-box"><h3>💳 حالة الدفع</h3><p>${paymentStatusHTML(o.payment_status)}</p><p><b>الطريقة:</b> ${esc(paymentLabel(o.payment_method))}${o.payment_reference?` • <b>المرجع:</b> ${esc(o.payment_reference)}`:''}</p><div class="payment-review-actions">${o.payment_receipt_path?'<button class="secondary" data-view-payment-receipt>🧾 عرض الإيصال</button>':''}<button class="primary" data-payment-confirm>✅ تأكيد الدفع</button><button class="danger" data-payment-reject>رفض الإثبات</button><button class="secondary" data-payment-unpaid>غير مدفوع</button></div></div>`:''}<div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="secondary" data-print>طباعة</button>${action}${paymentChangeAction}${settlementAction}</div></div>`;
  document.body.appendChild(m);
  m.onclick=async e=>{
+  try{
    if(e.target.closest('[data-close]')||e.target===m){m.remove();return}
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
    if(e.target.closest('[data-change-payment]')){return openDeliveryPaymentChange(o,async()=>{m.remove();await renderDeliveryOrders()})}
@@ -2558,6 +2586,7 @@ async function openDeliveryOrderDetails(id){
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
    if(e.target.closest('[data-completed]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'completed');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'completed',delivered_at:new Date().toISOString()})});await audit('mark_pickup_completed','order',o.id,{});}m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
    if(e.target.closest('[data-delivered]')){if(!await confirmDeliveryPaymentAtHandover(o))return;if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{payment_method:o.payment_method});}m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+  }catch(err){toast('تعذر تغيير حالة الطلب: '+String(err?.message||err));console.warn('delivery-order-action',err)}
  };
 }
 
