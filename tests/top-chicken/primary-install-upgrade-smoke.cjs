@@ -69,7 +69,7 @@ async function seedSyntheticLegacyRecord(userData){
      const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
      assert.equal(previous.userData,original.userData,'same main-app namespace after existing tc rc3');
    }else if(v==='after'){
-     previous=await launch('candidate-10.5.19-rc.5','10.5.19-rc.5',false);
+     previous=await launch('candidate-10.5.19-rc.6','10.5.19-rc.6',false);
      const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
      assert.equal(previous.userData,original.userData,'same installed app userData before/after upgrade');
    }else throw Error('Expected "before", "middle", or "after"');
