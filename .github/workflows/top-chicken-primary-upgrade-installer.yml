@@ -10,6 +10,8 @@ on:
       - 'index.html'
       - 'sw.js'
       - 'update-config.json'
+      - 'top-chicken-update-channel.js'
+      - 'top-chicken-updates/sh0008.json'
       - 'tests/top-chicken/primary-*.cjs'
       - '.github/workflows/top-chicken-primary-upgrade-installer.yml'
   workflow_dispatch:
@@ -45,7 +47,9 @@ jobs:
           if ($pkg.name -ne 'sharawla-pos-windows' -or $pkg.build.appId -ne 'com.topburger.pos' -or $pkg.build.productName -ne 'Sharawla POS') { throw 'Not an in-place main POS update' }
           if ($pkg.version -ne '10.5.19-rc.1') { throw 'Candidate version drift' }
           $updates = Get-Content update-config.json -Raw | ConvertFrom-Json
-          if ($updates.enabled) { throw 'Candidate auto-update must remain disabled to protect other businesses' }
+          if (-not $updates.enabled -or $updates.channel -ne 'top-chicken-sh0008') { throw 'Dedicated TC channel required; general latest forbidden' }
+      - name: Verify tenant-scoped update selector
+        run: node tests/top-chicken/top-chicken-update-channel.cjs
       - name: Build primary Windows x64 installer locally in CI (NO publish)
         run: npx electron-builder --win nsis --x64 --publish never
       - name: Verify actual packaged Windows executable and record SHA256
