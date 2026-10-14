@@ -9,6 +9,13 @@ const initSqlJs = require('sql.js');
 const TOP_CHICKEN_PRELAUNCH = require('./package.json').topChickenPrelaunch === true;
 // Separate Windows QA build; never the existing SH-0008 production app identity.
 const TOP_CHICKEN_CONNECTED_QA = require('./package.json').topChickenConnectedQa === true;
+if(TOP_CHICKEN_CONNECTED_QA){
+  // Electron may derive default userData from package.json name rather than NSIS productName.
+  // Explicitly isolate this side-by-side QA app before any SQLite/license/backups are opened.
+  const isolatedQaData=path.join(app.getPath('appData'),'TopChickenConnectedQA-20261014');
+  fs.mkdirSync(isolatedQaData,{recursive:true});
+  app.setPath('userData',isolatedQaData);
+}
 if(TOP_CHICKEN_PRELAUNCH){
   const isolatedPath=process.env.TOP_CHICKEN_TEST_USER_DATA;
   if(isolatedPath)app.setPath('userData',path.resolve(isolatedPath));
