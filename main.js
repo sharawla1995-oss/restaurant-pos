@@ -5,6 +5,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
+const topChickenUpdates = require('./top-chicken-update-channel');
 let db, SQL, mainWindow;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
@@ -181,10 +182,116 @@ function downloadFile(url,target,onProgress){
     };go(url)
   })
 }
+function centralJsonPost(url,body){
+  return new Promise((resolve,reject)=>{
+    const parsed=new URL(url);
+    if(parsed.origin!==topChickenUpdates.SUPABASE_CENTRAL ||
+       parsed.pathname!=='/rest/v1/rpc/verify_sharawla_device')
+       return reject(new Error('Unexpected entitlement verification destination'));
+    const encoded=Buffer.from(JSON.stringify(body));
+    const req=https.request(parsed,{method:'POST',timeout:15000,headers:{
+      apikey:topChickenUpdates.CENTRAL_PUBLISHABLE_KEY,
+      'Content-Type':'application/json','Content-Length':String(encoded.length)
+    }},res=>{
+      let output='';
+      res.on('data',b=>output+=b);
+      res.on('end',()=>{
+        if(res.statusCode!==200)return reject(new Error('Cloud verification HTTP '+res.statusCode));
+        try{resolve(JSON.parse(output))}catch(e){reject(e)}
+      });
+    });
+    req.on('error',reject);req.on('timeout',()=>req.destroy(new Error('Cloud verification timed out')));
+    req.end(encoded);
+  });
+}
+async function checkForTopChickenUpdate({interactive=false}={}){
+  if(updateCheckBusy||!app.isPackaged)return null;
+  updateCheckBusy=true;
+  let accepted=false;
+  try{
+    const st=readLicenseStateFile();
+    if(!topChickenUpdates.identify(st,deviceFingerprintCandidates()))
+       return {available:false,blocked:'not-sh0008'};
+    const verification=await centralJsonPost(
+      topChickenUpdates.SUPABASE_CENTRAL+'/rest/v1/rpc/verify_sharawla_device',
+      {p_device_id:st.device_id,p_device_fingerprint:st.device_fingerprint,p_app_version:app.getVersion()}
+    );
+    if(!topChickenUpdates.verifyResponse(verification))
+       return {available:false,blocked:'cloud-entitlement'};
+    // This is a fixed SH-0008 feed, never GitHub /releases/latest.
+    const manifest=await githubJson(topChickenUpdates.FEED_URL);
+    const arch=process.arch==='ia32'?'ia32':'x64';
+    const offer=topChickenUpdates.choose(manifest,app.getVersion(),arch);
+    if(!offer.available){
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{
+        type:'info',title:'تحديث Top Chicken',message:'أنت على أحدث إصدار مخصص لتوب تشيكن V'+app.getVersion(),
+        buttons:['تمام']});
+      return {available:false,channel:topChickenUpdates.TC_CHANNEL,reason:offer.reason};
+    }
+    const pending=pendingLocalOperationCount();
+    if(pending>0)return {available:true,blocked:'pending-local-operations',pending,version:offer.version};
+    const answer=await dialog.showMessageBox(mainWindow,{
+      type:'info',title:'تحديث Top Chicken الخاص بـSH-0008',
+      message:'متاح تحديث Top Chicken V'+offer.version,
+      detail:'مخصص لجهاز SH-0008 فقط. سيتم التحقق من البصمة قبل التثبيت.',
+      buttons:['تنزيل وتثبيت','لاحقًا'],defaultId:0,cancelId:1
+    });
+    if(answer.response!==0)return {available:true,skipped:true,version:offer.version};
+    accepted=true;
+    const dir=path.join(app.getPath('userData'),'updates','top-chicken-sh0008');
+    fs.mkdirSync(dir,{recursive:true});
+    const target=path.join(dir,offer.filename);
+    sendUpdateProgress({state:'start',version:offer.version,percent:0,message:'جاري تنزيل تحديث توب تشيكن'});
+    await downloadFile(offer.url,target,p=>sendUpdateProgress({
+      state:'progress',version:offer.version,percent:p.percent,received:p.received,total:p.total,
+      message:p.percent==null?'جاري تنزيل تحديث توب تشيكن…':'جاري تنزيل تحديث توب تشيكن — '+p.percent+'%'
+    }));
+    if(sha256File(target)!==offer.sha256){
+      try{fs.unlinkSync(target)}catch{}
+      throw new Error('Top Chicken installer SHA256 mismatch');
+    }
+    // Never install if the license changed during the download.
+    const current=readLicenseStateFile();
+    if(!topChickenUpdates.identify(current,deviceFingerprintCandidates()))
+      return {available:true,downloaded:true,blocked:'device-changed'};
+    const recheck=await centralJsonPost(topChickenUpdates.SUPABASE_CENTRAL+'/rest/v1/rpc/verify_sharawla_device',{
+      p_device_id:current.device_id,p_device_fingerprint:current.device_fingerprint,p_app_version:app.getVersion()
+    });
+    if(!topChickenUpdates.verifyResponse(recheck))
+      return {available:true,downloaded:true,blocked:'cloud-entitlement'};
+    if(pendingLocalOperationCount()>0)
+      return {available:true,downloaded:true,blocked:'pending-local-operations'};
+    // Keep existing verified local backup guard for in-place upgrades.
+    const backup=createPreUpdateBackup(offer.version);
+    const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Top Chicken جاهز',
+      message:'تم التحقق من تحديث توب تشيكن V'+offer.version,
+      detail:'تم حفظ نسخة SQLite المحلية: '+backup.name,buttons:['تثبيت الآن','لاحقًا'],
+      defaultId:0,cancelId:1});
+    if(ready.response===0){
+      if(pendingLocalOperationCount()>0)return {available:true,blocked:'pending-local-operations'};
+      // Recheck local identity immediately before invoking the installer.
+      if(!topChickenUpdates.identify(readLicenseStateFile(),deviceFingerprintCandidates()))
+        return {available:true,blocked:'device-changed'};
+      sendUpdateProgress({state:'installing',version:offer.version,percent:100,message:'بدء تثبيت توب تشيكن…'});
+      spawn(target,['/S'],{detached:true,stdio:'ignore'}).unref();
+      setTimeout(()=>app.quit(),600);
+    }
+    return {available:true,downloaded:true,version:offer.version,channel:topChickenUpdates.TC_CHANNEL};
+  }catch(e){
+    console.warn('top chicken updater',e);
+    sendUpdateProgress({state:'error',message:'تعذر فحص تحديث Top Chicken',error:String(e&&e.message||e)});
+    if((interactive||accepted)&&mainWindow)await dialog.showMessageBox(mainWindow,{
+      type:'warning',title:'تحديث Top Chicken',message:'تعذر إكمال تحديث توب تشيكن',
+      detail:String(e&&e.message||e),buttons:['تمام']
+    });
+    return {error:String(e&&e.message||e)};
+  }finally{updateCheckBusy=false}
+}
 async function checkForWindowsUpdate({interactive=false}={}){
   if(updateCheckBusy||!app.isPackaged)return null;
   const cfg=readUpdateConfig();
   if(!cfg.enabled||!cfg.owner||!cfg.repo)return null;
+  if(cfg.channel===topChickenUpdates.TC_CHANNEL)return checkForTopChickenUpdate({interactive});
   updateCheckBusy=true;let userAcceptedUpdate=false;
   try{
     const api=`https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/releases/latest`;
