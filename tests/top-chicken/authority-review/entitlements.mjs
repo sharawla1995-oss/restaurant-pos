@@ -75,5 +75,5 @@ try{
   assert.equal((await invoke({action:'password',request_id:randomUUID(),employee_id:r.body.employee_id,password:'Changed-fixture-password'})).status,200);
   cloud.config.entitled=false;const denied=await invoke(payload);assert.equal(denied.status,403);cloud.config.entitled=true;
  });
- fs.writeFileSync('evidence/top-chicken/authority-review/entitlement-results.json',JSON.stringify({engine:process.env.TOP_CHICKEN_PG_URL?'native PostgreSQL16':'PGlite/WASM, role/RLS native CI required',source_cloud:'Actual read-only Cloud decision metadata; positive grants synthetic only',results},null,2));process.exit(0);
-}catch(e){console.error(e.stack,e.code);fs.writeFileSync('evidence/top-chicken/authority-review/entitlement-results.json',JSON.stringify({results,error:e.message,code:e.code},null,2));process.exit(1);}
+ fs.writeFileSync((process.env.TC_REVIEW_OUTPUT||'evidence/top-chicken/authority-review')+'/entitlement-results.json',JSON.stringify({engine:process.env.TOP_CHICKEN_PG_URL?'native PostgreSQL16':'PGlite/WASM, role/RLS native CI required',source_cloud:'Actual read-only Cloud decision metadata; positive grants synthetic only',results},null,2));process.exit(0);
+}catch(e){console.error(e.stack,e.code);fs.writeFileSync((process.env.TC_REVIEW_OUTPUT||'evidence/top-chicken/authority-review')+'/entitlement-results.json',JSON.stringify({results,error:e.message,code:e.code},null,2));process.exit(1);}

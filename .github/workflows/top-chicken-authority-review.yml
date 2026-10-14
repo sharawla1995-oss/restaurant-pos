@@ -32,14 +32,16 @@ jobs:
           POSTGRES_DB: top_chicken_prelaunch
         ports: ['127.0.0.1:5432:5432']
         options: >-
-          --health-cmd 'pg_isready -U postgres' --health-interval 5s --health-timeout 5s --health-retries 15
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 15
     env:
+      TC_REVIEW_OUTPUT: ${{ runner.temp }}/tc-authority-results
       TOP_CHICKEN_PG_URL: postgresql://postgres:isolated-review-only@127.0.0.1:5432/top_chicken_prelaunch
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
       - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: mkdir -p "$TC_REVIEW_OUTPUT"
       - run: node tests/top-chicken/authority-review/${{ matrix.suite }}.mjs
       - if: matrix.suite == 'sql-compat'
         run: node tests/top-chicken/authority-review/smart-compat.mjs
@@ -51,4 +53,4 @@ jobs:
         if: always()
         with:
           name: top-chicken-authority-${{ matrix.suite }}-${{ github.sha }}
-          path: evidence/top-chicken/authority-review/*results.json
+          path: ${{ env.TC_REVIEW_OUTPUT }}/*results.json
