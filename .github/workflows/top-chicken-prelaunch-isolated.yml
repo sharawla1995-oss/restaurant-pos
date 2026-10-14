@@ -108,12 +108,17 @@ jobs:
       - run: npx --prefix tests/top-chicken playwright install --with-deps chromium
       - name: Start actual Auth against synthetic loopback PostgreSQL only
         run: |
-          docker exec '${{ job.services.pg.id }}' psql -U tc_fixture -d top_chicken_prelaunch -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA auth; CREATE ROLE postgres NOLOGIN;'
+          docker exec -i '${{ job.services.pg.id }}' psql -U tc_fixture -d top_chicken_prelaunch -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE tc_auth LOGIN PASSWORD 'local-auth-fixture-only';
+          ALTER ROLE tc_auth SET search_path TO auth;
+          CREATE SCHEMA auth AUTHORIZATION tc_auth;
+          CREATE ROLE postgres NOLOGIN;
+          SQL
           docker run -d --name tc-local-auth --network host \
             -e GOTRUE_API_HOST=127.0.0.1 -e GOTRUE_API_PORT=9999 \
             -e API_EXTERNAL_URL=http://127.0.0.1:9999 \
             -e GOTRUE_DB_DRIVER=postgres \
-            -e GOTRUE_DB_DATABASE_URL="$TOP_CHICKEN_PG_URL" \
+            -e GOTRUE_DB_DATABASE_URL=postgresql://tc_auth:local-auth-fixture-only@127.0.0.1:5432/top_chicken_prelaunch \
             -e GOTRUE_SITE_URL=http://127.0.0.1:9999 \
             -e GOTRUE_JWT_SECRET=top-chicken-local-fixture-jwt-secret-only-2026 \
             -e GOTRUE_JWT_ADMIN_ROLES=service_role \
