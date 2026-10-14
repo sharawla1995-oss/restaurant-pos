@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -7,6 +7,8 @@ const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
 // Only the separate prelaunch build carries this metadata. It cannot contact live services.
 const TOP_CHICKEN_PRELAUNCH = require('./package.json').topChickenPrelaunch === true;
+// Separate Windows QA build; never the existing SH-0008 production app identity.
+const TOP_CHICKEN_CONNECTED_QA = require('./package.json').topChickenConnectedQa === true;
 if(TOP_CHICKEN_PRELAUNCH){
   const isolatedPath=process.env.TOP_CHICKEN_TEST_USER_DATA;
   if(isolatedPath)app.setPath('userData',path.resolve(isolatedPath));
@@ -15,6 +17,20 @@ if(TOP_CHICKEN_PRELAUNCH){
   });
 }
 let db, SQL, mainWindow;
+function configureTopChickenQaNetwork(){
+  if(!TOP_CHICKEN_CONNECTED_QA)return;
+  // Restrict packaged QA network to exact verified Central and Beta Supabase origins.
+  // Only the QA build uses this; the normal POS and prior TEST behavior are unchanged.
+  const allowedHosts=new Set(['xihcxydjnzemflhedzor.supabase.co','ikppryeavoabnugcijeq.supabase.co']);
+  session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(details,callback)=>{
+    try{
+      const url=new URL(details.url);
+      if(url.protocol==='https:' && allowedHosts.has(url.hostname))return callback({cancel:false});
+    }catch{}
+    callback({cancel:true});
+  });
+}
+
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
@@ -487,7 +503,7 @@ const https = require('https');
 const { spawn } = require('child_process');
 let updateCheckBusy = false;
 function readUpdateConfig(){
-  if(TOP_CHICKEN_PRELAUNCH)return {enabled:false,channel:'beta'};
+  if(TOP_CHICKEN_PRELAUNCH||TOP_CHICKEN_CONNECTED_QA)return {enabled:false,channel:'beta'};
   try{return JSON.parse(fs.readFileSync(path.join(__dirname,'update-config.json'),'utf8'))}catch{return {enabled:false}}
 }
 function normalizeUpdateChannel(value){return String(value||'').trim().toLowerCase()==='beta'?'beta':'stable'}
@@ -810,6 +826,6 @@ function registerIpc(){
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(async resolve=>{const w=new BrowserWindow({show:false,width:420,height:900,webPreferences:{sandbox:true}});try{let deviceName=String(opts.deviceName||'');if(deviceName){const ps=await w.webContents.getPrintersAsync();const wanted=deviceName.trim().toLowerCase();const hit=ps.find(p=>String(p.name||'').trim().toLowerCase()===wanted||String(p.displayName||'').trim().toLowerCase()===wanted);if(hit)deviceName=hit.name}const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));await w.loadURL(data);setTimeout(()=>{if(w.isDestroyed())return resolve({ok:false,error:'print window closed'});w.webContents.print({silent:!!opts.silent,deviceName,printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null,deviceName})})},300)}catch(err){try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})}}));
 }
 function createWindow(){mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:700,autoHideMenuBar:true,backgroundColor:'#fff',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:false}});mainWindow.loadFile('index.html')}
-app.whenReady().then(async()=>{await openDb();try{runPostUpdateHealthCheck()}catch(e){logUpdateEvent('HEALTH_CHECK_ERROR',{version:app.getVersion(),error:String(e&&e.message||e)})}registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
+app.whenReady().then(async()=>{configureTopChickenQaNetwork();await openDb();try{runPostUpdateHealthCheck()}catch(e){logUpdateEvent('HEALTH_CHECK_ERROR',{version:app.getVersion(),error:String(e&&e.message||e)})}registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
 app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
