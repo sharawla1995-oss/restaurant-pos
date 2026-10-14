@@ -1075,6 +1075,21 @@ function openOfferOptions(p){let groups=[],fixed='';if(p.name==='عرض السن
 function invalidateActivePromo(){state.activePromo=null;const r=$('#posPromoResult');if(r){r.classList.add('hidden');r.innerHTML=''}const i=$('#posPromoCode');if(i)i.value=''}
 function promoItemsFromCart(){return state.cart.map(x=>({product_id:Number(x.product_id),line_total:Number(x.price||0)*Number(x.qty||0)}))}
 async function applyPosPromo(){const code=$('#posPromoCode')?.value.trim();if(!code)return toast('اكتب البرومو كود');if(!state.cart.length)return toast('الأوردر فارغ');try{const sub=state.cart.reduce((a,x)=>a+Number(x.price||0)*Number(x.qty||0),0);const r=await rpc('preview_promo_code',{p_code:code,p_branch_id:currentBranchId(),p_channel:'pos',p_customer_phone:($('#customerPhone')?.value||'').trim(),p_items:promoItemsFromCart(),p_subtotal:sub});state.activePromo={id:Number(r.promo_id),code:r.code,name:r.name,discount:Number(r.discount||0)};const out=$('#posPromoResult');if(out){out.classList.remove('hidden');out.innerHTML=`✅ ${esc(r.code)} — خصم ${money(r.discount)} <button type="button" class="link-btn" id="removePosPromo">إلغاء</button>`;$('#removePosPromo').onclick=()=>{invalidateActivePromo();drawCart()}}drawCart();toast('تم تطبيق البرومو كود')}catch(e){state.activePromo=null;toast(e.message||'تعذر تطبيق البرومو كود')}}
+// The Beta Food frozen-stock RPC requires an RFC4122 UUID per order line.
+ // Scope by licensed Top Chicken identity at checkout; retain each UUID for the
+ // SAME client_tx_id to preserve durable retry/digest identity after failure.
+function ensureTopChickenFoodLineUid(item,clientTx){
+  if(!item || !clientTx)throw new Error('هوية سطر بيع Top Chicken غير مكتملة');
+  const id=String(item.top_chicken_food_line_uid||'').trim();
+  const valid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(item.top_chicken_food_line_tx===clientTx && valid.test(id))return id;
+  if(!globalThis.crypto?.randomUUID)throw new Error('تعذر إنشاء معرف سطر الفاتورة الآمن؛ أعد تشغيل البرنامج');
+  const next=globalThis.crypto.randomUUID();
+  if(!valid.test(next))throw new Error('معرف سطر الفاتورة غير صالح');
+  item.top_chicken_food_line_tx=clientTx;
+  item.top_chicken_food_line_uid=next;
+  return next;
+}
 function resetCheckoutAttempt(){state.checkoutAttemptTx=null}
 function pushCartItem(item){invalidateActivePromo();resetCheckoutAttempt();state.cart.push(item);drawCart()}
 function modifierCount(md,itemQty=1){const q=Number(md?.qty);return Number.isFinite(q)?Math.max(0,Math.floor(q)):Math.max(1,Math.floor(Number(itemQty)||1))}
@@ -1143,13 +1158,17 @@ async function checkout(payment,payments=null){
     delivery_zone_id:orderType==='delivery'&&deliveryZone?Number(deliveryZoneId):null,
     driver_id:selectedDriver,assigned_at:selectedDriver?new Date().toISOString():null,notes:null
   };
+  const clientTx=state.checkoutAttemptTx||uuid();
+  state.checkoutAttemptTx=clientTx;
+  const useTopChickenFoodLines=await isTopChickenStaffContext();
   const itemPayload=state.cart.map(i=>({
+    ...(useTopChickenFoodLines?{line_uid:ensureTopChickenFoodLineUid(i,clientTx)}:{}),
     product_id:i.product_id,product_name:i.name,quantity:i.qty,unit_price:cartItemBasePrice(i),cost:i.cost,total:cartItemLineTotal(i),
     notes:[i.removed?.length?`بدون: ${i.removed.map(esc).join('، ')}`:'',i.notes||''].filter(Boolean).join(' | ')||null,
     modifiers:payloadItemModifiers(i)
   }));
   const payRows=(payments&&payments.length?payments:[{method:payment,amount:c.total}]).map(x=>({method:x.method,amount:Number(x.amount)}));
-  let result;const clientTx=state.checkoutAttemptTx||uuid();state.checkoutAttemptTx=clientTx;let localFirst=null;if(window.topBurgerDesktop?.isDesktop){if(state.activePromo&&!navigator.onLine)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');localFirst=await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx)}try{if(!navigator.onLine)throw new TypeError('Failed to fetch');result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows});if(window.topBurgerDesktop?.isDesktop)await removeQueuedOperation(clientTx)}catch(err){if(!isNetError(err)){if(window.topBurgerDesktop?.isDesktop){try{await window.topBurgerDesktop.operations.status(clientTx,'failed',String(err.message||err))}catch{}try{await removeQueuedOperation(clientTx)}catch{}}throw err}if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=localFirst||await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx);toast('تم حفظ الفاتورة محليًا وستتزامن عند رجوع النت')}
+  let result;let localFirst=null;if(window.topBurgerDesktop?.isDesktop){if(state.activePromo&&!navigator.onLine)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');localFirst=await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx)}try{if(!navigator.onLine)throw new TypeError('Failed to fetch');result=await rpc('create_pos_order_atomic',{p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows});if(window.topBurgerDesktop?.isDesktop)await removeQueuedOperation(clientTx)}catch(err){if(!isNetError(err)){if(window.topBurgerDesktop?.isDesktop){try{await window.topBurgerDesktop.operations.status(clientTx,'failed',String(err.message||err))}catch{}try{await removeQueuedOperation(clientTx)}catch{}}throw err}if(state.activePromo)throw new Error('البرومو كود يحتاج إنترنت. ألغِ البرومو وأكمل البيع أوفلاين');result=localFirst||await saveOfflineSale(orderPayload,itemPayload,payRows,clientTx);toast('تم حفظ الفاتورة محليًا وستتزامن عند رجوع النت')}
   const o=result?.order, savedItems=(result?.items||[]).map((row,idx)=>({...row,modifiers:itemPayload[idx]?.modifiers||row.modifiers||[]}));
   if(!o?.id)throw new Error('تمت العملية لكن تعذر قراءة الفاتورة');
   state.cart=[];state.selectedCustomer=null;state.activePromo=null;resetCheckoutAttempt();document.getElementById('receiptPrintFrame')?.remove();toast(`تم حفظ بون ${bonDisplay(o)}`);renderPOS();showReceipt(o,savedItems);
