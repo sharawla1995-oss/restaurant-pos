@@ -22,8 +22,12 @@ jobs:
         run: node --check app.js
       - name: Verify stable release 10.5.18 base, scoped TC owner routing, and legacy paths
         run: node tests/top-chicken/primary-base-port-check.cjs
-      - name: Preserve primary Electron process and packaging from pinned official baseline
+      - name: Preserve unmodified preload and dependency lock from stable baseline
+        run: git diff --exit-code v10.5.18 -- preload.js package-lock.json
+      - name: Validate in-place identity and dedicated SH-0008 updater
         run: |
-          git diff --exit-code v10.5.18 -- main.js preload.js package.json package-lock.json version.json update-config.json
-      - name: No installer without hosted acceptance and full backup approval
-        run: echo "Source-only PASS; do not package, publish, deploy or install primary candidate"
+          node tests/top-chicken/top-chicken-update-channel.cjs
+          node tests/top-chicken/login-edge-route-regression.cjs
+          node -e "const p=require('./package.json');if(p.build.appId!=='com.topburger.pos'||p.name!=='sharawla-pos-windows'||p.version!=='10.5.19-rc.3')process.exit(1)"
+      - name: Never publish this candidate as generic Production latest
+        run: echo "Candidate source verified; public /releases/latest remains owned by stable production"
