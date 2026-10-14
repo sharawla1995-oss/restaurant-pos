@@ -1,4 +1,5 @@
--- SOURCE CANDIDATE ONLY. Cloud-verified TC cache; never rebind the legacy singleton.
+-- SOURCE CANDIDATE ONLY. TC identity/provenance only; Cloud grants require a fresh service execution context.
+-- Profile defaults MUST NOT grant entitlement; never rebind the legacy singleton.
 BEGIN;
 CREATE TABLE IF NOT EXISTS sharawla_internal.top_chicken_operational_binding_v1(
  business_id uuid PRIMARY KEY CHECK(business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid),
@@ -22,7 +23,7 @@ BEGIN
  INSERT INTO sharawla_internal.top_chicken_operational_binding_v1(business_id,profile_code,source_snapshot,source_digest)
  VALUES('5358328c-9724-49aa-affc-1bce8be90f92'::uuid,'restaurant',v_source,md5(v_source::text)) ON CONFLICT(business_id) DO NOTHING;
  INSERT INTO sharawla_internal.top_chicken_feature_cache_v1(business_id,feature_code,enabled)
- SELECT '5358328c-9724-49aa-affc-1bce8be90f92'::uuid,f->>'code',(f->>'enabled')::boolean AND (f->>'active')::boolean
+ SELECT '5358328c-9724-49aa-affc-1bce8be90f92'::uuid,f->>'code',false -- profile eligibility is not an entitlement
  FROM jsonb_array_elements(v_source->'runtime'->'defaults') f
  ON CONFLICT(business_id,feature_code) DO NOTHING;
 END $binding$;
@@ -102,8 +103,7 @@ begin
 
   if public.request_business_id()='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
     if not sharawla_internal.top_chicken_binding_ready_v1() then return false; end if;
-    return exists(select 1 from sharawla_internal.top_chicken_feature_cache_v1 e
-      where e.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid and e.feature_code=lower(trim(coalesce(p_feature_code,''))) and e.enabled=true);
+    return sharawla_internal.top_chicken_transaction_feature_v1(lower(trim(coalesce(p_feature_code,''))));
   end if;
   if v_feature='' then
     return false;

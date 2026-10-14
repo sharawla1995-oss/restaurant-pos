@@ -1,0 +1,21 @@
+{
+  "scope": "Extracted actual frontend helper, synthetic requests only",
+  "results": [
+    {
+      "name": "other activity",
+      "result": "PASS"
+    },
+    {
+      "name": "other TC branch",
+      "result": "PASS"
+    },
+    {
+      "name": "unrelated backend",
+      "result": "PASS"
+    },
+    {
+      "name": "TC alone routes through server Cloud executor with identical durable payload/request ID",
+      "result": "PASS"
+    }
+  ]
+}

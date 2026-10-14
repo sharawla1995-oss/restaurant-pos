@@ -1,0 +1,54 @@
+name: Top Chicken authority and compatibility review
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-prelaunch-fixes]
+    paths:
+      - 'supabase/top-chicken-*-CANDIDATE.sql'
+      - 'supabase/functions/top-chicken-*/**'
+      - 'supabase/functions/smart-function/**'
+      - 'tests/top-chicken/authority-review/**'
+      - 'tests/top-chicken/generate_owner_repair.py'
+      - 'evidence/top-chicken/authority-review/cloud-effective-entitlements.json'
+      - 'evidence/top-chicken/authority-review/live-operational-functions.json'
+      - 'evidence/top-chicken/authority-review/live-smart-function-v2.json'
+      - 'app.js'
+      - '.github/workflows/top-chicken-authority-review.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  affected-review:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    strategy:
+      fail-fast: false
+      matrix: {suite: [entitlements, sql-compat]}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      pg:
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-review-only
+          POSTGRES_DB: top_chicken_prelaunch
+        ports: ['127.0.0.1:5432:5432']
+        options: >-
+          --health-cmd 'pg_isready -U postgres' --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      TOP_CHICKEN_PG_URL: postgresql://postgres:isolated-review-only@127.0.0.1:5432/top_chicken_prelaunch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: node tests/top-chicken/authority-review/${{ matrix.suite }}.mjs
+      - if: matrix.suite == 'sql-compat'
+        run: node tests/top-chicken/authority-review/smart-compat.mjs
+      - if: matrix.suite == 'sql-compat'
+        run: node tests/top-chicken/authority-review/client-routing.mjs
+      - if: matrix.suite == 'sql-compat'
+        run: node tests/top-chicken/authority-review/signed-channel.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-authority-${{ matrix.suite }}-${{ github.sha }}
+          path: evidence/top-chicken/authority-review/*results.json

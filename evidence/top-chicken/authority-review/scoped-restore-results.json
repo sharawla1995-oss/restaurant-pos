@@ -1,0 +1,50 @@
+{
+  "scope": "SCOPED ROLLBACK BACKUP ONLY: six function definitions/ACLs and operational identity/entitlement rows plus smart-function v2. NOT a full Beta database dump.",
+  "source_version": "PostgreSQL 17.6 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+  "target_version": "PostgreSQL 16.3 on x86_64-pc-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.65-git (9b99b5d811e1513914942da0a81e36bc333d3115), 32-bit",
+  "backup_sha256": "bc43b0a844573aaf352aa64919d226e8ea2b524a7c0d68646b8363d4998eeb0f",
+  "full_database_backup": "BLOCKED: PostgreSQL17 export connection/credentials unavailable; not executed",
+  "full_database_restore": "NOT EXECUTED",
+  "results": [
+    {
+      "name": "operational_business_identity_v1 actual rows restored exactly",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "name": "operational_feature_entitlements_v1 actual rows restored exactly",
+      "result": "PASS",
+      "count": 36
+    },
+    {
+      "name": "sharawla_internal.operational_feature_entitled_v1(text) original definition restored",
+      "result": "PASS",
+      "digest": "7e189e7eb536d649ead7b2e43d415f4d"
+    },
+    {
+      "name": "sharawla_internal.current_operational_profile_v1() original definition restored",
+      "result": "PASS",
+      "digest": "f6f76f24b8e3e7d5fac9089317f346ec"
+    },
+    {
+      "name": "sharawla_internal.current_operational_business_id_v1() original definition restored",
+      "result": "PASS",
+      "digest": "06b69bea9463c9217df1d52d037c97e9"
+    },
+    {
+      "name": "delivery_mark_delivered_v2(bigint,text,text) original definition restored",
+      "result": "PASS",
+      "digest": "381e1c779c70a54d074ef6cbe45e93d3"
+    },
+    {
+      "name": "order_fulfillment_transition_v2(bigint,text) original definition restored",
+      "result": "PASS",
+      "digest": "a06ed91b4df1a5129b49205c009abc83"
+    },
+    {
+      "name": "order_assign_driver_v2(bigint,bigint) original definition restored",
+      "result": "PASS",
+      "digest": "f3588c1c79e05d64fcd12f2b41c89a7d"
+    }
+  ]
+}

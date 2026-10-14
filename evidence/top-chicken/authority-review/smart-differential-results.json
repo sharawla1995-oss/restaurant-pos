@@ -1,0 +1,246 @@
+{
+  "baseline_version": 2,
+  "scope": "Actual deployed source vs candidate; synthetic service clients, no real Auth/table writes or deletes",
+  "results": [
+    {
+      "business_alias": "Other A",
+      "scenario": "create_success",
+      "result": "PASS",
+      "behavior_sha256": "236381b179532cbf8ccaeb09a8bc610a7b7516535121d910e523b57f5f4f7ca3"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "invalid_username",
+      "result": "PASS",
+      "behavior_sha256": "598ddc92acf3aad3042a0d6dc3f1e27b16d56053eda977d9977adc3bbdc84da7"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "invalid_branches",
+      "result": "PASS",
+      "behavior_sha256": "2dd77ba4052b349c69ef47f4764c4b8f7bedb02eb1f462190b859accf05ed9bb"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "duplicate_username",
+      "result": "PASS",
+      "behavior_sha256": "da3cfd8576a190d87a8e48fc709852f40de9568e9c0145cea2f1b3c9a0340c63"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "lookup_failure",
+      "result": "PASS",
+      "behavior_sha256": "6bcc74e8e49df82809851f47db52e07b281b1efffe6d95728101eb59ec220096"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "invalid_session",
+      "result": "PASS",
+      "behavior_sha256": "7a48fec395d65b2de00bd7abc2f5c8eb06353703108acdc6d948e5a80a0baa14"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "non_admin",
+      "result": "PASS",
+      "behavior_sha256": "ea1add730138e4ed1458d5908fa937e94fc371f56b7e7bf9f5a2cece7ad7e4c9"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "inactive_admin",
+      "result": "PASS",
+      "behavior_sha256": "a2ab36ed5ca3d2c2bad456802b98123b6120359985b37c00a252551431cb14bf"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "auth_create_failure",
+      "result": "PASS",
+      "behavior_sha256": "5d9db4303bcc501e879749427c67c415d5a163275ba4f6aebe7aab842203a538"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "employee_insert_failure",
+      "result": "PASS",
+      "behavior_sha256": "5cb009f4f367d41aeffa3e02130b2f6bb8364a95905246fd68eaaf2d847a5ddd"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "branch_insert_failure",
+      "result": "PASS",
+      "behavior_sha256": "49dc9c0db704fc81e4060a15c97f0c4566bde8d57ba3032ce98296a0b957cee3"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "login_success",
+      "result": "PASS",
+      "behavior_sha256": "97b5fcfcfcbe472c803ed8428fc94ac703318789c6de1137c7583b51d0842e0e"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "login_missing",
+      "result": "PASS",
+      "behavior_sha256": "395e11a782b9ff9225298d6ec041e47733f25fb3ce2347ee3d5f8e400ebc8ae8"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "inactive_login",
+      "result": "PASS",
+      "behavior_sha256": "af47db7f29e04b80006d521dd4fb47840608e606acd24dfb6f35ccadea36ab0b"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "auth_lookup_failure",
+      "result": "PASS",
+      "behavior_sha256": "395e11a782b9ff9225298d6ec041e47733f25fb3ce2347ee3d5f8e400ebc8ae8"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "bad_password",
+      "result": "PASS",
+      "behavior_sha256": "d4b88058a190e0580ebeb5ac6e8b853068529ebbcdc128cd76f66573252328e3"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "password_success",
+      "result": "PASS",
+      "behavior_sha256": "6bdf5312eab95917b21c8d33f4bdf7862e90f1f4323696d5a5e65f6166c85b6b"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "password_short",
+      "result": "PASS",
+      "behavior_sha256": "47a48fd50d142381da3c54008ed4c08f560c6acde41deec1f0dce8c709e5c8b9"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "password_failure",
+      "result": "PASS",
+      "behavior_sha256": "8a610a594a9a173b40e0484e4c030e383fcf6fc04e18255dd696c8c553d571f6"
+    },
+    {
+      "business_alias": "Other A",
+      "scenario": "unknown_action",
+      "result": "PASS",
+      "behavior_sha256": "ff73a2293a14719c0135829e0309c0197c494672dcba798301c376fc0a486d3b"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "create_success",
+      "result": "PASS",
+      "behavior_sha256": "cacb80dd3518e03f1e273efbddde6c722029e5b5799920f7d242669913baa656"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "invalid_username",
+      "result": "PASS",
+      "behavior_sha256": "5e8eef06d271e6023a21dc58cb7de3ad0e435e3814e5b39001bd59e42670a452"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "invalid_branches",
+      "result": "PASS",
+      "behavior_sha256": "193162e12e7bf2379264b6419a1859e07f728a335187d47196aae6234617c097"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "duplicate_username",
+      "result": "PASS",
+      "behavior_sha256": "c9f7a57646c40920c376d2f749ffd7325fef700591082d8f3cc36a43bb42564c"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "lookup_failure",
+      "result": "PASS",
+      "behavior_sha256": "b0051826d2ef74c9963aa61c09fd2e2cec0449e5e6610f731fc93fdf80642499"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "invalid_session",
+      "result": "PASS",
+      "behavior_sha256": "6cb961155e41f5ac7a4b1ad455a1df5139d6a556f4b302772b41f0f08d68e678"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "non_admin",
+      "result": "PASS",
+      "behavior_sha256": "014904c077824beb4e281976c2ffae35d8c1996b9cc3d132853a5e775d26f0cc"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "inactive_admin",
+      "result": "PASS",
+      "behavior_sha256": "49b8d4084625258aa2a631c1cdb3732f6c9d987f1d325ccc46a1e02815998836"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "auth_create_failure",
+      "result": "PASS",
+      "behavior_sha256": "aab5bca4d673c83bbd5c4964b2f98af7f06f50854b0b68a3aafb644f5552e5d6"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "employee_insert_failure",
+      "result": "PASS",
+      "behavior_sha256": "8ade6762a8d6021039370fb3e8820d031e1584a83a96149950d9d38b0d35836f"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "branch_insert_failure",
+      "result": "PASS",
+      "behavior_sha256": "0e3f28bbaf95ae32e400481737d1a8a34f7b7bb40e4602e7c23f9deb14ad332e"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "login_success",
+      "result": "PASS",
+      "behavior_sha256": "1c4e303cf496bd476450d64ec3809d410de7efa4aee6e86163fe7e11e37924ef"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "login_missing",
+      "result": "PASS",
+      "behavior_sha256": "61949b632861a3f7ac5acc98b6ced42720a871d1b7c49a6c6174a3a5cbd0f626"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "inactive_login",
+      "result": "PASS",
+      "behavior_sha256": "417f1d8b3754507b8c686d9edfc9a142e28eaf37dc8f1d8b914bd740be26539a"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "auth_lookup_failure",
+      "result": "PASS",
+      "behavior_sha256": "61949b632861a3f7ac5acc98b6ced42720a871d1b7c49a6c6174a3a5cbd0f626"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "bad_password",
+      "result": "PASS",
+      "behavior_sha256": "d5bbe8bc772d7f6fb6c12d13a2cab1c9b52acf26d480154072df89eaa5e8b0a1"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "password_success",
+      "result": "PASS",
+      "behavior_sha256": "ed4679d6a2691f2cbd0776bdb54f2f17c512666f8e95547bee46e91496537820"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "password_short",
+      "result": "PASS",
+      "behavior_sha256": "6b8d2d19ad36d734c1df909f4b96fc5c9d687f7a89273488ff2decc74c5c81a9"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "password_failure",
+      "result": "PASS",
+      "behavior_sha256": "9246048c8eaeba03bc3b21ca904c76e5c5925cf49d814350eb66b155cdf464f1"
+    },
+    {
+      "business_alias": "Other B",
+      "scenario": "unknown_action",
+      "result": "PASS",
+      "behavior_sha256": "46b5a9827ea60bb217977d8507d1333aa2122543db1bf19effe75e32c0bbe10f"
+    }
+  ]
+}

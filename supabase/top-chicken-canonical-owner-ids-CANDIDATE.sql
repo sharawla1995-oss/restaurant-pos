@@ -1,4 +1,4 @@
--- CANDIDATE ONLY: preserve canonical owners; guarded Top Chicken ID allocation.
+-- CANDIDATE ONLY: TC-specific authority/ID repair, original ELSE bodies preserved.
 BEGIN;
 
 DO $tc_preflight$ BEGIN IF NOT sharawla_internal.top_chicken_binding_ready_v1() THEN RAISE EXCEPTION 'TOP_CHICKEN_OPERATIONAL_PROFILE_BINDING_REQUIRED'; END IF; END $tc_preflight$;
@@ -23,6 +23,7 @@ begin
 
  select * into v_order from public.orders where id=p_order_id for update;
  if not found then raise exception 'ORDER_NOT_FOUND'; end if;
+ if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid and (not sharawla_internal.top_chicken_transaction_feature_v1('commerce.orders') or not sharawla_internal.top_chicken_transaction_feature_v1('commerce.delivery')) then raise exception 'TC_CLOUD_REQUIRED' using errcode='42501';end if;
  if not public.has_branch_access(v_order.branch_id) then raise exception 'BRANCH_ACCESS_DENIED'; end if;
  if lower(coalesce(v_order.order_type,''))<>'delivery' then raise exception 'ORDER_NOT_DELIVERY'; end if;
  if lower(coalesce(v_order.status,''))<>'ready' then raise exception 'ORDER_NOT_READY'; end if;
@@ -37,9 +38,15 @@ begin
  returning * into v_order;
 
  v_emp:=public.current_employee_id();
+ if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
  insert into public.audit_logs(id,business_id,employee_id,branch_id,action,entity_type,entity_id,details,created_at)
- values(case when v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then nextval('public.audit_logs_id_seq'::regclass) else null end,v_order.business_id,v_emp,v_order.branch_id,'orders.delivery.assign_driver','order',v_order.id,
+ values(nextval('public.audit_logs_id_seq'::regclass),v_order.business_id,v_emp,v_order.branch_id,'orders.delivery.assign_driver','order',v_order.id,
         jsonb_build_object('driver_id',v_driver.id,'to_status','out_for_delivery'),now());
+else
+ insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details,created_at)
+ values(v_emp,v_order.branch_id,'orders.delivery.assign_driver','order',v_order.id,
+        jsonb_build_object('driver_id',v_driver.id,'to_status','out_for_delivery'),now());
+end if;
 
  return jsonb_build_object('ok',true,'order',to_jsonb(v_order));
 end;
@@ -66,6 +73,7 @@ begin
 
  select * into v_order from public.orders where id=p_order_id for update;
  if not found then raise exception 'ORDER_NOT_FOUND'; end if;
+ if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid and (not sharawla_internal.top_chicken_transaction_feature_v1('commerce.orders') or (v_target='completed' and v_order.order_type='pickup' and not sharawla_internal.top_chicken_transaction_feature_v1('commerce.pickup'))) then raise exception 'TC_CLOUD_REQUIRED' using errcode='42501';end if;
  if not public.has_branch_access(v_order.branch_id) then raise exception 'BRANCH_ACCESS_DENIED'; end if;
 
  v_from:=lower(coalesce(v_order.status,''));
@@ -92,9 +100,15 @@ begin
  returning * into v_order;
 
  v_emp:=public.current_employee_id();
+ if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
  insert into public.audit_logs(id,business_id,employee_id,branch_id,action,entity_type,entity_id,details,created_at)
- values(case when v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then nextval('public.audit_logs_id_seq'::regclass) else null end,v_order.business_id,v_emp,v_order.branch_id,'orders.fulfillment.manage','order',v_order.id,
+ values(nextval('public.audit_logs_id_seq'::regclass),v_order.business_id,v_emp,v_order.branch_id,'orders.fulfillment.manage','order',v_order.id,
         jsonb_build_object('from_status',v_from,'to_status',v_target),now());
+else
+ insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details,created_at)
+ values(v_emp,v_order.branch_id,'orders.fulfillment.manage','order',v_order.id,
+        jsonb_build_object('from_status',v_from,'to_status',v_target),now());
+end if;
 
  return jsonb_build_object('ok',true,'order',to_jsonb(v_order));
 end;
@@ -124,6 +138,7 @@ begin
   if auth.uid() is null then raise exception 'غير مصرح'; end if;
   v_emp:=public.current_employee_id();
   if v_emp is null then raise exception 'تعذر تحديد الموظف الحالي'; end if;
+  if public.current_business_id()='5358328c-9724-49aa-affc-1bce8be90f92'::uuid and (not sharawla_internal.top_chicken_transaction_feature_v1('commerce.orders') or not sharawla_internal.top_chicken_transaction_feature_v1('commerce.delivery') or not sharawla_internal.top_chicken_transaction_feature_v1('core.payments')) then raise exception 'TC_CLOUD_REQUIRED' using errcode='42501';end if;
   if v_key is null then raise exception 'معرف الحركة مطلوب'; end if;
   if v_method is null or v_method='mixed' then raise exception 'حدد طريقة دفع نهائية واحدة عند التسليم'; end if;
   if not public.has_action_permission_v2('delivery.mark_delivered') then raise exception 'ليس لديك صلاحية تأكيد تسليم الدليفري'; end if;
@@ -170,8 +185,13 @@ begin
   end if;
 
   delete from public.order_payments where order_id=v_order.id;
-  insert into public.order_payments(id,business_id,order_id,method,amount)
-  values(case when v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then nextval('public.order_payments_id_seq'::regclass) else null end,v_order.business_id,v_order.id,v_method,coalesce(v_order.total,0));
+  if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
+ insert into public.order_payments(id,business_id,order_id,method,amount)
+ values(nextval('public.order_payments_id_seq'::regclass),v_order.business_id,v_order.id,v_method,coalesce(v_order.total,0));
+else
+ insert into public.order_payments(order_id,method,amount)
+  values(v_order.id,v_method,coalesce(v_order.total,0));
+end if;
 
   v_after:=case when v_method='cash' then round(coalesce(v_order.total,0),2) else 0 end;
   v_event:=case when v_order.status in ('delivered','completed') then 'payment_changed' else 'delivered' end;
@@ -188,19 +208,38 @@ begin
   where id=v_order.id
   returning * into v_order;
 
-  insert into public.delivery_payment_events(
-    id,business_id,order_id,branch_id,driver_id,employee_id,client_tx_id,event_type,
+  if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
+ insert into public.delivery_payment_events(id,business_id,
+    order_id,branch_id,driver_id,employee_id,client_tx_id,event_type,
     old_method,new_method,custody_before,custody_after
-  ) values(
-    case when v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then nextval('public.delivery_payment_events_id_seq'::regclass) else null end,v_order.business_id,v_order.id,v_order.branch_id,v_order.driver_id,v_emp,v_key,v_event,
+  )
+ values(nextval('public.delivery_payment_events_id_seq'::regclass),v_order.business_id,
+    v_order.id,v_order.branch_id,v_order.driver_id,v_emp,v_key,v_event,
     nullif(v_old,''),v_method,v_before,v_after
   );
+else
+ insert into public.delivery_payment_events(
+    order_id,branch_id,driver_id,employee_id,client_tx_id,event_type,
+    old_method,new_method,custody_before,custody_after
+  ) values(
+    v_order.id,v_order.branch_id,v_order.driver_id,v_emp,v_key,v_event,
+    nullif(v_old,''),v_method,v_before,v_after
+  );
+end if;
 
-  insert into public.audit_logs(id,business_id,employee_id,branch_id,action,entity_type,entity_id,details)
-  values(case when v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then nextval('public.audit_logs_id_seq'::regclass) else null end,v_order.business_id,v_emp,v_order.branch_id,
+  if v_order.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid then
+ insert into public.audit_logs(id,business_id,employee_id,branch_id,action,entity_type,entity_id,details)
+ values(nextval('public.audit_logs_id_seq'::regclass),v_order.business_id,v_emp,v_order.branch_id,
          case when v_event='delivered' then 'delivery_mark_delivered_v2' else 'delivery_payment_change_v2' end,
          'order',v_order.id,
          jsonb_build_object('old_method',v_old,'new_method',v_method,'custody_before',v_before,'custody_after',v_after,'client_tx_id',v_key));
+else
+ insert into public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details)
+  values(v_emp,v_order.branch_id,
+         case when v_event='delivered' then 'delivery_mark_delivered_v2' else 'delivery_payment_change_v2' end,
+         'order',v_order.id,
+         jsonb_build_object('old_method',v_old,'new_method',v_method,'custody_before',v_before,'custody_after',v_after,'client_tx_id',v_key));
+end if;
 
   return jsonb_build_object('ok',true,'idempotent',false,'order',to_jsonb(v_order),'custody_amount',v_after);
 end;

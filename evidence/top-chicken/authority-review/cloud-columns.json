@@ -1,0 +1,402 @@
+[
+  {
+    "table_name": "activity_category_features",
+    "column_name": "activity_category_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "feature_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "enabled",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "required",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "settings",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "activity_category_features",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "business_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "feature_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "enabled",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "settings",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_features",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "business_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "module_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "enabled",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "settings",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_modules",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "business_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "package_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "status",
+    "data_type": "text"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "starts_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_package_entitlements",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "business_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "feature_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "status",
+    "data_type": "text"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "starts_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "business_paid_addons",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "customer_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "business_type",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "logo_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "phone",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "email",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "address",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "tax_number",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "commercial_number",
+    "data_type": "text"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "activity_category_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "pos_profile_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "businesses",
+    "column_name": "custom_activity_type",
+    "data_type": "text"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "code",
+    "data_type": "text"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "version",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "name_ar",
+    "data_type": "text"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "name_en",
+    "data_type": "text"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "lifecycle_status",
+    "data_type": "text"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "commercial_packages",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "features",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "features",
+    "column_name": "code",
+    "data_type": "text"
+  },
+  {
+    "table_name": "features",
+    "column_name": "domain",
+    "data_type": "text"
+  },
+  {
+    "table_name": "features",
+    "column_name": "name_ar",
+    "data_type": "text"
+  },
+  {
+    "table_name": "features",
+    "column_name": "name_en",
+    "data_type": "text"
+  },
+  {
+    "table_name": "features",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "features",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "features",
+    "column_name": "implemented",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "features",
+    "column_name": "settings_schema",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "features",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "features",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "features",
+    "column_name": "feature_class",
+    "data_type": "text"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "profile_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "feature_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "enabled",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "required",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "settings",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "profile_features",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  }
+]

@@ -1,3 +1,10 @@
 # Source candidate. Login is public; every staff mutation verifies its bearer and server membership.
 [functions.top-chicken-staff]
 verify_jwt = false
+
+[functions.top-chicken-operations]
+verify_jwt = false
+
+# Cloud Central project only; index.ts rejects a Beta URL.
+[functions.top-chicken-authority]
+verify_jwt = false

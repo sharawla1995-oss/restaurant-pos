@@ -1,0 +1,150 @@
+{
+  "engine": "PGlite/WASM, role/RLS native CI required",
+  "source_cloud": "Actual read-only Cloud decision metadata; positive grants synthetic only",
+  "results": [
+    {
+      "name": "Old profile defaults never grant permission, even if a legacy cached boolean is true",
+      "result": "PASS"
+    },
+    {
+      "name": "Current TC Cloud resolver decisions deny commerce despite enabled modules/defaults",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: disabled entitlement",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: inactive feature",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: unimplemented feature",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: explicit Cloud business feature disable",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: disabled module",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: inactive business",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: inactive profile",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: wrong profile",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: expired entitlement",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: expiry equality boundary",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: future entitlement",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: stale decision",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: future decision clock",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: wrong business",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: wrong decision feature",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: missing decision",
+      "result": "PASS"
+    },
+    {
+      "name": "Fail closed with no finance/audit/receipt mutation: missing expiry timestamp freshness",
+      "result": "PASS"
+    },
+    {
+      "name": "Foreign actor cannot borrow TC Cloud entitlement",
+      "result": "PASS"
+    },
+    {
+      "name": "Authenticated callers cannot use service executor or direct canonical owner",
+      "result": "PASS"
+    },
+    {
+      "name": "Rollback pause gate blocks all new TC operations and records an audit; no data deletion",
+      "result": "PASS"
+    },
+    {
+      "name": "Unregistered device selector is preserved and rejected by delegated execution",
+      "result": "PASS"
+    },
+    {
+      "name": "TC channel is narrowly scoped; Central service credentials are rejected in Beta",
+      "result": "PASS"
+    },
+    {
+      "name": "Fresh trusted decision executes original owner and restores caller claims in the same transaction",
+      "result": "PASS"
+    },
+    {
+      "name": "Decision context cannot be reused in a later transaction",
+      "result": "PASS"
+    },
+    {
+      "name": "Exact replay fetches current permission; revocation rejects replay without side effects",
+      "result": "PASS"
+    },
+    {
+      "name": "Entitlement expiring during owner write rolls the entire operation back",
+      "result": "PASS"
+    },
+    {
+      "name": "Completion requires pickup entitlement in addition to general orders",
+      "result": "PASS"
+    },
+    {
+      "name": "Disabled users/auth/permissions cannot reserve staff or resolve login context",
+      "result": "PASS"
+    },
+    {
+      "name": "Actual Cloud reader performs scoped resolver and override/module reads every request",
+      "result": "PASS"
+    },
+    {
+      "name": "Cloud disable after prior success prevents the next identical request; no cache fallback",
+      "result": "PASS"
+    },
+    {
+      "name": "Staff handler checks fresh Cloud before creating Auth users",
+      "result": "PASS"
+    },
+    {
+      "name": "Operation Edge ignores client actor/business and permits only the two TC owner wrappers",
+      "result": "PASS"
+    },
+    {
+      "name": "New executor preserves a complete delivery cycle and financial idempotency",
+      "result": "PASS"
+    },
+    {
+      "name": "New staff executor preserves atomic creation, login and password change with fresh core grants",
+      "result": "PASS"
+    }
+  ]
+}

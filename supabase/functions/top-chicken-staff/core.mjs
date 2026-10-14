@@ -1,16 +1,16 @@
 // The caller supplies server-owned clients; never load a service key into the browser.
 export const TC_BUSINESS='5358328c-9724-49aa-affc-1bce8be90f92';
-const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-sharawla-business','Content-Type':'application/json'};
+const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-sharawla-business,x-sharawla-device','Content-Type':'application/json'};
 const respond=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
-export function createTopChickenStaffHandler({admin,authClient,digestSecret}){
-  if(!digestSecret)throw new Error('Staff digest secret required');
-  const call=async(name,payload)=>{const r=await admin.rpc(name,payload);if(r.error)throw r.error;return r.data;};
+export function createTopChickenStaffHandler({admin,authClient,digestSecret,executeRPC}){
+  if(!digestSecret||!executeRPC)throw new Error('Staff digest secret and Cloud executor required');
   async function fingerprint(value){
     const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(digestSecret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
     const bytes=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(JSON.stringify(value)));
     return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
   }
   return async function handle(req){
+    const call=async(name,payload)=>{const r=await executeRPC(name,payload,undefined,{device:req.headers.get('x-sharawla-device')});if(r.error)throw r.error;return r.data;};
     if(req.method==='OPTIONS')return respond({ok:true});
     if(req.method!=='POST')return respond({ok:false,message:'POST required'},405);
     try{
@@ -66,7 +66,7 @@ export function createTopChickenStaffHandler({admin,authClient,digestSecret}){
       const result=await call('top_chicken_complete_staff_v1',{p_actor:actor,p_request_id:request,p_digest:digest});
       return respond(result);
     }catch(e){
-      const status=e?.code==='42501'?403:e?.code==='23505'?409:400;
+      const status=e?.code==='CLOUD_AUTHORITY_UNAVAILABLE'?503:e?.code==='42501'?403:e?.code==='23505'?409:400;
       // Passwords, tokens and raw request bodies are never logged or persisted.
       return respond({ok:false,message:status===403?'ليس لديك صلاحية للنشاط أو الفرع':status===409?'اسم المستخدم أو معرّف الطلب مستخدم بالفعل':'تعذر إكمال العملية؛ أعد المحاولة بنفس الطلب',code:e?.code||'STAFF_OPERATION_FAILED'},status);
     }

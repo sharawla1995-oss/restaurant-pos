@@ -415,7 +415,7 @@ async function topChickenOrderOperation(name,payload){
     localStorage.setItem(key,requestId);
     if(localStorage.getItem(key)!==requestId)throw new Error('تعذر حفظ معرّف المحاولة');
   }
-  const result=await rpc(name,{...payload,p_request_id:requestId});
+  const result=await callFunction('top-chicken-operations',{rpc:name,params:{...payload,p_request_id:requestId}});
   if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تنفيذ العملية');
   localStorage.removeItem(key);
   return result;

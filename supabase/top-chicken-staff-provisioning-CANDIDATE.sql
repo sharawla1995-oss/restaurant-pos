@@ -16,6 +16,7 @@ CREATE OR REPLACE FUNCTION sharawla_internal.top_chicken_staff_admin_v1(p_actor 
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $$ DECLARE v_id bigint; BEGIN
  IF auth.role() IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'SERVICE_ONLY' USING errcode='42501'; END IF;
+ IF NOT sharawla_internal.top_chicken_transaction_feature_v1('core.users') OR NOT sharawla_internal.top_chicken_transaction_feature_v1('core.permissions') THEN RAISE EXCEPTION 'CLOUD_STAFF_PERMISSION_REQUIRED' USING errcode='42501';END IF;
  IF NOT sharawla_internal.top_chicken_binding_ready_v1() THEN RAISE EXCEPTION 'TC_BINDING_REQUIRED' USING errcode='42501'; END IF;
  SELECT e.id INTO v_id FROM public.employees e
  JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id AND m.business_id=e.business_id AND m.active=true
@@ -117,7 +118,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.top_chicken_staff_login_context_v1(p_username text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $$ DECLARE v_row record;BEGIN
- IF auth.role() IS DISTINCT FROM 'service_role' OR NOT sharawla_internal.top_chicken_binding_ready_v1() THEN RAISE EXCEPTION 'SERVICE_ONLY' USING errcode='42501'; END IF;
+ IF auth.role() IS DISTINCT FROM 'service_role' OR NOT sharawla_internal.top_chicken_binding_ready_v1() OR NOT sharawla_internal.top_chicken_transaction_feature_v1('core.auth') THEN RAISE EXCEPTION 'SERVICE_ONLY' USING errcode='42501'; END IF;
  SELECT e.id,e.auth_user_id INTO v_row FROM public.employees e
  JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id AND m.business_id=e.business_id AND m.active=true
  JOIN public.employee_branches eb ON eb.employee_id=e.id AND eb.business_id=e.business_id AND eb.branch_id=22

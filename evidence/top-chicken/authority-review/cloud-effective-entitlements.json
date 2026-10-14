@@ -1,0 +1,498 @@
+[
+  {
+    "code": "commerce.barcode",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.barcode",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.delivery",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.delivery",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.orders",
+    "feature_class": "standard",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.orders",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.pickup",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.pickup",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.pos",
+    "feature_class": "standard",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.pos",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.products",
+    "feature_class": "standard",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.products",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.promotions",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.promotions",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.returns",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.returns",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "commerce.website",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "commerce.website",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "core.audit",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.audit",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.auth",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.auth",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.branches",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.branches",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.customers",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.customers",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.expenses",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.expenses",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.licensing",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.licensing",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.notifications",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.notifications",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.offline",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.offline",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.payments",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.payments",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.permissions",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.permissions",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.reports",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.reports",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.shifts",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.shifts",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.updates",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.updates",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "core.users",
+    "feature_class": "core",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": true,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "CORE_INCLUDED",
+      "feature_code": "core.users",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "entitlement_source": "core"
+    }
+  },
+  {
+    "code": "food.kitchen",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "food.kitchen",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "food.modifiers",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "food.modifiers",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "food.tables",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "food.tables",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "inventory.purchasing",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "inventory.purchasing",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "inventory.receiving",
+    "feature_class": "standard",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "inventory.receiving",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "inventory.stock",
+    "feature_class": "standard",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "inventory.stock",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  },
+  {
+    "code": "inventory.suppliers",
+    "feature_class": "add_on",
+    "active": true,
+    "implemented": true,
+    "effective": {
+      "profile": "restaurant",
+      "entitled": false,
+      "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
+      "reason_code": "NOT_ENTITLED",
+      "feature_code": "inventory.suppliers",
+      "evaluation_time": "2026-10-14T13:18:20.10395+00:00",
+      "resolver_version": 1,
+      "grant_diagnostics": [],
+      "entitlement_source": "none"
+    }
+  }
+]

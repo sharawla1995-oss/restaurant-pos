@@ -44,6 +44,9 @@ BEGIN
  IF public.has_action_permission_v2(v_action) IS DISTINCT FROM TRUE THEN
   RAISE EXCEPTION 'Action permission denied' USING ERRCODE='42501';
  END IF;
+ IF NOT sharawla_internal.top_chicken_transaction_feature_v1('commerce.orders')
+ OR (p_new_status IN ('out_for_delivery','delivered') AND NOT sharawla_internal.top_chicken_transaction_feature_v1('commerce.delivery'))
+ OR (p_new_status='delivered' AND NOT sharawla_internal.top_chicken_transaction_feature_v1('core.payments')) THEN RAISE EXCEPTION 'TC_CLOUD_ORDER_REQUIRED' USING errcode='42501';END IF;
  v_digest:=md5(jsonb_build_object('actor',v_actor.id,'order',p_order_id,'from',p_expected_status,
   'to',p_new_status,'driver',p_driver_id)::text);
  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_business::text||':22:'||p_request_id,0));
