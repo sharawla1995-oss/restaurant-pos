@@ -13,6 +13,7 @@ on:
       - 'top-chicken-update-channel.js'
       - 'top-chicken-updates/sh0008.json'
       - 'tests/top-chicken/primary-*.cjs'
+      - 'tests/top-chicken/top-chicken-update-channel.cjs'
       - '.github/workflows/top-chicken-primary-upgrade-installer.yml'
   workflow_dispatch:
 permissions:
