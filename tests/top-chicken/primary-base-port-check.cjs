@@ -1,7 +1,7 @@
 // Read-only source checks for the production-line Top Chicken primary candidate.
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const a=fs.readFileSync('app.js','utf8'),p=JSON.parse(fs.readFileSync('package.json','utf8'));
-assert.equal(p.version,'10.5.19-rc.1','Dedicated higher-version primary candidate; stable release remains unchanged');
+assert.equal(p.version,'10.5.19-rc.2','Dedicated higher-version primary candidate; stable release remains unchanged');
 for(const name of ['topChickenOrderOperation','transitionTopChickenOrderStatus','mutateTopChickenStaff','isTopChickenStaffContext']){
   assert.equal((a.match(new RegExp('(?:async )?function '+name+'\\(','g'))||[]).length,1,name+' present once');
 }
