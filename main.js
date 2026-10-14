@@ -76,7 +76,7 @@ function writeLicenseStateFile(v){
     if(wroteTmp)try{fs.unlinkSync(tmp)}catch{}
   }
 }
-function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=TOP_CHICKEN_PRELAUNCH?`${p}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`:p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
+function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=(TOP_CHICKEN_PRELAUNCH||TOP_CHICKEN_CONNECTED_QA)?`${p}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`:p+'.tmp';try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}fs.writeFileSync(tmp,bytes);try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p);try{fs.unlinkSync(tmp)}catch{}}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
   const p=dbPath();
