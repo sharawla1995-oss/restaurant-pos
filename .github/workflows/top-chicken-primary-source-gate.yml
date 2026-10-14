@@ -33,6 +33,6 @@ jobs:
         run: |
           node tests/top-chicken/top-chicken-update-channel.cjs
           node tests/top-chicken/login-edge-route-regression.cjs
-          node -e "const p=require('./package.json');if(p.build.appId!=='com.topburger.pos'||p.name!=='sharawla-pos-windows'||p.version!=='10.5.19-rc.5')process.exit(1)"
+          node -e "const p=require('./package.json');if(p.build.appId!=='com.topburger.pos'||p.name!=='sharawla-pos-windows'||p.version!=='10.5.19-rc.6')process.exit(1)"
       - name: Never publish this candidate as generic Production latest
         run: echo "Candidate source verified; public /releases/latest remains owned by stable production"
