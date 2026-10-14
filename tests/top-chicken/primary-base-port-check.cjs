@@ -14,7 +14,8 @@ assert.ok(a.includes("'top_chicken_transition_order_status'"));
 assert.ok(a.includes("'top_chicken_assign_order_driver'"));
 assert.ok(a.includes("if(!editing && await isTopChickenStaffContext())"));
 assert.ok(a.includes("if(await isTopChickenStaffContext())await mutateTopChickenStaff"));
-assert.ok(a.includes("await isTopChickenStaffContext()?await callFunction('smart-function'"));
+assert.ok(a.includes("const d=await req('/auth/v1/token?grant_type=password'"),'legacy email login must use real Supabase Auth');
+assert.ok(!a.includes("await isTopChickenStaffContext()?await callFunction('smart-function'"),'missing staff Edge function must never intercept login');
 const count=(a.match(/if\(await isTopChickenStaffContext\(\)\)\{/g)||[]).length;
 assert.ok(count>=7,'SCOPED guard must cover assigned driver + order transitions');
 for(const needle of [
