@@ -436,6 +436,18 @@ async function topChickenOrderOperation(name,payload){
   }
   const actor=String(session?.user?.id||'');
   if(!actor)throw new Error('جلسة الدخول غير صالحة');
+  // Reject invalid/unsupported actions BEFORE persisting a durable retry ID.
+  // Valid API calls alone may create receipts; all foreign business paths fail above.
+  const validOrderId=Number.isSafeInteger(Number(payload?.p_order_id))&&Number(payload.p_order_id)>0;
+  if(name==='top_chicken_transition_order_status'){
+    const allowed={new:'preparing',preparing:'ready',ready:'completed',out_for_delivery:'delivered'};
+    if(!validOrderId)throw new Error('رقم الطلب غير صالح');
+    if(allowed[String(payload.p_expected_status||'').toLowerCase()]!==String(payload.p_new_status||'').toLowerCase())
+      throw new Error('انتقال الحالة غير صحيح؛ حدّث قائمة الطلبات أولًا');
+  }else if(name==='top_chicken_assign_order_driver'){
+    if(!validOrderId||!Number.isSafeInteger(Number(payload.p_driver_id))||Number(payload.p_driver_id)<=0)
+      throw new Error('الطلب أو المندوب غير صالح');
+  }else throw new Error('عملية Top Chicken غير مدعومة');
   const key=['tc-order-v2',business,actor,name,JSON.stringify(payload)].join(':');
   let requestId=localStorage.getItem(key);
   if(!requestId){
