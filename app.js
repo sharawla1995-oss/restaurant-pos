@@ -400,11 +400,67 @@ function toast(m){const e=$('#toast');e.textContent=m;e.style.display='block';se
 function uiPrompt(message,defaultValue='',opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const type=opts.type||'text';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||'✏️'}</div><h2>${esc(opts.title||'إدخال البيانات')}</h2><p class="dialog-message">${esc(message)}</p><input class="dialog-input" type="${esc(type)}" value="${esc(defaultValue)}" ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''} autocomplete="off"><div class="modal-actions"><button class="secondary" data-dialog-cancel>إلغاء</button><button class="primary" data-dialog-ok>${esc(opts.okText||'حفظ')}</button></div></div>`;document.body.appendChild(m);const input=m.querySelector('.dialog-input');setTimeout(()=>{input.focus();if(type!=='password')input.select()},30);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-cancel]'))finish(null);if(e.target.closest('[data-dialog-ok]'))finish(input.value)});input.addEventListener('keydown',e=>{if(e.key==='Enter')finish(input.value);if(e.key==='Escape')finish(null)})})}
 function uiConfirm(message,opts={}){return new Promise(resolve=>{const m=document.createElement('div');m.className='modal app-dialog';const danger=opts.danger?' dialog-danger':'';m.innerHTML=`<div class="modal-card app-dialog-card${danger}"><div class="dialog-icon">${opts.icon||(opts.danger?'⚠️':'✓')}</div><h2>${esc(opts.title||'تأكيد العملية')}</h2><p class="dialog-message">${esc(message)}</p><div class="modal-actions"><button class="secondary" data-dialog-no>${esc(opts.cancelText||'إلغاء')}</button><button class="${opts.danger?'danger':'primary'}" data-dialog-yes>${esc(opts.okText||'تأكيد')}</button></div></div>`;document.body.appendChild(m);let done=false;const finish=v=>{if(done)return;done=true;m.remove();resolve(v)};m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-dialog-no]'))finish(false);if(e.target.closest('[data-dialog-yes]'))finish(true)});document.addEventListener('keydown',function key(e){if(done)return document.removeEventListener('keydown',key);if(e.key==='Escape'){document.removeEventListener('keydown',key);finish(false)}})})}
 function show(id){['activationView','setupView','loginView','appView'].forEach(x=>$('#'+x).classList.add('hidden'));$('#'+id).classList.remove('hidden')}
-function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{})}}
+function headers(auth=true){return {'Content-Type':'application/json','apikey':cfg.key,...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{}) ,...(topChickenStaffContextActive&&cfg.url.replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'?{'x-sharawla-business':'5358328c-9724-49aa-affc-1bce8be90f92'}:{})}}
 async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
-async function callFunction(name,payload={}){return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+let topChickenStaffContextActive=false;
+async function isTopChickenStaffContext(){
+  if(cfg.url.replace(/\/$/,'')!=='https://xihcxydjnzemflhedzor.supabase.co')return false;
+  return topChickenStaffContextActive=(state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'
+    || (await loadLicenseState())?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92');
+}
+async function callFunction(name,payload={}){
+  if(name==='smart-function' && await isTopChickenStaffContext())name='top-chicken-staff';
+  return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})
+}
+async function mutateTopChickenStaff(payload){
+  if(!await isTopChickenStaffContext()||!session?.user?.id)throw new Error('نشاط توب تشيكن التجريبي مطلوب');
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(payload)));
+  const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+  const key=['tc-staff-v1',session.user.id,hash].join(':');
+  let request_id=localStorage.getItem(key);
+  if(!request_id){request_id=crypto.randomUUID();localStorage.setItem(key,request_id);if(localStorage.getItem(key)!==request_id)throw new Error('تعذر حفظ معرّف العملية');}
+  const result=await callFunction('smart-function',{...payload,request_id});
+  if(result?.ok!==true || result.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'
+    || Number(result.branch_id)!==22 || !Number.isSafeInteger(Number(result.employee_id)))throw new Error('لم يؤكد السيرفر ربط الموظف');
+  if(payload.action==='create'&&result.permissions_persisted!==true)throw new Error('لم يؤكد السيرفر حفظ الصلاحيات');
+  localStorage.removeItem(key);return result;
+}
 async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+async function topChickenOrderOperation(name,payload){
+  // Tenant and actor bind the durable retry key; a new login cannot reuse another actor's receipt.
+  const business=String(state.employee?.business_id||'');
+  if(business!=='5358328c-9724-49aa-affc-1bce8be90f92'||Number(currentBranchId())!==22
+     ||String(cfg.url).replace(/\/$/,'')!=='https://xihcxydjnzemflhedzor.supabase.co'){
+    throw new Error('هذا المسار متاح لتوب تشيكن بيتا فقط');
+  }
+  const actor=String(session?.user?.id||'');
+  if(!actor)throw new Error('جلسة الدخول غير صالحة');
+  const key=['tc-order-v2',business,actor,name,JSON.stringify(payload)].join(':');
+  let requestId=localStorage.getItem(key);
+  if(!requestId){
+    requestId=globalThis.crypto?.randomUUID?.();
+    if(!requestId)throw new Error('تعذر إنشاء معرّف آمن للطلب');
+    localStorage.setItem(key,requestId);
+    if(localStorage.getItem(key)!==requestId)throw new Error('تعذر حفظ معرّف المحاولة');
+  }
+  const result=await callFunction('top-chicken-operations',{rpc:name,params:{...payload,p_request_id:requestId}});
+  if(result?.ok!==true)throw new Error('لم يؤكد السيرفر تنفيذ العملية');
+  localStorage.removeItem(key);
+  return result;
+}
+async function transitionTopChickenOrderStatus(orderId,expectedStatus,nextStatus){
+  // Requires the audited server RPC. Never fall back to a broad orders PATCH.
+  // Retain the request ID across retries and app restart; only clear on success.
+  if(!expectedStatus || !nextStatus)throw new Error('حالة الطلب غير معروفة؛ حدّث الشاشة أولًا');
+  return topChickenOrderOperation('top_chicken_transition_order_status',{
+    p_order_id:Number(orderId),
+    p_expected_status:String(expectedStatus),
+    p_new_status:String(nextStatus)
+  });
+}
+
+
 
 // ===== V9.8 Offline Core =====
 const OFFLINE_DB='topburger-pos-offline-v98', OFFLINE_STORE='kv';
@@ -480,7 +536,7 @@ async function rememberOfflineLogin(email,password){
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
-    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+    const d=await isTopChickenStaffContext()?await callFunction('smart-function',{action:'login',username:email,password}):await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
@@ -1466,13 +1522,13 @@ async function renderDelivery(){
    }
    const done=e.target.closest('[data-delivered]');
    if(done){
-     await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});
+     if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(done.dataset.delivered,'out_for_delivery','delivered');}else{await rest('orders',`id=eq.${done.dataset.delivered}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});}
      toast('تم تسجيل التسليم');renderDelivery()
    }
  };
 }
 
-async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;await rest('orders',`id=eq.${b.dataset.id}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})});toast('تم تحديث حالة الطلب');renderKitchen()}}
+async function renderKitchen(){if(!state.settings.enable_kitchen){$('#page').innerHTML='<div class="empty">شاشة المطبخ غير مفعلة من الإعدادات</div>';return;}const rows=await rest('orders',`select=*&branch_id=eq.${currentBranchId()}&status=in.(new,preparing,ready)&order=created_at.asc&limit=100`);const cards=await Promise.all(rows.map(async o=>{const items=await rest('order_items',`select=product_name,quantity,notes&order_id=eq.${o.id}&order=id`);return `<div class="panel kitchen-card"><div class="kitchen-head"><div><h2>أوردر #${o.id}</h2><small>${fmtDate(o.created_at)} • ${orderTypeLabel(o.order_type)}</small></div><span class="tag">${statusLabel(o.status)}</span></div><div class="kitchen-items">${items.map(i=>`<div><b>${Number(i.quantity)||0} ×</b> ${esc(i.product_name)}${i.notes?`<small class=\"kitchen-note\">📝 ${esc(i.notes)}</small>`:''}</div>`).join('')}</div><div class="modal-actions">${o.status==='new'?`<button class="primary" data-status="preparing" data-id="${o.id}">بدء التحضير</button>`:''}${o.status==='preparing'?`<button class="primary" data-status="ready" data-id="${o.id}">${o.source==='website'&&o.order_type==='pickup'?'جاهز للاستلام':'جاهز'}</button>`:''}${o.status==='ready'&&o.source==='website'&&o.order_type==='pickup'?`<button class="primary" data-status="completed" data-id="${o.id}">تم تسليم الطلب للعميل</button>`:''}${o.status==='ready'&&!(o.source==='website'&&['pickup','delivery'].includes(o.order_type))?`<button class="primary" data-status="completed" data-id="${o.id}">تم التسليم</button>`:''}</div></div>`}));$('#page').innerHTML=`<div class="kitchen-grid">${cards.join('')||'<div class="empty">لا توجد طلبات بالمطبخ حاليًا</div>'}</div>`;$('#page').onclick=async e=>{const b=e.target.closest('[data-status]');if(!b)return;if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(b.dataset.id,rows.find(o=>String(o.id)===String(b.dataset.id))?.status,b.dataset.status);}else{await rest('orders',`id=eq.${b.dataset.id}`,{method:'PATCH',body:JSON.stringify({status:b.dataset.status})});}toast('تم تحديث حالة الطلب');renderKitchen()}}
 
 async function shiftMetrics(shift){
  const orderIds=(await rest('orders',`select=id&shift_id=eq.${shift.id}`)).map(x=>x.id);
@@ -2280,7 +2336,7 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;if(await isTopChickenStaffContext()){const input=$('#email');input.type='text';input.parentElement.firstChild.textContent='اسم المستخدم';}show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js?v=10.5.16-unified-1',{updateViaCache:'none'})
@@ -2308,7 +2364,7 @@ function openDriverPicker(orderId, drivers, onDone){
  const m=document.createElement('div');m.className='modal';
  m.innerHTML=`<div class="modal-card driver-picker"><h2>🛵 تسليم الطلب لمندوب</h2><p>اختر المندوب</p><div class="driver-picker-list">${available.map(d=>`<button class="driver-pick-btn" data-driver-pick="${d.id}"><b>🛵 ${esc(d.name)}</b><small>${esc(d.phone||'بدون رقم')}</small></button>`).join('')}</div><div class="modal-actions"><button class="secondary" data-close>إلغاء</button></div></div>`;
  document.body.appendChild(m);
- m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();const b=e.target.closest('[data-driver-pick]');if(!b)return;const d=available.find(x=>String(x.id)===String(b.dataset.driverPick));if(!d)return;try{await rest('orders',`id=eq.${orderId}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',orderId,{driver_id:d.id});m.remove();toast(`تم التسليم إلى ${d.name}`);if(onDone)onDone(d)}catch(err){toast(err.message)}};
+ m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();const b=e.target.closest('[data-driver-pick]');if(!b)return;const d=available.find(x=>String(x.id)===String(b.dataset.driverPick));if(!d)return;try{if(await isTopChickenStaffContext()){await topChickenOrderOperation('top_chicken_assign_order_driver',{p_order_id:Number(orderId),p_driver_id:Number(d.id)});}else{await rest('orders',`id=eq.${orderId}`,{method:'PATCH',body:JSON.stringify({driver_id:d.id,status:'out_for_delivery',assigned_at:new Date().toISOString()})});await audit('assign_driver','order',orderId,{driver_id:d.id});}m.remove();toast(`تم التسليم إلى ${d.name}`);if(onDone)onDone(d)}catch(err){toast(err.message)}};
 }
 
 function paymentStatusLabel(v){return ({unpaid:'💰 غير مدفوع',proof_submitted:'🧾 إيصال للمراجعة',confirmed:'✅ الدفع مؤكد',rejected:'❌ إثبات مرفوض'}[v]||'💰 غير مدفوع')}
@@ -2469,15 +2525,15 @@ async function openDeliveryOrderDetails(id){
    if(e.target.closest('[data-print]')){printReceipt(o,items);return}
    if(e.target.closest('[data-change-payment]')){return openDeliveryPaymentChange(o,async()=>{m.remove();await renderDeliveryOrders()})}
    if(e.target.closest('[data-settle-order]')){if(!await uiConfirm(`تسوية بون ${bonDisplay(o)} بإجمالي ${money(o.total)}؟`))return;try{await settleDeliveryOrders([o.id],o.driver_id,o.branch_id);await audit('driver_settlement','order',o.id,{orders_count:1,amount:Number(o.total||0),driver_id:o.driver_id});m.remove();toast('تمت تسوية الأوردر');return renderDeliveryOrders()}catch(err){return toast(err.message)}}
-   if(e.target.closest('[data-preparing]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});await audit('mark_preparing','order',o.id,{});m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
-   if(e.target.closest('[data-ready]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'ready'})});await audit('mark_ready','order',o.id,{});m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-preparing]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'preparing');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'preparing'})});await audit('mark_preparing','order',o.id,{});}m.remove();toast('تم بدء تجهيز الطلب');return renderDeliveryOrders()}
+   if(e.target.closest('[data-ready]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'ready');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'ready'})});await audit('mark_ready','order',o.id,{});}m.remove();toast(isPickup?'الطلب جاهز للاستلام':'تم تجهيز الطلب');return renderDeliveryOrders()}
    if(e.target.closest('[data-assign]')){const list=state.drivers.filter(d=>String(d.branch_id)===String(o.branch_id)&&d.active!==false);m.remove();openDriverPicker(o.id,list,()=>renderDeliveryOrders());return}
    if(e.target.closest('[data-view-payment-receipt]')){return openPaymentReceipt(o.payment_receipt_path)}
    if(e.target.closest('[data-payment-confirm]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'confirmed'});o.payment_status='confirmed';m.remove();toast('تم تأكيد الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-reject]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'rejected'});o.payment_status='rejected';m.remove();toast('تم رفض إثبات الدفع');return renderDeliveryOrders()}
    if(e.target.closest('[data-payment-unpaid]')){await rpc('review_order_payment',{p_order_id:Number(o.id),p_status:'unpaid'});o.payment_status='unpaid';m.remove();toast('تم تسجيل الطلب غير مدفوع');return renderDeliveryOrders()}
-   if(e.target.closest('[data-completed]')){await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'completed',delivered_at:new Date().toISOString()})});await audit('mark_pickup_completed','order',o.id,{});m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
-   if(e.target.closest('[data-delivered]')){if(!await confirmDeliveryPaymentAtHandover(o))return;await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{payment_method:o.payment_method});m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
+   if(e.target.closest('[data-completed]')){if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'completed');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'completed',delivered_at:new Date().toISOString()})});await audit('mark_pickup_completed','order',o.id,{});}m.remove();toast('تم تسليم طلب الاستلام للعميل');return renderDeliveryOrders()}
+   if(e.target.closest('[data-delivered]')){if(!await confirmDeliveryPaymentAtHandover(o))return;if(await isTopChickenStaffContext()){await transitionTopChickenOrderStatus(o.id,o.status,'delivered');}else{await rest('orders',`id=eq.${o.id}`,{method:'PATCH',body:JSON.stringify({status:'delivered',delivered_at:new Date().toISOString()})});await audit('mark_delivered','order',o.id,{payment_method:o.payment_method});}m.remove();toast('تم تسجيل التسليم');return renderDeliveryOrders()}
  };
 }
 
@@ -2518,8 +2574,11 @@ async function renderUsers(){
    m.addEventListener('click',e=>{const b=e.target.closest('[data-toggle-hr-all]');if(!b)return;const boxes=[...m.querySelectorAll('.user-permission')].filter(x=>String(x.value).startsWith('hr.'));const shouldCheck=boxes.some(x=>!x.checked);boxes.forEach(x=>x.checked=shouldCheck);b.textContent=shouldCheck?'إلغاء كل صلاحيات HR':'اختيار كل صلاحيات HR'});
    const redraw=()=>{const r=m.querySelector('#uRole').value;const currentBranches=[...m.querySelectorAll('.user-branch:checked')].map(x=>x.value);m.querySelector('#uBranchChecks').innerHTML=branchChecks(currentBranches.length?currentBranches:ids,r==='admin');m.querySelector('#uBranchHint').textContent=r==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.';m.querySelector('#uPermissionChecks').innerHTML=permissionChecks(defaultPermissions(r),r==='admin')};
    m.querySelector('#uRole').onchange=redraw;m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove()};
-   m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length)return toast('حدد فرعًا واحدًا على الأقل');const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const permissions=role==='admin'?runtimeAllPages():[...m.querySelectorAll('.user-permission:checked')].map(x=>x.value);const active=m.querySelector('#uActive').checked;try{let employeeId=u?.id;if(editing){await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({name:m.querySelector('#uName').value.trim(),role,branch_id,active})});await rest('employee_branches',`employee_id=eq.${u.id}`,{method:'DELETE'});if(branch_ids.length)await rest('employee_branches','',{method:'POST',body:JSON.stringify(branch_ids.map(bid=>({employee_id:u.id,branch_id:bid})))});}else{const result=await callFunction('smart-function',{action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),email:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_ids});employeeId=result?.employee_id;if(active===false&&employeeId)await rest('employees',`id=eq.${employeeId}`,{method:'PATCH',body:JSON.stringify({active:false})});}if(employeeId)await savePermissions(employeeId,permissions);m.remove();toast(editing?'تم تعديل المستخدم والصلاحيات':'تم إنشاء المستخدم والصلاحيات');renderUsers()}catch(err){toast(err.message)}};
+   m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length)return toast('حدد فرعًا واحدًا على الأقل');const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const permissions=role==='admin'?runtimeAllPages():[...m.querySelectorAll('.user-permission:checked')].map(x=>x.value);const active=m.querySelector('#uActive').checked;try{if(!editing && await isTopChickenStaffContext()){
+ await mutateTopChickenStaff({action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_id,branch_ids,permissions,active});
+ m.remove();toast('تم إنشاء المستخدم والصلاحيات');return renderUsers();
+ }let employeeId=u?.id;if(editing){await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({name:m.querySelector('#uName').value.trim(),role,branch_id,active})});await rest('employee_branches',`employee_id=eq.${u.id}`,{method:'DELETE'});if(branch_ids.length)await rest('employee_branches','',{method:'POST',body:JSON.stringify(branch_ids.map(bid=>({employee_id:u.id,branch_id:bid})))});}else{const result=await callFunction('smart-function',{action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),email:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_ids});employeeId=result?.employee_id;if(active===false&&employeeId)await rest('employees',`id=eq.${employeeId}`,{method:'PATCH',body:JSON.stringify({active:false})});}if(employeeId)await savePermissions(employeeId,permissions);m.remove();toast(editing?'تم تعديل المستخدم والصلاحيات':'تم إنشاء المستخدم والصلاحيات');renderUsers()}catch(err){toast(err.message)}};
  };
- $('#newUserBtn').onclick=()=>openForm();$('#page').onclick=async e=>{const eb=e.target.closest('[data-edit-user]');if(eb){const u=rows.find(x=>String(x.id)===eb.dataset.editUser);if(u)openForm(u);return}const tb=e.target.closest('[data-toggle-user]');if(tb){const u=rows.find(x=>String(x.id)===tb.dataset.toggleUser);if(!u)return;if(String(u.auth_user_id)===String(session.user.id)&&u.active!==false)return toast('لا يمكنك إيقاف حسابك الحالي');if(!await uiConfirm(`${u.active===false?'تفعيل':'إيقاف'} ${u.name}؟`))return;try{await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({active:u.active===false})});toast('تم تحديث حالة المستخدم');renderUsers()}catch(err){toast(err.message)}return}const pb=e.target.closest('[data-password-user]');if(pb){const u=rows.find(x=>String(x.id)===pb.dataset.passwordUser);if(!u)return;const password=await uiPrompt(`كلمة المرور الجديدة لـ ${u.name}`);if(password===null)return;if(password.length<6)return toast('كلمة المرور 6 أحرف على الأقل');try{await callFunction('smart-function',{action:'password',employee_id:u.id,password});toast('تم تغيير كلمة المرور')}catch(err){toast(err.message)}return}};
+ $('#newUserBtn').onclick=()=>openForm();$('#page').onclick=async e=>{const eb=e.target.closest('[data-edit-user]');if(eb){const u=rows.find(x=>String(x.id)===eb.dataset.editUser);if(u)openForm(u);return}const tb=e.target.closest('[data-toggle-user]');if(tb){const u=rows.find(x=>String(x.id)===tb.dataset.toggleUser);if(!u)return;if(String(u.auth_user_id)===String(session.user.id)&&u.active!==false)return toast('لا يمكنك إيقاف حسابك الحالي');if(!await uiConfirm(`${u.active===false?'تفعيل':'إيقاف'} ${u.name}؟`))return;try{await rest('employees',`id=eq.${u.id}`,{method:'PATCH',body:JSON.stringify({active:u.active===false})});toast('تم تحديث حالة المستخدم');renderUsers()}catch(err){toast(err.message)}return}const pb=e.target.closest('[data-password-user]');if(pb){const u=rows.find(x=>String(x.id)===pb.dataset.passwordUser);if(!u)return;const password=await uiPrompt(`كلمة المرور الجديدة لـ ${u.name}`);if(password===null)return;if(password.length<6)return toast('كلمة المرور 6 أحرف على الأقل');try{if(await isTopChickenStaffContext())await mutateTopChickenStaff({action:'password',employee_id:u.id,password});else await callFunction('smart-function',{action:'password',employee_id:u.id,password});toast('تم تغيير كلمة المرور')}catch(err){toast(err.message)}return}};
 }
 
