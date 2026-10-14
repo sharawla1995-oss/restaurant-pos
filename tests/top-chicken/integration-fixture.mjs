@@ -5,6 +5,20 @@ const staff=JSON.parse(fs.readFileSync('evidence/top-chicken/staff-profile-metad
 const qi=s=>'"'+s.replaceAll('"','""')+'"';
 export async function setupIntegration({realAuth=false}={}){
   await setupDatabase();
+  // The original order fixture has a two-column identity stub. Restore the live metadata
+  // before testing the unchanged legacy fallback, with synthetic singleton provenance.
+  const identity=staff.tables.find(t=>t.name==='operational_business_identity_v1');
+  const columns=new Set((await q("select column_name from information_schema.columns where table_schema='sharawla_internal' and table_name='operational_business_identity_v1'")).map(r=>r.column_name));
+  const values={id:'1',binding_version:'1',source:"'isolated-fixture'"};
+  for(const c of identity.columns){
+    if(!columns.has(c.name)){
+      const temporary=c.default||values[c.name];
+      await db.exec(`ALTER TABLE sharawla_internal.operational_business_identity_v1 ADD COLUMN ${qi(c.name)} ${c.type}${temporary?` DEFAULT ${temporary}`:''}${c.notnull?' NOT NULL':''}`);
+      if(!c.default&&temporary)await db.exec(`ALTER TABLE sharawla_internal.operational_business_identity_v1 ALTER COLUMN ${qi(c.name)} DROP DEFAULT`);
+    }else if(c.notnull)await db.exec(`ALTER TABLE sharawla_internal.operational_business_identity_v1 ALTER COLUMN ${qi(c.name)} SET NOT NULL`);
+  }
+  for(const c of identity.constraints)await db.exec(`ALTER TABLE sharawla_internal.operational_business_identity_v1 ADD CONSTRAINT ${qi(c.name)} ${c.definition}`);
+
   if(!realAuth)await db.exec('CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_app_meta_data jsonb);');
   for(let n=1;n<=7;n++)if(!realAuth)await q('insert into auth.users(id,email,raw_app_meta_data) values($1,$2,$3)',[`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`,`fixture${n}@local.test`,{}]);
   const existing=new Set((await q("select tablename from pg_tables where schemaname='public'")).map(x=>x.tablename));
