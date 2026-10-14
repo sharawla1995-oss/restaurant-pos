@@ -526,7 +526,7 @@ async function offlineQueue(){
 async function setOfflineQueue(q){await odbSet('queue',q);try{if(window.topBurgerDesktop?.db?.set)await window.topBurgerDesktop.db.set('queueCount',q.length)}catch{}updatePendingSyncBadge(q.length);return q}
 const TOP_CHICKEN_SYNC_PAUSE_KEY='top-chicken-sh0008-sync-diagnostics-paused-v1';
 function isTopChickenSyncDiagnosticsScope(){
-  return String(cfg.url||'').replace(/\\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'
+  return String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'
     && String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'
     && Number(currentBranchId())===22;
 }
@@ -539,8 +539,8 @@ async function showTopChickenSyncDiagnostics(){
   const infoByTx=new Map((persisted||[]).map(x=>[String(x.client_tx_id),x]));
   const typeLabels={sale:'فاتورة بيع',shift_open:'فتح وردية',shift_close:'إغلاق وردية',return:'مرتجع',expense:'مصروف'};
   const safe=(val,max=210)=>String(val??'غير متاح')
-    .replace(/(?:\\+?20|0)1\\d{9}/g,'[رقم محجوب]')
-    .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}/ig,'[بريد محجوب]').slice(0,max);
+    .replace(/(?:\+?20|0)1\d{9}/g,'[رقم محجوب]')
+    .replace(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/ig,'[بريد محجوب]').slice(0,max);
   const lines=queue.map(job=>{
     const r=infoByTx.get(String(job.client_tx_id))||{};
     return '<div class="panel" style="margin:8px 0;padding:12px">'+
