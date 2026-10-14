@@ -1,0 +1,34 @@
+// Read the actual main-app installer payload, assert fixed production identity and runtime safety.
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const crypto=require('node:crypto');
+const asar=require('asar');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+assert.equal(pkg.version,'10.5.19-rc.1');
+assert.equal(pkg.name,'sharawla-pos-windows','retain installed userData namespace');
+assert.equal(pkg.build.appId,'com.topburger.pos','retain official main in-place appId');
+assert.equal(pkg.build.productName,'Sharawla POS','retain official main in-place name');
+assert.equal(pkg.build.nsis.shortcutName,'Sharawla POS');
+const version=JSON.parse(fs.readFileSync('version.json','utf8'));
+assert.equal(version.version,pkg.version);
+const update=JSON.parse(fs.readFileSync('update-config.json','utf8'));
+assert.equal(update.enabled,false,'do not expose branch artifact to general stable auto-updater');
+const unpacked=path.join('dist','win-unpacked','resources','app.asar');
+assert.ok(fs.existsSync(unpacked),'packaged application is required');
+const packaged=JSON.parse(asar.extractFile(unpacked,'package.json').toString());
+assert.equal(packaged.version,pkg.version);
+assert.equal(packaged.name,pkg.name);
+const files=['app.js','main.js','preload.js','update-config.json','version.json','index.html','food-recipe-runtime-bridge-v10-5-16.js','inventory-overview-v10-5-16.js'];
+for(const f of files){assert.deepEqual(asar.extractFile(unpacked,f),fs.readFileSync(f),f+' must match reviewed source bytes')}
+const app=asar.extractFile(unpacked,'app.js').toString();
+for(const token of ['topChickenOrderOperation','transitionTopChickenOrderStatus','top_chicken_assign_order_driver','top_chicken_transition_order_status','mutateTopChickenStaff','foodPort?.sharedRoutes?.includes(p)'])assert.ok(app.includes(token),token+' integration');
+const electron=asar.extractFile(unpacked,'main.js').toString();
+assert.ok(electron.includes('topburger-pos.sqlite'),'legacy main SQLite preserved');
+assert.ok(electron.includes('TOP_CHICKEN_PRIMARY_CI_NO_NETWORK'),'CI network guard');
+assert.ok(electron.includes('randomBytes(4)'),'unique SQLite temp writes');
+const inst=fs.readdirSync('dist').filter(f=>/^Top-Chicken-SH0008-Primary-.*\.exe$/i.test(f));
+assert.equal(inst.length,1,'exactly one targeted installer');
+const bytes=fs.readFileSync(path.join('dist',inst[0]));
+const result={result:'PASS',candidate_version:pkg.version,main_app_id:pkg.build.appId,main_product_name:pkg.build.productName,source_sha:process.env.GITHUB_SHA,installer:inst[0],bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),hosted_E2E:'NOT EXECUTED',beta_sql_edge:'NOT DEPLOYED',license_grants:'NOT CHANGED'};
+fs.mkdirSync('evidence/top-chicken',{recursive:true});
+fs.writeFileSync('evidence/top-chicken/primary-installer-check.json',JSON.stringify(result,null,2));
+console.log(JSON.stringify(result));
