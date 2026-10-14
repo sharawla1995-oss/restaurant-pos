@@ -16,8 +16,21 @@ on:
   workflow_dispatch:
 permissions: {contents: read}
 jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    outputs:
+      native: ${{ steps.scope.outputs.native }}
+      client: ${{ steps.scope.outputs.client }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - id: scope
+        env:
+          TC_BEFORE: ${{ github.event.before }}
+        run: node tests/top-chicken/authority-review/ci-scope.cjs
   affected-review:
-    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    needs: scope
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes' && needs.scope.outputs.native == 'true'
     strategy:
       fail-fast: false
       matrix: {suite: [entitlements, sql-compat]}
@@ -45,12 +58,27 @@ jobs:
       - run: node tests/top-chicken/authority-review/${{ matrix.suite }}.mjs
       - if: matrix.suite == 'sql-compat'
         run: node tests/top-chicken/authority-review/smart-compat.mjs
-      - if: matrix.suite == 'sql-compat'
-        run: node tests/top-chicken/authority-review/client-routing.mjs
-      - if: matrix.suite == 'sql-compat'
-        run: node tests/top-chicken/authority-review/signed-channel.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: top-chicken-authority-${{ matrix.suite }}-${{ github.sha }}
+          path: ${{ env.TC_REVIEW_OUTPUT }}/*results.json
+  client-channel:
+    needs: scope
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes' && needs.scope.outputs.client == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      TC_REVIEW_OUTPUT: evidence/top-chicken/authority-review/ci-results
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: mkdir -p "$TC_REVIEW_OUTPUT"
+      - run: node tests/top-chicken/authority-review/client-routing.mjs
+      - run: node tests/top-chicken/authority-review/signed-channel.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-client-channel-${{ github.sha }}
           path: ${{ env.TC_REVIEW_OUTPUT }}/*results.json
