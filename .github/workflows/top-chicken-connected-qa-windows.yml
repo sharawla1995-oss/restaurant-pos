@@ -37,7 +37,11 @@ jobs:
         run: npm run check
       - name: Verify checked-in version files not rewritten by build
         shell: bash
-        run: test -z "$(git status --porcelain package.json package-lock.json version.json index.html sw.js)"
+        run: |
+          git status --porcelain package.json package-lock.json version.json index.html sw.js
+          git diff --stat -- package.json package-lock.json version.json index.html sw.js
+          git diff -- package.json package-lock.json version.json index.html sw.js
+          test -z "$(git status --porcelain package.json package-lock.json version.json index.html sw.js)"
       - name: Build separately identified connected QA installer (no publish)
         run: npx electron-builder --config top-chicken-connected-qa-build.json --win nsis --x64 --publish never
       - name: Validate actual packaged app and installer checksum
