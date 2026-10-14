@@ -19,8 +19,22 @@ concurrency:
   group: top-chicken-prelaunch-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  changed-scope:
+    runs-on: ubuntu-24.04
+    outputs:
+      postgres: ${{ steps.scope.outputs.postgres }}
+      windows: ${{ steps.scope.outputs.windows }}
+      staff: ${{ steps.scope.outputs.staff }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - id: scope
+        env:
+          TC_BEFORE: ${{ github.event.before }}
+        run: node tests/top-chicken/ci-changed-scope.cjs
   postgres16:
-    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    needs: changed-scope
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes' && needs.changed-scope.outputs.postgres == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -47,7 +61,8 @@ jobs:
           name: top-chicken-postgres16-${{ github.sha }}
           path: evidence/top-chicken/
   windows:
-    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    needs: changed-scope
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes' && needs.changed-scope.outputs.windows == 'true'
     runs-on: windows-2022
     timeout-minutes: 20
     steps:
@@ -68,7 +83,8 @@ jobs:
             dist-top-chicken-test/*.exe
             evidence/top-chicken/
   staff-and-browser:
-    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    needs: changed-scope
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes' && needs.changed-scope.outputs.staff == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
@@ -92,6 +108,7 @@ jobs:
       - run: npx --prefix tests/top-chicken playwright install --with-deps chromium
       - name: Start actual Auth against synthetic loopback PostgreSQL only
         run: |
+          docker exec '${{ job.services.pg.id }}' psql -U tc_fixture -d top_chicken_prelaunch -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA auth;'
           docker run -d --name tc-local-auth --network host \
             -e GOTRUE_API_HOST=127.0.0.1 -e GOTRUE_API_PORT=9999 \
             -e API_EXTERNAL_URL=http://127.0.0.1:9999 \
