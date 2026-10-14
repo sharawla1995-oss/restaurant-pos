@@ -20,7 +20,8 @@ async function check(label){
    assert.equal(info.version,'10.5.4-beta.18');
    const paths=await page.evaluate(()=>window.topBurgerDesktop.paths());
    const normalize=s=>String(s||'').toLowerCase();
-   assert.ok(normalize(paths.database).includes('top chicken connected qa'),'app userData must be scoped to QA productName');
+   assert.ok(normalize(paths.database).includes('topchickenconnectedqa-20261014'),'app userData must use its fixed isolated QA folder');
+   assert.ok(!normalize(paths.database).includes('sharawla-pos-windows'),'QA may not reuse installed Sharawla POS userData');
    assert.ok(normalize(paths.backups).includes('qa-backups'),'backups must be scoped to QA userData');
    assert.ok(!normalize(paths.backups).includes('documents\\topburgerpos'),'no shared Top Burger backups');
    const up=await page.evaluate(()=>window.topBurgerDesktop.update.check());
