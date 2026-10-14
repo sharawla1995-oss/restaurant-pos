@@ -536,7 +536,12 @@ async function rememberOfflineLogin(email,password){
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
-    const d=await isTopChickenStaffContext()?await callFunction('smart-function',{action:'login',username:email,password}):await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
+    // Current Top Chicken accounts are Supabase Auth email users. The Beta-only
+    // top-chicken-staff Edge Function has not been deployed, so never route
+    // working email logins to a nonexistent endpoint. Preserve ordinary tenants.
+    if(!email.includes('@') && await isTopChickenStaffContext())
+      throw new Error('تسجيل الدخول باسم المستخدم لتوب تشيكن غير متاح حتى نشر خدمة الموظفين؛ استخدم البريد الإلكتروني للحساب الحالي.');
+    const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
@@ -2336,7 +2341,7 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;if(await isTopChickenStaffContext()){const input=$('#email');input.type='text';input.parentElement.firstChild.textContent='اسم المستخدم';}show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;if(await isTopChickenStaffContext()){const input=$('#email');input.type='email';input.parentElement.firstChild.textContent='البريد الإلكتروني';}show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js?v=10.5.16-unified-1',{updateViaCache:'none'})
