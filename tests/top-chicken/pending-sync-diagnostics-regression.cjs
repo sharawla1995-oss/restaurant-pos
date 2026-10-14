@@ -10,19 +10,19 @@ assert.ok(src.includes("replace(/\\/$/,'')"),'trailing URL slash normalized');
 const mockQueue=[{type:'sale',client_tx_id:'test-tx-55abc','created_at':'2026-10-14T22:00:00Z',p_order:{customer_name:'SECRET NAME',customer_phone:'01011112222'}}];
 const persisted=[{client_tx_id:'test-tx-55abc',attempts:6,last_error:'Cloud error for 01011112222 or private@example.com'}];
 const keys=new Map(),nodes=[],toasts=[],state={employee:{business_id:'5358328c-9724-49aa-affc-1bce8be90f92'}};
-let branch=22,persistentWrites=0;
+let branch=22,persistentWrites=0,reviewApproved=false,reviewPrompts=0;
 const ctx={cfg:{url:'https://xihcxydjnzemflhedzor.supabase.co'},state,currentBranchId:()=>branch,
  localStorage:{getItem:k=>keys.get(k)||null,setItem:(k,v)=>keys.set(k,v),removeItem:k=>keys.delete(k)},
  offlineQueue:async()=>mockQueue,
  window:{topBurgerDesktop:{operations:{list:async()=>persisted,status:async()=>{persistentWrites++},put:async()=>{persistentWrites++}}}},
  navigator:{onLine:true},esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
  document:{createElement:()=>({className:'',innerHTML:'',querySelector:()=>({textContent:''}),onclick:null}),body:{appendChild:v=>nodes.push(v)}},
- toast:t=>toasts.push(t),console};
+ toast:t=>toasts.push(t),confirm:()=>{reviewPrompts++;return reviewApproved},console};
 vm.createContext(ctx);
 vm.runInContext(src,ctx);
 (async()=>{
  assert.equal(vm.runInContext('isTopChickenSyncDiagnosticsScope()',ctx),true);
- assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),false);
+ assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),true,'new Beta install must pause old offline operations');
  await vm.runInContext('showTopChickenSyncDiagnostics()',ctx);
  assert.equal(nodes.length,1);
  const html=nodes[0].innerHTML;
@@ -35,11 +35,17 @@ vm.runInContext(src,ctx);
  assert.ok(!html.includes('private@example.com'),'email must be hidden');
  assert.equal(persistentWrites,0,'read-only diagnosis must not touch local receipts');
  nodes[0].onclick({target:{closest:q=>q==='[data-tc-sync-pause]'?{}:null}});
- assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),true);
- assert.equal(keys.get('top-chicken-sh0008-sync-diagnostics-paused-v1'),'1');
+ assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),true,'resume denied when consent refused');
+ assert.equal(reviewPrompts,1,'warn before old financial events are replayed');
+ assert.equal(keys.size,0,'default pause is read-only');
+ reviewApproved=true;
  nodes[0].onclick({target:{closest:q=>q==='[data-tc-sync-pause]'?{}:null}});
- assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),false);
- assert.equal(persistentWrites,0);
+ assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),false,'user-reviewed explicit resume only');
+ assert.equal(keys.get('top-chicken-sh0008-sync-diagnostics-paused-v1'),'0');
+ nodes[0].onclick({target:{closest:q=>q==='[data-tc-sync-pause]'?{}:null}});
+ assert.equal(vm.runInContext('isTopChickenSyncPaused()',ctx),true,'re-pause remains available');
+ assert.equal(keys.get('top-chicken-sh0008-sync-diagnostics-paused-v1'),'1');
+ assert.equal(persistentWrites,0,'no queue mutation from diagnostics or pause');
  branch=1;
  assert.equal(vm.runInContext('isTopChickenSyncDiagnosticsScope()',ctx),false,'foreign branch blocked');
  state.employee.business_id='91826502-590e-4afa-8826-2c0f4b99c490';branch=22;
@@ -47,7 +53,8 @@ vm.runInContext(src,ctx);
  await vm.runInContext('showTopChickenSyncDiagnostics()',ctx);
  assert.equal(nodes.length,1,'foreign tenant sees no diagnostic');
  assert.ok(a.includes("async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token||isTopChickenSyncPaused())return;"));
+ assert.ok(a.includes("localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)!=='0'"),'sync paused by default');
  assert.ok(a.includes("for(const job of [...q]){if(isTopChickenSyncPaused())break;try{"),'pause checked between queued operations');
  assert.ok(a.includes("el.onclick=()=>{if(isTopChickenSyncDiagnosticsScope())showTopChickenSyncDiagnostics()"),'pending badge opens dialog only for TC');
- console.log('PASS: SH-0008 pending sync diagnostics read-only, PII masked, reversible pause, other tenant/branch blocked');
+ console.log('PASS: SH-0008 local queue held by default, explicit reviewed resume, read-only masked diagnostics and foreign tenant isolation');
 })().catch(err=>{console.error(err);process.exitCode=1});
