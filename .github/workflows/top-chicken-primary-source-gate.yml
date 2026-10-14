@@ -1,0 +1,29 @@
+name: Top Chicken SH-0008 primary source gate (no release)
+on:
+  push:
+    branches: [release/top-chicken-sh0008-primary-v10.5.19-candidate]
+    paths:
+      - 'app.js'
+      - 'tests/top-chicken/primary-base-port-check.cjs'
+      - '.github/workflows/top-chicken-primary-source-gate.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  primary-source-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Parse primary candidate renderer
+        run: node --check app.js
+      - name: Verify stable release 10.5.18 base, scoped TC owner routing, and legacy paths
+        run: node tests/top-chicken/primary-base-port-check.cjs
+      - name: Preserve primary Electron process and packaging from pinned official baseline
+        run: |
+          git diff --exit-code v10.5.18 -- main.js preload.js package.json package-lock.json version.json update-config.json
+      - name: No installer without hosted acceptance and full backup approval
+        run: echo "Source-only PASS; do not package, publish, deploy or install primary candidate"
