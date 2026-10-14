@@ -1,0 +1,100 @@
+name: Publish SH-0008-only rc3 update (never generic stable)
+on:
+  push:
+    branches: [release/top-chicken-sh0008-primary-v10.5.19-candidate]
+    paths:
+      - '.github/workflows/top-chicken-sh0008-publish-rc3.yml'
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish-scoped-update:
+    if: github.repository == 'sharawla1995-oss/restaurant-pos' && github.ref == 'refs/heads/release/top-chicken-sh0008-primary-v10.5.19-candidate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: sharawla1995-oss/restaurant-pos
+      BRANCH: release/top-chicken-sh0008-primary-v10.5.19-candidate
+      SOURCE_SHA: fbd0a2b847dd1ce38577e59dd18167ba10d1fa09
+      SOURCE_RUN: '38633915762'
+      SOURCE_ARTIFACT: top-chicken-SH0008-primary-10.5.19-rc.3-fbd0a2b847dd1ce38577e59dd18167ba10d1fa09
+      FILE: Top-Chicken-SH0008-Primary-10.5.19-rc.3.exe
+      EXPECTED_SHA256: 5a5ba1cf001737d6f53c1ae84cbda9ffb0d2d9acf2a144c518903217d15aa14b
+      TAG: top-chicken-sh0008-v10.5.19-rc.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fail closed if general production latest was changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          general="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name')"
+          test "$general" = 'v10.5.18' || { echo "Refusing to touch channel; general latest changed: $general"; exit 1; }
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          node - <<'NODE'
+          const fs=require('fs');
+          const feed=JSON.parse(fs.readFileSync('top-chicken-updates/sh0008.json','utf8'));
+          if(feed.schema!==1 || feed.channel!=='top-chicken-sh0008' || feed.device_id!=='44162475-3ca2-4a2b-8bd5-aee1c7bb1c73' ||
+            feed.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92' || feed.version!=='10.5.19-rc.3') {
+              throw Error('Feed must remain fixed to SH-0008 and exact rc3');
+          }
+          const keys=Object.keys(feed.assets||{});
+          if(keys.length && (keys.length!==1 || !feed.assets.x64))throw Error('Unexpected existing feed asset');
+          NODE
+      - name: Download exact already-tested Windows artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh run view "$SOURCE_RUN" -R "$REPO" --json headSha -q .headSha)" = "$SOURCE_SHA"
+          test "$(gh run view "$SOURCE_RUN" -R "$REPO" --json conclusion -q .conclusion)" = success
+          mkdir -p /tmp/tc-rc3
+          gh run download "$SOURCE_RUN" -R "$REPO" -n "$SOURCE_ARTIFACT" -D /tmp/tc-rc3
+          test -f "/tmp/tc-rc3/$FILE"
+          echo "$EXPECTED_SHA256  /tmp/tc-rc3/$FILE" | sha256sum --check --status
+      - name: Publish ONLY a dedicated non-latest prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq .prerelease)" = true
+            test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq .draft)" = false
+            gh release download "$TAG" -R "$REPO" -p "$FILE" -D /tmp/tc-rc3-existing
+            echo "$EXPECTED_SHA256  /tmp/tc-rc3-existing/$FILE" | sha256sum --check --status
+          else
+            gh release create "$TAG" "/tmp/tc-rc3/$FILE" -R "$REPO" --target "$SOURCE_SHA" --prerelease \
+              --title "Top Chicken SH-0008 10.5.19-rc.3 (targeted only)" \
+              --notes "Dedicated SH-0008-only prerelease. Never install on Top Burger SH-0005/06. In-place login fix and dedicated update channel; Beta SQL/Edge and commercial grants not deployed. Not a general production release."
+          fi
+          test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq .prerelease)" = true
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = 'v10.5.18'
+      - name: Point only SH-0008 manifest at verified prerelease SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs=require('fs');
+          const file='top-chicken-updates/sh0008.json';
+          const feed=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(feed.channel!=='top-chicken-sh0008'||feed.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'||feed.device_id!=='44162475-3ca2-4a2b-8bd5-aee1c7bb1c73'||feed.version!=='10.5.19-rc.3'||feed.enabled!==true)throw Error('Wrong update-channel owner');
+          feed.assets={x64:{url:'https://github.com/sharawla1995-oss/restaurant-pos/releases/download/top-chicken-sh0008-v10.5.19-rc.3/Top-Chicken-SH0008-Primary-10.5.19-rc.3.exe',
+            sha256:'5a5ba1cf001737d6f53c1ae84cbda9ffb0d2d9acf2a144c518903217d15aa14b'}};
+          feed.notes='SH-0008-only. Reviewed 10.5.19-rc.3 login hotfix and Windows in-place installer. Other businesses and generic stable remain untouched.';
+          fs.writeFileSync('/tmp/tc-sh0008-published.json',JSON.stringify(feed,null,2)+'\n');
+          NODE
+          current_sha="$(gh api "repos/$REPO/contents/top-chicken-updates/sh0008.json?ref=$BRANCH" --jq .sha)"
+          encoded="$(base64 -w0 /tmp/tc-sh0008-published.json)"
+          gh api -X PUT "repos/$REPO/contents/top-chicken-updates/sh0008.json" \
+            -f "branch=$BRANCH" -f "message=release(top-chicken): expose verified rc3 to SH-0008 update channel only" \
+            -f "sha=$current_sha" -f "content=$encoded" --silent
+          published="$(gh api "repos/$REPO/contents/top-chicken-updates/sh0008.json?ref=$BRANCH" --jq .content | base64 -d)"
+          printf '%s' "$published" | node -e "
+            let txt='';process.stdin.on('data',c=>txt+=c);process.stdin.on('end',()=>{
+            const v=JSON.parse(txt);
+            if(v.channel!=='top-chicken-sh0008'||v.version!=='10.5.19-rc.3'||
+            v.assets?.x64?.sha256!=='5a5ba1cf001737d6f53c1ae84cbda9ffb0d2d9acf2a144c518903217d15aa14b')process.exit(1);
+            console.log('SH-0008 manifest updated PASS');
+            });"
+          test "$(gh api "repos/$REPO/releases/latest" --jq .tag_name)" = 'v10.5.18'
+          echo 'PASS: targeted prerelease available only via SH-0008 manifest; general latest unchanged'
