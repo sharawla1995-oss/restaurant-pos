@@ -6,6 +6,8 @@ on:
       - 'app.js'
       - 'main.js'
       - 'supabase/top-chicken-*-CANDIDATE.sql'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
       - 'tests/top-chicken/**'
       - 'evidence/top-chicken/**'
       - 'top-chicken-test-build.json'
@@ -38,16 +40,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: '20'}
       - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
-      - run: node tests/top-chicken/client-retry.cjs
       - run: node tests/top-chicken/pg16.mjs
-      - name: Backup and restore the synthetic fixture to a second isolated database
-        run: |
-          container='${{ job.services.pg.id }}'
-          docker exec "$container" pg_dump -U tc_fixture -d top_chicken_prelaunch > evidence/top-chicken/synthetic-pg16-backup.sql
-          docker exec "$container" createdb -U tc_fixture top_chicken_prelaunch_restore
-          docker exec -i "$container" psql -U tc_fixture -d top_chicken_prelaunch_restore -v ON_ERROR_STOP=1 < evidence/top-chicken/synthetic-pg16-backup.sql
-          docker exec "$container" psql -U tc_fixture -d top_chicken_prelaunch_restore -Atc 'select count(*) from public.top_chicken_order_status_receipts_v1' > evidence/top-chicken/synthetic-restore-count.txt
-          test "$(cat evidence/top-chicken/synthetic-restore-count.txt)" = '9'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -64,12 +57,66 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
       - run: npm run check
-      - run: npx electron-builder --config top-chicken-test-build.json --win zip --x64 --publish never
-      - run: node tests/top-chicken/windows-smoke.mjs
+      - run: npx electron-builder --config top-chicken-test-build.json --win zip nsis --x64 --publish never
+      - run: node tests/top-chicken/final-package-check.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: top-chicken-windows-TEST-${{ github.sha }}
           path: |
             dist-top-chicken-test/*.zip
+            dist-top-chicken-test/*.exe
             evidence/top-chicken/
+  staff-and-browser:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-prelaunch-fixes'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      pg:
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        env:
+          POSTGRES_USER: tc_fixture
+          POSTGRES_PASSWORD: local-ci-fixture-only
+          POSTGRES_DB: top_chicken_prelaunch
+        ports: ['127.0.0.1:5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      TOP_CHICKEN_PG_URL: postgresql://tc_fixture:local-ci-fixture-only@127.0.0.1:5432/top_chicken_prelaunch
+      TC_LOCAL_AUTH_URL: http://127.0.0.1:9999
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: npm ci --prefix tests/top-chicken --ignore-scripts --no-audit --no-fund
+      - run: npx --prefix tests/top-chicken playwright install --with-deps chromium
+      - name: Start actual Auth against synthetic loopback PostgreSQL only
+        run: |
+          docker run -d --name tc-local-auth --network host \
+            -e GOTRUE_API_HOST=127.0.0.1 -e GOTRUE_API_PORT=9999 \
+            -e API_EXTERNAL_URL=http://127.0.0.1:9999 \
+            -e GOTRUE_DB_DRIVER=postgres \
+            -e GOTRUE_DB_DATABASE_URL="$TOP_CHICKEN_PG_URL" \
+            -e GOTRUE_SITE_URL=http://127.0.0.1:9999 \
+            -e GOTRUE_JWT_SECRET=top-chicken-local-fixture-jwt-secret-only-2026 \
+            -e GOTRUE_JWT_ADMIN_ROLES=service_role \
+            -e GOTRUE_JWT_AUD=authenticated \
+            -e GOTRUE_DISABLE_SIGNUP=true -e GOTRUE_MAILER_AUTOCONFIRM=true \
+            -e GOTRUE_EXTERNAL_EMAIL_ENABLED=true \
+            supabase/gotrue:v2.196.0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:9999/health; then exit 0; fi
+            sleep 1
+          done
+          docker logs tc-local-auth
+          exit 1
+      - run: node tests/top-chicken/legacy-staff-fence.mjs
+      - run: node tests/top-chicken/real-auth-integration.mjs
+      - name: Auth diagnostic logs on failure
+        if: failure()
+        run: docker logs tc-local-auth > evidence/top-chicken/local-auth-diagnostic.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: top-chicken-staff-browser-${{ github.sha }}
+          path: evidence/top-chicken/

@@ -1,0 +1,706 @@
+{
+  "tables": [
+    {
+      "name": "business_auth_memberships",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "auth_user_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "default": "true",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "default": "'migration'::text",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX business_auth_memberships_pkey ON public.business_auth_memberships USING btree (auth_user_id, business_id)",
+        "CREATE INDEX mt1_business_auth_memberships_business_id_idx ON public.business_auth_memberships USING btree (business_id)"
+      ],
+      "triggers": [
+        {
+          "definition": "CREATE TRIGGER mt1_business_write_guard_business_auth_memberships BEFORE INSERT OR DELETE OR UPDATE ON public.business_auth_memberships FOR EACH ROW EXECUTE FUNCTION mt1_business_write_guard()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "business_auth_memberships_auth_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "business_auth_memberships_business_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "business_auth_memberships_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (auth_user_id, business_id)"
+        }
+      ]
+    },
+    {
+      "name": "employee_action_permissions_v2",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "action_code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "allowed",
+          "type": "boolean",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX mt1_employee_action_permissions_v2_business_id_idx ON public.employee_action_permissions_v2 USING btree (business_id)",
+        "CREATE UNIQUE INDEX employee_action_permissions_v2_pkey ON public.employee_action_permissions_v2 USING btree (business_id, employee_id, action_code)"
+      ],
+      "triggers": [
+        {
+          "definition": "CREATE TRIGGER mt1_business_write_guard_employee_action_permissions_v2 BEFORE INSERT OR DELETE OR UPDATE ON public.employee_action_permissions_v2 FOR EACH ROW EXECUTE FUNCTION mt1_business_write_guard()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "employee_action_permissions_v2_action_code_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (action_code) REFERENCES permission_actions_v2(code) ON DELETE CASCADE"
+        },
+        {
+          "name": "employee_action_permissions_v2_business_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+        },
+        {
+          "name": "employee_action_permissions_v2_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (business_id, employee_id, action_code)"
+        },
+        {
+          "name": "mt1_employee_action_permissions_v2_employee_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id, employee_id) REFERENCES employees(business_id, id)"
+        }
+      ]
+    },
+    {
+      "name": "employee_branches",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "branch_id",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_employee_branches_branch ON public.employee_branches USING btree (branch_id, employee_id)",
+        "CREATE INDEX mt1_employee_branches_business_id_idx ON public.employee_branches USING btree (business_id)",
+        "CREATE UNIQUE INDEX employee_branches_pkey ON public.employee_branches USING btree (business_id, employee_id, branch_id)"
+      ],
+      "triggers": [
+        {
+          "definition": "CREATE TRIGGER mt1_business_write_guard_employee_branches BEFORE INSERT OR DELETE OR UPDATE ON public.employee_branches FOR EACH ROW EXECUTE FUNCTION mt1_business_write_guard()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "employee_branches_business_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+        },
+        {
+          "name": "employee_branches_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (business_id, employee_id, branch_id)"
+        },
+        {
+          "name": "mt1_employee_branches_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id, branch_id) REFERENCES branches(business_id, id)"
+        },
+        {
+          "name": "mt1_employee_branches_employee_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id, employee_id) REFERENCES employees(business_id, id)"
+        }
+      ]
+    },
+    {
+      "name": "employee_permissions",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "employee_id",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "permission_key",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "allowed",
+          "type": "boolean",
+          "default": "true",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX mt1_employee_permissions_business_id_idx ON public.employee_permissions USING btree (business_id)",
+        "CREATE UNIQUE INDEX employee_permissions_pkey ON public.employee_permissions USING btree (business_id, employee_id, permission_key)"
+      ],
+      "triggers": [
+        {
+          "definition": "CREATE TRIGGER mt1_business_write_guard_employee_permissions BEFORE INSERT OR DELETE OR UPDATE ON public.employee_permissions FOR EACH ROW EXECUTE FUNCTION mt1_business_write_guard()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "employee_permissions_business_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+        },
+        {
+          "name": "employee_permissions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (business_id, employee_id, permission_key)"
+        },
+        {
+          "name": "mt1_employee_permissions_employee_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id, employee_id) REFERENCES employees(business_id, id)"
+        }
+      ]
+    },
+    {
+      "name": "employees",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": "d"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "pin",
+          "type": "text",
+          "default": null,
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "default": "'cashier'::text",
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "branch_id",
+          "type": "bigint",
+          "default": null,
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "default": "true",
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "auth_user_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": false,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX employees_pkey ON public.employees USING btree (id)",
+        "CREATE INDEX mt1_employees_business_id_idx ON public.employees USING btree (business_id)",
+        "CREATE UNIQUE INDEX mt1_employees_id_business_uidx ON public.employees USING btree (business_id, id)",
+        "CREATE UNIQUE INDEX mt1u_employees_auth_user_id_key_341758b1 ON public.employees USING btree (business_id, auth_user_id)",
+        "CREATE UNIQUE INDEX mt1u_employees_username_key_7f89ae32 ON public.employees USING btree (business_id, username)",
+        "CREATE UNIQUE INDEX mt1u_employees_username_ci_key_9f8bab75 ON public.employees USING btree (business_id, lower(username))"
+      ],
+      "triggers": [
+        {
+          "definition": "CREATE TRIGGER trg_normalize_employee_username BEFORE INSERT OR UPDATE OF username ON public.employees FOR EACH ROW EXECUTE FUNCTION normalize_employee_username_value()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.normalize_employee_username_value()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$ begin new.username := lower(trim(new.username)); return new; end $function$\n"
+        },
+        {
+          "definition": "CREATE TRIGGER mt1_business_write_guard_employees BEFORE INSERT OR DELETE OR UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION mt1_business_write_guard()",
+          "function_definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "employees_auth_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "employees_business_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+        },
+        {
+          "name": "employees_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "employees_username_format",
+          "type": "c",
+          "definition": "CHECK (((length(TRIM(BOTH FROM username)) >= 3) AND (length(TRIM(BOTH FROM username)) <= 40)))"
+        },
+        {
+          "name": "employees_username_no_at",
+          "type": "c",
+          "definition": "CHECK ((POSITION(('@'::text) IN (username)) = 0))"
+        },
+        {
+          "name": "mt1_employees_branch_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (business_id, branch_id) REFERENCES branches(business_id, id)"
+        }
+      ]
+    },
+    {
+      "name": "operational_business_identity_v1",
+      "schema": "sharawla_internal",
+      "columns": [
+        {
+          "name": "id",
+          "type": "smallint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "cloud_business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "profile_code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "binding_version",
+          "type": "integer",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "bound_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX operational_business_identity_v1_pkey ON sharawla_internal.operational_business_identity_v1 USING btree (id)"
+      ],
+      "triggers": null,
+      "constraints": [
+        {
+          "name": "operational_business_identity_v1_binding_version_positive",
+          "type": "c",
+          "definition": "CHECK ((binding_version > 0))"
+        },
+        {
+          "name": "operational_business_identity_v1_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "operational_business_identity_v1_profile_not_blank",
+          "type": "c",
+          "definition": "CHECK ((TRIM(BOTH FROM profile_code) <> ''::text))"
+        },
+        {
+          "name": "operational_business_identity_v1_singleton",
+          "type": "c",
+          "definition": "CHECK ((id = 1))"
+        },
+        {
+          "name": "operational_business_identity_v1_source_not_blank",
+          "type": "c",
+          "definition": "CHECK ((TRIM(BOTH FROM source) <> ''::text))"
+        }
+      ]
+    },
+    {
+      "name": "operational_feature_entitlements_v1",
+      "schema": "sharawla_internal",
+      "columns": [
+        {
+          "name": "cloud_business_id",
+          "type": "uuid",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "feature_code",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "entitlement_version",
+          "type": "bigint",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "default": null,
+          "notnull": true,
+          "identity": ""
+        },
+        {
+          "name": "valid_until",
+          "type": "timestamp with time zone",
+          "default": null,
+          "notnull": false,
+          "identity": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notnull": true,
+          "identity": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX operational_feature_entitlements_v1_pkey ON sharawla_internal.operational_feature_entitlements_v1 USING btree (cloud_business_id, feature_code)"
+      ],
+      "triggers": null,
+      "constraints": [
+        {
+          "name": "operational_feature_entitlements_v1_feature_canonical",
+          "type": "c",
+          "definition": "CHECK ((feature_code = lower(TRIM(BOTH FROM feature_code))))"
+        },
+        {
+          "name": "operational_feature_entitlements_v1_feature_not_blank",
+          "type": "c",
+          "definition": "CHECK ((TRIM(BOTH FROM feature_code) <> ''::text))"
+        },
+        {
+          "name": "operational_feature_entitlements_v1_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (cloud_business_id, feature_code)"
+        },
+        {
+          "name": "operational_feature_entitlements_v1_source_not_blank",
+          "type": "c",
+          "definition": "CHECK ((TRIM(BOTH FROM source) <> ''::text))"
+        },
+        {
+          "name": "operational_feature_entitlements_v1_version_positive",
+          "type": "c",
+          "definition": "CHECK ((entitlement_version > 0))"
+        }
+      ]
+    }
+  ],
+  "identity": [
+    {
+      "id": 1,
+      "source": "sharawla-cloud-pos-profile-2026-09-25",
+      "bound_at": "2026-09-25T07:23:25.198528+00:00",
+      "updated_at": "2026-09-25T07:23:25.198528+00:00",
+      "profile_code": "restaurant",
+      "binding_version": 1,
+      "cloud_business_id": "91826502-590e-4afa-8826-2c0f4b99c490"
+    }
+  ],
+  "functions": [
+    {
+      "hash": "3e4728fbd4937a929ab52d0e864293e9",
+      "name": "current_business_id",
+      "schema": "public",
+      "signature": "current_business_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.current_business_id()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  v_header uuid;\n  v_device uuid;\n  v_business uuid;\n  v_count integer;\nbegin\n  if auth.uid() is null then return null; end if;\n\n  v_header:=public.header_business_id();\n  v_device:=public.header_device_id();\n\n  -- Header business_id is only a selector. Server-owned membership + active employee\n  -- must independently prove the caller belongs to the selected canonical Cloud tenant.\n  if v_header is not null then\n    select m.business_id into v_business\n    from public.business_auth_memberships m\n    where m.auth_user_id=auth.uid()\n      and m.business_id=v_header\n      and m.active=true\n      and exists(\n        select 1 from public.employees e\n        where e.auth_user_id=m.auth_user_id\n          and e.business_id=m.business_id\n          and e.active=true\n      )\n    limit 1;\n\n    if v_business is null then return null; end if;\n\n    -- New desktop clients send the canonical Cloud device_id. If supplied, it must\n    -- match the server-owned device/business binding. A forged device header cannot widen access.\n    if v_device is not null and not exists(\n      select 1 from public.business_device_bindings d\n      where d.device_id=v_device\n        and d.business_id=v_business\n        and d.active=true\n    ) then\n      return null;\n    end if;\n\n    return v_business;\n  end if;\n\n  -- Legacy SH-0007 compatibility: no tenant is guessed unless the authenticated\n  -- user has exactly one active server-side membership and matching active employee.\n  select count(distinct m.business_id), min(m.business_id::text)::uuid\n  into v_count,v_business\n  from public.business_auth_memberships m\n  where m.auth_user_id=auth.uid()\n    and m.active=true\n    and exists(\n      select 1 from public.employees e\n      where e.auth_user_id=m.auth_user_id\n        and e.business_id=m.business_id\n        and e.active=true\n    );\n\n  if v_count=1 then return v_business; end if;\n  return null;\nend\n$function$\n"
+    },
+    {
+      "hash": "e47e26b1faa49226ee6bccd560983a60",
+      "name": "current_employee_id",
+      "schema": "public",
+      "signature": "current_employee_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.current_employee_id()\n RETURNS bigint\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  select e.id\n  from public.employees e\n  where e.auth_user_id=auth.uid()\n    and e.business_id=public.current_business_id()\n    and e.active=true\n  limit 1\n$function$\n"
+    },
+    {
+      "hash": "f17fabd8897d9ee01f26374883ec5cbd",
+      "name": "current_employee_role",
+      "schema": "public",
+      "signature": "current_employee_role()",
+      "definition": "CREATE OR REPLACE FUNCTION public.current_employee_role()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  select e.role\n  from public.employees e\n  where e.auth_user_id=auth.uid()\n    and e.business_id=public.current_business_id()\n    and e.active=true\n  limit 1\n$function$\n"
+    },
+    {
+      "hash": "06b69bea9463c9217df1d52d037c97e9",
+      "name": "current_operational_business_id_v1",
+      "schema": "sharawla_internal",
+      "signature": "sharawla_internal.current_operational_business_id_v1()",
+      "definition": "CREATE OR REPLACE FUNCTION sharawla_internal.current_operational_business_id_v1()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'sharawla_internal'\nAS $function$\ndeclare\n  v_count integer;\n  v_business uuid;\nbegin\n  select count(*),(array_agg(cloud_business_id order by id))[1]\n    into v_count,v_business\n  from sharawla_internal.operational_business_identity_v1;\n\n  if v_count<>1 or v_business is null then\n    raise exception 'OPERATIONAL_BUSINESS_BINDING_MISSING';\n  end if;\n\n  return v_business;\nend;\n$function$\n"
+    },
+    {
+      "hash": "f6f76f24b8e3e7d5fac9089317f346ec",
+      "name": "current_operational_profile_v1",
+      "schema": "sharawla_internal",
+      "signature": "sharawla_internal.current_operational_profile_v1()",
+      "definition": "CREATE OR REPLACE FUNCTION sharawla_internal.current_operational_profile_v1()\n RETURNS text\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'sharawla_internal'\nAS $function$\ndeclare\n  v_count integer;\n  v_profile text;\nbegin\n  select count(*),max(trim(profile_code))\n    into v_count,v_profile\n  from sharawla_internal.operational_business_identity_v1;\n\n  if v_count<>1 or v_profile is null or v_profile='' then\n    raise exception 'OPERATIONAL_PROFILE_BINDING_MISSING';\n  end if;\n\n  return lower(v_profile);\nend;\n$function$\n"
+    },
+    {
+      "hash": "d3e0829159ec9cd59f1daece6e3b0b40",
+      "name": "has_action_permission_v2",
+      "schema": "public",
+      "signature": "has_action_permission_v2(text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.has_action_permission_v2(p_action_code text)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public', 'sharawla_internal'\nAS $function$\n  select coalesce((\n    select d.allowed\n    from sharawla_internal.evaluate_action_permission_v2(p_action_code) d\n    limit 1\n  ),false);\n$function$\n"
+    },
+    {
+      "hash": "6c74c7b046e40b0126462b2305ca60e1",
+      "name": "has_branch_access",
+      "schema": "public",
+      "signature": "has_branch_access(bigint)",
+      "definition": "CREATE OR REPLACE FUNCTION public.has_branch_access(p_branch_id bigint)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  select exists(\n    select 1\n    from public.branches b\n    where b.id=p_branch_id\n      and b.business_id=public.current_business_id()\n      and (\n        public.is_admin()\n        or exists(\n          select 1\n          from public.employee_branches eb\n          where eb.employee_id=public.current_employee_id()\n            and eb.branch_id=b.id\n            and eb.business_id=b.business_id\n        )\n      )\n  )\n$function$\n"
+    },
+    {
+      "hash": "b7d8b25a4efde0116204dea3218f60f8",
+      "name": "has_permission",
+      "schema": "public",
+      "signature": "has_permission(text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.has_permission(p_permission text)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n                select coalesce(\n                    public.current_employee_role() = 'admin'\n                        or exists (\n                              select 1\n                                    from public.employee_permissions ep\n                                          where ep.employee_id = public.current_employee_id()\n                                                  and ep.permission_key = p_permission\n                                                          and ep.allowed = true\n                                                              ),\n                                                                  false\n                                                                    );\n                                                                    $function$\n"
+    },
+    {
+      "hash": "c5f6cdd6d9e5c2710e548468ae9c0ad0",
+      "name": "header_business_id",
+      "schema": "public",
+      "signature": "header_business_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.header_business_id()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  h jsonb;\n  raw_id text;\n  v uuid;\nbegin\n  begin\n    h:=coalesce(current_setting('request.headers',true),'{}')::jsonb;\n  exception when others then\n    h:='{}'::jsonb;\n  end;\n  raw_id:=nullif(trim(coalesce(h->>'x-sharawla-business','')),'');\n  if raw_id is null then return null; end if;\n\n  begin\n    v:=raw_id::uuid;\n  exception when invalid_text_representation then\n    return null;\n  end;\n\n  if exists(select 1 from public.businesses b where b.id=v and b.active=true) then\n    return v;\n  end if;\n  return null;\nend\n$function$\n"
+    },
+    {
+      "hash": "afa68f97893617bfec5677f4e0c87158",
+      "name": "header_device_id",
+      "schema": "public",
+      "signature": "header_device_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.header_device_id()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  h jsonb;\n  raw_id text;\n  v uuid;\nbegin\n  begin\n    h:=coalesce(current_setting('request.headers',true),'{}')::jsonb;\n  exception when others then\n    h:='{}'::jsonb;\n  end;\n  raw_id:=nullif(trim(coalesce(h->>'x-sharawla-device','')),'');\n  if raw_id is null then return null; end if;\n  begin\n    v:=raw_id::uuid;\n  exception when invalid_text_representation then\n    return null;\n  end;\n  return v;\nend\n$function$\n"
+    },
+    {
+      "hash": "15d91b5f5d4ff9d426af4692e19b88f1",
+      "name": "is_admin",
+      "schema": "public",
+      "signature": "is_admin()",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  select exists(\n    select 1\n    from public.employees e\n    where e.auth_user_id=auth.uid()\n      and e.business_id=public.current_business_id()\n      and e.role='admin'\n      and e.active=true\n  )\n$function$\n"
+    },
+    {
+      "hash": "2780768d9d753480ff735687382edf3d",
+      "name": "mt1_business_write_guard",
+      "schema": "public",
+      "signature": "mt1_business_write_guard()",
+      "definition": "CREATE OR REPLACE FUNCTION public.mt1_business_write_guard()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\ndeclare\n  req uuid;\n  role_name text;\nbegin\n  role_name:=coalesce(auth.role(),'');\n  if role_name not in ('anon','authenticated') then\n    return case when tg_op='DELETE' then old else new end;\n  end if;\n\n  req:=public.request_business_id();\n  if req is null then\n    raise exception 'MULTITENANT_CONTEXT_REQUIRED' using errcode='42501';\n  end if;\n\n  if tg_op='DELETE' then\n    if old.business_id is distinct from req then\n      raise exception 'CROSS_TENANT_DELETE_DENIED' using errcode='42501';\n    end if;\n    return old;\n  end if;\n\n  if new.business_id is null then new.business_id:=req; end if;\n  if new.business_id is distinct from req then\n    raise exception 'CROSS_TENANT_WRITE_DENIED' using errcode='42501';\n  end if;\n\n  if tg_op='UPDATE' and old.business_id is distinct from new.business_id then\n    raise exception 'TENANT_REBIND_DENIED' using errcode='42501';\n  end if;\n  return new;\nend\n$function$\n"
+    },
+    {
+      "hash": "7e189e7eb536d649ead7b2e43d415f4d",
+      "name": "operational_feature_entitled_v1",
+      "schema": "sharawla_internal",
+      "signature": "sharawla_internal.operational_feature_entitled_v1(text)",
+      "definition": "CREATE OR REPLACE FUNCTION sharawla_internal.operational_feature_entitled_v1(p_feature_code text)\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'sharawla_internal'\nAS $function$\ndeclare\n  v_feature text:=lower(trim(coalesce(p_feature_code,'')));\n  v_business uuid;\nbegin\n  if v_feature='' then\n    return false;\n  end if;\n\n  v_business:=sharawla_internal.current_operational_business_id_v1();\n\n  return exists(\n    select 1\n    from sharawla_internal.operational_feature_entitlements_v1 e\n    where e.cloud_business_id=v_business\n      and e.feature_code=v_feature\n      and e.enabled=true\n      and (e.valid_until is null or e.valid_until>pg_catalog.statement_timestamp())\n  );\nend;\n$function$\n"
+    },
+    {
+      "hash": "1d6b9cb5539ebb8d8349ed69ccbe4bc9",
+      "name": "request_business_id",
+      "schema": "public",
+      "signature": "request_business_id()",
+      "definition": "CREATE OR REPLACE FUNCTION public.request_business_id()\n RETURNS uuid\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\nbegin\n  if auth.uid() is not null then\n    return public.current_business_id();\n  end if;\n\n  -- Anonymous website traffic has no Auth membership; the UUID is only a public\n  -- tenant selector and remains constrained to public RPC/RLS surfaces.\n  return public.header_business_id();\nend\n$function$\n"
+    }
+  ],
+  "sequences": [
+    {
+      "table": "employees",
+      "sequence": "public.employees_id_seq"
+    },
+    {
+      "table": "audit_logs",
+      "sequence": "public.audit_logs_id_seq"
+    }
+  ]
+}

@@ -22,7 +22,7 @@ async function login(n,business=TC,device=''){
 }
 const transition=(order,from,to,id)=>q('select public.top_chicken_transition_order_status($1,$2,$3,$4) as result',[order,from,to,id]);
 const assign=(order,driver,id)=>q('select public.top_chicken_assign_order_driver($1,$2,$3) as result',[order,driver,id]);
-async function main(){
+export async function setupDatabase(){
  const version=(await q('select version() as version'))[0].version;
  assert.match(version,/PostgreSQL 16\./);
  await db.exec(read('evidence/top-chicken/dependency-tables.sql'));
@@ -59,21 +59,31 @@ async function main(){
  }
  // Add the actual domain-event tenant guard, which is shared with orders/audit.
  await db.exec('CREATE TRIGGER tenant_event_guard BEFORE INSERT ON public.offline_v2_domain_events FOR EACH ROW EXECUTE FUNCTION public.mt1_business_write_guard();');
+ await q("insert into public.branches(id,name,business_id) values(22,'Fixture TC',$1)",[TC]);
+ const bindingMetadata=JSON.parse(read('evidence/top-chicken/staff-profile-metadata.json'));
+ for(const f of bindingMetadata.functions.filter(f=>['current_operational_business_id_v1','current_operational_profile_v1','operational_feature_entitled_v1'].includes(f.name)))await db.exec(f.definition);
+ await db.exec("CREATE TABLE sharawla_internal.operational_feature_entitlements_v1(cloud_business_id uuid,feature_code text,enabled boolean,valid_until timestamptz);");
+ await db.exec(read('supabase/top-chicken-operational-binding-CANDIDATE.sql'));
  await test('pinned canonical owner repair applies without definition drift',()=>db.exec(read('supabase/top-chicken-canonical-owner-ids-CANDIDATE.sql')));
  await test('candidate SQL compiles on PostgreSQL16',()=>db.exec(read('supabase/top-chicken-order-status-rpc-v1-CANDIDATE.sql')));
- await q(`insert into public.branches(id,name,business_id) values(22,'Fixture TC',$1),(23,'Other branch',$1),(99,'Other tenant',$2)`,[TC,OTHER]);
+ await q(`insert into public.branches(id,name,business_id) values(23,'Other branch',$1),(99,'Other tenant',$2)`,[TC,OTHER]);
  for(const [n,role,active,business,branch] of [[1,'admin',true,TC,22],[2,'cashier',true,TC,22],[3,'cashier',false,TC,22],[4,'admin',true,OTHER,99],[5,'admin',true,TC,23],[6,'delivery',true,TC,22],[7,'callcenter',true,TC,22]]){
   const uid=`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
   await q('insert into public.employees(id,name,username,auth_user_id,role,active,business_id,branch_id) values($1,$2,$2,$3,$4,$5,$6,$7)',[n,'fixture'+n,uid,role,active,business,branch]);
   await q('insert into public.employee_branches(employee_id,branch_id,business_id) values($1,$2,$3)',[n,branch,business]);
   await q('insert into public.business_auth_memberships(auth_user_id,business_id) values($1,$2)',[uid,business]);
  }
- for(const [id,business,branch,active] of [[1,TC,22,true],[2,TC,22,false],[3,TC,23,true],[4,OTHER,22,true]])await q('insert into public.delivery_drivers(id,name,business_id,branch_id,active) values($1,$2,$3,$4,$5)',[id,'fixture-driver'+id,business,branch,active]);
+ for(const [id,business,branch,active] of [[1,TC,22,true],[2,TC,22,false],[3,TC,23,true],[4,OTHER,99,true]])await q('insert into public.delivery_drivers(id,name,business_id,branch_id,active) values($1,$2,$3,$4,$5)',[id,'fixture-driver'+id,business,branch,active]);
  await q("insert into public.payment_methods(id,code,name,business_id) values(1,'cash','Cash',$1)",[TC]);
  await q('insert into public.branch_payment_methods(branch_id,payment_method_id,business_id) values(22,1,$1)',[TC]);
  await db.exec('ALTER TABLE public.orders DISABLE TRIGGER trg_offline_v2_order_event');
  for(const [id,type,status,branch,business,driver] of [[1,'pickup','new',22,TC,null],[2,'delivery','new',22,TC,null],[3,'pickup','cancelled',22,TC,null],[4,'pickup','new',99,OTHER,null],[5,'pickup','new',23,TC,null],[6,'delivery','out_for_delivery',22,TC,null],[7,'delivery','ready',22,TC,null],[8,'pickup','new',22,TC,null],[9,'pickup','new',22,TC,null],[10,'pickup','new',22,TC,null],[11,null,'ready',22,TC,null]])await q('insert into public.orders(id,order_type,status,branch_id,business_id,driver_id,total) values($1,$2,$3,$4,$5,$6,170)',[id,type,status,branch,business,driver]);
  await db.exec('ALTER TABLE public.orders ENABLE TRIGGER trg_offline_v2_order_event');
+ return version;
+}
+export {db,q,login,TC,OTHER};
+async function main(){
+ const version=await setupDatabase();
  await test('anonymous rejected',async()=>{await login(null);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','anon-0001')",'42501');});
  await test('wrong tenant rejected',async()=>{await login(4,OTHER);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','wrong-tenant')",'42501');});
  await test('forged selector rejected',async()=>{await login(4);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','forged-tenant')",'42501');});
@@ -81,14 +91,14 @@ async function main(){
  await test('inactive employee rejected',async()=>{await login(3);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','inactive-staff')",'42501');});
  await test('wrong branch admin rejected',async()=>{await login(5);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','wrong-branch')",'42501');});
  await test('cross-tenant and cross-branch order rejected',async()=>{await login(1);for(const id of [4,5])await denied(`select public.top_chicken_transition_order_status(${id},'new','preparing','scope-${id}-001')`,'42501');});
- await test('another activity profile binding fails closed',async()=>{await login(2);await q('update sharawla_internal.operational_business_identity_v1 set cloud_business_id=$1',[OTHER]);await denied("select public.top_chicken_transition_order_status(8,'new','preparing','profile-mismatch')",'42501');await q('update sharawla_internal.operational_business_identity_v1 set cloud_business_id=$1',[TC]);});
+ await test('invalid TC binding fails closed',async()=>{await login(2);await q("update sharawla_internal.top_chicken_operational_binding_v1 set source_digest='invalid'");await denied("select public.top_chicken_transition_order_status(8,'new','preparing','profile-mismatch')",'42501');await q("update sharawla_internal.top_chicken_operational_binding_v1 set source_digest=md5(source_snapshot::text)");});
  await test('cashier pickup full SQL state cycle',async()=>{await login(2);for(const [from,to] of [['new','preparing'],['preparing','ready'],['ready','completed']])await transition(1,from,to,'pickup-'+to);assert.equal((await q('select status from public.orders where id=1'))[0].status,'completed');});
  await test('exact replay returns original result without audit/event duplication',async()=>{const before=await q('select (select count(*) from public.audit_logs) as audits,(select count(*) from public.offline_v2_domain_events) as events');const r=await transition(1,'new','preparing','pickup-preparing');assert.equal(r[0].result.replayed,true);assert.deepEqual(await q('select (select count(*) from public.audit_logs) as audits,(select count(*) from public.offline_v2_domain_events) as events'),before);});
  await test('revoked membership cannot replay a prior successful receipt',async()=>{await q("update public.business_auth_memberships set active=false where auth_user_id='00000000-0000-0000-0000-000000000002'");await denied("select public.top_chicken_transition_order_status(1,'new','preparing','pickup-preparing')",'42501');await q("update public.business_auth_memberships set active=true where auth_user_id='00000000-0000-0000-0000-000000000002'");});
  await test('changed payload and actor replay rejected',async()=>{await denied("select public.top_chicken_transition_order_status(2,'new','preparing','pickup-preparing')",'23505');await login(1);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','pickup-preparing')",'23505');});
  await test('stale and cancelled transition rejected',async()=>{await login(2);await denied("select public.top_chicken_transition_order_status(1,'new','preparing','stale-0001')",'40001');await denied("select public.top_chicken_transition_order_status(3,'cancelled','preparing','cancelled-01')",'22023');});
  await test('explicit employee action deny overrides cashier default',async()=>{await q("insert into public.employee_action_permissions_v2 values(2,'orders.fulfillment.manage',false,now(),$1)",[TC]);await denied("select public.top_chicken_transition_order_status(2,'new','preparing','permission-01')",'42501');await q('delete from public.employee_action_permissions_v2 where employee_id=2');});
- await test('feature denial remains fail closed for assignment',async()=>{await q("select set_config('fixture.delivery_entitled','false',false)");await denied("select public.top_chicken_assign_order_driver(7,1,'no-entitlement')",'42501');await q("select set_config('fixture.delivery_entitled','true',false)");});
+ await test('feature denial remains fail closed for assignment',async()=>{await q("update sharawla_internal.top_chicken_feature_cache_v1 set enabled=false where feature_code='commerce.delivery'");await denied("select public.top_chicken_assign_order_driver(7,1,'no-entitlement')",'42501');await q("update sharawla_internal.top_chicken_feature_cache_v1 set enabled=true where feature_code='commerce.delivery'");});
  await test('cashier delivery preparing and ready',async()=>{await transition(2,'new','preparing','delivery-prep');await transition(2,'preparing','ready','delivery-ready');});
  await test('delivery cannot complete as pickup',async()=>{await denied("select public.top_chicken_transition_order_status(2,'ready','completed','bad-complete')",'22023');});
  await test('unknown order type cannot complete as pickup',()=>denied("select public.top_chicken_transition_order_status(11,'ready','completed','unknown-type')",'22023'));
@@ -112,7 +122,7 @@ async function main(){
  }
  const counts=await q('select (select count(*) from public.audit_logs) as audit_count,(select count(*) from public.top_chicken_order_status_receipts_v1) as receipt_count');
  const report={version,engine:pgURL?'native PostgreSQL16 loopback-only isolated CI':'PGlite 0.2.0; WASM single backend',native_pg16:pgURL?'EXECUTED':'NOT RUN: OS does not permit non-root UID',fixture:'21 deployed table column definitions; selected PK/check constraints, canonical owners and selected real triggers; synthetic auth claims, profile/feature fixtures',concurrency:pgURL?'EXECUTED: two independent connections':'NOT RUN: PGlite single backend is not a multi-session race test',website_to_pos_ui:'NOT RUN',results,counts};
- fs.writeFileSync('evidence/top-chicken/pg16-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+ fs.writeFileSync('evidence/top-chicken/pg16-affected-results.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
  process.exit(results.some(r=>r.result!=='PASS')?1:0);
 }
-main().catch(e=>{console.error(e.message,e.code);fs.writeFileSync('evidence/top-chicken/pg16-results.json',JSON.stringify({results,error:e.message,code:e.code},null,2));process.exit(1);});
+if(process.argv[1]&&import.meta.url===new URL('file:'+process.argv[1]).href)main().catch(e=>{console.error(e.message,e.code);fs.writeFileSync('evidence/top-chicken/pg16-affected-results.json',JSON.stringify({results,error:e.message,code:e.code},null,2));process.exit(1);});

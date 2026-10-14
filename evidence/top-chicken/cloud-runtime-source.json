@@ -1,0 +1,239 @@
+[
+  {
+    "runtime": {
+      "modules": [
+        {
+          "code": "pos",
+          "enabled": true
+        },
+        {
+          "code": "kitchen",
+          "enabled": true
+        },
+        {
+          "code": "delivery",
+          "enabled": true
+        },
+        {
+          "code": "pickup",
+          "enabled": true
+        },
+        {
+          "code": "tables",
+          "enabled": true
+        },
+        {
+          "code": "website",
+          "enabled": true
+        },
+        {
+          "code": "inventory",
+          "enabled": true
+        },
+        {
+          "code": "returns",
+          "enabled": true
+        },
+        {
+          "code": "promocodes",
+          "enabled": true
+        },
+        {
+          "code": "expenses",
+          "enabled": true
+        },
+        {
+          "code": "reports",
+          "enabled": true
+        },
+        {
+          "code": "customers",
+          "enabled": true
+        }
+      ],
+      "profile": "restaurant",
+      "defaults": [
+        {
+          "code": "commerce.barcode",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "commerce.delivery",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "commerce.orders",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "commerce.pickup",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "commerce.pos",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "commerce.products",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "commerce.promotions",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "commerce.returns",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "commerce.website",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.audit",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.auth",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.branches",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.customers",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.expenses",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.licensing",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.notifications",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.offline",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.payments",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.permissions",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.reports",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "core.shifts",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.updates",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "core.users",
+          "active": true,
+          "enabled": true,
+          "required": true
+        },
+        {
+          "code": "food.kitchen",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "food.modifiers",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "food.tables",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "inventory.purchasing",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "inventory.receiving",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "inventory.stock",
+          "active": true,
+          "enabled": true,
+          "required": false
+        },
+        {
+          "code": "inventory.suppliers",
+          "active": true,
+          "enabled": true,
+          "required": false
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,115 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#b51f2b"><meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.json?v=top-chicken-beta-4">
+<link rel="apple-touch-icon" href="top-chicken-icon.svg">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Top Chicken">
+<title>Top Chicken</title><link rel="stylesheet" href="styles.css?v=top-chicken-redesign-2">
+<link rel="stylesheet" href="top-chicken-storefront-v7.css?v=10"><style>.top-chicken-wordmark{display:inline-flex;align-items:center;justify-content:center;max-width:100%;padding:.35rem .65rem;color:#fff;background:#a51e25;border-radius:14px;font-weight:900;letter-spacing:.03em;direction:ltr;text-align:center}.top-chicken-hero-mark{display:flex;align-items:center;justify-content:center;min-height:120px;padding:1rem;border-radius:24px;background:#a51e25;color:#fff;font-size:clamp(1.2rem,4vw,2.3rem);font-weight:900;direction:ltr;text-align:center}</style></head><body>
+
+<div id="branchGate" class="branch-gate">
+  <div class="branch-gate-card">
+    <div class="branch-gate-logo v6-logo-box"><span class="top-chicken-wordmark" aria-label="Top Chicken">🍗 TOP CHICKEN</span></div>
+    <h1>اختار الفرع</h1>
+    <p>اختار الفرع اللي هتطلب منه علشان نعرض لك التوافر والأسعار الخاصة بيه.</p>
+    <div id="branchGateOptions" class="branch-gate-options"><div class="branch-loading">جاري تحميل الفروع...</div></div>
+  </div>
+</div>
+<div class="topline"></div><header class="header"><button id="searchBtn" class="circle">⌕</button><div class="brand"><div class="logo v6-header-logo"><span class="top-chicken-wordmark" aria-label="Top Chicken">🍗 TOP CHICKEN</span></div></div><button id="menuBtn" class="circle">☰</button></header>
+<div id="siteDrawer" class="site-drawer hidden"><div class="drawer-backdrop" data-drawer-close></div><aside class="drawer-panel"><div class="drawer-head"><b data-business-name>Top Chicken</b><button data-drawer-close>✕</button></div><div id="drawerItems" class="drawer-items"></div></aside></div>
+<div id="searchBar" class="searchbar hidden"><input id="search" type="search" placeholder="ابحث عن وجبتك..."><button id="closeSearch">✕</button></div>
+<main><section class="welcome"><div><b data-business-name>Top Chicken</b><span data-business-tagline>🔥 طعم يستاهل التجربة</span><small id="branchInfo" class="branch-current-status"></small><div id="branchContact" class="branch-contact"></div></div><label>الفرع <select id="branch"></select></label></section>
+<section id="v6HomeHero" class="v6-home-hero" aria-label="عروض Top Chicken">
+  <div class="tc-editorial-kicker"><span>FRESH • CRISPY • MADE FOR YOU</span><span>TOP CHICKEN / 2026</span></div>
+  <div class="v6-hero-track">
+    <article class="v6-hero-slide"><div><small>TOP CHICKEN</small><h1>القرمشة<br><em>ليها عنوان.</em></h1><p>فراخ كريسبي، ساندوتشات ووجبات معمولة عشان تستمتع بكل قضمة. اختار دليفري أو استلام.</p><button type="button" data-v6-go-menu>اطلب دلوقتي <span aria-hidden="true">↗</span></button></div><div class="top-chicken-hero-mark" aria-label="Top Chicken"><span class="tc-hero-icon" aria-hidden="true">🍗</span><span>HOT &amp;<br>CRISPY</span><small>TOP CHICKEN</small></div></article>
+    <article class="v6-hero-slide"><div><small>طلبك معاك خطوة بخطوة</small><h1>تابع طلبك<br>برقم الموبايل</h1><p>اعرف حالة الطلب من الاستلام لحد التسليم.</p><button type="button" data-v6-track>متابعة الطلب</button></div><div class="v6-hero-icon">🛵</div></article>
+    <article class="v6-hero-slide"><div><small>أسرع وأسهل</small><h1>السلة بقت<br>أوضح</h1><p>عدّل الكمية وراجع إجمالي طلبك قبل التأكيد.</p><button type="button" data-v6-cart>افتح السلة</button></div><div class="v6-hero-icon">🛒</div></article>
+  </div>
+  <div class="v6-hero-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+</section>
+<div class="tc-feature-strip" aria-label="مميزات الطلب"><span>🍗 فراخ كريسبي</span><span>🛵 دليفري واستلام</span><span>✨ طازة ولذيذ</span></div>
+<section id="categoryView" class="v6-menu-section"><div class="v6-section-head"><div><small>EXPLORE THE MENU</small><h2>الطعم اللي على مزاجك<span class="tc-title-dot">.</span></h2></div><button type="button" id="v6MenuSearch">⌕ بحث</button></div><div id="categoryCards" class="category-grid"></div></section>
+<section id="productsView" class="hidden"><div class="section-title"><button id="backBtn">←</button><h2 id="categoryTitle">المنيو</h2></div><div id="cats" class="cats"></div><div id="status" class="status">جاري تحميل المنيو...</div><div id="products" class="product-grid"></div></section></main>
+<button id="cartBar" class="cartbar"><span>ملخص الطلب</span><b id="cartCount">0</b><strong id="cartTotal">0 ج.م</strong></button>
+<button id="v6QuickCart" class="v6-quick-cart hidden" type="button"><span>عرض السلة</span><b id="v6QuickCartTotal">0 ج.م</b></button>
+<nav id="v6BottomNav" class="v6-bottom-nav" aria-label="التنقل الرئيسي">
+  <button type="button" data-v6-nav="home"><span>⌂</span><small>الرئيسية</small></button>
+  <button type="button" data-v6-nav="menu"><span>☷</span><small>المنيو</small></button>
+  <button type="button" data-v6-nav="cart" class="v6-cart-nav"><span>🛒</span><b id="v6CartBadge">0</b><small>السلة</small></button>
+  <button type="button" data-v6-nav="orders"><span>⌕</span><small>طلباتي</small></button>
+  <button type="button" data-v6-nav="branches"><span>⌖</span><small>الفروع</small></button>
+</nav>
+<div id="productModal" class="overlay hidden"><div class="sheet"><button class="close" data-close="productModal">✕</button><img id="modalImg" class="modal-img" alt=""><h2 id="modalName"></h2><div id="modalPrice" class="big-price"></div><label class="notes-label">ملاحظات الطلب<textarea id="modalNotes" placeholder="مثال: بدون بصل، الصوص على جنب..."></textarea></label><button id="addToCart" class="primary">أضف للطلب</button></div></div>
+<div id="cartModal" class="overlay hidden"><div class="sheet cart-sheet"><button class="close" data-close="cartModal">✕</button><h2>ملخص الطلب</h2><div id="cartItems"></div><div class="total-row"><span>الإجمالي</span><b id="cartModalTotal">0 ج.م</b></div><button id="checkoutBtn" class="primary">متابعة الطلب</button><p class="hint">المنيو والاختيارات والإضافات متزامنة مع الـ POS. إرسال الطلب للفرع هو الخطوة التالية.</p></div></div>
+<div id="checkoutModal" class="modal hidden">
+  <div class="sheet checkout-sheet">
+    <button class="x" data-close="checkoutModal">×</button>
+    <h2 id="checkoutTitle">بيانات الطلب</h2><div class="fulfillment-choice"><button type="button" class="fulfillment-btn active" data-fulfillment="delivery">🛵 دليفري</button><button type="button" class="fulfillment-btn" data-fulfillment="pickup">🏪 استلام من الفرع</button></div>
+    <label class="field">الاسم<input id="customerName" autocomplete="name" placeholder="اسم العميل"></label>
+    <label class="field">رقم الموبايل<input id="customerPhone" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+    <label class="field" id="deliveryZoneField">منطقة التوصيل<select id="deliveryZone"><option value="">اختار منطقة التوصيل</option></select></label><label class="field" id="deliveryAddressField">العنوان<textarea id="deliveryAddress" rows="3" placeholder="الشارع، رقم العمارة، الدور، علامة مميزة..."></textarea></label>
+    <label class="field">ملاحظات الطلب<textarea id="orderNotes" rows="2" placeholder="اختياري"></textarea></label>
+    <div id="websitePromoBox" class="website-promo-box"><h3>🎟️ عندك برومو كود؟</h3><div class="promo-entry"><input id="websitePromoCode" placeholder="اكتب الكود"><button id="applyWebsitePromo" type="button">تطبيق</button></div><div id="websitePromoResult" class="promo-result hidden"></div></div><div id="websitePaymentBox" class="payment-box"><h3>طريقة الدفع</h3><div id="websitePaymentMethods" class="payment-methods"></div><div id="paymentInstructions" class="payment-instructions hidden"></div><label id="paymentReferenceField" class="field hidden">رقم مرجع التحويل<input id="paymentReference" placeholder="اختياري"></label><label id="paymentReceiptField" class="field hidden">صورة إيصال الدفع<input id="paymentReceipt" type="file" accept="image/jpeg,image/png,image/webp"></label></div>
+    <div class="checkout-summary"><span>إجمالي الأصناف</span><b id="checkoutSubtotal">0 ج.م</b></div><div id="checkoutPromoLine" class="checkout-summary promo-summary hidden"><span>خصم البرومو</span><b id="checkoutPromoDiscount">- 0 ج.م</b></div><div id="checkoutDeliveryLine" class="checkout-summary"><span>رسوم التوصيل</span><b id="checkoutDeliveryFee">0 ج.م</b></div><div class="checkout-summary checkout-grand"><span>المطلوب</span><b id="checkoutTotal">0 ج.م</b></div>
+    <small class="delivery-note" id="checkoutFulfillmentNote">اختار منطقة التوصيل وسيظهر الرسم فورًا قبل تأكيد الطلب.</small>
+    <button id="submitOrder" class="checkout-submit">تأكيد الطلب</button>
+  </div>
+</div>
+<div id="successModal" class="modal hidden"><div class="sheet success-sheet"><div class="success-icon">✓</div><h2>تم إرسال طلبك</h2><p>رقم الطلب: <b id="websiteOrderCode"></b></p><p>الفرع هيراجع الطلب ويؤكده.</p><button class="checkout-submit" data-close="successModal">تمام</button></div></div>
+
+<div id="trackModal" class="modal hidden"><div class="sheet checkout-sheet"><button class="x" data-close="trackModal">×</button><h2 id="trackModalTitle">متابعة الطلب</h2><p class="track-help">اكتب رقم الموبايل المستخدم في الطلب.</p><label class="field">رقم الموبايل<input id="trackPhone" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx"></label><button id="trackOrderBtn" class="checkout-submit">عرض طلباتي</button><div id="trackResult" class="track-result"></div></div></div>
+
+<div id="infoModal" class="modal hidden"><div class="sheet checkout-sheet"><button class="x" data-close="infoModal">×</button><h2 id="infoModalTitle"></h2><div id="infoModalBody"></div></div></div>
+<script src="app.js?v=top-chicken-beta-6"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js?v=top-chicken-beta-6', {updateViaCache:'none'}).catch(function (err) {
+      console.warn('Service Worker registration failed:', err);
+    });
+  });
+}
+</script>
+<script src="theme.js?v=6.5.1"></script>
+<script src="install-prompt.js?v=top-chicken-beta-2"></script>
+<script>
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function openCart(){byId('cartModal')?.classList.remove('hidden')}
+  function goMenu(){byId('categoryView')?.scrollIntoView({behavior:'smooth',block:'start'})}
+  function openBranches(){if(typeof renderBranchGate==='function')renderBranchGate();byId('branchGate')?.classList.remove('hidden')}
+  function openOrders(){if(typeof openTrackModal==='function')openTrackModal('track')}
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-v6-go-menu]'))goMenu();
+    if(e.target.closest('[data-v6-track]'))openOrders();
+    if(e.target.closest('[data-v6-cart]'))openCart();
+    if(e.target.closest('#v6MenuSearch'))byId('searchBtn')?.click();
+    var n=e.target.closest('[data-v6-nav]'); if(!n)return;
+    var a=n.getAttribute('data-v6-nav');
+    if(a==='home')window.scrollTo({top:0,behavior:'smooth'});
+    if(a==='menu')goMenu();
+    if(a==='cart')openCart();
+    if(a==='orders')openOrders();
+    if(a==='branches')openBranches();
+  });
+  var source=byId('cartCount'), badge=byId('v6CartBadge'), quick=byId('v6QuickCart'), quickTotal=byId('v6QuickCartTotal'), totalSource=byId('cartTotal');
+  function syncBadge(){var n=Number(source?.textContent||0);if(badge){badge.textContent=String(n);badge.classList.toggle('is-empty',n===0)}if(quick){quick.classList.toggle('hidden',n===0)}if(quickTotal&&totalSource)quickTotal.textContent=totalSource.textContent||'0 ج.م'}
+  syncBadge(); if(source)new MutationObserver(syncBadge).observe(source,{childList:true,characterData:true,subtree:true}); if(totalSource)new MutationObserver(syncBadge).observe(totalSource,{childList:true,characterData:true,subtree:true});
+  quick?.addEventListener('click',openCart);
+})();
+</script>
+<script>
+(function(){
+  function syncModalState(){
+    var open=Array.from(document.querySelectorAll('.modal,.overlay')).some(function(el){return !el.classList.contains('hidden')});
+    document.body.classList.toggle('v6-modal-open',open);
+  }
+  document.querySelectorAll('.modal,.overlay').forEach(function(el){
+    new MutationObserver(syncModalState).observe(el,{attributes:true,attributeFilter:['class']});
+  });
+  syncModalState();
+})();
+</script>
+</body></html>

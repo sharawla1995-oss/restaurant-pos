@@ -1,0 +1,81 @@
+/* Top Chicken — distinct storefront V7. Visual layer only; existing checkout/JS untouched. */
+:root{--tc-red:#9b1724;--tc-orange:#ff6b2d;--tc-cream:#fff8ed;--tc-ink:#211c1a}
+html{scroll-behavior:smooth}body{background:var(--tc-cream)!important;color:var(--tc-ink);font-family:Tahoma,Arial,sans-serif}
+main{max-width:1120px!important;padding:0 12px 22px}
+.header{height:78px!important;background:#fffaf4!important;padding-inline:max(18px,calc((100vw - 1120px)/2))!important;border-bottom:1px solid #eeded0;box-shadow:none!important}
+.topline{height:5px!important}.header .circle{border:1px solid #eddcd2;background:#fff4e8;width:44px;height:44px}
+.v6-header-logo,.header .logo{width:auto!important;min-width:154px!important;height:52px!important;border-radius:14px!important;background:transparent!important}
+.top-chicken-wordmark{font-size:18px!important;font-weight:900!important;white-space:nowrap;background:#971b25!important;padding:12px 14px!important;transform:rotate(-2deg);border-radius:10px!important}
+.welcome{margin:18px 0 14px!important;padding:15px 20px!important;border-radius:18px!important;min-height:76px!important;background:#2b201f!important;box-shadow:none!important;gap:16px}
+.welcome div b{font-size:20px!important}.welcome div span{font-size:12px!important}.welcome select{background:#fff7e8}
+.v6-home-hero{margin:0 0 26px!important;overflow:hidden;border-radius:28px!important;box-shadow:0 22px 46px #5b191c24!important}
+.v6-hero-slide{min-height:350px!important;padding:clamp(24px,5vw,60px)!important;background:radial-gradient(circle at 80% 30%,#e7692c 0%,transparent 34%),linear-gradient(125deg,#4a171d,#9b1724 70%,#d94429)!important;gap:24px!important}
+.v6-hero-slide h1{font-size:clamp(32px,5vw,64px)!important;line-height:1.13!important;font-weight:900!important;margin:12px 0!important}
+.v6-hero-slide p{font-size:clamp(14px,2vw,18px)!important;line-height:1.8!important;max-width:430px}
+.v6-hero-slide button{background:#fff6df!important;color:#811522!important;font-weight:900!important;border-radius:999px!important;padding:14px 27px!important;border:0!important}
+.top-chicken-hero-mark{min-height:210px!important;min-width:220px;background:radial-gradient(circle at 35% 20%,#ffbd63,#ff7a2f 45%,#9b1724 100%)!important;border:5px solid #ffffff35!important;border-radius:35px!important;box-shadow:0 24px 50px #2c090c60!important;transform:rotate(5deg);font-size:clamp(23px,3.5vw,42px)!important;text-shadow:0 3px 4px #0005}
+.v6-section-head{margin:22px 0 16px!important;padding:8px 4px!important}.v6-section-head h2{font-size:clamp(24px,3.3vw,36px)!important;color:#351a19!important;margin:6px 0!important}.v6-section-head small{color:#aa2b2c!important;font-weight:900}
+.category-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px!important;padding:0 0 24px!important}
+.category-card{height:245px!important;border-radius:23px!important;box-shadow:0 14px 30px #35151318!important;transition:transform .2s,box-shadow .2s!important}
+.category-card:active{transform:scale(.98)}.category-card img{transition:transform .3s}.category-card:hover img{transform:scale(1.04)}
+.category-info{min-height:83px!important;background:linear-gradient(0deg,#321514e8,#641f1ed6)!important;padding:18px!important}
+.category-info b{font-size:20px!important}.category-info small{color:#ffdabd!important}
+.product-grid{gap:16px!important;padding-inline:0!important}.product-card{border-radius:24px!important;border:1px solid #f0e4d9!important;box-shadow:0 9px 24px #35151313!important}.product-card .photo{height:210px!important;background:#f4e6d8!important}.product-body{padding:18px!important}.product-body h3{color:#291c1a!important;font-size:18px!important}.price{color:#a21c29!important;font-weight:900}
+.plus{background:#a51e25!important;box-shadow:0 8px 20px #a51e2555!important}
+.cat{border-color:#e7c5b9!important}.cat.active{background:#9b1724!important;color:#fff!important}
+.cartbar,.primary,.checkout-submit{background:#a51e25!important;border-radius:16px!important;box-shadow:0 9px 28px #7e1b2240!important}
+.branch-gate{background:radial-gradient(circle at 85% 12%,#f57c36,transparent 38%),linear-gradient(145deg,#43161c,#a11e29)!important}
+.branch-gate-card{background:#fffaf3!important;border-radius:30px!important}.branch-choice{background:#fff!important;border-color:#eadbd0!important}
+.sheet{background:#fffaf4!important}.checkout-summary{background:#f7ebdf!important}.v6-bottom-nav{background:#fffaf4!important;border-top:1px solid #ead8cc}
+@media(min-width:800px){.category-grid,.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.category-card{height:285px!important}.product-card .photo{height:250px!important}}
+@media(max-width:600px){main{padding-inline:10px}.header{height:70px!important;padding-inline:14px!important}.v6-hero-slide{min-height:315px!important;padding:25px!important}.top-chicken-hero-mark{min-width:110px!important;min-height:115px!important;font-size:17px!important;padding:10px!important}.category-card{height:210px!important}.category-info{min-height:73px!important;padding:12px!important}.category-info b{font-size:17px!important}.product-card .photo{height:170px!important}.welcome{padding:12px!important}.welcome div b{font-size:17px!important}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.category-card,.category-card img{transition:none!important}}
+
+/* V8 mobile readability — final storefront layer, all themes */
+.tc-feature-strip{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;margin:14px 0 22px!important}
+.tc-feature-strip span{display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;min-height:48px!important;padding:9px 5px!important;background:#fff5e9!important;color:#361d17!important;border:1px solid #dcbda9!important;border-radius:14px!important;font-size:clamp(10px,2.7vw,13px)!important;line-height:1.5!important;text-align:center!important;font-weight:900!important;white-space:normal!important;opacity:1!important;text-shadow:none!important}
+.category-card .category-info{background:#8d1c27!important;color:#fff!important;min-height:78px!important;padding:12px 14px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:3px!important;opacity:1!important}
+.category-card .category-info b,.category-card .category-info small{color:#fff!important;opacity:1!important;text-shadow:none!important}
+html[data-theme="dark"] .v6-section-head h2{color:#fff!important}
+html[data-theme="dark"] .v6-section-head small{color:#ffb488!important}
+@media(max-width:699px){
+ .v6-home-hero{margin:0 0 12px!important}
+ .v6-hero-slide{box-sizing:border-box!important;min-height:350px!important;height:auto!important;gap:14px!important;padding:20px 17px 28px!important}
+ .v6-hero-slide h1{font-size:clamp(30px,8.6vw,42px)!important;line-height:1.22!important}
+ .v6-hero-slide p{font-size:13px!important;line-height:1.75!important}
+ .top-chicken-hero-mark{min-width:90px!important;min-height:125px!important;font-size:clamp(15px,4vw,21px)!important;padding:9px!important}
+ .category-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .category-card{height:205px!important}
+ .category-card .category-info{min-height:72px!important;padding:9px 10px!important}
+ .category-card .category-info b{font-size:14px!important;line-height:1.35!important}
+ .category-card .category-info small{font-size:11px!important}
+}
+
+/* V9: enforce dark surface + light headings; light chips + dark text */
+html[data-theme="dark"] #categoryView,
+html[data-theme="dark"] .v6-menu-section{background:#111214!important;color:#f7f2ec!important}
+html[data-theme="dark"] .v6-section-head,
+html[data-theme="dark"] .v6-section-head h2,
+html[data-theme="dark"] .v6-section-head h2 span{background:transparent!important;color:#fff9f0!important}
+html[data-theme="light"] .v6-section-head,
+html[data-theme="light"] .v6-section-head h2{background:transparent!important;color:#281917!important}
+html[data-theme="dark"] .tc-feature-strip span,
+html[data-theme="light"] .tc-feature-strip span,
+body .tc-feature-strip span{background-color:#fff4e6!important;background-image:none!important;color:#2b1815!important;-webkit-text-fill-color:#2b1815!important;opacity:1!important}
+html[data-theme="dark"] .tc-feature-strip span *,
+html[data-theme="light"] .tc-feature-strip span *{color:#2b1815!important;-webkit-text-fill-color:#2b1815!important}
+
+/* V10 — mobile hero layout regression fix: preserve 3-slide carousel width */
+@media(max-width:699px){
+ .v6-home-hero .v6-hero-track{display:flex!important;flex-direction:row!important;align-items:stretch!important;width:300%!important}
+ .v6-home-hero .v6-hero-slide{box-sizing:border-box!important;flex:0 0 33.333333%!important;width:33.333333%!important;min-width:0!important;max-width:33.333333%!important;min-height:315px!important;height:315px!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding:22px 16px 32px!important;overflow:hidden!important}
+ .v6-home-hero .v6-hero-slide>div:first-child{order:0!important;flex:1 1 auto!important;width:auto!important;min-width:0!important;max-width:67%!important;align-self:center!important}
+ .v6-home-hero .v6-hero-slide h1{font-size:clamp(25px,6.8vw,35px)!important;line-height:1.2!important;margin:7px 0!important}
+ .v6-home-hero .v6-hero-slide p{font-size:11px!important;line-height:1.65!important;max-width:100%!important;margin:6px 0 10px!important}
+ .v6-home-hero .v6-hero-slide button{font-size:12px!important;padding:10px 12px!important;max-width:100%!important;white-space:normal!important}
+ .v6-home-hero .top-chicken-hero-mark{order:1!important;flex:0 0 30%!important;align-self:center!important;width:30%!important;min-width:0!important;max-width:30%!important;min-height:122px!important;height:145px!important;padding:6px!important;transform:rotate(3deg)!important;border-radius:22px!important;font-size:clamp(12px,3.5vw,17px)!important}
+ .v6-home-hero .top-chicken-hero-mark .tc-hero-icon{font-size:30px!important}
+ .v6-home-hero .top-chicken-hero-mark small{font-size:8px!important}
+ .v6-home-hero .v6-hero-icon{font-size:43px!important;flex:0 0 24%!important}
+}
+@media(max-width:370px){.v6-home-hero .v6-hero-slide{padding-inline:12px!important}.v6-home-hero .v6-hero-slide h1{font-size:24px!important}}

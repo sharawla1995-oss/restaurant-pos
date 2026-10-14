@@ -1,7 +1,7 @@
 -- CANDIDATE ONLY: preserve canonical owners; guarded Top Chicken ID allocation.
 BEGIN;
 
-DO $tc_preflight$ BEGIN IF NOT EXISTS(SELECT 1 FROM sharawla_internal.operational_business_identity_v1 WHERE cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid AND profile_code='restaurant') THEN RAISE EXCEPTION 'TOP_CHICKEN_OPERATIONAL_PROFILE_BINDING_REQUIRED'; END IF; END $tc_preflight$;
+DO $tc_preflight$ BEGIN IF NOT sharawla_internal.top_chicken_binding_ready_v1() THEN RAISE EXCEPTION 'TOP_CHICKEN_OPERATIONAL_PROFILE_BINDING_REQUIRED'; END IF; END $tc_preflight$;
 
 DO $guard$ BEGIN IF md5(pg_get_functiondef('public.order_assign_driver_v2(bigint,bigint)'::regprocedure)) <> 'f3588c1c79e05d64fcd12f2b41c89a7d' THEN RAISE EXCEPTION 'OWNER_DEFINITION_DRIFT: order_assign_driver_v2'; END IF; END $guard$;
 

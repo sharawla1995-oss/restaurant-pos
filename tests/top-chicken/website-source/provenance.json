@@ -1,0 +1,15 @@
+{
+  "repository": "sharawla1995-oss/top-burger-website",
+  "branch": "codex/top-chicken-multitenant-beta-staging",
+  "sha": "fa1537646aa0c5e1177910314b8595c3b2da3af5",
+  "files": {
+    "app.js": "0960ddb4c81a90ac447c6cce304a1f0c122e6fa2ce5b25c0f0b1fe5da8093b90",
+    "index.html": "8873160aea1e896896dba5d27b6d83493671fba33cd32b18eeeded9f54daffaf",
+    "styles.css": "49e718d9d5a55000b9e751e59800c687abb65bfc812000728dd0047eb929d82a",
+    "theme.js": "56540fd4c872d3a666f1677fe26d9c7beb53ec24cb1259dde50b122c91a790bc",
+    "install-prompt.js": "e46f170b66803317015d1a6be161b40b024e2373f69d15ac6d7d1204860b9f9b",
+    "top-chicken-storefront-v7.css": "bba85fce9ba1c61209242eb61cb7df9c4503a130f995ef2a438788cd56a5cdfb",
+    "top-chicken-icon.svg": "a260e3b2d566eefc186194d18fc42eb4d9552db22202dd644fbb4af240b16406"
+  },
+  "scope": "Read-only source snapshot for isolated browser tests; no website deployment or original-repository edits."
+}

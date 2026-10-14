@@ -1,0 +1,3 @@
+# Source candidate. Login is public; every staff mutation verifies its bearer and server membership.
+[functions.top-chicken-staff]
+verify_jwt = false
