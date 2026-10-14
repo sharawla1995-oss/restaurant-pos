@@ -32,7 +32,8 @@ for(const feature of ['top-chicken-operations','top-chicken-staff','top_chicken_
 const release=fs.readdirSync(root).filter(n=>/\.exe$/i.test(n));
 assert.equal(release.length,1);
 const installer=release[0];
-assert.match(installer,/^Top-Chicken-Connected-QA-10\.5\.4-beta\.18-x64\.exe$/);
+assert.match(installer,/^Top-Chicken-Connected-QA-10\.5\.4-beta\.18\.exe$/);
+assert.deepEqual(cfg.win.target[0].arch,['x64'],'only x64 Windows installer may be built');
 const bytes=fs.readFileSync(path.join(root,installer));
 const result={result:'PASS',source_sha:process.env.GITHUB_SHA,installer,bytes:bytes.byteLength,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),features:'Beta/Cloud allowlist only, separate appId/userData/backups, updater disabled',online_e2e:'NOT EXECUTED',device_install:'NOT EXECUTED'};
 fs.mkdirSync('evidence/top-chicken',{recursive:true});
