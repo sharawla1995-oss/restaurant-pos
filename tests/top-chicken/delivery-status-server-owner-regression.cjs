@@ -26,6 +26,7 @@ const ctx={
 const i=snippet.indexOf('\nasync function transitionTopChickenOrderStatus');
 assert.ok(i>0);
 const ops=vm.runInNewContext('('+snippet.slice(0,i).trim()+')',ctx);
+ctx.topChickenOrderOperation=ops;
 const tr=vm.runInNewContext('('+snippet.slice(i).trim()+')',ctx);
 (async()=>{
  for(const [from,to] of [['new','preparing'],['preparing','ready'],['ready','completed'],['out_for_delivery','delivered']]){
