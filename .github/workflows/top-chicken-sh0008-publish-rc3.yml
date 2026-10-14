@@ -54,8 +54,11 @@ jobs:
           test "$got_status" = success || { echo 'Source CI must have succeeded'; exit 1; }
           mkdir -p /tmp/tc-rc3
           gh run download "$SOURCE_RUN" -R "$REPO" -n "$SOURCE_ARTIFACT" -D /tmp/tc-rc3
-          test -f "/tmp/tc-rc3/$FILE"
-          echo "$EXPECTED_SHA256  /tmp/tc-rc3/$FILE" | sha256sum --check --status
+          find /tmp/tc-rc3 -type f -maxdepth 5 -print
+          mapfile -t binaries < <(find /tmp/tc-rc3 -type f -name "$FILE")
+          test "${#binaries[@]}" -eq 1 || { echo 'Expected one exact installer file'; exit 1; }
+          printf '%s' "${binaries[0]}" > /tmp/tc-rc3-bin-path
+          echo "$EXPECTED_SHA256  ${binaries[0]}" | sha256sum --check
       - name: Publish ONLY a dedicated non-latest prerelease
         shell: bash
         run: |
@@ -67,7 +70,7 @@ jobs:
             gh release download "$TAG" -R "$REPO" -p "$FILE" -D /tmp/tc-rc3-existing
             echo "$EXPECTED_SHA256  /tmp/tc-rc3-existing/$FILE" | sha256sum --check --status
           else
-            gh release create "$TAG" "/tmp/tc-rc3/$FILE" -R "$REPO" --target "$SOURCE_SHA" --prerelease \
+            gh release create "$TAG" "$(cat /tmp/tc-rc3-bin-path)" -R "$REPO" --target "$SOURCE_SHA" --prerelease \
               --title "Top Chicken SH-0008 10.5.19-rc.3 (targeted only)" \
               --notes "Dedicated SH-0008-only prerelease. Never install on Top Burger SH-0005/06. In-place login fix and dedicated update channel; Beta SQL/Edge and commercial grants not deployed. Not a general production release."
           fi
