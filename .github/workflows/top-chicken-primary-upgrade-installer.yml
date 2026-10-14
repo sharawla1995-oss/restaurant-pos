@@ -23,9 +23,11 @@ jobs:
     if: github.ref == 'refs/heads/release/top-chicken-sh0008-primary-v10.5.19-candidate'
     runs-on: windows-2022
     timeout-minutes: 40
-    env:
-      TC_PRIMARY_INSTALL_DIR: ${{ runner.temp }}\\TC-PRIMARY-INPLACE-ACCEPTANCE
     steps:
+      - name: Initialize disposable Windows installer target
+        shell: pwsh
+        run: |
+          "TC_PRIMARY_INSTALL_DIR=$env:RUNNER_TEMP\TC-PRIMARY-INPLACE-ACCEPTANCE" >> $env:GITHUB_ENV
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '20'}
