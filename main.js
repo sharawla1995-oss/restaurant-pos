@@ -23,6 +23,8 @@ function configureTopChickenQaNetwork(){
   // Only the QA build uses this; the normal POS and prior TEST behavior are unchanged.
   const allowedHosts=new Set(['xihcxydjnzemflhedzor.supabase.co','ikppryeavoabnugcijeq.supabase.co']);
   session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(details,callback)=>{
+    // CI only: launch installed candidate with no live Central/Beta access.
+    if(process.env.TOP_CHICKEN_QA_CI_NO_NETWORK==='1')return callback({cancel:true});
     try{
       const url=new URL(details.url);
       if(url.protocol==='https:' && allowedHosts.has(url.hostname))return callback({cancel:false});
