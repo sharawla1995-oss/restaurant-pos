@@ -530,7 +530,10 @@ function isTopChickenSyncDiagnosticsScope(){
     && String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'
     && Number(currentBranchId())===22;
 }
-function isTopChickenSyncPaused(){return isTopChickenSyncDiagnosticsScope()&&localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)==='1'}
+// After the Beta operational reset, an old SH-0008 queue must NOT be replayed
+// automatically. The operator must opt in after viewing the exact failure.
+// Non-Top-Chicken businesses preserve the original automatic sync behavior.
+function isTopChickenSyncPaused(){return isTopChickenSyncDiagnosticsScope()&&localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)!=='0'}
 async function showTopChickenSyncDiagnostics(){
   if(!isTopChickenSyncDiagnosticsScope())return;
   const queue=await offlineQueue();
@@ -554,9 +557,10 @@ async function showTopChickenSyncDiagnostics(){
   m.className='modal';
   m.innerHTML='<div class="modal-card" style="max-width:680px">'+
     '<h2>تشخيص مزامنة Top Chicken — SH-0008</h2>'+
-    '<p class="muted">عرض فقط: لا يتم مسح أي فاتورة أو حركة أو تغيير حالة مالية.</p>'+
+    '<p class="muted">عرض فقط: لا يتم مسح أي فاتورة أو حركة أو تغيير حالة مالية. مزامنة توب تشيكن متوقفة افتراضيًا لحماية بيانات التجارب من الإرسال مجددًا.</p>'+
     '<p>الحركات في الطابور: <b>'+queue.length+'</b> — المسجلة محليًا: <b>'+persisted.length+'</b>'+
-    ' — الإنترنت: '+(navigator.onLine?'متصل':'غير متصل')+'</p>'+
+    ' — الإنترنت: '+(navigator.onLine?'متصل':'غير متصل')+
+    ' — إعادة المحاولة: '+(isTopChickenSyncPaused()?'موقوفة للحماية':'مسموحة')+'</p>'+
     (lines||'<p>لا توجد حركات في الطابور الحالي؛ لو العداد قديم اقفل النافذة وحدّث الصفحة.</p>')+
     '<div class="modal-actions">'+
     '<button class="secondary" data-tc-sync-pause>'+ (isTopChickenSyncPaused()?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا')+'</button>'+
@@ -567,10 +571,11 @@ async function showTopChickenSyncDiagnostics(){
     if(e.target.closest('[data-tc-sync-pause]')){
       if(!isTopChickenSyncDiagnosticsScope()){m.remove();return}
       const paused=!isTopChickenSyncPaused();
-      if(paused)localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,'1');
-      else localStorage.removeItem(TOP_CHICKEN_SYNC_PAUSE_KEY);
+      if(!paused && queue.length && !confirm('الحركة المعلّقة قد تعيد تسجيل فاتورة أو وردية قديمة على السيرفر. هل راجعت نوع الحركة وخطأها وتريد استئناف إرسالها الآن؟'))return;
+      // Explicit durable consent to re-enable retries. Do not delete queue/receipts.
+      localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,paused?'1':'0');
       m.querySelector('[data-tc-sync-pause]').textContent=paused?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا';
-      toast(paused?'تم إيقاف إعادة محاولة المزامنة مؤقتًا دون حذف أي حركة':'تم السماح بإعادة المحاولة؛ قد تبدأ تلقائيًا عند الاتصال');
+      toast(paused?'الحركات محفوظة والمزامنة متوقفة دون حذف':'تم السماح بإعادة المحاولة بعد مراجعتك؛ قد تبدأ تلقائيًا عند الاتصال');
     }
   };
 }
