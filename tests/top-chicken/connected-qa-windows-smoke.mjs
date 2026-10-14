@@ -10,7 +10,7 @@ const results=[];
 async function check(label){
  let instance;
  try {
-   instance=await electron.launch({executablePath:exe,args:['--disable-gpu'],timeout:60000});
+   instance=await electron.launch({executablePath:exe,args:['--disable-gpu'],timeout:60000,env:{...process.env,TOP_CHICKEN_QA_CI_NO_NETWORK:'1'}});
    const proc=instance.process();
    const page=await instance.firstWindow({timeout:60000});
    await page.waitForFunction(()=>!!window.topBurgerDesktop?.isDesktop);
