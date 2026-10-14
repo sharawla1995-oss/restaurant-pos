@@ -47,8 +47,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(gh run view "$SOURCE_RUN" -R "$REPO" --json headSha -q .headSha)" = "$SOURCE_SHA"
-          test "$(gh run view "$SOURCE_RUN" -R "$REPO" --json conclusion -q .conclusion)" = success
+          got_sha="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.head_sha')"
+          got_status="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN" --jq '.conclusion')"
+          echo "Pinned source: $got_sha; workflow conclusion: $got_status"
+          test "$got_sha" = "$SOURCE_SHA" || { echo 'Source SHA mismatch'; exit 1; }
+          test "$got_status" = success || { echo 'Source CI must have succeeded'; exit 1; }
           mkdir -p /tmp/tc-rc3
           gh run download "$SOURCE_RUN" -R "$REPO" -n "$SOURCE_ARTIFACT" -D /tmp/tc-rc3
           test -f "/tmp/tc-rc3/$FILE"
@@ -60,6 +63,7 @@ jobs:
           if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
             test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq .prerelease)" = true
             test "$(gh api "repos/$REPO/releases/tags/$TAG" --jq .draft)" = false
+            mkdir -p /tmp/tc-rc3-existing
             gh release download "$TAG" -R "$REPO" -p "$FILE" -D /tmp/tc-rc3-existing
             echo "$EXPECTED_SHA256  /tmp/tc-rc3-existing/$FILE" | sha256sum --check --status
           else
