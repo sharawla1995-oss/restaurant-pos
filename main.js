@@ -34,7 +34,7 @@ function configureTopChickenQaNetwork(){
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
-function backupDir(){const d=TOP_CHICKEN_PRELAUNCH?path.join(app.getPath('userData'),'prelaunch-backups'):path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
+function backupDir(){const d=TOP_CHICKEN_PRELAUNCH?path.join(app.getPath('userData'),'prelaunch-backups'):TOP_CHICKEN_CONNECTED_QA?path.join(app.getPath('userData'),'qa-backups'):path.join(app.getPath('documents'),'TopBurgerPOS','Backups');fs.mkdirSync(d,{recursive:true});return d}
 
 function licenseStatePath(){return path.join(dataDir(),'sharawla-license-state.json')}
 function readLicenseStateFile(){
