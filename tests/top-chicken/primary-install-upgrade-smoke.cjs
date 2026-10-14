@@ -23,7 +23,7 @@ async function launch(label,version,seed=false){
     });
     const win=await instance.firstWindow({timeout:45000});
     await win.waitForFunction(()=>!!window.topBurgerDesktop?.isDesktop,{timeout:30000});
-    const observed=await instance.evaluate(()=>({version:require('electron').app.getVersion(),userData:require('electron').app.getPath('userData')}));
+    const observed=await instance.evaluate(({app})=>({version:app.getVersion(),userData:app.getPath('userData')}));
     assert.equal(observed.version,version,'running installed version');
     const paths=await win.evaluate(()=>window.topBurgerDesktop.paths());
     assert.ok(paths.database.toLowerCase().endsWith('topburger-pos.sqlite'));
@@ -49,8 +49,11 @@ async function launch(label,version,seed=false){
    let previous;
    if(v==='before'){
      previous=await launch('official-10.5.15','10.5.15',true);
+     fs.writeFileSync('evidence/top-chicken/primary-upgrade-before-state.json',JSON.stringify(previous));
    }else if(v==='after'){
      previous=await launch('candidate-10.5.19-rc.1','10.5.19-rc.1',false);
+     const original=JSON.parse(fs.readFileSync('evidence/top-chicken/primary-upgrade-before-state.json','utf8'));
+     assert.equal(previous.userData,original.userData,'same installed app userData before/after upgrade');
    }else throw Error('Expected "before" or "after"');
    fs.writeFileSync(out,JSON.stringify({result:'PASS',step:v,network:'blocked',hosted_E2E:'NOT TESTED',device:'CI disposable Windows only',results},null,2));
    console.log('PASS primary Windows upgrade '+v+' '+JSON.stringify(previous));
