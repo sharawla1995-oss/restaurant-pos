@@ -4,7 +4,7 @@
   "business_id": "5358328c-9724-49aa-affc-1bce8be90f92",
   "device_id": "44162475-3ca2-4a2b-8bd5-aee1c7bb1c73",
   "enabled": true,
-  "version": "10.5.19-rc.2",
+  "version": "10.5.19-rc.3",
   "assets": {},
   "notes": "Bootstrap only; no later targeted installer is published. All future offers require reviewed exact-version SHA256 and a standalone GitHub release tag. Not generic latest stable."
 }
