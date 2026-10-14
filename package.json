@@ -1,7 +1,7 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.18",
-  "description": "Sharawla POS V10.5.18 Candidate - Restaurant inventory/food operations production port + 2h return approvals",
+  "version": "10.5.19-rc.1",
+  "description": "Top Chicken SH-0008 primary in-place update candidate from Sharawla 10.5.18; cloud authorization pending",
   "main": "main.js",
   "author": "Sharawla POS",
   "license": "UNLICENSED",
@@ -52,6 +52,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Sharawla POS"
     },
-    "artifactName": "Sharawla-POS-Setup-${version}-${arch}.${ext}"
+    "artifactName": "Top-Chicken-SH0008-Primary-${version}-${arch}.${ext}"
   }
 }
