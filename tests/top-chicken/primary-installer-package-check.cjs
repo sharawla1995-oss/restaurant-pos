@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const crypto=require('node:crypto');
 const asar=require('asar');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
-assert.equal(pkg.version,'10.5.19-rc.8');
+assert.equal(pkg.version,'10.5.19-rc.9');
 assert.equal(pkg.name,'sharawla-pos-windows','retain installed userData namespace');
 assert.equal(pkg.build.appId,'com.topburger.pos','retain official main in-place appId');
 assert.equal(pkg.build.productName,'Sharawla POS','retain official main in-place name');
