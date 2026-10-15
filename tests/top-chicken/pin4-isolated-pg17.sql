@@ -73,6 +73,8 @@ BEGIN
  IF v->>'allowed'<>'false' THEN RAISE EXCEPTION 'invalid user allowed'; END IF;
  UPDATE sharawla_internal.operational_feature_entitlements_v1
  SET enabled=false WHERE feature_code='core.permissions';
+ IF public.top_chicken_pin_login_success_v1('ahmed','00000000-0000-4000-8000-000000000001')
+ THEN RAISE EXCEPTION 'revocation race must block login confirmation'; END IF;
  v:=public.top_chicken_pin_login_attempt_v1('other');
  IF v->>'allowed'<>'false' THEN RAISE EXCEPTION 'revoked entitlement was allowed'; END IF;
  UPDATE sharawla_internal.operational_feature_entitlements_v1
