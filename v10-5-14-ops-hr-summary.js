@@ -16,16 +16,34 @@ function setTitle(v){const t=$('#pageTitle');if(t)t.textContent=v}
 function clearActiveNav(){$$('#nav button').forEach(b=>b.classList.remove('active'))}
 function money(v){try{return global.money(v)}catch{return Number(v||0).toFixed(2)}}
 
+// This optional V14 table is not installed on Top Chicken Beta. Do not hammer a
+// known-missing API every 10 seconds; never fake an empty successful inbox.
+let topChickenNotificationBackendMissing=false;
+function topChickenNotificationsScope(){
+ try{return typeof global.isTopChickenSyncDiagnosticsScope==='function'&&global.isTopChickenSyncDiagnosticsScope()}catch{return false}
+}
 async function refreshNotifications(){
- if(!navigator.onLine)return;
+ if(!navigator.onLine||(topChickenNotificationBackendMissing&&topChickenNotificationsScope()))return;
  try{
   const rows=await global.rest('app_notifications_v1','select=id,kind,title,body,entity_type,entity_id,action_page,read_at,created_at&order=created_at.desc&limit=100');
   const count=(rows||[]).filter(x=>!x.read_at).length,b=$('#v14NotificationBadge');
   if(b){b.textContent=String(count);b.classList.toggle('hidden',count===0)}
   global.__sharawlaV14Notifications=rows||[];
- }catch(e){console.warn('v14 notifications',e)}
+ }catch(e){
+  const msg=String(e?.message||e);
+  if(topChickenNotificationsScope()&&/app_notifications_v1|schema cache|PGRST205/i.test(msg)){
+    topChickenNotificationBackendMissing=true;
+    global.__sharawlaV14Notifications=[];
+    const badge=$('#v14NotificationBadge');
+    if(badge)badge.classList.add('hidden');
+    console.warn('Top Chicken notifications backend unavailable; polling paused until restart');
+    return;
+  }
+  console.warn('v14 notifications',e);
+ }
 }
 async function markNotificationRead(id){
+ if(topChickenNotificationBackendMissing&&topChickenNotificationsScope())return;
  try{await global.rest('app_notifications_v1',`id=eq.${Number(id)}`,{method:'PATCH',body:JSON.stringify({read_at:new Date().toISOString()})})}catch(e){console.warn(e)}
 }
 function navigateNotification(page){
@@ -39,6 +57,10 @@ function navigateNotification(page){
 }
 async function openNotifications(){
  await refreshNotifications();
+ if(topChickenNotificationBackendMissing&&topChickenNotificationsScope()){
+  global.toast?.('إشعارات Top Chicken غير متاحة في Beta حتى تجهيز خدمة الإشعارات؛ لم يتم اعتبار الرسائل مقروءة');
+  return;
+ }
  const rows=global.__sharawlaV14Notifications||[];
  const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card" style="width:min(720px,96vw)"><div class="section-head"><div><h2>🔔 الإشعارات</h2><p class="muted">طلبات الموافقة والقرارات والحركات التي تحتاج انتباهك.</p></div><button class="secondary" data-close>إغلاق</button></div><div class="notification-list">${rows.map(n=>`<button class="notification-row ${n.read_at?'':'unread'}" data-note="${n.id}" data-page="${esc(n.action_page||'')}"><b>${esc(n.title)}</b>${n.body?`<span>${esc(n.body)}</span>`:''}<small>${fmt(n.created_at)}</small></button>`).join('')||'<div class="empty">لا توجد إشعارات.</div>'}</div></div>`;document.body.appendChild(m);
  m.onclick=async e=>{if(e.target===m||e.target.closest('[data-close]'))return m.remove();const b=e.target.closest('[data-note]');if(!b)return;await markNotificationRead(b.dataset.note);m.remove();await refreshNotifications();navigateNotification(b.dataset.page)};
