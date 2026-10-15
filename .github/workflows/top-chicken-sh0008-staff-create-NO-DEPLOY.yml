@@ -25,6 +25,7 @@ jobs:
           node --check app.js
           node --check tests/top-chicken/staff-create-source-regression.cjs
           node tests/top-chicken/staff-create-source-regression.cjs
+          node tests/top-chicken/login-edge-route-regression.cjs
       - uses: denoland/setup-deno@v2
         with: {deno-version: v2.x}
       - name: Check new isolated Edge without deployment
