@@ -1026,6 +1026,7 @@ function renderPOS(){
    <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery&&moduleEnabled('delivery')?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل">
    <input id="customerName" placeholder="اسم العميل">
+   ${isTopChickenSyncDiagnosticsScope()?'<button type="button" class="secondary" id="newPosCustomer">+ إضافة عميل</button>':''}
   </div>
   <div id="deliveryFields" class="delivery-fields hidden">
    <select id="deliveryBranch" disabled><option value="${currentBranchId()}" selected>${esc(branchName(currentBranchId()))}</option></select>
@@ -1049,6 +1050,7 @@ function renderPOS(){
  </aside></div>`;
  $('#catTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;state.cat=b.dataset.cat;$$('#catTabs button').forEach(x=>x.classList.toggle('active',x===b));drawProducts()};
  $('#productSearch').oninput=drawProducts;
+ if($('#newPosCustomer'))$('#newPosCustomer').onclick=()=>openTopChickenCustomerForm(async c=>{$('#customerPhone').value=c.phone;$('#customerName').value=c.name;await lookupCustomerByPhone()});
  if($('#discount'))$('#discount').oninput=drawCart;if($('#discountType'))$('#discountType').onchange=drawCart;if($('#applyPosPromo'))$('#applyPosPromo').onclick=applyPosPromo;
  $('#orderType').onchange=()=>{toggleDeliveryFields();drawCart()};
  $('#deliveryZone')?.addEventListener('change',e=>{
