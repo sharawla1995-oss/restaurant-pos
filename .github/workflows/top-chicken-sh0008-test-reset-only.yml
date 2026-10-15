@@ -5,6 +5,9 @@ on:
       - codex/top-chicken-sh0008-rc9-prelaunch-no-deploy
     paths:
       - 'top-chicken-test-queue-reset.js'
+      - 'app.js'
+      - 'main.js'
+      - 'preload.js'
       - 'tests/top-chicken/sh0008-test-queue-reset-regression.cjs'
       - '.github/workflows/top-chicken-sh0008-test-reset-only.yml'
   workflow_dispatch:
