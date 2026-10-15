@@ -1,6 +1,8 @@
 // Source-only Top Chicken Beta username + 4-digit PIN identity primitives.
 // The PIN never becomes a raw Supabase Auth password or plain SQL receipt.
 // Deploy only after the admin-approved, tenant-bound PIN login SQL gate is applied.
+import {REQUEST_ID_RE,PERMISSION_ALLOWLIST} from './staff-domain.mjs';
+
 export const PIN_BUSINESS='5358328c-9724-49aa-affc-1bce8be90f92';
 export const PIN_BRANCH=22;
 const ID=/^[a-z][a-z0-9._-]{2,31}$/;
@@ -42,14 +44,17 @@ export function pinCreatePayload(body){
  const name=String(body.name||'').trim(),role=String(body.role||'').toLowerCase();
  if(!name||name.length>120)throw Error('STAFF_NAME_INVALID');
  if(!['cashier','callcenter','admin'].includes(role))throw Error('STAFF_ROLE_INVALID');
- if(Number(body.branch_id)!==22||!Array.isArray(body.branch_ids)||body.branch_ids.some(x=>Number(x)!==22))
+ if(Number(body.branch_id)!==22||!Array.isArray(body.branch_ids)||body.branch_ids.length!==1||Number(body.branch_ids[0])!==22)
    throw Error('BRANCH_22_ONLY');
- if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(body.request_id||'')))
+ if(!REQUEST_ID_RE.test(String(body.request_id||'')))
    throw Error('REQUEST_ID_INVALID');
  if(!Array.isArray(body.permissions)||body.permissions.length>100)
    throw Error('PERMISSION_LIST_INVALID');
  // Full allowlist is validated by the existing staff SQL function at finish.
  const permissions=role==='admin'?[]:[...new Set(body.permissions.map(x=>String(x).trim()))].sort();
+ // Validate BEFORE reserving a receipt or creating an Auth account: otherwise
+ // an invalid permission can strand a reserved request and orphan an Auth user.
+ if(permissions.some(x=>!PERMISSION_ALLOWLIST.has(x)))throw Error('PERMISSION_NOT_ALLOWLISTED');
  return {action:'create',auth_mode:'pin4',username,pin,name,role,active:body.active!==false,
    permissions,branch_id:22,branch_ids:[22],request_id:String(body.request_id)};
 }
