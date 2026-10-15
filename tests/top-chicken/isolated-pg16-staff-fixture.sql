@@ -3,6 +3,16 @@ CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
 CREATE SCHEMA auth;
 CREATE TABLE auth.users(id uuid PRIMARY KEY,email text NOT NULL UNIQUE);
 CREATE TABLE public.branches(id bigint PRIMARY KEY,business_id uuid NOT NULL,active boolean NOT NULL);
+CREATE SCHEMA sharawla_internal;
+CREATE TABLE sharawla_internal.operational_feature_entitlements_v1 (
+ cloud_business_id uuid NOT NULL,feature_code text NOT NULL,enabled boolean NOT NULL,valid_until timestamptz,
+ PRIMARY KEY(cloud_business_id,feature_code)
+);
+INSERT INTO sharawla_internal.operational_feature_entitlements_v1 VALUES
+ ('5358328c-9724-49aa-affc-1bce8be90f92','core.auth',true,NULL),
+ ('5358328c-9724-49aa-affc-1bce8be90f92','core.users',true,NULL),
+ ('5358328c-9724-49aa-affc-1bce8be90f92','core.permissions',true,NULL),
+ ('91826502-590e-4afa-8826-2c0f4b99c490','core.users',true,NULL);
 CREATE TABLE public.employees(
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  name text NOT NULL,username text NOT NULL,role text,branch_id bigint,active boolean,
