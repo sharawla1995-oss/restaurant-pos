@@ -94,7 +94,7 @@ BEGIN
    'Same local different domain','cashier',true,ARRAY['pos']);
  IF r->>'ok'<>'true' THEN RAISE EXCEPTION 'FAIL distinct-domain Auth creation'; END IF;
  IF (SELECT count(DISTINCT username) FROM public.employees
-     WHERE business_id=tc AND username LIKE 'tc_%')<>2 THEN
+     WHERE business_id=tc AND username ~ '^tc_')<>2 THEN
    RAISE EXCEPTION 'FAIL same-local-part distinct emails collided';
  END IF;
  IF EXISTS(SELECT 1 FROM public.employees WHERE business_id=tc
