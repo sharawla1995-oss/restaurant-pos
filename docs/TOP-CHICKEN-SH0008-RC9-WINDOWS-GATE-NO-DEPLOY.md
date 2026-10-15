@@ -42,3 +42,16 @@ Read-only Beta backup → restore onto isolated PostgreSQL17 with matching funct
 - **Never treat the unchanged-baseline preflight as authorization to deploy or as a PASS of repaired Cloud behavior.** Re-run under an approved operator change window before any independently authorized DDL. If any field becomes false, investigate drift, do not blindly re-apply candidates or reset tables.
 
 **Still blocked**: no real encrypted Beta PostgreSQL17 backup and isolated restore; no authenticated/audited entitlement grants, no independent Edge/SQL approvals, no hosted end-to-end order+staff test, no SH-0008 local queue reconciliation/installation consent, no full session-safe staff password reset.
+
+## Security corrective batch — SQL REVIEW ONLY (2026-10-15)
+
+Additional source review identified two previously untested deny-by-default gaps in the `review-only` SQL:
+
+1. The staff-create completion owner previously wrote `business_auth_memberships.active=true` even if the employee was created with `active=false`. Corrected to `coalesce(p_active,true)`; inactive staff now begin with inactive own-tenant membership as well. No existing employee or Auth account was modified.
+2. `sharawla_internal.operational_feature_entitled_v1` formerly fell back to legacy Beta singleton feature grants when an authenticated request had **no verified current business** and a non-TC/absent header. Corrected to **deny** if `public.current_business_id()` is NULL, while verified legacy and other non-TC callers continue down the historical fallback. No shared Restaurant Profile, singleton binding, grants or other tenant data was changed. This is a change for **previously unverified** callers by design. Verified legacy parity still passes; broader non-TC verified singleton fallback remains a known historical compatibility boundary, not a new tenant-safety guarantee.
+
+Negative regression cases added to the synthetic PostgreSQL17 fixture: initially inactive staff membership denied; missing/forged tenant selector denied; revoked Top Chicken membership denied; existing verified legacy caller remains allowed with existing legacy grant.
+
+**[PostgreSQL17 isolated CI #38677377435 — SUCCESS, both jobs](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38677377435)**. Review-only SQL and regression fixtures changed; `app.js`, `main.js`, Windows installer inputs and `rc.9` version did **not** change in this batch. The previously signed/tested Windows CI evidence still refers to exact `07b2adcf...` source; Windows installer bytes were not republished or changed.
+
+**Important**: these are tests of fixtures, not a real Beta restore or live permission acceptance. Re-run live read-only hash gate, then restore actual Beta on isolated PG17, before independent authorization of any reviewed SQL.
