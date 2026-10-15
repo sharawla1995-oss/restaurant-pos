@@ -533,7 +533,19 @@ function isTopChickenSyncDiagnosticsScope(){
 // After the Beta operational reset, an old SH-0008 queue must NOT be replayed
 // automatically. The operator must opt in after viewing the exact failure.
 // Non-Top-Chicken businesses preserve the original automatic sync behavior.
-function isTopChickenSyncPaused(){return isTopChickenSyncDiagnosticsScope()&&localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)!=='0'}
+let topChickenSyncResumeApprovedThisSession=false;
+function isTopChickenSyncPaused(){
+  // On Beta, hold every queued replay until the authenticated business and branch
+  // are known. Unknown startup identity must never bypass the SH-0008 hold.
+  if(String(cfg.url||'').replace(/\/$/,'')!=='https://xihcxydjnzemflhedzor.supabase.co')return false;
+  const business=String(state.employee?.business_id||'');
+  if(!business)return true;
+  if(business!=='5358328c-9724-49aa-affc-1bce8be90f92')return false;
+  if(Number(currentBranchId())!==22)return true;
+  // Previously persisted opt-ins are never sufficient after an app restart:
+  // new consent is required per session, without changing local queue or receipts.
+  return !topChickenSyncResumeApprovedThisSession||localStorage.getItem(TOP_CHICKEN_SYNC_PAUSE_KEY)!=='0';
+}
 async function showTopChickenSyncDiagnostics(){
   if(!isTopChickenSyncDiagnosticsScope())return;
   const queue=await offlineQueue();
@@ -574,6 +586,7 @@ async function showTopChickenSyncDiagnostics(){
       if(!paused && queue.length && !confirm('الحركة المعلّقة قد تعيد تسجيل فاتورة أو وردية قديمة على السيرفر. هل راجعت نوع الحركة وخطأها وتريد استئناف إرسالها الآن؟'))return;
       // Explicit durable consent to re-enable retries. Do not delete queue/receipts.
       localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,paused?'1':'0');
+      topChickenSyncResumeApprovedThisSession=!paused;
       m.querySelector('[data-tc-sync-pause]').textContent=paused?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا';
       toast(paused?'الحركات محفوظة والمزامنة متوقفة دون حذف':'تم السماح بإعادة المحاولة بعد مراجعتك؛ قد تبدأ تلقائيًا عند الاتصال');
     }
