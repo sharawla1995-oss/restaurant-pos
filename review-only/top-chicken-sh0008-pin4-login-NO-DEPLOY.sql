@@ -92,10 +92,16 @@ BEGIN
  FROM public.employees e JOIN auth.users au ON au.id=e.auth_user_id
  JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id
    AND m.business_id=e.business_id
+ JOIN public.branches b ON b.id=22 AND b.business_id=e.business_id
  WHERE e.auth_user_id=p_auth_user_id
    AND lower(au.email)='tc-sh0008-'||h||'@accounts.example'
    AND e.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid
-   AND e.branch_id=22 AND e.active IS TRUE AND m.active IS TRUE
+   AND e.branch_id=22 AND e.active IS TRUE AND m.active IS TRUE AND b.active IS TRUE
+   AND (SELECT count(DISTINCT x.feature_code)
+     FROM sharawla_internal.operational_feature_entitlements_v1 x
+     WHERE x.cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid
+       AND x.feature_code IN ('core.auth','core.users','core.permissions')
+       AND x.enabled IS TRUE AND (x.valid_until IS NULL OR x.valid_until>clock_timestamp()))=3
  LIMIT 1;
  IF v_employee_id IS NULL THEN RETURN false; END IF;
  DELETE FROM public.top_chicken_pin_attempts_v1 WHERE username=h;
