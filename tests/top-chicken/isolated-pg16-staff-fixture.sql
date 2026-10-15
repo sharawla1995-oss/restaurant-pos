@@ -44,7 +44,8 @@ INSERT INTO auth.users VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','admin@example.com'),
  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','legacy@example.com'),
  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','new@example.com'),
- ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','other@example.com');
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','other@example.com'),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','new@another.example.com');
 INSERT INTO public.employees(name,username,role,branch_id,active,auth_user_id,business_id) VALUES
  ('TC admin','tc-admin','admin',22,true,
    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','5358328c-9724-49aa-affc-1bce8be90f92'),
