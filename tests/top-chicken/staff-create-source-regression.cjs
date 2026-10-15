@@ -16,6 +16,8 @@ const url=new URL(domainPath,'file://'+process.cwd()+'/tests/top-chicken/');
  assert.equal(norm.name,'New Cashier');
  assert.deepEqual(norm.permissions,['orders','pos']);
  assert.equal(norm.branch_id,22);
+ const admin=m.staffCreatePayload({...base,role:'admin',permissions:['users','suppliers','foodRecipes']});
+ assert.deepEqual(admin.permissions,[],'admin relies on role, not fabricated explicit user privilege inserts');
  const d=await m.staffDigest(norm);
  assert.match(d,/^[a-f0-9]{64}$/);
  assert.equal(await m.staffDigest(norm),d,'stable digest');
