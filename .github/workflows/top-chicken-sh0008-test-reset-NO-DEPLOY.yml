@@ -10,6 +10,7 @@ on:
       - 'top-chicken-update-channel.js'
       - 'tests/top-chicken/test-queue-reset-regression.cjs'
       - 'tests/top-chicken/pending-sync-diagnostics-regression.cjs'
+      - 'tests/top-chicken/customer-create-regression.cjs'
       - '.github/workflows/top-chicken-sh0008-test-reset-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -41,6 +42,7 @@ jobs:
           export NODE_PATH="$RUNNER_TEMP/tc-sql/node_modules"
           node tests/top-chicken/test-queue-reset-regression.cjs
           node tests/top-chicken/pending-sync-diagnostics-regression.cjs
+          node tests/top-chicken/customer-create-regression.cjs
       - name: Guard against live release and cloud deployment
         run: |
           echo 'PASS source-only; no SQL, Edge, entitlement, server reset, device access or installer publication.'
