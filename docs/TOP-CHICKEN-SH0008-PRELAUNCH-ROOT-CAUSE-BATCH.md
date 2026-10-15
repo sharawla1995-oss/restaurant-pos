@@ -119,3 +119,7 @@ No PR merge, Beta schema writes, Edge publication, Cloud Admin entitlement mutat
 6. **Password:** staff account password reset is explicitly **FAIL CLOSED** pending safe Auth session-revocation semantics. Do not claim full staff management release ready.
 
 **SOURCE/CI WINDOWS ARTIFACT UPLOADED — PRODUCTION DEPLOYMENT AND DEVICE INSTALLATION NOT APPROVED.**
+
+### Version promotion block — do not mistake this artifact for an SH-0008 update
+
+The verified GitHub Windows artifact and package version remain **10.5.19-rc.8**. Previous read-only Beta server logs explicitly observed `sharawla-pos-windows/10.5.19-rc.8` from a running Windows POS client. Therefore this artifact is **not a higher-version update** over a running `rc.8`, and an in-app updater must not be told to offer it as a newer version. The Windows test proved a synthetic CI chain `10.5.15 → rc.4 → rc.8`, **not** an approved physical `rc.8 → rc.8` update. After Beta service release gates have been closed, a genuinely newer SH-0008-only candidate version must be chosen, rebuilt, checked for actual Windows in-place persistence, signed/hash-pinned and published to the **dedicated channel only** after its own independent device/release approval. Never alter Top Burger general `releases/latest`.
