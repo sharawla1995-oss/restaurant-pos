@@ -1679,10 +1679,60 @@ async function openCustomer360(customer){
  render();
 }
 
+// Top Chicken only: add customers from the customers screen or checkout.
+// The existing backend's branch/tenant RLS remains authoritative.
+async function topChickenCustomerCreate({name,phone,address='',area=''}){
+ if(!await isTopChickenStaffContext()||Number(currentBranchId())!==22)
+   throw new Error('إضافة العميل بهذه الطريقة متاحة لتوب تشيكن فقط');
+ name=String(name||'').trim();phone=normalizePhone(String(phone||''));
+ address=String(address||'').trim();area=String(area||'').trim();
+ if(!name||name.length>120)throw new Error('اكتب اسم العميل');
+ if(!/^01[0125]\\d{8}$/.test(phone))throw new Error('رقم الموبايل لازم يكون 11 رقم مصري صحيح');
+ const prior=await rest('customers',`select=id,name,phone&phone=eq.${encodeURIComponent(phone)}&limit=1`);
+ if(prior?.length)throw new Error('رقم الموبايل مسجل بالفعل للعميل '+String(prior[0].name||''));
+ const rows=await rest('customers','select=id,name,phone',{method:'POST',
+   headers:{Prefer:'return=representation'},body:JSON.stringify([{name,phone,address:address||null,area:area||null}])});
+ const created=rows?.[0];
+ if(!created?.id)throw new Error('لم يؤكد السيرفر إضافة العميل');
+ if(address){
+   try{await rest('customer_addresses','',{method:'POST',body:JSON.stringify([
+     {customer_id:created.id,label:'العنوان الأساسي',address,area:area||null,is_default:true}])})}
+   catch(e){throw new Error('تم حفظ العميل لكن تعذر حفظ العنوان: '+String(e?.message||e))}
+ }
+ return created;
+}
+function openTopChickenCustomerForm(onSaved){
+ if(!isTopChickenSyncDiagnosticsScope())return toast('إضافة العميل متاحة لتوب تشيكن فرع 22');
+ const m=document.createElement('div');m.className='modal';
+ m.innerHTML=`<form class="modal-card" data-tc-add-customer>
+ <h2>+ إضافة عميل</h2><div class="form-grid">
+ <label>اسم العميل<input data-tc-customer-name required maxlength="120"></label>
+ <label>رقم الموبايل<input data-tc-customer-phone inputmode="tel" required maxlength="11"></label>
+ <label>العنوان<input data-tc-customer-address></label>
+ <label>المنطقة<input data-tc-customer-area></label></div>
+ <div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button>
+ <button type="submit" class="primary">حفظ العميل</button></div></form>`;
+ document.body.appendChild(m);
+ m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove()};
+ m.querySelector('form').onsubmit=async e=>{
+   e.preventDefault();const b=m.querySelector('button[type="submit"]');if(b.disabled)return;b.disabled=true;
+   try{
+     const created=await topChickenCustomerCreate({
+       name:m.querySelector('[data-tc-customer-name]').value,
+       phone:m.querySelector('[data-tc-customer-phone]').value,
+       address:m.querySelector('[data-tc-customer-address]').value,
+       area:m.querySelector('[data-tc-customer-area]').value});
+     m.remove();toast('تم حفظ العميل');await onSaved?.(created);
+   }catch(error){toast(String(error?.message||error))}
+   finally{if(m.isConnected)b.disabled=false}
+ };
+}
+
 async function renderCustomers(){
  let rows=[];try{rows=await fetchAll('customers','select=*&order=created_at.desc');await odbSet('customersCache',rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet('customersCache'))||[]}
- $('#page').innerHTML=`<div class="panel"><div class="toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
+ $('#page').innerHTML=`<div class="panel"><div class="toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="newTopChickenCustomer" class="primary" style="display:${isTopChickenSyncDiagnosticsScope()?'':'none'}">+ إضافة عميل</button><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
  const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>`<tr><td>${esc(c.name||'')}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td><button class="secondary" data-customer-file="${c.id}">📁 ملف العميل</button> <button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button> <button class="secondary" data-addresses="${c.id}">📍 العناوين</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};$('#customerSearch').oninput=draw;draw();$('#importCustomers').onclick=openCustomerImport;
+ $('#newTopChickenCustomer').onclick=()=>openTopChickenCustomerForm(()=>renderCustomers());
  $('#customersBody').onclick=async e=>{const fb=e.target.closest('[data-customer-file]'),eb=e.target.closest('[data-edit-customer]'),ab=e.target.closest('[data-addresses]');if(fb){const customer=rows.find(x=>String(x.id)===fb.dataset.customerFile);if(customer)return openCustomer360(customer)}if(eb){const c=rows.find(x=>String(x.id)===eb.dataset.editCustomer);const name=await uiPrompt('اسم العميل',c.name||'');if(name===null)return;const phone=await uiPrompt('رقم الموبايل',c.phone||'');if(phone===null)return;const area=await uiPrompt('المنطقة',c.area||'');if(area===null)return;const address=await uiPrompt('العنوان',c.address||'');if(address===null)return;const dup=rows.find(x=>x.id!==c.id&&normalizePhone(x.phone)===normalizePhone(phone));if(dup)return toast('رقم الموبايل مسجل لعميل آخر');await rest('customers',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim(),phone:phone.trim(),area:area.trim()||null,address:address.trim()||null,updated_at:new Date().toISOString()})});toast('تم تعديل العميل');renderCustomers();return;}if(ab){openCustomerAddresses(Number(ab.dataset.addresses));}};
 }
 async function openCustomerAddresses(customerId){const rows=await rest('customer_addresses',`select=*&customer_id=eq.${customerId}&order=is_default.desc,id.desc`);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>عناوين العميل</h2><div class="option-list">${rows.map(a=>`<div class="manage-row"><span>${esc(a.label||a.area||'عنوان')} — ${esc(a.address||'')}</span><span><button class="secondary" data-edit-address="${a.id}">✏️</button><button class="danger" data-delete-address="${a.id}">🗑️</button></span></div>`).join('')||'<div class="empty">لا توجد عناوين</div>'}</div><button class="secondary" data-add-address>+ إضافة عنوان</button><div class="modal-actions"><button class="primary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}const add=e.target.closest('[data-add-address]');if(add){const label=await uiPrompt('اسم العنوان','المنزل');if(label===null)return;const area=await uiPrompt('المنطقة','');if(area===null)return;const address=await uiPrompt('العنوان بالتفصيل','');if(address===null||!address.trim())return;await rest('customer_addresses','',{method:'POST',body:JSON.stringify([{customer_id:customerId,label,area,address,is_default:rows.length===0}])});m.remove();openCustomerAddresses(customerId);return}const ed=e.target.closest('[data-edit-address]');if(ed){const a=rows.find(x=>String(x.id)===ed.dataset.editAddress);const label=await uiPrompt('اسم العنوان',a.label||'');if(label===null)return;const area=await uiPrompt('المنطقة',a.area||'');if(area===null)return;const address=await uiPrompt('العنوان',a.address||'');if(address===null)return;await rest('customer_addresses',`id=eq.${a.id}`,{method:'PATCH',body:JSON.stringify({label,area,address})});m.remove();openCustomerAddresses(customerId);return}const del=e.target.closest('[data-delete-address]');if(del&&await uiConfirm('حذف هذا العنوان؟')){await rest('customer_addresses',`id=eq.${del.dataset.deleteAddress}`,{method:'DELETE'});m.remove();openCustomerAddresses(customerId)}}}
