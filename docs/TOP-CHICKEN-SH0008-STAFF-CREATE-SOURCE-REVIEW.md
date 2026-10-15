@@ -37,3 +37,7 @@ Therefore a well-formed email containing `@` still fails, and an entry without `
 5. After all stages and test authorizations, exercise add user on isolated Beta login with a real test email, verify user + membership + permissions, login/logout, role revoke and duplicate replay; then install on SH-0008 only following a full local backup and separate approval.
 
 **NO real staff account was added or modified during this source work.** The original two Top Chicken admins must be preserved.
+
+## Critical compatibility correction — actual Beta schema
+
+Read-only introspection of Beta confirmed `employees_username_no_at` (username must not contain `@`) and `employees_username_format` (trimmed length 3–40). Earlier fixture lacked these real constraints; its PASS did **not** prove actual Beta compatibility. The service stores the full valid email in Supabase Auth, while its SQL finalization now derives a deterministic, tenant-scoped internal no-@ username and preserves uniqueness checks. The disposable PG16 fixture now includes both real CHECK constraints and asserts the distinct Auth email and internal username. **Username-only login is still not supported by this release**, since Supabase Auth currently signs in by email.
