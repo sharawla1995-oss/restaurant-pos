@@ -82,6 +82,28 @@ BEGIN
  IF (SELECT count(*) FROM public.employees WHERE business_id=tc)<>2 THEN
    RAISE EXCEPTION 'FAIL duplicate employee';
  END IF;
+ -- Distinct Auth emails with the same local part require different internal
+ -- employees.username values. Neither username can contain '@'.
+ r:=public.top_chicken_staff_create_reserve_v1(actor,
+   '10000000-0000-4000-8000-000000000002',repeat('c',64),
+   'new@another.example.com');
+ IF r->>'new_reservation'<>'true' THEN RAISE EXCEPTION 'FAIL second domain reservation'; END IF;
+ r:=public.top_chicken_staff_create_finish_v1(actor,
+   '10000000-0000-4000-8000-000000000002',repeat('c',64),
+   'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   'Same local different domain','cashier',true,ARRAY['pos']);
+ IF r->>'ok'<>'true' THEN RAISE EXCEPTION 'FAIL distinct-domain Auth creation'; END IF;
+ IF (SELECT count(DISTINCT username) FROM public.employees
+     WHERE business_id=tc AND username LIKE 'tc_%')<>2 THEN
+   RAISE EXCEPTION 'FAIL same-local-part distinct emails collided';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.employees WHERE business_id=tc
+           AND position('@' IN username)>0) THEN
+   RAISE EXCEPTION 'FAIL @ in internal username';
+ END IF;
+ IF (SELECT count(*) FROM public.employees WHERE business_id=tc)<>3 THEN
+   RAISE EXCEPTION 'FAIL total TC employees after second valid account';
+ END IF;
  IF (SELECT count(*) FROM public.employees WHERE business_id='91826502-590e-4afa-8826-2c0f4b99c490')<>1 THEN
    RAISE EXCEPTION 'FAIL altered legacy tenant';
  END IF;
