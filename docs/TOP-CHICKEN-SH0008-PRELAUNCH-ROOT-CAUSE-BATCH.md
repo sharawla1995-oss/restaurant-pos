@@ -75,3 +75,13 @@ Evidence:
 6. No website-to-POS Beta E2E with isolated intake; branch 22 real-order intake remains disabled.
 
 No approval for one gate implies approval for any other gate.
+
+## Follow-up 2026-10-15 — staff add actual Beta-schema compatibility
+
+- Real Beta introspection found `employees_username_no_at` and `employees_username_format`: the employee's internal username must be **no @ and 3–40 characters**. Former source attempted to store the Auth email in this field and would fail even after Edge deployment.
+- Corrected `review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql` to keep the full valid login email in `auth.users.email`, and produce a deterministic, tenant-safe internal `tc_<name>_<email-hash>` username without @, with SQL uniqueness/length checks. No shared constraint was relaxed.
+- Updated PG16 fixtures to enforce both real Beta checks, not just the earlier simplified mock. Tested two different email domains with the same local-part and verified distinct internal usernames.
+- UI now labels the internal identifier separately in the Top Chicken edit form, makes the create form require a real email and 8-character password; username-only Supabase Auth login is **not implemented**.
+- [Staff source & disposable PG16 Run #38672106460 — SUCCESS](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38672106460); source and PG16 jobs both green. Prior failed runs were fixture mismatches corrected before this PASS.
+- Read-only live Beta snapshot still contains **2 Top Chicken employees, 2 memberships, 0 Top Chicken operational entitlements, 0 deployed staff receipt tables**; `top-chicken-staff` remains absent from deployed Edge Functions. Real account creation is therefore **NOT YET FUNCTIONAL** on SH-0008. This source CI evidence does not authorize deployments.
+- Existing modify/deactivate/password actions also need an audited secure server owner before being claimed as operational PASS; the currently staged Edge implements staff **creation only**.
