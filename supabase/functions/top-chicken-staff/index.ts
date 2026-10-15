@@ -1,7 +1,7 @@
 // SOURCE-ONLY: a dedicated Top Chicken SH-0008 staff-creation service.
 // DO NOT DEPLOY without independent Edge + reviewed SQL + Cloud entitlement
 // approvals and isolated recovery evidence. No shared smart-function updates.
-import {staffCreatePayload,staffDigest,TOP_CHICKEN_BUSINESS} from './staff-domain.mjs';
+import {staffCreatePayload,staffDigest,staffManagePayload,staffManageDigest,TOP_CHICKEN_BUSINESS} from './staff-domain.mjs';
 
 const cors={
   'access-control-allow-origin':'*',
@@ -67,8 +67,39 @@ Deno.serve(async(request:Request)=>{
   catch{return response(503,{ok:false,code:'AUTH_VERIFICATION_UNAVAILABLE'})}
   if(!actor)return response(401,{ok:false,code:'UNAUTHENTICATED'});
 
+  const body=await request.json().catch(()=>null);
+  if(['edit','toggle','password'].includes(String(body?.action||''))){
+    let managed:ReturnType<typeof staffManagePayload>;
+    try{managed=staffManagePayload(body)}
+    catch(e){return response(422,{ok:false,code:String((e as Error).message||'INVALID_INPUT')})}
+    if(managed.action==='password')
+      return response(501,{ok:false,code:'STAFF_PASSWORD_RESET_PENDING_REVIEW',
+        message:'تغيير كلمة المرور لم يتم تفعيله بعد؛ يلزم مسار مراجعة المصادقة وإبطال الجلسات. لم يتم تغيير كلمة المرور.'});
+    const digest=await staffManageDigest(managed);
+    try{
+      const result=await invokeRpc(env.url,env.service,'top_chicken_staff_manage_v1',{
+        p_actor_auth_user_id:actor,p_request_id:managed.request_id,
+        p_payload_digest:digest,p_action:managed.action,
+        p_employee_id:managed.employee_id,
+        p_name:managed.action==='edit'?managed.name:null,
+        p_role:managed.action==='edit'?managed.role:null,
+        p_active:managed.active,
+        p_permissions:managed.action==='edit'?managed.permissions:[]
+      });
+      if(result?.ok!==true||result.business_id!==TOP_CHICKEN_BUSINESS||
+         Number(result.branch_id)!==22||result.permissions_persisted!==true||
+         Number(result.employee_id)!==managed.employee_id)
+        return response(503,{ok:false,code:'STAFF_MANAGE_COMMIT_UNVERIFIED'});
+      return response(200,result);
+    }catch{
+      // A dropped HTTP response might mean the SQL commit succeeded: the caller
+      // MUST preserve the exact request_id + digest, never invent another write.
+      return response(503,{ok:false,code:'STAFF_MANAGE_OUTCOME_UNCERTAIN',
+        message:'تعذر تأكيد تعديل الموظف. أعد نفس الطلب فقط بعد فحص السجل؛ لا تنشئ تعديلًا آخر.'});
+    }
+  }
   let parsed:ReturnType<typeof staffCreatePayload>;
-  try{parsed=staffCreatePayload(await request.json())}
+  try{parsed=staffCreatePayload(body)}
   catch(e){return response(422,{ok:false,code:String((e as Error).message||'INVALID_INPUT')})}
 
   // The identity is ALWAYS the verified JWT identity and the PostgreSQL service
