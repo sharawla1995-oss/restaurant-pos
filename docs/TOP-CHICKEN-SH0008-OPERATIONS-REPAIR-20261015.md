@@ -77,3 +77,32 @@ No SQL/Edge deploy, no entitlement write, no device installer, no local queue cl
    acceptance run.
 
 CI results are separately linkable from GitHub Actions.
+
+## 2026-10-16 scoped continuation (SOURCE ONLY / NO DEPLOY)
+
+This section supplements the 2026-10-15 handoff; the historical records above are not a current deploy preflight.
+
+### Source changes since pinned RC9 9485795c
+
+- `71e535cd`: PIN4 staff creation now requires exactly one branch ID (22), a strict UUID-shaped request ID, and the existing staff permission allowlist **before** reserving a receipt or creating a Supabase Auth user. This closes a real orphan/uncertain-Auth risk from malformed permission input.
+- `ff81e2fd`: targeted PIN4 input regressions for empty/duplicate branches, invalid permissions and request IDs.
+- `186accf3`: *candidate, not applied* PIN SQL success gate refuses to clear an active lockout; requires a matching, existing admitted attempt and row lock. A delayed successful Auth response can no longer reset a concurrent lock.
+- `af8be0a4`: isolated PG17 SQL regression added for locked-success denial and post-expiry legitimate attempt (execution status must be verified in Actions; source change is not PG17 PASS).
+- 8 dynamically executed in-process isolated PIN payload checks against the fetched source were PASS; this is not hosted Auth/Edge and not PG17.
+- The SQL modification is in **only** `review-only/top-chicken-sh0008-pin4-login-NO-DEPLOY.sql`. None of the four already-applied 15-Oct migrations was modified or re-run.
+
+### Direct live read-only observations (2026-10-16)
+
+- Beta `xihcxydjnzemflhedzor` reports PostgreSQL 17.6. All four 2026-10-15 named migrations exist in `supabase_migrations.schema_migrations`: staff-create, staff-manage, verified-tenant-feature-owner, modifier-quantity-additive. **DO NOT REAPPLY.**
+- Beta: two Top Chicken employees, zero delivery drivers, 24 branch-22 zones, zero rows for this business in `sharawla_internal.operational_feature_entitlements_v1`.
+- Beta Edge inventory: `top-chicken-staff` ACTIVE v1 with `verify_jwt=true`. `top-chicken-pin-login` absent. PIN attempt table and login RPC absent.
+- Central `ikppryeavoabnugcijeq` commercial resolver, evaluated read-only for the Top Chicken business at the query time: `core.auth`, `core.users`, `core.permissions` entitled, but `commerce.delivery`, `inventory.suppliers`, `commerce.orders`, `commerce.pickup` all `NOT_ENTITLED`. The `restaurant` profile is active. Module overrides for `pos`, `pickup`, `delivery` and `inventory` are enabled but are not commercial grants.
+
+### Stop gates / permissions
+
+1. Do not run direct Beta SQL entitlement grants or clone the legacy tenant; design/review tenant-only, authenticated/audited Central decision-to-Beta synchronization including disable, expiry, version, stale-decision deny, and other-tenant rejection. Commercial enablement requires separate user approval via the actual Central Admin control plane, and may have package/add-on implications.
+2. PIN4 review-only migration and Edge updates require **independent** approvals and verified restoration/rollback prerequisites; never reapply the four 15-Oct migrations. Fresh server-only PIN secret must be provisioned. Hosted login, lockout and Auth have **not** been run. No PIN offline login or reset.
+3. Real Beta CRUD writes (driver, delivery zone, customer+address, supplier), website pickup/delivery E2E, SQL/Edge publication, Windows device install, queue reset/replay and public intake remain **NOT RUN / BLOCKED** until their respective approvals and prerequisites.
+4. Earlier RC9 Windows validation cannot be transferred to an untested modified installer. No new Windows release/feed has been created. Top Burger Production and SH-0005/06/07/08 unchanged by this continuation.
+
+**Current state**: Source repair progressed, runtime is **NOT LIVE READY**. Do not turn CI/source success into hosted PASS.
