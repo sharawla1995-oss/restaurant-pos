@@ -1689,7 +1689,7 @@ async function topChickenCustomerCreate({name,phone,address='',area=''}){
  name=String(name||'').trim();phone=normalizePhone(String(phone||''));
  address=String(address||'').trim();area=String(area||'').trim();
  if(!name||name.length>120)throw new Error('اكتب اسم العميل');
- if(!/^01[0125]\\d{8}$/.test(phone))throw new Error('رقم الموبايل لازم يكون 11 رقم مصري صحيح');
+ if(!/^01[0125]\d{8}$/.test(phone))throw new Error('رقم الموبايل لازم يكون 11 رقم مصري صحيح');
  const prior=await rest('customers',`select=id,name,phone&phone=eq.${encodeURIComponent(phone)}&limit=1`);
  if(prior?.length)throw new Error('رقم الموبايل مسجل بالفعل للعميل '+String(prior[0].name||''));
  const rows=await rest('customers','select=id,name,phone',{method:'POST',
