@@ -36,6 +36,12 @@ SELECT EXISTS (
     AND e.role='admin' AND e.active IS TRUE AND m.active IS TRUE
     AND b.active IS TRUE
     AND e.branch_id=22
+    AND (SELECT count(DISTINCT fe.feature_code)
+         FROM sharawla_internal.operational_feature_entitlements_v1 fe
+         WHERE fe.cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid
+           AND fe.feature_code IN ('core.auth','core.users','core.permissions')
+           AND fe.enabled IS TRUE
+           AND (fe.valid_until IS NULL OR fe.valid_until>statement_timestamp()))=3
 )
 $body$;
 REVOKE ALL ON FUNCTION public.top_chicken_staff_actor_authorized_v1(uuid)
