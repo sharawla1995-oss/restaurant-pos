@@ -49,3 +49,29 @@ These gates are not satisfied by the blanket request to fix source code.
 - Existing Top Chicken customers/addresses, menu/images, employees/licensing were not modified.
 
 **NO SQL / NO Edge deploy / NO Cloud entitlement writes / NO physical device changes / NO queue retry / NO Production release** in this batch.
+
+## Update 2026-10-15 — real disposable PostgreSQL 16 evidence (NO DEPLOY)
+
+New review-only SQL, absent from executable deployment workflow:
+
+- `review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql`: refuses existing quantity columns, existing rows or existing trigger owner; adds only the quantity column, legacy default trigger and 1..99 check; never replaces `create_pos_order_atomic` / `create_food_pos_order_atomic_v1` or modifies existing RLS/entitlements.
+- `review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql`: proposes a scoped feature resolver for verified Top Chicken users that returns **DENY** until TC own grant is approved separately; other Beta identities retain the existing singleton-based decision. No user, device, profile or entitlement data is changed by this artifact.
+- `tests/top-chicken/isolated-pg16-*.sql`: disposable fixture simulates membership and single-business binding. Test covers own-tenant feature, denied missing/disabled/expired feature, forged selector/anonymous denial, legacy behavior, explicit/legacy modifier quantities, invalid qty, shared owner sentinel.
+- `.github/workflows/top-chicken-sh0008-pg16-review-only.yml` uses a fresh ephemeral **postgres:16** service; no Supabase credentials, no project connection, no remote database writes.
+
+Evidence:
+- [PG16 first run #38666282292 — SUCCESS](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38666282292).
+- [PG16 drift/re-apply negative run #38666400198 — SUCCESS](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38666400198).
+- Retry of either review-only SQL against a changed fixture correctly aborts; unexpected existing quantity or Top Chicken feature grants fail closed.
+- These are **fixture-based** PostgreSQL 16 tests, **NOT** a backup/restore of real Beta and **NOT** the complete deployed PostgreSQL source bodies. The actual Beta database remains unchanged.
+
+### Independent gates still open
+
+1. No Cloud Admin approval to grant specific Top Chicken entitlements; the tenant fix deliberately remains deny-by-default.
+2. No independent authorization to apply either reviewed SQL file; no schema change in Beta has occurred.
+3. No real Beta backup/restore or signed pre/post migration snapshots. A true restoration rehearsal is mandatory before any SQL deployment.
+4. No isolated/authenticated validation of Top Chicken's undeployed staff Edge service; no Edge deployment approval.
+5. No device-side read-only description of the SH-0008 pending sync operation; no retry, delete or installation.
+6. No website-to-POS Beta E2E with isolated intake; branch 22 real-order intake remains disabled.
+
+No approval for one gate implies approval for any other gate.
