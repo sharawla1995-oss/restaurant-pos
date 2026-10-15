@@ -611,7 +611,7 @@ async function showTopChickenSyncDiagnostics(){
     '<button class="secondary" data-tc-sync-pause>'+ (isTopChickenSyncPaused()?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا')+'</button>'+
     '<button class="secondary" data-tc-sync-close>إغلاق</button></div></div>';
   document.body.appendChild(m);
-  m.onclick=e=>{
+  m.onclick=async e=>{
     if(e.target===m||e.target.closest('[data-tc-sync-close]')){m.remove();return}
     if(e.target.closest('[data-tc-sync-reset-test]')){
       const button=e.target.closest('[data-tc-sync-reset-test]');
