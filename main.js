@@ -208,17 +208,27 @@ async function checkForTopChickenUpdate({interactive=false}={}){
   if(updateCheckBusy||!app.isPackaged)return null;
   updateCheckBusy=true;
   let accepted=false;
+  let checkStage='device-identity';
   try{
     const st=readLicenseStateFile();
     if(!topChickenUpdates.identify(st,deviceFingerprintCandidates()))
        return {available:false,blocked:'not-sh0008'};
+    checkStage='central-entitlement';
     const verification=await centralJsonPost(
       topChickenUpdates.SUPABASE_CENTRAL+'/rest/v1/rpc/verify_sharawla_device',
       {p_device_id:st.device_id,p_device_fingerprint:st.device_fingerprint,p_app_version:app.getVersion()}
     );
-    if(!topChickenUpdates.verifyResponse(verification))
-       return {available:false,blocked:'cloud-entitlement'};
+    if(!topChickenUpdates.verifyResponse(verification)){
+      if(interactive&&mainWindow)await dialog.showMessageBox(mainWindow,{
+        type:'warning',title:'تحديث Top Chicken',
+        message:'تعذر اعتماد صلاحية الجهاز لفحص تحديث SH-0008',
+        detail:'تحقق من صلاحية Cloud للترخيص الحالي؛ لم يتم تنزيل أو تثبيت شيء.',
+        buttons:['تمام']
+      });
+      return {available:false,blocked:'cloud-entitlement'};
+    }
     // This is a fixed SH-0008 feed, never GitHub /releases/latest.
+    checkStage='dedicated-github-feed';
     const manifest=await githubJson(topChickenUpdates.FEED_URL);
     const arch=process.arch==='ia32'?'ia32':'x64';
     const offer=topChickenUpdates.choose(manifest,app.getVersion(),arch);
@@ -242,6 +252,7 @@ async function checkForTopChickenUpdate({interactive=false}={}){
     fs.mkdirSync(dir,{recursive:true});
     const target=path.join(dir,offer.filename);
     sendUpdateProgress({state:'start',version:offer.version,percent:0,message:'جاري تنزيل تحديث توب تشيكن'});
+    checkStage='installer-download';
     await downloadFile(offer.url,target,p=>sendUpdateProgress({
       state:'progress',version:offer.version,percent:p.percent,received:p.received,total:p.total,
       message:p.percent==null?'جاري تنزيل تحديث توب تشيكن…':'جاري تنزيل تحديث توب تشيكن — '+p.percent+'%'
@@ -254,6 +265,7 @@ async function checkForTopChickenUpdate({interactive=false}={}){
     const current=readLicenseStateFile();
     if(!topChickenUpdates.identify(current,deviceFingerprintCandidates()))
       return {available:true,downloaded:true,blocked:'device-changed'};
+    checkStage='pre-install-entitlement';
     const recheck=await centralJsonPost(topChickenUpdates.SUPABASE_CENTRAL+'/rest/v1/rpc/verify_sharawla_device',{
       p_device_id:current.device_id,p_device_fingerprint:current.device_fingerprint,p_app_version:app.getVersion()
     });
@@ -262,6 +274,7 @@ async function checkForTopChickenUpdate({interactive=false}={}){
     if(pendingLocalOperationCount()>0)
       return {available:true,downloaded:true,blocked:'pending-local-operations'};
     // Keep existing verified local backup guard for in-place upgrades.
+    checkStage='pre-install-local-backup';
     const backup=createPreUpdateBackup(offer.version);
     const ready=await dialog.showMessageBox(mainWindow,{type:'info',title:'تحديث Top Chicken جاهز',
       message:'تم التحقق من تحديث توب تشيكن V'+offer.version,
@@ -278,13 +291,15 @@ async function checkForTopChickenUpdate({interactive=false}={}){
     }
     return {available:true,downloaded:true,version:offer.version,channel:topChickenUpdates.TC_CHANNEL};
   }catch(e){
-    console.warn('top chicken updater',e);
-    sendUpdateProgress({state:'error',message:'تعذر فحص تحديث Top Chicken',error:String(e&&e.message||e)});
+    const error=String(e&&e.message||e).slice(0,350);
+    // Stage-specific diagnostics; no secrets, fingerprints or license tokens.
+    console.warn('top chicken updater',checkStage,e);
+    sendUpdateProgress({state:'error',message:'تعذر فحص تحديث Top Chicken',stage:checkStage,error});
     if((interactive||accepted)&&mainWindow)await dialog.showMessageBox(mainWindow,{
       type:'warning',title:'تحديث Top Chicken',message:'تعذر إكمال تحديث توب تشيكن',
-      detail:String(e&&e.message||e),buttons:['تمام']
+      detail:'مرحلة الفشل: '+checkStage+'\nالسبب: '+error,buttons:['تمام']
     });
-    return {error:String(e&&e.message||e)};
+    return {error,stage:checkStage};
   }finally{updateCheckBusy=false}
 }
 async function checkForWindowsUpdate({interactive=false}={}){
