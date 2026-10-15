@@ -30,3 +30,15 @@ Source root: `sharawla1995-oss/restaurant-pos`; isolated branch `codex/top-chick
 Read-only Beta backup → restore onto isolated PostgreSQL17 with matching functions/RLS/data receipts and rollback rehearsal → review specific SQL hashes and authorize only those on Beta → audit/approve Top Chicken Cloud entitlement grants and revocation checks → audit/approve dedicated Edge deploy → run isolated authenticated staff create/edit/toggle and website→POS tests → read-only SH-0008 queue reconciliation and device backup → **explicit device installation/publication approval** and verifiable feed hash. No step grants authority for later steps.
 
 **Final recommendation as of 2026-10-15: DO NOT UPDATE SH-0008. Source and disposable Windows candidate PASS, Cloud/backup/device gates are NOT PASS.**
+
+## PostgreSQL17 fixture parity and read-only live Beta fingerprint (2026-10-15)
+
+- [PostgreSQL17 isolated CI run #38676392172 — SUCCESS](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38676392172). Both `staff-pg17` and `quantity-feature-pg17` jobs passed on throwaway postgres:17 containers, no Supabase connections or mutations. These fixtures were based on known schema constraints; they are **not** a dump/restore of actual Beta.
+- Added executable **read-only** `review-only/top-chicken-sh0008-beta-live-readonly-preflight.sql` and executed it once on the **Beta project only** via a SELECT. Its `baseline_unchanged_read_only=true`, with all individual flags true (including original singleton owner, two Top Chicken employees/two memberships, zero Top Chicken grant rows, no staff receipts, no modifier quantity, website real intake OFF).
+- Schema public column signature MD5: `5a71a81c355c402584779bc2b94a20dc` (40 tracked columns).
+- Existing 7 authoritative owner-function body MD5: `533f9fcba11cc581b4fa28f7cc30933d`.
+- Existing public RLS policy signature MD5: `4b88fb8cc418e7568f003a8c50ec36a8` (15 tracked policies).
+- PostgreSQL Beta server reports major version **17**, release **17.6**. These checks deliberately include the prior legacy-tenant singleton: they confirm the **unmodified baseline**, not that tenant authorization is fixed.
+- **Never treat the unchanged-baseline preflight as authorization to deploy or as a PASS of repaired Cloud behavior.** Re-run under an approved operator change window before any independently authorized DDL. If any field becomes false, investigate drift, do not blindly re-apply candidates or reset tables.
+
+**Still blocked**: no real encrypted Beta PostgreSQL17 backup and isolated restore; no authenticated/audited entitlement grants, no independent Edge/SQL approvals, no hosted end-to-end order+staff test, no SH-0008 local queue reconciliation/installation consent, no full session-safe staff password reset.
