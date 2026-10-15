@@ -14,6 +14,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
  assert.throws(()=>mod.pinCreatePayload({...base,username:'a@b.com'}),/USERNAME_LATIN_3_TO_32/);
  assert.throws(()=>mod.pinCreatePayload({...base,branch_id:1,branch_ids:[1]}),/BRANCH_22_ONLY/);
  assert.throws(()=>mod.pinCreatePayload({...base,username:'ab'}),/USERNAME_LATIN_3_TO_32/);
+ assert.throws(()=>mod.pinCreatePayload({...base,branch_ids:[]}),/BRANCH_22_ONLY/,'no implicit branch 22');
+ assert.throws(()=>mod.pinCreatePayload({...base,branch_ids:[22,22]}),/BRANCH_22_ONLY/,'exactly one authorized branch');
+ assert.throws(()=>mod.pinCreatePayload({...base,request_id:'12345678-1234-9123-8123-123456789012'}),/REQUEST_ID_INVALID/);
+ assert.throws(()=>mod.pinCreatePayload({...base,permissions:['pos','superuser']}),/PERMISSION_NOT_ALLOWLISTED/,'deny invalid permissions before Auth creation');
+ assert.deepEqual(mod.pinCreatePayload({...base,permissions:['pos','pos','orders']}).permissions,['orders','pos']);
  const pwd=await mod.internalPassword(parsed.username,'1234',secret);
  assert.match(pwd,/^TC4_[a-f0-9]{64}$/);assert.ok(!pwd.includes('1234'));
  assert.equal(pwd,await mod.internalPassword('ahmed','1234',secret));
