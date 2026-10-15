@@ -1,0 +1,25 @@
+name: Top Chicken entitlement bridge policy isolated (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'supabase/functions/top-chicken-entitlement-bridge/**'
+      - 'tests/top-chicken/entitlement-bridge-policy.mjs'
+      - '.github/workflows/top-chicken-sh0008-entitlement-bridge-policy-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  decision-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Run only affected isolated authority policy tests
+        run: |
+          node --check supabase/functions/top-chicken-entitlement-bridge/policy.mjs
+          node tests/top-chicken/entitlement-bridge-policy.mjs
+      - name: Verify no deployment credentials or live writes
+        run: echo 'SOURCE-ONLY policy. Never executes Beta/Central SQL, Edge deploy, device install or operational entitlement grants.'
