@@ -438,7 +438,8 @@ async function mutateTopChickenStaff(payload){
       throw new Error('اسم الموظف وكلمة مرور من 8 أحرف على الأقل مطلوبان');
     if(Number(payload.branch_id)!==22||(payload.branch_ids||[]).some(id=>Number(id)!==22))
       throw new Error('يمكن إضافة مستخدمي Top Chicken على الفرع 22 فقط');
-    payload={...payload,username,branch_id:22,branch_ids:[22]};
+    payload={...payload,username,branch_id:22,branch_ids:[22],
+      permissions:payload.role==='admin'?[]:payload.permissions};
   }
   const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(payload)));
   const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
