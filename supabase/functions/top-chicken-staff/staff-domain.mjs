@@ -94,3 +94,44 @@ export async function staffDigest(payload){
   const hash=await crypto.subtle.digest('SHA-256',bytes);
   return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+
+export function staffManagePayload(body){
+  if(!body||!['edit','toggle','password'].includes(body.action))
+    throw Error('STAFF_ACTION_NOT_SUPPORTED');
+  const id=Number(body.employee_id);
+  if(!Number.isSafeInteger(id)||id<=0)throw Error('EMPLOYEE_ID_INVALID');
+  const requestId=String(body.request_id||'').trim();
+  if(!REQUEST_ID_RE.test(requestId))throw Error('REQUEST_ID_INVALID');
+  const branch=Number(body.branch_id);
+  if(branch!==TOP_CHICKEN_BRANCH||!Array.isArray(body.branch_ids)
+     ||body.branch_ids.length!==1||Number(body.branch_ids[0])!==TOP_CHICKEN_BRANCH)
+    throw Error('BRANCH_22_ONLY');
+  const action=body.action;
+  if(action==='password'){
+    const password=String(body.password||'');
+    if(password.length<8||password.length>128)throw Error('PASSWORD_MIN_8_REQUIRED');
+    return {action,employee_id:id,branch_id:TOP_CHICKEN_BRANCH,branch_ids:[22],
+      password,request_id:requestId};
+  }
+  if(typeof body.active!=='boolean')throw Error('ACTIVE_BOOLEAN_REQUIRED');
+  if(action==='toggle')return {action,employee_id:id,branch_id:TOP_CHICKEN_BRANCH,
+    branch_ids:[22],active:body.active,request_id:requestId};
+  const name=String(body.name||'').trim();
+  const role=String(body.role||'').trim().toLowerCase();
+  if(!name||name.length>120)throw Error('STAFF_NAME_INVALID');
+  if(!['cashier','callcenter','admin'].includes(role))throw Error('ROLE_INVALID');
+  if(!Array.isArray(body.permissions)||body.permissions.length>100)throw Error('PERMISSION_LIST_INVALID');
+  const perms=role==='admin'?[]:[...new Set(body.permissions.map(v=>String(v).trim()))].sort();
+  if(perms.some(v=>!PERMISSION_ALLOWLIST.has(v)))throw Error('PERMISSION_NOT_ALLOWLISTED');
+  return {action,employee_id:id,branch_id:TOP_CHICKEN_BRANCH,branch_ids:[22],
+    name,role,active:body.active,permissions:perms,request_id:requestId};
+}
+export async function staffManageDigest(payload){
+  const body={action:payload.action,employee_id:payload.employee_id,branch_id:22,
+    ...(payload.action==='edit'?{name:payload.name,role:payload.role,
+      active:payload.active,permissions:payload.permissions}:
+      payload.action==='toggle'?{active:payload.active}:{password:payload.password})};
+  const raw=new TextEncoder().encode(JSON.stringify(body));
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)))
+    .map(v=>v.toString(16).padStart(2,'0')).join('');
+}
