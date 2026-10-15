@@ -7,8 +7,10 @@ on:
       - 'restaurant-engine.js'
       - 'supabase/functions/top-chicken-staff/**'
       - 'review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql'
+      - 'review-only/top-chicken-sh0008-staff-manage-NO-DEPLOY.sql'
       - 'tests/top-chicken/isolated-pg16-staff-*'
       - 'tests/top-chicken/staff-create-source-regression.cjs'
+      - 'tests/top-chicken/staff-manage-source-regression.cjs'
       - '.github/workflows/top-chicken-sh0008-staff-create-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions: {contents: read}
@@ -25,6 +27,7 @@ jobs:
           node --check app.js
           node --check tests/top-chicken/staff-create-source-regression.cjs
           node tests/top-chicken/staff-create-source-regression.cjs
+          node tests/top-chicken/staff-manage-source-regression.cjs
           node tests/top-chicken/login-edge-route-regression.cjs
       - uses: denoland/setup-deno@v2
         with: {deno-version: v2.x}
@@ -59,6 +62,8 @@ jobs:
           cat tests/top-chicken/isolated-pg16-staff-fixture.sql \
               review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql \
               tests/top-chicken/isolated-pg16-staff-assert.sql \
+              review-only/top-chicken-sh0008-staff-manage-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-staff-manage-assert.sql \
           | docker exec -i "$CID" psql -U postgres -d tc_staff_fixture -v ON_ERROR_STOP=1
       - name: NO deploy or user changes
         run: echo 'Disposable postgres:16 only. NO Supabase Edge, SQL, Production, device, or account changes.'
