@@ -99,3 +99,23 @@ No approval for one gate implies approval for any other gate.
 - Real Beta backup and isolation rehearsal are **not complete**. See `docs/TOP-CHICKEN-SH0008-REAL-BETA-BACKUP-RESTORE-GATE.md`; it uses PostgreSQL **17** for a restored copy, since actual Beta runs PostgreSQL 17.6, whereas synthetic tests use PostgreSQL 16.
 
 No PR merge, Beta schema writes, Edge publication, Cloud Admin entitlement mutation, local queued job replay, PWA/installer publication or SH-0008 installation authorized by these test results.
+
+## Windows in-place installation evidence — 2026-10-15 — CI ONLY / DO NOT INSTALL
+
+- Added narrowly scoped `.github/workflows/top-chicken-sh0008-windows-prelaunch-NO-DEPLOY.yml`. This workflow never writes a GitHub Release, general `/releases/latest`, the SH-0008 update manifest, Supabase or any physical device. It uploads an expiring **NO INSTALL** Actions artifact.
+- **[Windows GitHub run #38674393101: SUCCESS](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38674393101)**. Exact tested source SHA: `cd6256a73bf1bb0ee7faed36e6e787579697c204`; only the workflow file was changed from the prior application/source-tested head.
+- Installer inside uploaded artifact: `Top-Chicken-SH0008-Primary-10.5.19-rc.8.exe`, SHA-256 `84d49f8723ed291c4e0492f84457f2815c7696e36b921e60763ceb9a740f00e6`, byte size `75219805`. The outer Actions ZIP digest is different: `ebffa7427e280aca79a5a07d4e80ba54a20931f7e8430eea2f71851fd000f435`. Do not confuse archive hash with EXE hash.
+- Artifact ID `11945244185`, name `TC-SH0008-DO-NOT-INSTALL-await-Beta-Cloud-backup-approval-cd6256a73bf1bb0ee7faed36e6e787579697c204`, expires **2026-11-14** (temporary retention, not release feed).
+- On disposable Windows only, installer/package bytes and fixed POS identity passed. Verified original `v10.5.15` installer against its SHA256 and prior SH-0008 `rc.4` against its exact SHA256; sequential in-place upgrades `v10.5.15 → rc.4 → rc.8` succeeded, including fresh process restart and preservation/read-write of the same **synthetic** SQLite record and existing userData path. All CI job steps returned success.
+- This is **NOT** evidence of real SH-0008 pending-queue safety, real Beta Cloud staff service integration, real hosted website E2E, an approved entitlement grant, or successful restore from actual Beta. The Windows artifact must **not** be installed until every independent authorization gate is closed.
+- At last read-only Beta check after the Windows run was started: staff count 2, Top Chicken entitlements 0, quantity column absent, staff create/manage receipt tables absent, website orders disabled, and `top-chicken-staff` missing from deployed Edge. Production stable baseline and release candidate branch still unchanged; draft PR #45 remains unmerged.
+
+### Exact independent go-live authorizations still needed
+1. **Backup/restore:** operator obtains an encrypted PostgreSQL 17 logical backup from Beta alone and verifies complete restoration to a *network-isolated* PostgreSQL 17 copy; give redacted PASS evidence, not raw customer data.
+2. **SQL:** independently approve reviewed exact SQL payloads after comparing their current-deployed authoritative function definitions and applying only to the isolated restored copy first. Staff and quantity SQL are **review-only**. No copying grants from legacy tenant.
+3. **Entitlements:** authenticated, audited Sharawla Cloud Admin operation granting only explicitly reviewed Top Chicken features with revocation/expiry tests. **Zero** grants existed at last check. No direct-SQL grant.
+4. **Edge:** independently approve publishing `supabase/functions/top-chicken-staff` to Beta only *after* SQL and entitlement tests. Preserve shared `smart-function`.
+5. **Windows and order intake:** read-only identification/receipt matching for real SH-0008 pending sync operation, fresh backup of local SQLite, authorized isolated website→POS pickup/delivery test, exact Windows installer digest verification, device-side restart/smoke. Do not enable real website orders without explicit acceptance.
+6. **Password:** staff account password reset is explicitly **FAIL CLOSED** pending safe Auth session-revocation semantics. Do not claim full staff management release ready.
+
+**SOURCE/CI WINDOWS ARTIFACT UPLOADED — PRODUCTION DEPLOYMENT AND DEVICE INSTALLATION NOT APPROVED.**
