@@ -36,6 +36,31 @@ assert.equal(paused(),false,'non Beta database remains unaffected');
 assert.match(app,/if\(!navigator\.onLine\|\|!session\?\.access_token\|\|isTopChickenSyncPaused\(\)\)return;/);
 assert.match(app,/for\(const job of \[\.\.\.q\]\)\{if\(isTopChickenSyncPaused\(\)\)break;/);
 
+// Tenant selector must be derived from verified logged-in business + selected
+// branch, not sticky login/global state. This is only a selector; server owns auth.
+const headerStart=app.indexOf('function headers(auth=true){');
+const headerEnd=app.indexOf('async function req(',headerStart);
+assert.ok(headerStart>0&&headerEnd>headerStart,'request headers function');
+const headerContext={
+ cfg:{url:BETA,key:'fixture-public-key'},
+ session:{access_token:'fixture-jwt'},
+ state:{employee:{business_id:TC}},
+ currentBranchId:()=>22
+};
+vm.createContext(headerContext);
+vm.runInContext(app.slice(headerStart,headerEnd),headerContext);
+const authHeaders=()=>vm.runInContext('headers(true)',headerContext);
+assert.equal(authHeaders()['x-sharawla-business'],TC,'Top Chicken authenticated selector');
+assert.equal(vm.runInContext('headers(false)',headerContext)['x-sharawla-business'],undefined,'anonymous must not send tenant selector');
+headerContext.state.employee={business_id:'91826502-590e-4afa-8826-2c0f4b99c490'};
+assert.equal(authHeaders()['x-sharawla-business'],undefined,'foreign tenant unchanged');
+headerContext.state.employee={business_id:TC};
+headerContext.currentBranchId=()=>1;
+assert.equal(authHeaders()['x-sharawla-business'],undefined,'foreign branch cannot select TC');
+headerContext.currentBranchId=()=>22;
+headerContext.session=null;
+assert.equal(authHeaders()['x-sharawla-business'],undefined,'no session means no selector');
+
 const notifStart=notifications.indexOf('// This optional V14 table is not installed');
 const notifEnd=notifications.indexOf('function navigateNotification(',notifStart);
 assert.ok(notifStart>=0&&notifEnd>notifStart,'Top Chicken 404 backoff code exists');
