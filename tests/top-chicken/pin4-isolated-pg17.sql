@@ -59,8 +59,21 @@ BEGIN
  END IF;
  v:=public.top_chicken_pin_login_attempt_v1('ahmed');
  IF v->>'allowed'<>'false' THEN RAISE EXCEPTION 'lockout incorrectly bypassed'; END IF;
+ IF public.top_chicken_pin_login_success_v1('ahmed','00000000-0000-4000-8000-000000000001') THEN
+  RAISE EXCEPTION 'delayed successful Auth response must not clear active lock';
+ END IF;
+ IF (SELECT count(*) FROM public.audit_logs WHERE action='top_chicken_pin.login')<>0 THEN
+  RAISE EXCEPTION 'locked success unexpectedly wrote audit';
+ END IF;
+ -- Simulate passage of the full lockout interval without wall-clock waits.
+ UPDATE public.top_chicken_pin_attempts_v1
+ SET locked_until=clock_timestamp()-interval '1 second' WHERE username='ahmed';
+ v:=public.top_chicken_pin_login_attempt_v1('ahmed');
+ IF v->>'allowed'<>'true' THEN
+  RAISE EXCEPTION 'expired lock must allow a new attempt: %',v;
+ END IF;
  IF NOT public.top_chicken_pin_login_success_v1('ahmed','00000000-0000-4000-8000-000000000001') THEN
-  RAISE EXCEPTION 'verified account success not recorded';
+  RAISE EXCEPTION 'verified account success after lock expiry not recorded';
  END IF;
  v:=public.top_chicken_pin_login_attempt_v1('ahmed');
  IF v->>'allowed'<>'true' THEN RAISE EXCEPTION 'legitimate success did not reset lock'; END IF;
