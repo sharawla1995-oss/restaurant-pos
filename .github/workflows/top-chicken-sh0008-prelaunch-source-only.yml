@@ -1,0 +1,43 @@
+name: Top Chicken SH-0008 isolated source safety (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - codex/top-chicken-sh0008-delivery-reference-rpc-fix
+    paths:
+      - 'app.js'
+      - 'main.js'
+      - 'v10-5-14-ops-hr-summary.js'
+      - 'tests/top-chicken/delivery-reference-crud-regression.cjs'
+      - 'tests/top-chicken/prelaunch-root-cause-batch-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-prelaunch-source-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Parse modified entrypoints and regression scripts
+        run: |
+          node --check app.js
+          node --check main.js
+          node --check v10-5-14-ops-hr-summary.js
+          node --check tests/top-chicken/delivery-reference-crud-regression.cjs
+          node --check tests/top-chicken/prelaunch-root-cause-batch-regression.cjs
+      - name: Run only newly affected isolated source regressions
+        run: |
+          node tests/top-chicken/delivery-reference-crud-regression.cjs
+          node tests/top-chicken/prelaunch-root-cause-batch-regression.cjs
+      - name: Assert release and cloud modifications are out of scope
+        run: |
+          node -e "const c=require('./update-config.json'); if(c.channel!=='top-chicken-sh0008')process.exit(1)"
+          node -e "const p=require('./package.json'); if(p.version!=='10.5.19-rc.8')process.exit(1)"
+          echo 'SOURCE-ONLY PASS does not authorize SQL, Edge, Entitlements, physical device, or any release.'
