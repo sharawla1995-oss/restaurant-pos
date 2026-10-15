@@ -7,6 +7,8 @@ on:
       - 'main.js'
       - 'preload.js'
       - 'top-chicken-test-queue-reset.js'
+      - 'v10-5-16-restaurant-closure-ui.js'
+      - 'supabase/functions/top-chicken-staff/pin-login-domain.mjs'
       - 'package.json'
       - 'version.json'
       - 'index.html'
@@ -21,6 +23,8 @@ on:
       - 'tests/top-chicken/delivery-status-server-owner-regression.cjs'
       - 'tests/top-chicken/pending-sync-diagnostics-regression.cjs'
       - 'tests/top-chicken/test-queue-reset-regression.cjs'
+      - 'tests/top-chicken/customer-create-regression.cjs'
+      - 'tests/top-chicken/pin4-staff-source-regression.cjs'
       - '.github/workflows/top-chicken-sh0008-rc9-windows-upgrade-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -52,6 +56,9 @@ jobs:
           node tests/top-chicken/food-line-uid-regression.cjs
           node tests/top-chicken/delivery-status-server-owner-regression.cjs
           node tests/top-chicken/pending-sync-diagnostics-regression.cjs
+          node tests/top-chicken/customer-create-regression.cjs
+          node tests/top-chicken/pin4-staff-source-regression.cjs
+          node --check v10-5-16-restaurant-closure-ui.js
           node tests/top-chicken/test-queue-reset-regression.cjs
           node --check preload.js
           node --check top-chicken-test-queue-reset.js
