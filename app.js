@@ -607,11 +607,32 @@ async function showTopChickenSyncDiagnostics(){
     ' — إعادة المحاولة: '+(isTopChickenSyncPaused()?'موقوفة للحماية':'مسموحة')+'</p>'+
     (lines||'<p>لا توجد حركات في الطابور الحالي؛ لو العداد قديم اقفل النافذة وحدّث الصفحة.</p>')+
     '<div class="modal-actions">'+
+    '<button class="danger" data-tc-sync-reset-test>تصفير بيانات الاختبار</button>'+
     '<button class="secondary" data-tc-sync-pause>'+ (isTopChickenSyncPaused()?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا')+'</button>'+
     '<button class="secondary" data-tc-sync-close>إغلاق</button></div></div>';
   document.body.appendChild(m);
   m.onclick=e=>{
     if(e.target===m||e.target.closest('[data-tc-sync-close]')){m.remove();return}
+    if(e.target.closest('[data-tc-sync-reset-test]')){
+      const button=e.target.closest('[data-tc-sync-reset-test]');
+      if(!confirm('سيتم تصفير حركات المزامنة التجريبية غير المتزامنة على SH-0008 / Top Chicken فقط. لن تُمس فواتير السيرفر أو العملاء. متابعة؟'))return;
+      button.disabled=true;
+      try{
+        // Prevent any existing test transaction being resent while cleaning.
+        localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,'1');
+        topChickenSyncResumeApprovedThisSession=false;
+        const reset=window.topBurgerDesktop?.topChickenTestQueue?.reset;
+        if(typeof reset!=='function')throw new Error('تصفير معاملات SH-0008 غير متاح في نسخة البرنامج الحالية');
+        const result=await reset({branch_id:22});
+        if(result?.ok!==true||result.scope!=='SH-0008/TOP-CHICKEN/22')
+          throw new Error('لم يؤكد الجهاز تصفير معاملات الاختبار');
+        await refreshPendingSyncBadge();
+        toast('تم تصفير معاملات الاختبار على الجهاز، مع الاحتفاظ بالحركات المتزامنة');
+        m.remove();
+        await showTopChickenSyncDiagnostics();
+      }catch(error){toast('لم يتم التصفير: '+String(error?.message||error));button.disabled=false}
+      return;
+    }
     if(e.target.closest('[data-tc-sync-pause]')){
       if(!isTopChickenSyncDiagnosticsScope()){m.remove();return}
       const paused=!isTopChickenSyncPaused();
