@@ -98,6 +98,7 @@ DECLARE v_rec public.top_chicken_staff_create_receipts_v1%rowtype;
   v_name text:=nullif(trim(coalesce(p_name,'')),'');
   v_role text:=lower(trim(coalesce(p_role,'')));
   v_business constant uuid:='5358328c-9724-49aa-affc-1bce8be90f92';
+  v_username text;
 BEGIN
  IF NOT public.top_chicken_staff_actor_authorized_v1(p_actor_auth_user_id) THEN
     RAISE EXCEPTION 'TC_ADMIN_ACTOR_DENIED' USING ERRCODE='42501';
@@ -203,11 +204,27 @@ BEGIN
    'branch.hr.finance.disburse',
    'treasury.post'
   )) THEN RAISE EXCEPTION 'TC_STAFF_PERMISSION_NOT_ALLOWLISTED'; END IF;
+ -- The deployed Beta employees table forbids '@' in username and limits
+ -- its length to 3..40. Auth login email lives only in auth.users; the
+ -- deterministic internal handle is not presented as a login email.
+ -- Include a suffix tied to the entire email so equal local-parts at distinct
+ -- domains do not clash. Unique indexes remain the authoritative guard.
+ v_username:='tc_'||
+   left(regexp_replace(split_part(v_rec.email,'@',1),'[^a-z0-9._-]','','g'),20)
+   ||'_'||substr(md5(v_rec.email),1,12);
+ IF char_length(v_username)<3 OR char_length(v_username)>40
+    OR position('@' IN v_username)>0 THEN
+   RAISE EXCEPTION 'TC_STAFF_INTERNAL_USERNAME_INVALID';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.employees e
+           WHERE e.business_id=v_business AND lower(e.username)=lower(v_username)) THEN
+   RAISE EXCEPTION 'TC_STAFF_INTERNAL_USERNAME_CONFLICT' USING ERRCODE='23505';
+ END IF;
  SELECT e.id INTO v_actor_employee_id FROM public.employees e
  WHERE e.auth_user_id=p_actor_auth_user_id AND e.business_id=v_business AND e.active IS TRUE
  LIMIT 1;
  INSERT INTO public.employees(name,username,role,branch_id,active,auth_user_id,business_id)
- VALUES(v_name,v_rec.email,v_role,22,coalesce(p_active,true),p_auth_user_id,v_business)
+ VALUES(v_name,v_username,v_role,22,coalesce(p_active,true),p_auth_user_id,v_business)
  RETURNING id INTO v_employee_id;
  INSERT INTO public.business_auth_memberships(auth_user_id,business_id,active,source)
  VALUES(p_auth_user_id,v_business,true,'top-chicken-staff-v1');
