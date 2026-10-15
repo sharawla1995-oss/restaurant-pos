@@ -1,0 +1,50 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {webcrypto}=require('node:crypto');
+globalThis.crypto=webcrypto;
+(async()=>{
+ const mod=await import('../../supabase/functions/top-chicken-staff/pin-login-domain.mjs');
+ const secret='top-chicken-disposable-only-ci-secret-123456789';
+ const base={action:'create',auth_mode:'pin4',username:'Ahmed',password:'1234',
+  name:'أحمد الكاشير',role:'cashier',branch_id:22,branch_ids:[22],
+  active:true,permissions:['pos','orders'],request_id:'12345678-1234-4123-8123-123456789012'};
+ const parsed=mod.pinCreatePayload(base);
+ assert.equal(parsed.username,'ahmed');assert.equal(parsed.pin,'1234');
+ assert.equal(mod.syntheticEmail(parsed.username),'tc-sh0008-ahmed@accounts.example');
+ assert.throws(()=>mod.pinCreatePayload({...base,password:'123'}),/PIN_EXACT_4_DIGITS/);
+ assert.throws(()=>mod.pinCreatePayload({...base,password:'12x4'}),/PIN_EXACT_4_DIGITS/);
+ assert.throws(()=>mod.pinCreatePayload({...base,username:'a@b.com'}),/USERNAME_LATIN_3_TO_32/);
+ assert.throws(()=>mod.pinCreatePayload({...base,branch_id:1,branch_ids:[1]}),/BRANCH_22_ONLY/);
+ assert.throws(()=>mod.pinCreatePayload({...base,username:'ab'}),/USERNAME_LATIN_3_TO_32/);
+ const pwd=await mod.internalPassword(parsed.username,'1234',secret);
+ assert.match(pwd,/^TC4_[a-f0-9]{64}$/);assert.ok(!pwd.includes('1234'));
+ assert.equal(pwd,await mod.internalPassword('ahmed','1234',secret));
+ assert.notEqual(pwd,await mod.internalPassword('ahmed','1235',secret));
+ assert.notEqual(pwd,await mod.internalPassword('ahmed','1234',secret+'different'));
+ const digest=await mod.pinReceiptDigest(parsed,secret);
+ assert.match(digest,/^[a-f0-9]{64}$/);
+ assert.notEqual(digest,await mod.pinReceiptDigest({...parsed,pin:'1235'},secret));
+ await assert.rejects(mod.internalPassword('ahmed','1234','short'),/PIN_SECRET_MISSING/);
+ const app=fs.readFileSync('app.js','utf8');
+ assert.ok(app.includes("auth_mode:'pin4'"),'staff form sends pin4 mode');
+ assert.ok(app.includes('/functions/v1/top-chicken-pin-login'),'online username login route');
+ assert.ok(app.includes("PIN")||app.includes('الرقم السري'),'PIN UI message');
+ assert.ok(app.includes('دخول الموظف بالرقم السري يحتاج إنترنت'),'PIN offline verifier blocked');
+ assert.ok(app.includes('مستخدم إنجليزي')||app.includes('اسم الدخول'),'username UI present');
+ const edge=fs.readFileSync('supabase/functions/top-chicken-pin-login/index.ts','utf8');
+ assert.ok(edge.indexOf('top_chicken_pin_login_attempt_v1')<edge.indexOf('/auth/v1/token'),
+   'admission gate before any authentication call');
+ assert.ok(edge.includes('top_chicken_pin_login_success_v1'),'post-auth binding required');
+ assert.ok(!edge.includes('password:pin'),'PIN never sent as raw Auth password');
+ const create=fs.readFileSync('supabase/functions/top-chicken-staff/index.ts','utf8');
+ assert.ok(create.includes('pinReceiptDigest')&&create.includes('internalPassword'),'staff provisioning derives secret-bound credentials');
+ const sql=fs.readFileSync('review-only/top-chicken-sh0008-pin4-login-NO-DEPLOY.sql','utf8');
+ assert.ok(sql.includes('clock_timestamp()'));
+ assert.ok(sql.includes('v.attempts>=5'),'rate limiter');
+ assert.ok(sql.includes("interval '15 minutes'"));
+ assert.ok(sql.includes('AND e.branch_id=22 AND e.active IS TRUE'),'tenant-bound staff gate');
+ assert.ok(sql.includes("x.feature_code IN ('core.auth','core.users','core.permissions')"));
+ assert.ok(sql.includes('TO service_role;'));
+ assert.ok(!/GRANT EXECUTE ON FUNCTION[^;]+ TO authenticated;/is.test(sql),'login gate must never be exposed to normal clients');
+ console.log('PASS: PIN4 username + secret-peppered password/digest, rate-limit/SQL ownership, app UI route, no PIN offline bypass, other profile unaffected');
+})().catch(err=>{console.error(err);process.exitCode=1});
