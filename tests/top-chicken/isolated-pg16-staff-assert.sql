@@ -15,6 +15,26 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN denied:=true;
  END;
  IF NOT denied THEN RAISE EXCEPTION 'FAIL foreign legacy admin accepted'; END IF;
+ -- Explicit revocation and expiry deny even an active Top Chicken admin.
+ UPDATE sharawla_internal.operational_feature_entitlements_v1 SET enabled=false
+ WHERE cloud_business_id=tc AND feature_code='core.users';
+ denied:=false;
+ BEGIN
+  PERFORM public.top_chicken_staff_create_reserve_v1(actor,request_id,digest,'new@example.com');
+ EXCEPTION WHEN OTHERS THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'FAIL disabled TC users feature'; END IF;
+ UPDATE sharawla_internal.operational_feature_entitlements_v1
+ SET enabled=true,valid_until=now()-interval '1 day'
+ WHERE cloud_business_id=tc AND feature_code='core.users';
+ denied:=false;
+ BEGIN
+  PERFORM public.top_chicken_staff_create_reserve_v1(actor,request_id,digest,'new@example.com');
+ EXCEPTION WHEN OTHERS THEN denied:=true;
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'FAIL expired TC users feature'; END IF;
+ UPDATE sharawla_internal.operational_feature_entitlements_v1
+ SET valid_until=NULL WHERE cloud_business_id=tc AND feature_code='core.users';
  r:=public.top_chicken_staff_create_reserve_v1(actor,request_id,digest,'new@example.com');
  IF r->>'status'<>'reserved' OR r->>'new_reservation'<>'true' THEN
    RAISE EXCEPTION 'FAIL first receipt %',r;
