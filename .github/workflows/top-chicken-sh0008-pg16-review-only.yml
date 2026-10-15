@@ -1,0 +1,73 @@
+name: Top Chicken SH-0008 disposable PG16 SQL review (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-delivery-reference-rpc-fix]
+    paths:
+      - 'review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql'
+      - 'review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql'
+      - 'tests/top-chicken/isolated-pg16-*.sql'
+      - '.github/workflows/top-chicken-sh0008-pg16-review-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pg16-disposable-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: disposable-only-not-supabase
+          POSTGRES_DB: tc_isolated
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tc_isolated"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert no external Supabase connections and verify fresh PG16
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONTAINER_ID="$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -n 1)"
+          test -n "$CONTAINER_ID"
+          VERSION="$(docker exec "$CONTAINER_ID" psql -U postgres -d tc_isolated -Atc "show server_version_num")"
+          test "${VERSION:0:2}" = "16"
+          echo "Running against disposable container $CONTAINER_ID PostgreSQL $VERSION"
+      - name: Run reviewed DDL in isolated fixtures only
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONTAINER_ID="$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -n 1)"
+          cat \
+            tests/top-chicken/isolated-pg16-base-fixture.sql \
+            review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql \
+            tests/top-chicken/isolated-pg16-quantity-assert.sql \
+            review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql \
+            tests/top-chicken/isolated-pg16-tenant-feature-assert.sql \
+          | docker exec -i "$CONTAINER_ID" psql -U postgres -d tc_isolated -v ON_ERROR_STOP=1
+      - name: Reject unexpected second apply and changed entitlement baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          CONTAINER_ID="$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -n 1)"
+          if docker exec -i "$CONTAINER_ID" psql -U postgres -d tc_isolated -v ON_ERROR_STOP=1 < review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql > /tmp/tc_quantity_reapply.log 2>&1; then
+            echo 'FAIL: unexpected quantity migration re-apply permitted'
+            exit 1
+          fi
+          grep -q 'TC_QUANTITY_ALREADY_EXISTS_REVIEW_EXISTING_OWNER' /tmp/tc_quantity_reapply.log
+          if docker exec -i "$CONTAINER_ID" psql -U postgres -d tc_isolated -v ON_ERROR_STOP=1 < review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql > /tmp/tc_feature_reapply.log 2>&1; then
+            echo 'FAIL: unexpected existing Top Chicken feature rows permitted'
+            exit 1
+          fi
+          grep -q 'TC_FEATURE_OWNER_GRANTS_REQUIRE_SEPARATE_CURRENT_REVIEW' /tmp/tc_feature_reapply.log
+          echo 'PASS: repeat/changed baseline is rejected without data or function mutations'
+      - name: Safety boundary
+        run: echo 'Isolated PostgreSQL fixture only; SQL NOT applied to Supabase; no Edge/Entitlements/Device writes.'
