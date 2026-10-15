@@ -106,3 +106,16 @@ This section supplements the 2026-10-15 handoff; the historical records above ar
 4. Earlier RC9 Windows validation cannot be transferred to an untested modified installer. No new Windows release/feed has been created. Top Burger Production and SH-0005/06/07/08 unchanged by this continuation.
 
 **Current state**: Source repair progressed, runtime is **NOT LIVE READY**. Do not turn CI/source success into hosted PASS.
+
+## Continuation: Central entitlement bridge policy candidate (2026-10-16)
+
+**SOURCE ONLY / NO DEPLOY.** The branch gained:
+- `supabase/functions/top-chicken-entitlement-bridge/policy.mjs`: a pure, tenant-locked, allowlisted Central commercial-decision validator for exactly thirteen operational feature codes. Requires observed business/profile/feature/override flags, matching per-feature Central resolver identity, allowed grant provenance and timestamps. Converts negative/revoked/expired decisions to explicit disabled rows. Positive leases are limited to 10 seconds from observation and cannot outlast the Central expiry. Rejects stale/future snapshots, mismatched tenants, missing features, unknown provenance and invalid timestamps. **Not an authenticated Edge endpoint or a database writer.**
+- `tests/top-chicken/entitlement-bridge-policy.mjs`: 17 isolated test groups and 28 local V8 assertions PASS against the fetched GitHub source. No Supabase writes, PG17 migration, Windows installation or hosted API call is part of these tests.
+- `.github/workflows/top-chicken-sh0008-entitlement-bridge-policy-NO-DEPLOY.yml`: path-scoped source-only Node CI; the GitHub Actions run must be checked separately, not inferred from file presence.
+
+**Blocking implementation gates**: the actual Bridge still needs an independently reviewed, privileged Beta SQL receipt/lease writer with actor/tenant/branch verification, monotonic source observation lock, auditable changes, revocation and expiry behavior; a server-only Edge Central reader validating decisions directly (never browser-supplied) and authenticated Beta actor; a secure operating trigger before every affected RPC; isolated actual PG17 restoration and affected-only tests. Existing direct SQL local entitlements must NOT be enabled or copied from any other business. A successful policy preview must never be used as authorization to perform operations.
+
+**Central commercialization**: live read-only catalog shows feature_class `standard` for `commerce.orders` and `add_on` for `commerce.delivery`, `commerce.pickup`, `inventory.suppliers`. No Top Chicken base-package or paid-addon grant currently exists. The published `ACC_RUNTIME` package contains `commerce.orders` only, not the other required POS features. Do not assume it is an adequate launch package or create paid grants without a separate explicit business-owner approval.
+
+**No changes** were made to Central commercial assignments, Beta SQL/Edge, any device, receipts, queues, customer data, production services, website intake or PR #46 merge state. Source policy alone cannot fix the 404 or the current authorization failures.
