@@ -2,8 +2,7 @@
 // Isolated Node 20+, no Supabase/Edge/production connections.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const {webcrypto}=require('node:crypto');
-globalThis.crypto=webcrypto;
+// Node 20 exposes webcrypto as globalThis.crypto; no global mutation needed.
 const domainPath='../../supabase/functions/top-chicken-staff/staff-domain.mjs';
 const url=new URL(domainPath,'file://'+process.cwd()+'/tests/top-chicken/');
 (async()=>{
