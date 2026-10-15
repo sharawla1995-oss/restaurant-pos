@@ -17,6 +17,8 @@ CREATE TABLE public.employees(
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  name text NOT NULL,username text NOT NULL,role text,branch_id bigint,active boolean,
  auth_user_id uuid,business_id uuid NOT NULL,
+ CONSTRAINT employees_username_format CHECK(length(trim(username)) BETWEEN 3 AND 40),
+ CONSTRAINT employees_username_no_at CHECK(position('@' IN username)=0),
  UNIQUE(business_id,auth_user_id),UNIQUE(business_id,username)
 );
 CREATE TABLE public.business_auth_memberships(
