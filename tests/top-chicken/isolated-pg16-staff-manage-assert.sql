@@ -73,6 +73,27 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.business_auth_memberships
    WHERE auth_user_id='cccccccc-cccc-4ccc-8ccc-cccccccccccc'
     AND business_id=v_business AND active) THEN RAISE EXCEPTION 'FAIL membership re-enable'; END IF;
+ -- Revoking any required operational feature immediately blocks the next write
+ -- (even with an admin role and a previously accepted request).
+ UPDATE sharawla_internal.operational_feature_entitlements_v1
+ SET enabled=false WHERE cloud_business_id=v_business AND feature_code='core.users';
+ v_denied:=false;
+ BEGIN PERFORM public.top_chicken_staff_manage_v1(v_actor,
+   '10000000-0000-4000-8000-000000000107',repeat('f',64),'toggle',
+   v_target,NULL,NULL,false,ARRAY[]::text[]);
+ EXCEPTION WHEN OTHERS THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'FAIL disabled entitlement allowed staff management'; END IF;
+ UPDATE sharawla_internal.operational_feature_entitlements_v1
+ SET enabled=true WHERE cloud_business_id=v_business AND feature_code='core.users';
+ -- Inactive actor membership is independently denied, not merely hidden in UI.
+ UPDATE public.business_auth_memberships SET active=false WHERE auth_user_id=v_actor AND business_id=v_business;
+ v_denied:=false;
+ BEGIN PERFORM public.top_chicken_staff_manage_v1(v_actor,
+   '10000000-0000-4000-8000-000000000108',repeat('f',64),'toggle',
+   v_target,NULL,NULL,false,ARRAY[]::text[]);
+ EXCEPTION WHEN OTHERS THEN v_denied:=true; END;
+ IF NOT v_denied THEN RAISE EXCEPTION 'FAIL inactive admin actor allowed'; END IF;
+ UPDATE public.business_auth_memberships SET active=true WHERE auth_user_id=v_actor AND business_id=v_business;
  IF (SELECT count(*) FROM public.audit_logs WHERE business_id=v_business
   AND action IN ('top_chicken_staff.edit','top_chicken_staff.toggle'))<>3 THEN
    RAISE EXCEPTION 'FAIL audit event count'; END IF;
