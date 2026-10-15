@@ -22,7 +22,7 @@ CREATE TABLE public.employees(
  UNIQUE(business_id,auth_user_id),UNIQUE(business_id,username)
 );
 CREATE TABLE public.business_auth_memberships(
- auth_user_id uuid NOT NULL,business_id uuid NOT NULL,active boolean NOT NULL,source text NOT NULL DEFAULT 'migration',
+ auth_user_id uuid NOT NULL,business_id uuid NOT NULL,active boolean NOT NULL,source text NOT NULL DEFAULT 'migration',updated_at timestamptz DEFAULT now(),
  PRIMARY KEY(auth_user_id,business_id)
 );
 CREATE TABLE public.employee_branches(
