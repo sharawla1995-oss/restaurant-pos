@@ -60,6 +60,15 @@ BEGIN
     OR r->>'branch_id'<>'22' THEN RAISE EXCEPTION 'FAIL commit %',r; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.business_auth_memberships
    WHERE auth_user_id=target AND business_id=tc AND active) THEN RAISE EXCEPTION 'FAIL membership'; END IF;
+ IF NOT EXISTS (
+   SELECT 1 FROM public.employees e
+   JOIN auth.users u ON u.id=e.auth_user_id
+   WHERE e.auth_user_id=target AND e.business_id=tc
+     AND u.email='new@example.com'
+     AND e.username LIKE 'tc_%'
+     AND length(e.username) BETWEEN 3 AND 40
+     AND position('@' IN e.username)=0
+ ) THEN RAISE EXCEPTION 'FAIL email/username compatibility with deployed Beta CHECK constraints'; END IF;
  IF (SELECT count(*) FROM public.employee_permissions p JOIN public.employees e
    ON e.id=p.employee_id WHERE e.auth_user_id=target AND p.business_id=tc)<>3 THEN
    RAISE EXCEPTION 'FAIL saved permissions';
