@@ -1,7 +1,5 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const {webcrypto}=require('node:crypto');
-globalThis.crypto=webcrypto;
 (async()=>{
  const mod=await import('../../supabase/functions/top-chicken-staff/pin-login-domain.mjs');
  const secret='top-chicken-disposable-only-ci-secret-123456789';
