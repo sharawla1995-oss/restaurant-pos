@@ -32,3 +32,21 @@ All four migration names confirmed in live migration ledger via `list_migrations
 1. Review and authorize **dedicated Beta `top-chicken-staff` Edge function** as a separate action. Its source remains pinned at `supabase/functions/top-chicken-staff/index.ts` Git blob `f61d0d6612a2040392f9e581f57daef65c78c77d` plus `staff-domain.mjs` `10da9940245229e807d0be2d24a0ee59fb2b50f7`. No change to shared `smart-function`. Deny password reset pending revocation design.
 2. **Cloud Entitlements** must be granted only through audited/authenticated Central Admin, with a separately reviewed exact code set and explicit authorization. Never raw SQL grants or copying old tenant grants.
 3. With independent test authorization, real hosted authenticated staff and website order test, physical SH-0008 local offline queue handling and a separately approved Windows update release are still required. **Do not install rc.9 on SH-0008 yet**.
+
+
+## Dedicated Edge applied — 2026-10-15 (separate user approval)
+
+After a separate explicit user instruction to proceed with the *dedicated* Top Chicken staff Edge, deployed ONLY function `top-chicken-staff` to Supabase **Beta** project `xihcxydjnzemflhedzor`. No existing Edge function was updated.
+
+- Exact reviewed source Git commit `7ad3559a69f5dc8d919486ed90e2692e4c38df96`, files:
+  - `supabase/functions/top-chicken-staff/index.ts`, Git blob `f61d0d6612a2040392f9e581f57daef65c78c77d`;
+  - `supabase/functions/top-chicken-staff/staff-domain.mjs`, Git blob `10da9940245229e807d0be2d24a0ee59fb2b50f7`.
+- Supabase deployment returned `status: ACTIVE`, `version: 1`, `verify_jwt: true`, Edge ID `fafdb875-9d1e-430c-93e7-e329ff4c205d`, deployed bundle SHA-256 `dfabba04f9044f1bf50453a3e7ef2b144dc029aa844eb729714bfddd9a43fbfa`.
+- `list_edge_functions` postflight independently confirmed `top-chicken-staff` **ACTIVE v1** with JWT requirement.
+- Unchanged pre/post existing Beta Edge slugs, versions, and bundle SHA-256:
+  - `smart-function`: v2 `9f30b718db4241c20da82dc4fda386107252d7ed0597a7d8a4c8bff21bb336dd`.
+  - `hr-staff-api`: v1 `12588ee75b6d111e0555c4f3042e64de61ff4dae36da0e061b2c740c93645d0d`.
+  - `hr-staff-app-beta`: v1 `93df68eb677a8ea31b38d68fc6683e90cec024b1a0faca6b081e4d1356252b4e`.
+- Read-only postflight: unknown actor `top_chicken_staff_actor_authorized_v1` returns **false**; Top Chicken cloud entitlements **0**; customer **5860**, addresses **4838**, products **42**, existing employees **2**, create/manage receipts **0**; live website intake **OFF**; modifier quantity column exists.
+- **No authenticated hosted HTTP E2E executed yet:** Edge ACTIVE and JWT configuration confirmed by control plane, not a claim of successful staff create/manage workflow.
+- Separate grants and Cloud Admin authorization still REQUIRED. **No Central Admin grants, staff Auth user creation, original `smart-function` change, website real intake, device SH-0008 update, release promotion or local queue replay.** No true backup/isolated restore exists because the user declined backup. Maintain NO-GO for actual device rollout.
