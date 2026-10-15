@@ -1,0 +1,141 @@
+name: Top Chicken SH-0008 prelaunch Windows candidate (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-delivery-reference-rpc-fix]
+    paths:
+      - 'app.js'
+      - 'main.js'
+      - 'package.json'
+      - 'version.json'
+      - 'index.html'
+      - 'sw.js'
+      - 'update-config.json'
+      - 'top-chicken-update-channel.js'
+      - 'top-chicken-updates/sh0008.json'
+      - 'tests/top-chicken/primary-*.cjs'
+      - 'tests/top-chicken/top-chicken-update-channel.cjs'
+      - 'tests/top-chicken/login-edge-route-regression.cjs'
+      - 'tests/top-chicken/food-line-uid-regression.cjs'
+      - 'tests/top-chicken/delivery-status-server-owner-regression.cjs'
+      - 'tests/top-chicken/pending-sync-diagnostics-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-windows-prelaunch-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: top-chicken-sh0008-prelaunch-NO-DEPLOY-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  windows-real-inplace-upgrade:
+    if: github.ref == 'refs/heads/codex/top-chicken-sh0008-delivery-reference-rpc-fix'
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - name: Initialize disposable Windows installer target
+        shell: pwsh
+        run: |
+          "TC_PRIMARY_INSTALL_DIR=$env:RUNNER_TEMP\TC-PRIMARY-INPLACE-ACCEPTANCE" >> $env:GITHUB_ENV
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Install source build dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify food/inventory official baseline and TC scoped source
+        run: |
+          npm run check
+          node tests/top-chicken/primary-base-port-check.cjs
+          node tests/top-chicken/login-edge-route-regression.cjs
+          node tests/top-chicken/food-line-uid-regression.cjs
+          node tests/top-chicken/delivery-status-server-owner-regression.cjs
+          node tests/top-chicken/pending-sync-diagnostics-regression.cjs
+          node --check main.js
+      - name: Ensure official installer identity is unchanged, stable releases not published
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.name -ne 'sharawla-pos-windows' -or $pkg.build.appId -ne 'com.topburger.pos' -or $pkg.build.productName -ne 'Sharawla POS') { throw 'Not an in-place main POS update' }
+          if ($pkg.version -ne '10.5.19-rc.8') { throw 'Candidate version drift' }
+          $updates = Get-Content update-config.json -Raw | ConvertFrom-Json
+          if (-not $updates.enabled -or $updates.channel -ne 'top-chicken-sh0008') { throw 'Dedicated TC channel required; general latest forbidden' }
+      - name: Verify tenant-scoped update selector
+        run: node tests/top-chicken/top-chicken-update-channel.cjs
+      - name: Build primary Windows x64 installer locally in CI (NO publish)
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Verify actual packaged Windows executable and record SHA256
+        run: node tests/top-chicken/primary-installer-package-check.cjs
+      - name: Download actual original 10.5.15 installer with SHA verification
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force .original-10-5-15 | Out-Null
+          gh release download v10.5.15 --repo ${{ github.repository }} --pattern 'Sharawla-POS-Setup-10.5.15-x64.exe' --dir .original-10-5-15
+          gh release download v10.5.15 --repo ${{ github.repository }} --pattern 'production-v10.5.15-sha256.txt' --dir .original-10-5-15
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot retrieve original release' }
+          $old = '.original-10-5-15/Sharawla-POS-Setup-10.5.15-x64.exe'
+          $got = (Get-FileHash $old -Algorithm SHA256).Hash.ToLower()
+          $expected = (Get-Content .original-10-5-15/production-v10.5.15-sha256.txt -Raw).ToLower()
+          if (-not $expected.Contains($got)) { throw 'Original 10.5.15 release digest mismatch' }
+          'Verified official v10.5.15 x64 sha256: '+$got
+      - name: Install the original 10.5.15 main POS on disposable Windows only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = $env:TC_PRIMARY_INSTALL_DIR
+          if (Test-Path $target) { throw 'Disposable target must be empty' }
+          $old = (Resolve-Path '.original-10-5-15/Sharawla-POS-Setup-10.5.15-x64.exe').Path
+          $proc = Start-Process $old -ArgumentList @('/S', "/D=$target") -PassThru
+          if (-not $proc.WaitForExit(180000)) { throw 'Old installer timed out' }
+          if ($proc.ExitCode -ne 0) { throw "Original installer exit: $($proc.ExitCode)" }
+          if (-not (Test-Path (Join-Path $target 'Sharawla POS.exe'))) { throw 'Official POS executable missing' }
+      - name: Install test-only Playwright runner
+        run: npm install --no-save --no-package-lock playwright@1.58.2
+      - name: Open official 10.5.15 and seed local synthetic SQLite test record
+        run: node tests/top-chicken/primary-install-upgrade-smoke.cjs before
+      - name: Download genuine existing SH-0008 rc.4 build and verify SHA-256
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download 38647634165 --repo ${{ github.repository }} --name 'top-chicken-SH0008-primary-10.5.19-rc.4-a45d902d95cb22560b20a809d2fc9e8c5fd3fa90' --dir .tc-previous
+          if ($LASTEXITCODE -ne 0) { throw 'Previous rc.4 artifact download failed' }
+          $list = @(Get-ChildItem .tc-previous -Filter 'Top-Chicken-SH0008-Primary-10.5.19-rc.4.exe' -Recurse -File)
+          if ($list.Count -ne 1) { throw "Expected one previous installer, got $($list.Count)" }
+          $digest = (Get-FileHash $list[0].FullName -Algorithm SHA256).Hash.ToLower()
+          if ($digest -ne '63ba9517754983c7c96e617917fcf8af9539856f45ccffa02b3915c1f834fa62') { throw 'Previous rc.4 installer SHA256 mismatch' }
+          "TC_RC4_INSTALLER=$($list[0].FullName)" >> $env:GITHUB_ENV
+      - name: Install actual Top Chicken rc.4 on top of original 10.5.15
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $proc = Start-Process $env:TC_RC4_INSTALLER -ArgumentList @('/S', "/D=$env:TC_PRIMARY_INSTALL_DIR") -PassThru
+          if (-not $proc.WaitForExit(180000)) { throw 'rc.4 installer timeout' }
+          if ($proc.ExitCode -ne 0) { throw "rc.4 install exit $($proc.ExitCode)" }
+      - name: Verify existing rc.4 startup and same SQLite data before hotfix
+        run: node tests/top-chicken/primary-install-upgrade-smoke.cjs middle
+      - name: Upgrade IN PLACE to Top Chicken primary 10.5.19-rc.8 on disposable Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidate = Get-ChildItem dist -Filter 'Top-Chicken-SH0008-Primary-*.exe' | Select-Object -First 1
+          if (-not $candidate) { throw 'Main candidate installer missing' }
+          $proc = Start-Process $candidate.FullName -ArgumentList @('/S', "/D=$env:TC_PRIMARY_INSTALL_DIR") -PassThru
+          if (-not $proc.WaitForExit(180000)) { throw 'Candidate upgrade timed out' }
+          if ($proc.ExitCode -ne 0) { throw "Candidate installer exit: $($proc.ExitCode)" }
+          if (-not (Test-Path (Join-Path $env:TC_PRIMARY_INSTALL_DIR 'Sharawla POS.exe'))) { throw 'Main POS executable not retained' }
+      - name: Full exit and new launch proves version and local SQLite survived upgrade
+        run: node tests/top-chicken/primary-install-upgrade-smoke.cjs after
+      - name: Explicitly prohibit installer release or SH-0008 installation
+        run: echo 'NO DEPLOY; Cloud Entitlements / Edge / SQL / real backup restore NOT APPROVED; this Windows test artifact MUST NOT be installed on any device.'
+      - name: Upload NOT APPROVED Windows candidate and evidence (never a release)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: TC-SH0008-DO-NOT-INSTALL-await-Beta-Cloud-backup-approval-${{ github.sha }}
+          retention-days: 30
+          path: |
+            dist/Top-Chicken-SH0008-Primary-*.exe
+            evidence/top-chicken/primary-*.json
