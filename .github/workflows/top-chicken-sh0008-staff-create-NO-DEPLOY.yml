@@ -1,0 +1,63 @@
+name: Top Chicken SH-0008 staff create isolated gates (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-delivery-reference-rpc-fix]
+    paths:
+      - 'app.js'
+      - 'restaurant-engine.js'
+      - 'supabase/functions/top-chicken-staff/**'
+      - 'review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql'
+      - 'tests/top-chicken/isolated-pg16-staff-*'
+      - 'tests/top-chicken/staff-create-source-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-staff-create-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  staff-code-no-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Parse renderer and validate staff domain including @ handling
+        run: |
+          node --check app.js
+          node --check tests/top-chicken/staff-create-source-regression.cjs
+          node tests/top-chicken/staff-create-source-regression.cjs
+      - uses: denoland/setup-deno@v2
+        with: {deno-version: v2.x}
+      - name: Check new isolated Edge without deployment
+        run: deno check supabase/functions/top-chicken-staff/index.ts
+
+  pg16-disposable-staff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: tc_staff_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tc_staff_fixture"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert fresh isolated PostgreSQL16 fixture and staff lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          CID="$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -n1)"
+          test -n "$CID"
+          VERSION="$(docker exec "$CID" psql -U postgres -d tc_staff_fixture -Atc 'show server_version_num')"
+          test "${VERSION:0:2}" = "16"
+          cat tests/top-chicken/isolated-pg16-staff-fixture.sql \
+              review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-staff-assert.sql \
+          | docker exec -i "$CID" psql -U postgres -d tc_staff_fixture -v ON_ERROR_STOP=1
+      - name: NO deploy or user changes
+        run: echo 'Disposable postgres:16 only. NO Supabase Edge, SQL, Production, device, or account changes.'
