@@ -87,7 +87,41 @@ AS $$
 DECLARE h text:=lower(trim(coalesce(p_username,'')));
         v_employee_id bigint;
 BEGIN
- IF h !~ '^[a-z][a-z0-9._-]{2,31}$' OR p_auth_user_id IS NULL THEN RETURN false;END IF;
+ IF h !~ '^[a-z][a-z0-9._-]{2,31}
+ FROM public.employees e JOIN auth.users au ON au.id=e.auth_user_id
+ JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id
+   AND m.business_id=e.business_id
+ JOIN public.branches b ON b.id=22 AND b.business_id=e.business_id
+ WHERE e.auth_user_id=p_auth_user_id
+   AND lower(au.email)='tc-sh0008-'||h||'@accounts.example'
+   AND e.business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid
+   AND e.branch_id=22 AND e.active IS TRUE AND m.active IS TRUE AND b.active IS TRUE
+   AND (SELECT count(DISTINCT x.feature_code)
+     FROM sharawla_internal.operational_feature_entitlements_v1 x
+     WHERE x.cloud_business_id='5358328c-9724-49aa-affc-1bce8be90f92'::uuid
+       AND x.feature_code IN ('core.auth','core.users','core.permissions')
+       AND x.enabled IS TRUE AND (x.valid_until IS NULL OR x.valid_until>clock_timestamp()))=3
+ LIMIT 1;
+ IF v_employee_id IS NULL THEN RETURN false; END IF;
+ DELETE FROM public.top_chicken_pin_attempts_v1 WHERE username=h;
+ INSERT INTO public.audit_logs(employee_id,branch_id,action,entity_type,entity_id,details,business_id)
+ VALUES(v_employee_id,22,'top_chicken_pin.login','employee',v_employee_id,
+   jsonb_build_object('method','username_pin4'),
+   '5358328c-9724-49aa-affc-1bce8be90f92'::uuid);
+ RETURN true;
+END
+$$;
+REVOKE ALL ON FUNCTION public.top_chicken_pin_login_success_v1(text,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.top_chicken_pin_login_success_v1(text,uuid) TO service_role;
+COMMIT;
+ OR p_auth_user_id IS NULL THEN RETURN false;END IF;
+ -- A concurrently locked account must not have its lock removed by a slower
+ -- Auth success response that started before the fifth/sixth attempt.
+ -- Accept only an existing admitted attempt, under row lock.
+ PERFORM 1 FROM public.top_chicken_pin_attempts_v1
+  WHERE username=h AND attempts BETWEEN 1 AND 5
+    AND (locked_until IS NULL OR locked_until<=clock_timestamp()) FOR UPDATE;
+ IF NOT FOUND THEN RETURN false;END IF;
  SELECT e.id INTO v_employee_id
  FROM public.employees e JOIN auth.users au ON au.id=e.auth_user_id
  JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id
