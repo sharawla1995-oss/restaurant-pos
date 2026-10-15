@@ -80,7 +80,7 @@ export function staffCreatePayload(body){
   if(Number(body.branch_id)!==22||!ids.length||ids.some(x=>Number(x)!==22))throw Error('BRANCH_22_ONLY');
   if(!REQUEST_ID_RE.test(requestId))throw Error('REQUEST_ID_INVALID');
   if(!Array.isArray(body.permissions)||body.permissions.length>100)throw Error('PERMISSION_LIST_INVALID');
-  const permissions=[...new Set(body.permissions.map(x=>String(x).trim()))].sort();
+  const permissions=role==='admin'?[]:[...new Set(body.permissions.map(x=>String(x).trim()))].sort();
   if(permissions.some(x=>!PERMISSION_ALLOWLIST.has(x)))throw Error('PERMISSION_NOT_ALLOWLISTED');
   return {action:'create',username:email,name,password,role,active:body.active!==false,
     branch_id:22,branch_ids:[22],permissions,request_id:requestId};
