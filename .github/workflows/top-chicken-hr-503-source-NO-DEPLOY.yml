@@ -1,0 +1,26 @@
+name: Top Chicken HR visibility and staff diagnostics - SOURCE ONLY (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'hr-attendance-admin-v1.js'
+      - 'tests/top-chicken/hr-visibility-permissions-regression.cjs'
+      - '.github/workflows/top-chicken-hr-503-source-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hr-visibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check HR renderer script
+        run: node --check hr-attendance-admin-v1.js
+      - name: Exercise visible/hidden permission refresh and coalescing
+        run: node tests/top-chicken/hr-visibility-permissions-regression.cjs
+      - name: Production safety
+        run: echo 'SOURCE ONLY. No deployment, database writes, device update, or queue reset.'
