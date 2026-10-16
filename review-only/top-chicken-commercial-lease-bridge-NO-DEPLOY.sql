@@ -42,9 +42,6 @@ BEGIN
     OR p_proof_digest IS NULL OR p_proof_digest !~ '^[a-f0-9]{64}$'
     OR p_observed_at IS NULL OR p_rows IS NULL
  THEN RAISE EXCEPTION 'TC_PROOF_PARAMS_INVALID' USING errcode='42501'; END IF;
- IF pg_catalog.statement_timestamp()-p_observed_at > interval '5 seconds'
-    OR p_observed_at-pg_catalog.statement_timestamp() > interval '1 second'
- THEN RAISE EXCEPTION 'TC_PROOF_STALE' USING errcode='42501'; END IF;
  -- Establish trusted actor scope before any change (avoids bootstrap deadlock
  -- in top_chicken_staff_actor_authorized_v1, which needs already cached core grants).
  IF NOT EXISTS(
@@ -69,7 +66,10 @@ BEGIN
    THEN RETURN pg_catalog.jsonb_build_object('ok',true,'replayed',true,'receipt_id',p_nonce); END IF;
    RAISE EXCEPTION 'TC_PROOF_NONCE_REUSE_CHANGED' USING errcode='23505';
  END IF;
- v_version := pg_catalog.floor(pg_catalog.extract(epoch from p_observed_at)*1000)::bigint;
+ IF pg_catalog.statement_timestamp()-p_observed_at > interval '5 seconds'
+    OR p_observed_at-pg_catalog.statement_timestamp() > interval '1 second'
+ THEN RAISE EXCEPTION 'TC_PROOF_STALE' USING errcode='42501'; END IF;
+ v_version := floor(extract(epoch from p_observed_at)*1000)::bigint;
  IF EXISTS(SELECT 1 FROM sharawla_internal.operational_feature_entitlements_v1 e
       WHERE e.cloud_business_id=c_business
         AND e.feature_code IN ('core.auth','core.users','core.permissions','commerce.delivery','inventory.suppliers')
