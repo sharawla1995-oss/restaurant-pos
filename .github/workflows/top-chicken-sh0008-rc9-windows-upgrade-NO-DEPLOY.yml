@@ -4,6 +4,7 @@ on:
     branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
     paths:
       - 'app.js'
+      - 'hr-attendance-admin-v1.js'
       - 'main.js'
       - 'preload.js'
       - 'top-chicken-test-queue-reset.js'
@@ -27,6 +28,7 @@ on:
       - 'tests/top-chicken/pin4-staff-source-regression.cjs'
       - 'tests/top-chicken/commercial-operator-refresh.cjs'
       - 'tests/top-chicken/supplier-durable-bridge-regression.cjs'
+      - 'tests/top-chicken/hr-visibility-permissions-regression.cjs'
       - '.github/workflows/top-chicken-sh0008-rc9-windows-upgrade-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -62,6 +64,8 @@ jobs:
           node tests/top-chicken/pin4-staff-source-regression.cjs
           node tests/top-chicken/commercial-operator-refresh.cjs
           node tests/top-chicken/supplier-durable-bridge-regression.cjs
+          node --check hr-attendance-admin-v1.js
+          node tests/top-chicken/hr-visibility-permissions-regression.cjs
           node --check v10-5-16-restaurant-closure-ui.js
           node tests/top-chicken/test-queue-reset-regression.cjs
           node --check preload.js
