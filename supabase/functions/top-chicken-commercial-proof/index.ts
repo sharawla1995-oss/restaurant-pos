@@ -24,7 +24,7 @@ Deno.serve(async req=>{
   // The caller is authenticated against Central Auth, not Beta Auth.
   // This is the SAME authorized admin identity that issues audited grants.
   const bearer=req.headers.get('authorization')??'';
-  if(!/^Bearer [^\\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+  if(!/^Bearer [^\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
   const user=await cloud.auth.getUser(bearer.slice(7));
   if(user.error||!user.data.user?.id)return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
   const actor_user_id=user.data.user.id;
