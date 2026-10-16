@@ -19,7 +19,7 @@ check('PIN authentication continues using scoped endpoint, not raw email',()=>{
 });
 check('internal handle displays goo but Auth identity remains untouched',()=>{
  const start=app.indexOf('function topChickenLoginHandle(internalId){');
- const end=app.indexOf('function renderUsers(){',start);
+ const end=app.indexOf('async function renderUsers(){',start);
  assert(start>0&&end>start);
  const f=new Function(app.slice(start,end)+"return topChickenLoginHandle;")();
  assert.equal(f('tc_tc-sh0008-goo_e1b55099d8d6'),'goo');
