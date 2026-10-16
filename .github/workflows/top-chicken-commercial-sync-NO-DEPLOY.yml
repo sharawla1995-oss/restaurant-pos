@@ -10,6 +10,7 @@ on:
       - 'tests/top-chicken/central-five-feature-lease.mjs'
       - 'tests/top-chicken/central-signed-bridge-scope.mjs'
       - 'tests/top-chicken/commercial-operator-refresh.cjs'
+      - 'tests/top-chicken/supplier-durable-bridge-regression.cjs'
       - 'tests/top-chicken/commercial-lease-pg17-*.sql'
       - '.github/workflows/top-chicken-commercial-sync-NO-DEPLOY.yml'
   workflow_dispatch:
@@ -34,6 +35,8 @@ jobs:
         run: node tests/top-chicken/central-signed-bridge-scope.mjs
       - name: Scoped Beta operator and POS lease refresh static checks
         run: node tests/top-chicken/commercial-operator-refresh.cjs
+      - name: Top Chicken durable supplier isolated retries and tenant denials
+        run: node tests/top-chicken/supplier-durable-bridge-regression.cjs
       - name: No deployment statement
         run: echo 'DO NOT apply SQL, deploy Central/Beta Edge, sync grants, reset devices, or change tenants.'
   isolated-postgres17:
