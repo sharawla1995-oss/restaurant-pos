@@ -1,6 +1,6 @@
 // SOURCE CANDIDATE — DO NOT DEPLOY without independent Central Edge approval.
 // Must deploy to Central ikppryeavoabnugcijeq ONLY with verify_jwt=false.
-// HMAC-verified server-to-server only; never accept a browser / arbitrary tenant.
+// HMAC-verified server-to-server, and separately Central JWT + active Sharawla Admin; never accept arbitrary tenant.
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import {BUSINESS,CODES} from '../top-chicken-entitlement-bridge/central-decision.mjs';
 import {requireBridgeKey,verifyBody,signBody,withinSeconds} from '../top-chicken-entitlement-bridge/hmac.mjs';
@@ -21,6 +21,15 @@ Deno.serve(async req=>{
   if(body?.business_id!==BUSINESS||!UUID.test(body?.nonce??'')||
      !withinSeconds(body?.issued_at,new Date(),5)||
      Object.keys(body).sort().join(',')!=='business_id,issued_at,nonce')return json({error:'PROOF_REQUEST_INVALID'},403);
+  // The caller is authenticated against Central Auth, not Beta Auth.
+  // This is the SAME authorized admin identity that issues audited grants.
+  const bearer=req.headers.get('authorization')??'';
+  if(!/^Bearer [^\\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+  const user=await cloud.auth.getUser(bearer.slice(7));
+  if(user.error||!user.data.user?.id)return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+  const actor_user_id=user.data.user.id;
+  const check=await cloud.from('sharawla_admins').select('user_id').eq('user_id',actor_user_id).eq('active',true).maybeSingle();
+  if(check.error||!check.data)return json({error:'CENTRAL_ADMIN_REQUIRED'},403);
   const observed_at=new Date().toISOString();
   const data:Record<string,unknown>={};
   for(const code of CODES){
@@ -29,7 +38,7 @@ Deno.serve(async req=>{
    if(r.error||!r.data||Array.isArray(r.data))throw Error('CENTRAL_UNAVAILABLE');
    data[code]=r.data;
   }
-  const responseBody=JSON.stringify({business_id:BUSINESS,observed_at,nonce:body.nonce,decisions:data});
+  const responseBody=JSON.stringify({business_id:BUSINESS,actor_user_id,observed_at,nonce:body.nonce,decisions:data});
   const signature=await signBody(key,responseBody);
   return new Response(responseBody,{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-tc-proof-signature':signature}});
  }catch{return json({error:'CENTRAL_PROOF_UNAVAILABLE'},503)}
