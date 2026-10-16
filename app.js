@@ -477,6 +477,7 @@ const TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS=Object.freeze({
   offline_delivery_assign_driver_v1:'commerce.delivery',
   offline_delivery_driver_settle_v1:'commerce.delivery',
   food_supplier_save_v1:'inventory.suppliers',
+  offline_food_supplier_save_v1:'inventory.suppliers',
   food_supplier_return_create_v1:'inventory.suppliers'
 });
 let topChickenCommercialLeaseCache=null;
@@ -504,7 +505,48 @@ async function refreshTopChickenCommercialLease(feature){
   topChickenCommercialLeaseCache={actor:uid,jwt,features:entry,expires:until};
   if(entry[feature]!==true)throw new Error('صلاحية '+feature+' غير مفعلة لتوب تشيكن في شراولة أدمن');
 }
+// Top Chicken ONLY: use the existing authoritative durable supplier writer.
+// Canonical Beta RPC validates action entitlement, membership, tenant and
+// the idempotent request receipt; preserve the original owner for all others.
+async function topChickenDurableSupplierSave(payload){
+  if(!isTopChickenSyncDiagnosticsScope()||!session?.user?.id)
+    throw new Error('حفظ الموردين متاح لتوب تشيكن فرع 22 فقط');
+  if(!payload||typeof payload!=='object'||Array.isArray(payload))
+    throw new Error('بيانات المورد غير صحيحة');
+  const expected=['p_supplier_id','p_name','p_phone','p_email','p_tax_no','p_address','p_notes','p_active'];
+  if(Object.keys(payload).some(k=>!expected.includes(k)))throw new Error('مدخل مورد غير مصرح به');
+  const name=String(payload.p_name||'').trim();
+  if(!name)throw new Error('اسم المورد مطلوب');
+  const supplier_id=payload.p_supplier_id==null?null:Number(payload.p_supplier_id);
+  if(supplier_id!==null&&(!Number.isSafeInteger(supplier_id)||supplier_id<=0))
+    throw new Error('معرّف المورد غير صالح');
+  if(!globalThis.crypto?.subtle||!globalThis.crypto?.randomUUID)
+    throw new Error('تشفير الطلب غير متاح');
+  const actor=String(session.user.id),business='5358328c-9724-49aa-affc-1bce8be90f92';
+  const safe={p_supplier_id:supplier_id,p_name:name,
+    p_phone:payload.p_phone||null,p_email:payload.p_email||null,
+    p_tax_no:payload.p_tax_no||null,p_address:payload.p_address||null,
+    p_notes:payload.p_notes||null,p_active:payload.p_active!==false};
+  const src=JSON.stringify({business,branch:22,actor,operation:'supplier_save',payload:safe});
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(src));
+  const digest=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
+  const key=['tc-supplier-v1',business,actor,digest].join(':');
+  let tx=localStorage.getItem(key);
+  if(!tx){tx=crypto.randomUUID();localStorage.setItem(key,tx);
+    if(localStorage.getItem(key)!==tx)throw new Error('تعذر حفظ معرّف العملية قبل الإرسال')}
+  // Do not clear the tx on uncertain result; same exact payload is replayed.
+  const result=await rpc('offline_food_supplier_save_v1',{
+    ...safe,p_client_tx_id:tx,p_payload_digest:digest
+  });
+  if(result?.ok!==true||!Number.isSafeInteger(Number(result.supplier_id))||
+    Number(result.supplier_id)<=0||result.client_tx_id!==tx)
+    throw new Error('لم يؤكد السيرفر حفظ المورد بإيصال');
+  localStorage.removeItem(key);
+  return result.supplier_id;
+}
 async function rpc(name,payload={}){
+  if(name==='food_supplier_save_v1'&&isTopChickenSyncDiagnosticsScope())
+    return topChickenDurableSupplierSave(payload);
   const feature=TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS[name];
   if(feature&&isTopChickenSyncDiagnosticsScope())await refreshTopChickenCommercialLease(feature);
   return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})
