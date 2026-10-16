@@ -38,7 +38,7 @@ pass('Central issues signed decisions only to HMAC verified Beta transport',()=>
  assert.match(central,/mode==='beta_operator'/);
  assert.match(central,/mode==='central_admin'/);
  assert.match(central,/cloud\.auth\.getUser\(bearer\.slice\(7\)\)/);
- assert.match(central,/for\(const code of CODES\)/);
+ assert.match(central,/Promise\.all\(CODES\.map\(code=>/);
  assert.match(central,/signBody\(key,responseBody\)/);
 });
 console.log('PASS '+n+' isolated source groups; no live writes, no device install.');
