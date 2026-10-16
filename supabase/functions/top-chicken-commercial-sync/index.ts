@@ -12,7 +12,7 @@ const secret=Deno.env.get('TC_BRIDGE_HMAC_KEY')??'';
 if(Deno.env.get('SUPABASE_URL')!==BETA||!service)throw Error('WRONG_BETA_PROJECT');
 requireBridgeKey(secret);
 const admin=createClient(BETA,service,{auth:{persistSession:false,autoRefreshToken:false}});
-const headers={'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'authorization, content-type, apikey'};
+const headers={'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'authorization, content-type, apikey, x-sharawla-business'};
 const response=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers});
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const digest=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
