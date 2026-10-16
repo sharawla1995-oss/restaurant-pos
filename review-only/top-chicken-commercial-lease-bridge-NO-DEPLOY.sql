@@ -71,7 +71,7 @@ BEGIN
         AND e.feature_code IN ('core.auth','core.users','core.permissions','commerce.delivery','inventory.suppliers')
         AND e.entitlement_version>=v_version)
  THEN RAISE EXCEPTION 'TC_OLDER_OR_EQUAL_PROOF' USING errcode='42501'; END IF;
- SELECT pg_catalog.coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(x) ORDER BY x.feature_code),'[]'::jsonb)
+ SELECT coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(x) ORDER BY x.feature_code),'[]'::jsonb)
  INTO v_old FROM (SELECT feature_code,enabled,entitlement_version,source,valid_until
      FROM sharawla_internal.operational_feature_entitlements_v1
      WHERE cloud_business_id=c_business AND feature_code IN
@@ -103,7 +103,7 @@ BEGIN
  ON CONFLICT (cloud_business_id,feature_code)
  DO UPDATE SET enabled=EXCLUDED.enabled,entitlement_version=EXCLUDED.entitlement_version,
     source=EXCLUDED.source,valid_until=EXCLUDED.valid_until,updated_at=EXCLUDED.updated_at;
- SELECT pg_catalog.coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(x) ORDER BY x.feature_code),'[]'::jsonb)
+ SELECT coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(x) ORDER BY x.feature_code),'[]'::jsonb)
  INTO v_new FROM (SELECT feature_code,enabled,entitlement_version,source,valid_until
      FROM sharawla_internal.operational_feature_entitlements_v1
      WHERE cloud_business_id=c_business AND feature_code IN
