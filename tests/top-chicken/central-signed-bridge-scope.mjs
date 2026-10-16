@@ -29,7 +29,7 @@ pass('time-bound request; 5-second future/stale denied',()=>{
 pass('Central service only ever reads scoped five resolver codes',()=>{
  assert.match(central,/const U='https:\/\/ikppryeavoabnugcijeq\.supabase\.co'/);
  assert.match(central,/verifyBody\(key,raw/);
- assert.match(central,/for\(const code of CODES\)/);
+ assert.match(central,/Promise\.all\(CODES\.map\(code=>/);
  assert.match(central,/resolve_sharawla_commercial_entitlement_cloud_v1/);
  assert.doesNotMatch(central,/business_paid_addons.*insert|grant_paid_addon|assign_base_package/i);
 });
