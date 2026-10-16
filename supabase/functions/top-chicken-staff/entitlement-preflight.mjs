@@ -2,7 +2,7 @@
 // Beta JWT and signed Central proof; never grant from client flags.
 const BUSINESS='5358328c-9724-49aa-affc-1bce8be90f92';
 const CODES=Object.freeze(['core.auth','core.users','core.permissions','commerce.delivery','inventory.suppliers']);
-export async function ensureStaffLease({url,anon,bearer,now=Date.now(),fetcher=fetch}={}){
+export async function ensureStaffLease({url='',anon='',bearer='',now=Date.now(),fetcher=fetch}={}){
  const host='https://xihcxydjnzemflhedzor.supabase.co';
  if(url!==host||typeof anon!=='string'||anon.length<10||
     typeof bearer!=='string'||bearer.length<25||bearer.length>5000)
@@ -36,5 +36,5 @@ export async function ensureStaffLease({url,anon,bearer,now=Date.now(),fetcher=f
      return {ok:false,code:'TC_STAFF_SYNC_STALE_LEASE',status:503};
  }
  if(seen.size!==CODES.length)return {ok:false,code:'TC_STAFF_SYNC_INVALID_PROOF',status:503};
- return {ok:true,receipt_id:proof.receipt_id};
+ return {ok:true,status:200,receipt_id:proof.receipt_id};
 }
