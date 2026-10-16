@@ -6,6 +6,7 @@ import {BUSINESS,buildTopChickenCentralLease} from '../top-chicken-entitlement-b
 import {requireBridgeKey,verifyBody,signBody,withinSeconds} from '../top-chicken-entitlement-bridge/hmac.mjs';
 const BETA='https://xihcxydjnzemflhedzor.supabase.co';
 const CENTRAL='https://ikppryeavoabnugcijeq.supabase.co/functions/v1/top-chicken-commercial-proof';
+const CENTRAL_PUBLIC_KEY='sb_publishable_Lv-eHHXQnWGy-g0rrc2x3w_daXKN2LI';
 const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'';
 const secret=Deno.env.get('TC_BRIDGE_HMAC_KEY')??'';
 if(Deno.env.get('SUPABASE_URL')!==BETA||!service)throw Error('WRONG_BETA_PROJECT');
@@ -43,7 +44,7 @@ Deno.serve(async req=>{
   }
   const nonce=crypto.randomUUID(),issued_at=new Date().toISOString();
   const requestBody=JSON.stringify({business_id:BUSINESS,nonce,issued_at,mode,...(beta_actor_id?{beta_actor_id}:{})});
-  const proof=await fetch(CENTRAL,{method:'POST',headers:{'Content-Type':'application/json','x-tc-request-signature':await signBody(secret,requestBody),...(mode==='central_admin'?{authorization:bearer}:{})},
+  const proof=await fetch(CENTRAL,{method:'POST',headers:{'Content-Type':'application/json','x-tc-request-signature':await signBody(secret,requestBody),apikey:CENTRAL_PUBLIC_KEY,...(mode==='central_admin'?{authorization:bearer}:{})},
     body:requestBody,signal:AbortSignal.timeout(7000)});
   if(!proof.ok)return response({ok:false,error:'CENTRAL_PROOF_UNAVAILABLE'},503);
   const text=await proof.text();
