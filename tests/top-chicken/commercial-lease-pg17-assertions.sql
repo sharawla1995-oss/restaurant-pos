@@ -15,8 +15,7 @@ DO $test$
 DECLARE
  tc constant uuid:='5358328c-9724-49aa-affc-1bce8be90f92'::uuid;
  legacy constant uuid:='3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7'::uuid;
- actor constant uuid:='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid;
- foreign_actor constant uuid:='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid;
+ actor constant uuid:='33f3f7d6-60ce-40e1-831b-7e111be1b505'::uuid;
  nonce constant uuid:='cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid;
  t timestamptz:=statement_timestamp();
  t2 timestamptz;
@@ -45,11 +44,11 @@ BEGIN
  BEGIN PERFORM public.top_chicken_commit_entitlement_lease_v1(actor,nonce,t,repeat('b',64),rows1);
  EXCEPTION WHEN unique_violation THEN blocked:=true; END;
  IF NOT blocked THEN RAISE EXCEPTION 'FAIL changed digest accepted'; END IF;
- blocked:=false;
- BEGIN PERFORM public.top_chicken_commit_entitlement_lease_v1(foreign_actor,
-        'dddddddd-dddd-4ddd-8ddd-dddddddddddd',t,repeat('a',64),rows1);
- EXCEPTION WHEN insufficient_privilege THEN blocked:=true; END;
- IF NOT blocked THEN RAISE EXCEPTION 'FAIL foreign actor'; END IF;
+ -- Central Admin actor has a separate Auth project; it must not be forced
+ -- into Beta employee membership. Only service_role can call the writer.
+ IF (SELECT count(*) FROM sharawla_internal.top_chicken_entitlement_sync_receipts_v1
+     WHERE actor_auth_user_id=actor)<>1
+ THEN RAISE EXCEPTION 'FAIL Central actor audit receipt'; END IF;
  blocked:=false;
  BEGIN PERFORM public.top_chicken_commit_entitlement_lease_v1(actor,
         'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',t-interval '20 seconds',repeat('a',64),
@@ -85,5 +84,5 @@ BEGIN
  THEN RAISE EXCEPTION 'FAIL legacy tenant mutated'; END IF;
  IF (SELECT count(*) FROM sharawla_internal.top_chicken_entitlement_sync_receipts_v1)<>2
  THEN RAISE EXCEPTION 'FAIL failed requests audited as writes'; END IF;
- RAISE NOTICE 'PASS isolated PG17: exact grant, revoke, audit, replay, changed nonce, foreign actor/feature, stale proof, old version, legacy isolation';
+ RAISE NOTICE 'PASS isolated PG17: exact grant, revoke, audit, replay, changed nonce, signed Central actor receipt/foreign feature, stale proof, old version, legacy isolation';
 END $test$;
