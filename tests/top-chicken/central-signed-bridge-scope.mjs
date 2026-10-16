@@ -33,10 +33,17 @@ pass('Central service only ever reads scoped five resolver codes',()=>{
  assert.match(central,/resolve_sharawla_commercial_entitlement_cloud_v1/);
  assert.doesNotMatch(central,/business_paid_addons.*insert|grant_paid_addon|assign_base_package/i);
 });
-pass('Central authenticates admin JWT, Beta accepts only signed actor proof',()=>{
- assert.doesNotMatch(beta,/admin\.auth\.getUser/);
- assert.match(beta,/authorization:bearer/);
- assert.match(beta,/snapshot\.actor_user_id/);
+pass('Central admin JWT and Beta branch-22 staff JWT use separate signed proof modes',()=>{
+ assert.match(beta,/admin\.auth\.getUser\(bearer\.slice\(7\)\)/);
+ assert.match(beta,/\.eq\('business_id',BUSINESS\)\.eq\('branch_id',22\)\.eq\('active',true\)/);
+ assert.match(beta,/business_auth_memberships/);
+ assert.match(beta,/branches/);
+ assert.match(beta,/mode='beta_operator'/);
+ assert.match(beta,/mode:'beta_operator'\|'central_admin'/);
+ assert.match(beta,/snapshot\.mode!==mode/);
+ assert.match(beta,/snapshot\.actor_user_id!==beta_actor_id/);
+ assert.match(central,/mode==='beta_operator'/);
+ assert.match(central,/mode==='central_admin'/);
  assert.match(central,/cloud\.auth\.getUser\(bearer\.slice\(7\)\)/);
  assert.match(central,/sharawla_admins/);
  assert.match(beta,/verifyBody\(secret,text/);
