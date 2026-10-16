@@ -119,3 +119,35 @@ This section supplements the 2026-10-15 handoff; the historical records above ar
 **Central commercialization**: live read-only catalog shows feature_class `standard` for `commerce.orders` and `add_on` for `commerce.delivery`, `commerce.pickup`, `inventory.suppliers`. No Top Chicken base-package or paid-addon grant currently exists. The published `ACC_RUNTIME` package contains `commerce.orders` only, not the other required POS features. Do not assume it is an adequate launch package or create paid grants without a separate explicit business-owner approval.
 
 **No changes** were made to Central commercial assignments, Beta SQL/Edge, any device, receipts, queues, customer data, production services, website intake or PR #46 merge state. Source policy alone cannot fix the 404 or the current authorization failures.
+
+## 2026-10-16 Official Top Chicken grant completed; Beta bridge review-only candidate
+
+### Central successfully activated — no repeat grants
+User activated exactly two features using the authenticated Sharawla Admin commercial management UI. Verified by **live Central resolver and grant records**:
+- `commerce.delivery`: entitled=true, active add-on grant `87b87c9e-f66f-4070-ac38-de7693e31256`, **Audit #168**, actor `33f3f7d6-60ce-40e1-831b-7e111be1b505`.
+- `inventory.suppliers`: entitled=true, active add-on grant `22be77ee-d23a-4d0e-a8da-c377667818a3`, **Audit #169**, same actor.
+- Business `5358328c-9724-49aa-affc-1bce8be90f92` ONLY; no grant expiry. Do not duplicate these grants or change Top Burger's state.
+
+**Fresh live Beta read-only**: operational entitlement rows for Top Chicken = **0**. Beta `sharawla_internal.operational_feature_entitled_v1` requires this tenant's own live rows and validates membership-derived actor identity; the existing `top_chicken_staff_actor_authorized_v1` additionally requires all three `core.auth`, `core.users`, `core.permissions` rows. Therefore a bridge that checks this function before first sync has an authorization deadlock. Central grants the three core features automatically (CORE_INCLUDED), but Beta has not yet received them. Two Top Chicken branch-22 admins have existing linked Auth + active membership; do not manufacture an admin user.
+
+**Still ungranted in Central**: `commerce.orders` (standard base-package entitlement) and `commerce.pickup` (add-on) are `NOT_ENTITLED`. Do not bypass official commercial management or infer these grants from the restaurant Profile. Full website-to-POS order lifecycle CANNOT be declared PASS simply because delivery and suppliers were granted.
+
+### Review-only source candidate; not deployed
+New branch code includes:
+1. `supabase/functions/top-chicken-entitlement-bridge/central-decision.mjs`: strict real-Central-resolver-shaped five-feature proof policy: core.auth/users/permissions plus commerce.delivery and inventory.suppliers; 60s expiry, scope/time/provenance/revocation/negative evidence checks. **19 local isolated JS groups, 24 assertions PASS**; not hosted Edge or PG17.
+2. `supabase/functions/top-chicken-entitlement-bridge/hmac.mjs`: strict server-only SHA-256 HMAC helpers for a separate 32-byte hex secret.
+3. `supabase/functions/top-chicken-commercial-proof/index.ts`: review-only **Central-only** Edge proof endpoint. Allows ONLY HMAC-verified requests pinned to Top Chicken and exact five Central resolver read operations, then signs response.
+4. `supabase/functions/top-chicken-commercial-sync/index.ts`: review-only **Beta-only** Edge endpoint. Requires valid Beta JWT, real active Top Chicken admin employee and membership on branch 22 **without circular bootstrap check**, validates the signed Central proof, and calls one restricted Beta RPC with exact five resulting lease rows.
+5. `review-only/top-chicken-commercial-lease-bridge-NO-DEPLOY.sql`: **additive** private Beta audit receipt table and strictly service_role-executable atomically scoped 5-feature lease upsert. Actor+branch verification, exact-code whitelist, monotonic observation version, precise 60s TTL, receipt-based idempotent same-nonce replay, stale rejection, foreign tenant unchanged. **This SQL has NOT been executed in Beta**.
+6. `tests/top-chicken/central-five-feature-lease.mjs`, `central-signed-bridge-scope.mjs`, and `commercial-lease-pg17-{fixture,assertions}.sql`; source-only CI `.github/workflows/top-chicken-commercial-sync-NO-DEPLOY.yml` includes PostgreSQL 17 isolated fixture and execution of candidate there. **Actual PG17 CI result MUST be observed; do not call it PASS based on source existence**.
+
+### Independent approval and readiness gates
+- First verify actual CI `source-only` and `isolated-postgres17` jobs PASS, inspect migration SQL no unintended owner/tenant drift, and confirm restore procedure.
+- Obtain independent approval to **apply only the new review-only SQL to Top Chicken Beta**. NOT the existing four 15-Oct migrations, no DDL on Central, no direct business entitlement INSERT.
+- Separate approval to **deploy only Central `top-chicken-commercial-proof` Edge** (server-only Central service-role key) and to set `TC_BRIDGE_HMAC_KEY` securely on Central and Beta.
+- Separate approval to **deploy only Beta `top-chicken-commercial-sync` Edge**; verify JWT, active actor, scope, signed proof, audit receipt, force Central revoke/expiry, negative grant and foreign Beta tenant, and legacy rows unchanged.
+- **Very important:** 60-second leases need a tested refresh trigger before relevant POS actions, and fail closed when Central is offline; an admin's one-time sync is not an operationally persistent enablement. Do NOT claim fully-working supplier/driver functions before implementing this refresh and hosted CRUD tests.
+- Delivery order lifecycle still depends on official Central base-package grant of `commerce.orders` (and pickup flows separately on `commerce.pickup`), plus existing PIN4 SQL, staff and PIN Edge review/publication, and real website→POS testing.
+- No physical SH-0008 installation or local queue reset, no true website intake until distinct device and go-live approvals.
+
+**Explicit status**: Central commercial grants PASS; bridge source in progress/review-only; Beta entitlement sync NOT LIVE; PG17/hosted Edge and Windows/post-install validations NOT CLAIMED.
