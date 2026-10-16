@@ -9,6 +9,7 @@ on:
       - 'review-only/top-chicken-commercial-lease-bridge-NO-DEPLOY.sql'
       - 'tests/top-chicken/central-five-feature-lease.mjs'
       - 'tests/top-chicken/central-signed-bridge-scope.mjs'
+      - 'tests/top-chicken/commercial-operator-refresh.cjs'
       - 'tests/top-chicken/commercial-lease-pg17-*.sql'
       - '.github/workflows/top-chicken-commercial-sync-NO-DEPLOY.yml'
   workflow_dispatch:
@@ -31,6 +32,8 @@ jobs:
         run: node tests/top-chicken/central-five-feature-lease.mjs
       - name: HMAC verification and scope/static SQL guards
         run: node tests/top-chicken/central-signed-bridge-scope.mjs
+      - name: Scoped Beta operator and POS lease refresh static checks
+        run: node tests/top-chicken/commercial-operator-refresh.cjs
       - name: No deployment statement
         run: echo 'DO NOT apply SQL, deploy Central/Beta Edge, sync grants, reset devices, or change tenants.'
   isolated-postgres17:
