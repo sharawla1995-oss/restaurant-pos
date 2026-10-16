@@ -33,10 +33,12 @@ pass('Central service only ever reads scoped five resolver codes',()=>{
  assert.match(central,/resolve_sharawla_commercial_entitlement_cloud_v1/);
  assert.doesNotMatch(central,/business_paid_addons.*insert|grant_paid_addon|assign_base_package/i);
 });
-pass('Beta service validates active actual staff+membership and JWT',()=>{
- assert.match(beta,/admin\.auth\.getUser\(bearer\.slice\(7\)\)/);
- assert.match(beta,/\.eq\('branch_id',22\)\.eq\('role','admin'\)\.eq\('active',true\)/);
- assert.match(beta,/business_auth_memberships/);
+pass('Central authenticates admin JWT, Beta accepts only signed actor proof',()=>{
+ assert.doesNotMatch(beta,/admin\.auth\.getUser/);
+ assert.match(beta,/authorization:bearer/);
+ assert.match(beta,/snapshot\.actor_user_id/);
+ assert.match(central,/cloud\.auth\.getUser\(bearer\.slice\(7\)\)/);
+ assert.match(central,/sharawla_admins/);
  assert.match(beta,/verifyBody\(secret,text/);
  assert.match(beta,/buildTopChickenCentralLease\(snapshot/);
  assert.match(beta,/top_chicken_commit_entitlement_lease_v1/);
@@ -49,7 +51,7 @@ pass('Beta SQL function only five features and service-role access',()=>{
  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
  assert.match(sql,/REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC,anon,authenticated/);
  assert.match(sql,/GRANT EXECUTE ON FUNCTION[\s\S]*TO service_role/);
- assert.match(sql,/TC_BRANCH22_ADMIN_REQUIRED/);
+ assert.match(sql,/HMAC-signed proof verified by the Beta Edge/);
  assert.match(sql,/TC_EXACT_FIVE_FEATURES_REQUIRED/);
  assert.match(sql,/TC_OLDER_OR_EQUAL_PROOF/);
  assert.match(sql,/TC_PROOF_NONCE_REUSE_CHANGED/);
