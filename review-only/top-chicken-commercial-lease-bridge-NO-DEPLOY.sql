@@ -42,16 +42,12 @@ BEGIN
     OR p_proof_digest IS NULL OR p_proof_digest !~ '^[a-f0-9]{64}$'
     OR p_observed_at IS NULL OR p_rows IS NULL
  THEN RAISE EXCEPTION 'TC_PROOF_PARAMS_INVALID' USING errcode='42501'; END IF;
- -- Establish trusted actor scope before any change (avoids bootstrap deadlock
- -- in top_chicken_staff_actor_authorized_v1, which needs already cached core grants).
- IF NOT EXISTS(
-  SELECT 1 FROM public.employees e
-  JOIN public.business_auth_memberships m ON m.auth_user_id=e.auth_user_id
-     AND m.business_id=e.business_id AND m.active IS TRUE
-  JOIN public.branches b ON b.id=22 AND b.business_id=e.business_id AND b.active IS TRUE
-  WHERE e.auth_user_id=p_actor_auth_user_id AND e.business_id=c_business
-    AND e.branch_id=22 AND e.role='admin' AND e.active IS TRUE
- ) THEN RAISE EXCEPTION 'TC_BRANCH22_ADMIN_REQUIRED' USING errcode='42501'; END IF;
+ -- Central actor JWT and Sharawla Admin membership are validated on
+ -- Central, then included in a HMAC-signed proof verified by the Beta Edge.
+ -- Beta must NOT impersonate this actor as a Beta employee: they belong to
+ -- separate Auth projects. This definer RPC is EXECUTE-able by service_role
+ -- only, and the service role key must stay exclusively in the Beta Edge.
+ -- No user-provided actor/tenant/branch selector is accepted by the browser.
  IF pg_catalog.jsonb_typeof(p_rows) IS DISTINCT FROM 'array'
     OR pg_catalog.jsonb_array_length(p_rows)<>5 THEN
    RAISE EXCEPTION 'TC_EXACT_FIVE_FEATURES_REQUIRED' USING errcode='42501';
