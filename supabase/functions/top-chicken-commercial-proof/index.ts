@@ -1,6 +1,6 @@
 // SOURCE CANDIDATE — DO NOT DEPLOY without independent Central Edge approval.
 // Must deploy to Central ikppryeavoabnugcijeq ONLY with verify_jwt=false.
-// HMAC-verified server-to-server, and separately Central JWT + active Sharawla Admin; never accept arbitrary tenant.
+// HMAC verified from trusted Beta Edge, with operator session verified on Beta or Central admin JWT on Central. Pinned tenant.
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import {BUSINESS,CODES} from '../top-chicken-entitlement-bridge/central-decision.mjs';
 import {requireBridgeKey,verifyBody,signBody,withinSeconds} from '../top-chicken-entitlement-bridge/hmac.mjs';
@@ -19,17 +19,27 @@ Deno.serve(async req=>{
   if(raw.length>1024||!await verifyBody(key,raw,req.headers.get('x-tc-request-signature')))return json({error:'UNAUTHORIZED'},403);
   const body=JSON.parse(raw);
   if(body?.business_id!==BUSINESS||!UUID.test(body?.nonce??'')||
-     !withinSeconds(body?.issued_at,new Date(),5)||
-     Object.keys(body).sort().join(',')!=='business_id,issued_at,nonce')return json({error:'PROOF_REQUEST_INVALID'},403);
-  // The caller is authenticated against Central Auth, not Beta Auth.
-  // This is the SAME authorized admin identity that issues audited grants.
-  const bearer=req.headers.get('authorization')??'';
-  if(!/^Bearer [^\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
-  const user=await cloud.auth.getUser(bearer.slice(7));
-  if(user.error||!user.data.user?.id)return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
-  const actor_user_id=user.data.user.id;
-  const check=await cloud.from('sharawla_admins').select('user_id').eq('user_id',actor_user_id).eq('active',true).maybeSingle();
-  if(check.error||!check.data)return json({error:'CENTRAL_ADMIN_REQUIRED'},403);
+     !withinSeconds(body?.issued_at,new Date(),5))return json({error:'PROOF_REQUEST_INVALID'},403);
+  const mode=body?.mode;
+  let actor_user_id:string;
+  if(mode==='beta_operator'){
+    // Only the Beta Edge has the shared server-only HMAC key, and only after
+    // independently verifying its Beta Auth session, membership and branch 22.
+    if(!UUID.test(body?.beta_actor_id??'')||
+       Object.keys(body).sort().join(',')!=='beta_actor_id,business_id,issued_at,mode,nonce')
+       return json({error:'BETA_ACTOR_PROOF_INVALID'},403);
+    actor_user_id=body.beta_actor_id;
+  }else if(mode==='central_admin'){
+    if(Object.keys(body).sort().join(',')!=='business_id,issued_at,mode,nonce')
+       return json({error:'PROOF_REQUEST_INVALID'},403);
+    const bearer=req.headers.get('authorization')??'';
+    if(!/^Bearer [^\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+    const user=await cloud.auth.getUser(bearer.slice(7));
+    if(user.error||!user.data.user?.id)return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+    actor_user_id=user.data.user.id;
+    const check=await cloud.from('sharawla_admins').select('user_id').eq('user_id',actor_user_id).eq('active',true).maybeSingle();
+    if(check.error||!check.data)return json({error:'CENTRAL_ADMIN_REQUIRED'},403);
+  }else return json({error:'INVALID_SYNC_MODE'},403);
   const observed_at=new Date().toISOString();
   const data:Record<string,unknown>={};
   for(const code of CODES){
@@ -38,7 +48,7 @@ Deno.serve(async req=>{
    if(r.error||!r.data||Array.isArray(r.data))throw Error('CENTRAL_UNAVAILABLE');
    data[code]=r.data;
   }
-  const responseBody=JSON.stringify({business_id:BUSINESS,actor_user_id,observed_at,nonce:body.nonce,decisions:data});
+  const responseBody=JSON.stringify({business_id:BUSINESS,actor_user_id,mode,observed_at,nonce:body.nonce,decisions:data});
   const signature=await signBody(key,responseBody);
   return new Response(responseBody,{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-tc-proof-signature':signature}});
  }catch{return json({error:'CENTRAL_PROOF_UNAVAILABLE'},503)}
