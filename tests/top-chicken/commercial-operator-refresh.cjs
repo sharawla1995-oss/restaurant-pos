@@ -31,6 +31,7 @@ pass('actual Beta JWT and scoped employee/member/branch checks happen server sid
  assert.match(beta,/\.eq\('branch_id',22\)\.eq\('active',true\)/);
  assert.match(beta,/business_auth_memberships/);
  assert.match(beta,/TC_BRANCH22_MEMBER_REQUIRED/);
+ assert.match(beta,/authorization, content-type, apikey, x-sharawla-business/);
  assert.match(beta,/snapshot\.actor_user_id!==beta_actor_id/);
 });
 pass('Central issues signed decisions only to HMAC verified Beta transport',()=>{
