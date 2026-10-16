@@ -2,6 +2,7 @@
 // review of secret and rate-limited SQL ownership. verify_jwt=false intentionally:
 // the user must obtain a session with username+PIN, not already own a JWT.
 import {pinUsername,pin4,syntheticEmail,internalPassword,PIN_BUSINESS} from '../top-chicken-staff/pin-login-domain.mjs';
+import {ensureStaffLease} from '../top-chicken-staff/entitlement-preflight.mjs';
 const cors={
  'access-control-allow-origin':'*',
  'access-control-allow-headers':'content-type,apikey,authorization',
@@ -54,6 +55,14 @@ Deno.serve(async(req:Request)=>{
  const uid=String(session?.user?.id||'');
  if(!/^[0-9a-f-]{36}$/i.test(uid)||!session?.access_token||!session?.refresh_token)
   return result(503,{ok:false,code:'STAFF_SESSION_INVALID'});
+ // Only after a correct PIN has been verified by Supabase Auth, use this real
+ // Beta Auth JWT to refresh the 60-second signed Central entitlement lease.
+ // No anonymous sync and no broad exemption to post-auth SQL permission checks.
+ const commercial=await ensureStaffLease({
+  url:env.url,anon:env.anon,bearer:String(session.access_token)
+ });
+ if(commercial.ok!==true)
+  return result(commercial.status,{ok:false,code:commercial.code});
  let completed;
  try{completed=await requestJson(env.url+'/rest/v1/rpc/top_chicken_pin_login_success_v1',
   env.service,'POST',{p_username:handle,p_auth_user_id:uid})}
