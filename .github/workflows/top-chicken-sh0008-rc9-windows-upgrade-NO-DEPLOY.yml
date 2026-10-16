@@ -25,6 +25,7 @@ on:
       - 'tests/top-chicken/test-queue-reset-regression.cjs'
       - 'tests/top-chicken/customer-create-regression.cjs'
       - 'tests/top-chicken/pin4-staff-source-regression.cjs'
+      - 'tests/top-chicken/commercial-operator-refresh.cjs'
       - '.github/workflows/top-chicken-sh0008-rc9-windows-upgrade-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -58,6 +59,7 @@ jobs:
           node tests/top-chicken/pending-sync-diagnostics-regression.cjs
           node tests/top-chicken/customer-create-regression.cjs
           node tests/top-chicken/pin4-staff-source-regression.cjs
+          node tests/top-chicken/commercial-operator-refresh.cjs
           node --check v10-5-16-restaurant-closure-ui.js
           node tests/top-chicken/test-queue-reset-regression.cjs
           node --check preload.js
