@@ -41,12 +41,17 @@ Deno.serve(async req=>{
     if(check.error||!check.data)return json({error:'CENTRAL_ADMIN_REQUIRED'},403);
   }else return json({error:'INVALID_SYNC_MODE'},403);
   const observed_at=new Date().toISOString();
+  // Evaluate all five codes at ONE Central timestamp concurrently, rather
+  // than risking expiration of the 5-second signed handoff window.
+  const results=await Promise.all(CODES.map(code=>
+    cloud.rpc('resolve_sharawla_commercial_entitlement_cloud_v1',
+      {p_business_id:BUSINESS,p_feature_code:code,p_at_time:observed_at})
+  ));
   const data:Record<string,unknown>={};
-  for(const code of CODES){
-   const r=await cloud.rpc('resolve_sharawla_commercial_entitlement_cloud_v1',
-     {p_business_id:BUSINESS,p_feature_code:code,p_at_time:observed_at});
+  for(let i=0;i<CODES.length;i++){
+   const r=results[i];
    if(r.error||!r.data||Array.isArray(r.data))throw Error('CENTRAL_UNAVAILABLE');
-   data[code]=r.data;
+   data[CODES[i]]=r.data;
   }
   const responseBody=JSON.stringify({business_id:BUSINESS,actor_user_id,mode,observed_at,nonce:body.nonce,decisions:data});
   const signature=await signBody(key,responseBody);
