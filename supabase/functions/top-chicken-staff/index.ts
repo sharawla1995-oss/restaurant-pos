@@ -3,6 +3,7 @@
 // approvals and isolated recovery evidence. No shared smart-function updates.
 import {staffCreatePayload,staffDigest,staffManagePayload,staffManageDigest,TOP_CHICKEN_BUSINESS} from './staff-domain.mjs';
 import {pinCreatePayload,pinReceiptDigest,internalPassword,syntheticEmail} from './pin-login-domain.mjs';
+import {ensureStaffLease} from './entitlement-preflight.mjs';
 
 const cors={
   'access-control-allow-origin':'*',
@@ -76,6 +77,11 @@ Deno.serve(async(request:Request)=>{
     if(managed.action==='password')
       return response(501,{ok:false,code:'STAFF_PASSWORD_RESET_PENDING_REVIEW',
         message:'تغيير كلمة المرور لم يتم تفعيله بعد؛ يلزم مسار مراجعة المصادقة وإبطال الجلسات. لم يتم تغيير كلمة المرور.'});
+    // Refresh Central-signed Beta lease server-side. Older RC9 desktop clients
+    // may skip their own refresh, but the staff owner must never bypass
+    // PostgreSQL's actor+tenant authorization gate.
+    const entitlement=await ensureStaffLease({url:env.url,anon:env.anon,bearer});
+    if(!entitlement.ok)return response(entitlement.status,{ok:false,code:entitlement.code});
     const digest=await staffManageDigest(managed);
     try{
       const result=await invokeRpc(env.url,env.service,'top_chicken_staff_manage_v1',{
@@ -105,6 +111,10 @@ Deno.serve(async(request:Request)=>{
   catch(e){return response(422,{ok:false,code:String((e as Error).message||'INVALID_INPUT')})}
   const pinSecret=String(Deno.env.get('TOP_CHICKEN_STAFF_PIN_SECRET')||'');
   if(pinMode&&pinSecret.length<32)return response(503,{ok:false,code:'STAFF_PIN_SECRET_UNCONFIGURED'});
+  // A missing/expired 60-second lease must be renewed through signed Central
+  // proof rather than guessed, relaxed, or written by direct SQL.
+  const entitlement=await ensureStaffLease({url:env.url,anon:env.anon,bearer});
+  if(!entitlement.ok)return response(entitlement.status,{ok:false,code:entitlement.code});
   const authEmail=pinMode?syntheticEmail(parsed.username):parsed.username;
   // PIN is intentionally never used as a raw Auth password.
   const authPassword=pinMode
