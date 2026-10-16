@@ -3011,12 +3011,12 @@ async function renderDeliverySettings(){
  };
 }
 
-async // Display only. Do not modify the canonical Beta employee.username or Auth email.
+// Display only. Do not modify the canonical Beta employee.username or Auth email.
 function topChickenLoginHandle(internalId){
  const match=String(internalId||'').match(/^tc_tc-sh0008-([a-z][a-z0-9._-]{2,31})_[a-f0-9]{12}$/i);
  return match?match[1]:null;
 }
-function renderUsers(){
+async function renderUsers(){
  if(!isAdmin()){ $('#page').innerHTML='<div class="empty">المستخدمون متاحون للمدير فقط</div>';return; }
  let rows=[];
  try{
