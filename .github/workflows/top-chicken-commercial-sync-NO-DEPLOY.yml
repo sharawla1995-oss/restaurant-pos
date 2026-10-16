@@ -1,0 +1,34 @@
+name: Top Chicken Central-to-Beta Bridge - SOURCE ONLY / NO DEPLOY
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'supabase/functions/top-chicken-entitlement-bridge/**'
+      - 'supabase/functions/top-chicken-commercial-proof/**'
+      - 'supabase/functions/top-chicken-commercial-sync/**'
+      - 'review-only/top-chicken-commercial-lease-bridge-NO-DEPLOY.sql'
+      - 'tests/top-chicken/central-five-feature-lease.mjs'
+      - 'tests/top-chicken/central-signed-bridge-scope.mjs'
+      - '.github/workflows/top-chicken-commercial-sync-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Central decision and HMAC helpers syntax
+        run: |
+          node --check supabase/functions/top-chicken-entitlement-bridge/central-decision.mjs
+          node --check supabase/functions/top-chicken-entitlement-bridge/hmac.mjs
+      - name: Exact five-feature positive negative entitlement proofs
+        run: node tests/top-chicken/central-five-feature-lease.mjs
+      - name: HMAC verification and scope/static SQL guards
+        run: node tests/top-chicken/central-signed-bridge-scope.mjs
+      - name: No deployment statement
+        run: echo 'DO NOT apply SQL, deploy Central/Beta Edge, sync grants, reset devices, or change tenants.'
