@@ -1,5 +1,5 @@
 // SOURCE CANDIDATE — NO DEPLOY / NO HOSTED PASS.
-// Beta xihcxydjnzemflhedzor only; Central Admin JWT verified by signed Central endpoint.\n// Deploy with verify_jwt=false because JWT issuer is Central, not Beta.
+// Beta xihcxydjnzemflhedzor only. Central Admin JWT validated in Central; Beta operator JWT validated in Beta.\n// verify_jwt=false at gateway; both paths validate authentication inside Edge.
 // Dedicated HMAC proof from Central; NO Central service key in Beta, no browser-supplied grant.
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 import {BUSINESS,buildTopChickenCentralLease} from '../top-chicken-entitlement-bridge/central-decision.mjs';
@@ -24,20 +24,34 @@ Deno.serve(async req=>{
   if(raw.length>2048||raw.trim()!=='{}')return response({ok:false,error:'BODY_MUST_BE_EMPTY_OBJECT'},400);
   const bearer=req.headers.get('authorization')||'';
   if(!/^Bearer [^\s]+$/.test(bearer))return response({ok:false,error:'UNAUTHORIZED'},401);
-  // Bearer token belongs to Central Admin, NOT the Beta Auth project.
-  // The signed Central endpoint validates that JWT and active sharawla_admins.
-  // Beta Edge must use verify_jwt=false, rejecting every call without the
-  // Central-signed, actor-bound reply. No client-supplied actor is trusted.
+  // Cross-project JWTs are not interchangeable. Beta users may refresh only
+  // their own verified branch-22 tenant leases. Central admins use the existing
+  // separately authenticated control-plane mode.
+  const identity=await admin.auth.getUser(bearer.slice(7));
+  let mode:'beta_operator'|'central_admin'='central_admin';
+  let beta_actor_id:string|undefined;
+  if(!identity.error&&UUID.test(identity.data.user?.id||'')){
+    const uid=identity.data.user!.id;
+    const [employee,membership,branch]=await Promise.all([
+      admin.from('employees').select('id').eq('auth_user_id',uid).eq('business_id',BUSINESS).eq('branch_id',22).eq('active',true).maybeSingle(),
+      admin.from('business_auth_memberships').select('auth_user_id').eq('auth_user_id',uid).eq('business_id',BUSINESS).eq('active',true).maybeSingle(),
+      admin.from('branches').select('id').eq('id',22).eq('business_id',BUSINESS).eq('active',true).maybeSingle()
+    ]);
+    if(employee.error||membership.error||branch.error||!employee.data||!membership.data||!branch.data)
+      return response({ok:false,error:'TC_BRANCH22_MEMBER_REQUIRED'},403);
+    mode='beta_operator';beta_actor_id=uid;
+  }
   const nonce=crypto.randomUUID(),issued_at=new Date().toISOString();
-  const requestBody=JSON.stringify({business_id:BUSINESS,nonce,issued_at});
-  const proof=await fetch(CENTRAL,{method:'POST',headers:{'Content-Type':'application/json','x-tc-request-signature':await signBody(secret,requestBody),authorization:bearer},
+  const requestBody=JSON.stringify({business_id:BUSINESS,nonce,issued_at,mode,...(beta_actor_id?{beta_actor_id}:{})});
+  const proof=await fetch(CENTRAL,{method:'POST',headers:{'Content-Type':'application/json','x-tc-request-signature':await signBody(secret,requestBody),...(mode==='central_admin'?{authorization:bearer}:{})},
     body:requestBody,signal:AbortSignal.timeout(7000)});
   if(!proof.ok)return response({ok:false,error:'CENTRAL_PROOF_UNAVAILABLE'},503);
   const text=await proof.text();
   if(!await verifyBody(secret,text,proof.headers.get('x-tc-proof-signature')))
    return response({ok:false,error:'CENTRAL_PROOF_SIGNATURE_INVALID'},503);
   const snapshot=JSON.parse(text);
-  if(snapshot.nonce!==nonce||snapshot.business_id!==BUSINESS||!UUID.test(snapshot.actor_user_id||'')||
+  if(snapshot.nonce!==nonce||snapshot.business_id!==BUSINESS||snapshot.mode!==mode||!UUID.test(snapshot.actor_user_id||'')||
+     (beta_actor_id&&snapshot.actor_user_id!==beta_actor_id)||
      !withinSeconds(snapshot.observed_at,new Date(),5))return response({ok:false,error:'CENTRAL_PROOF_SCOPE_INVALID'},503);
   const plan=buildTopChickenCentralLease(snapshot,{now:new Date()});
   const written=await admin.rpc('top_chicken_commit_entitlement_lease_v1',{
