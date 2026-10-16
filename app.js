@@ -426,6 +426,8 @@ async function isTopChickenStaffContext(){
 }
 async function callFunction(name,payload={}){
   if(name==='smart-function' && await isTopChickenStaffContext())name='top-chicken-staff';
+  if(name==='top-chicken-staff'&&isTopChickenSyncDiagnosticsScope()&&session?.access_token)
+    await refreshTopChickenCommercialLease('core.permissions');
   return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})
 }
 async function mutateTopChickenStaff(payload){
@@ -466,7 +468,47 @@ async function mutateTopChickenStaff(payload){
   if(payload.action==='create'&&result.permissions_persisted!==true)throw new Error('لم يؤكد السيرفر حفظ الصلاحيات');
   localStorage.removeItem(key);return result;
 }
-async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+// SH-0008 scoped, fail-closed Central entitlement lease refresh before the
+// five protected operational owners. No central Admin JWT or secret is exposed.
+// Beta Edge verifies Beta Auth + branch-22 membership and obtains signed proof.
+const TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS=Object.freeze({
+  offline_delivery_driver_save_v1:'commerce.delivery',
+  offline_delivery_zone_save_v1:'commerce.delivery',
+  offline_delivery_assign_driver_v1:'commerce.delivery',
+  offline_delivery_driver_settle_v1:'commerce.delivery',
+  food_supplier_save_v1:'inventory.suppliers',
+  food_supplier_return_create_v1:'inventory.suppliers'
+});
+let topChickenCommercialLeaseCache=null;
+async function refreshTopChickenCommercialLease(feature){
+  if(!isTopChickenSyncDiagnosticsScope())return;
+  const uid=String(session?.user?.id||'');
+  const jwt=String(session?.access_token||'');
+  if(!uid||!jwt)throw new Error('مطلوب تسجيل دخول موظف توب تشيكن لتحديث الصلاحيات');
+  const now=Date.now(),cache=topChickenCommercialLeaseCache;
+  if(cache?.actor===uid&&cache?.jwt===jwt&&cache.expires>now+12000&&cache.features?.[feature]===true)return;
+  // In-flight refresh is not saved in the offline operation queue. A failed
+  // Central check refuses the subsequent operational write, without replaying.
+  let proof;
+  try{proof=await req('/functions/v1/top-chicken-commercial-sync',{method:'POST',body:'{}'})}
+  catch(e){topChickenCommercialLeaseCache=null;throw new Error('تعذر تحديث صلاحيات توب تشيكن من شراولة أدمن: '+String(e?.message||e))}
+  if(proof?.ok!==true||proof.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'
+    ||!Array.isArray(proof.features)||proof.features.length!==5){
+    topChickenCommercialLeaseCache=null;throw new Error('لم يتم تأكيد استحقاقات Top Chicken من السيرفر');
+  }
+  const entry=Object.fromEntries(proof.features.map(x=>[x.code,!!x.enabled]));
+  const until=Math.min(...proof.features.filter(x=>x.enabled).map(x=>Date.parse(x.valid_until)));
+  if(!Number.isFinite(until)||until<=now+5000){
+    topChickenCommercialLeaseCache=null;throw new Error('مدة صلاحيات Top Chicken غير صالحة');
+  }
+  topChickenCommercialLeaseCache={actor:uid,jwt,features:entry,expires:until};
+  if(entry[feature]!==true)throw new Error('صلاحية '+feature+' غير مفعلة لتوب تشيكن في شراولة أدمن');
+}
+async function rpc(name,payload={}){
+  const feature=TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS[name];
+  if(feature&&isTopChickenSyncDiagnosticsScope())await refreshTopChickenCommercialLease(feature);
+  return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})
+}
 async function topChickenOrderOperation(name,payload){
   // Tenant and actor bind the durable retry key; a new login cannot reuse another actor's receipt.
   const business=String(state.employee?.business_id||'');
