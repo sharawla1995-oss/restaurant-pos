@@ -204,3 +204,22 @@ Note that this is a **commercial control-plane bridge**, not permission to perfo
 - PIN4 SQL already applied only Beta under migration `20261016005003`. New PIN4-login Edge is a separate candidate requiring validated independent secret and isolated Typecheck PASS before deployment. Do not send/commit the secret; do not treat Beta staff v3 ACTIVE as proof of PIN4 login readiness.
 - Beta last read-only still had **0 entitlement sync receipts and 0 Top Chicken leased rows**; therefore no successful hosted Central-to-Beta signed roundtrip is proven, even though edges and UI are deployed.
 - Central still `commerce.orders` and `commerce.pickup` `NOT_ENTITLED`; any real website order/checkout launch remains BLOCKED until official grant, hosted accepted lifecycle tests and separately approved public intake.
+
+## 2026-10-16 Final Beta partial release checkpoint — do not call live-ready
+
+**Runtime deployed, isolated tests PASS:**
+- Central Edge `top-chicken-commercial-proof` ACTIVE **v3**: exact 5 commercial resolver calls concurrent within signed 5-second freshness bound, two authenticated modes (`central_admin` or verified `beta_operator` HMAC proof).
+- Beta Edge `top-chicken-commercial-sync` ACTIVE **v3**: session/member/branch22 verification, signed actor/nonce/mode/tenant checks, exact 60-second five-feature lease SQL writer; Beta POS header `x-sharawla-business` now permitted in CORS preflight.
+- Beta `top-chicken-staff` ACTIVE **v3** (`verify_jwt=true`): email staff create/manage preserved, PIN4 create guarded by `TOP_CHICKEN_STAFF_PIN_SECRET`. No confirmed secret provisioning or hosted create yet.
+- Beta `top-chicken-pin-login` ACTIVE **v1** (`verify_jwt=false` with explicit throttled service-role SQL admission); pinned to Beta URL and refuses all actual login if `TOP_CHICKEN_STAFF_PIN_SECRET` is absent/short. All PIN SQL applied only Beta migration `20261016005003`, no reruns.
+- Sharawla Admin `commercial-management.html` Production READY from commit `50716f79`; opens verified Central session, automatically calls Beta sync once, has manual retry/reporting button.
+
+**Evidence:**
+- Commercial bridge CI `38832097168` at SHA `202ac4c9`: `source-only` PASS + isolated `postgres17` PASS.
+- PIN4 CI `38832312061` at SHA `7b621fc3`: `pin-source` PASS + isolated PostgreSQL17 PASS.
+- SH-0008 disposable Windows in-place RC9 upgrade CI `38832097125` **SUCCESS**; artifact `12018015664`, `TC-SH0008-rc9-DO-NOT-INSTALL-cloud-approval-pending-202ac4c9ec4e2d33cc0829535dcbe9514161f528`. GitHub artifact exists but must NOT be released/installed pending hosted acceptance and queue/restore checks.
+- Final live Beta read-only: `top_chicken_entitlement_sync_receipts_v1` = 0, `top_chicken_pin_attempts_v1` = 0, currently active Top Chicken lease entitlements = **0**. NO authenticated positive Cloud roundtrip or actual login/user/driver/supplier write has been performed. Thus **not operationally verified**.
+- Central grant Audit #168/#169 for delivery/suppliers remain previous verified accepted central grants; `commerce.orders` / `commerce.pickup` remain NOT_ENTITLED.
+
+**Next necessary user-side delegated auth work** (not a repeated approval): open `https://sharawla-admin.vercel.app/commercial-management.html?v=50716f79` in the currently authorized Central Admin browser session. If current login is stale, sign in anew using the UI. It auto-initiates signed Beta sync and shows receipt/errors. Never share JWT/password. Check Beta receipts/read grants immediately afterward. Separately provision a dedicated fresh server-only `TOP_CHICKEN_STAFF_PIN_SECRET` in **Beta only**, and verify presence without disclosing its value (existing `TC_BRIDGE_HMAC_KEY` is NOT a substitute).
+**Still blocked:** Until hosted Beta authenticated CRUD and Windows install/restart+SQLite+offline queue backup are PASS, no physical SH-0008 installation, customer data manipulation, live website intake, feed update or merger. Do not claim finished.
