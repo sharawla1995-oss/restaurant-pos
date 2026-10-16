@@ -29,7 +29,7 @@ Deno.serve(async(req:Request)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
  if(req.method!=='POST')return result(405,{ok:false,code:'METHOD_NOT_ALLOWED'});
  const env=config();
- if(!env.url||!env.anon||!env.service||env.secret.length<32)
+ if(env.url!=='https://xihcxydjnzemflhedzor.supabase.co'||!env.anon||!env.service||env.secret.length<32)
   return result(503,{ok:false,code:'STAFF_PIN_BACKEND_UNCONFIGURED'});
  const body=await req.json().catch(()=>null);
  let handle:string,pin:string;
