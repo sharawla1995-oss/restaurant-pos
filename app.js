@@ -412,7 +412,33 @@ function headers(auth=true){
    ...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{}),
    ...(tcSignedInScope?{'x-sharawla-business':'5358328c-9724-49aa-affc-1bce8be90f92'}:{})};
 }
-async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
+// Diagnostic messages are intentionally limited to the Top Chicken Beta staff
+// endpoint; do not reveal headers, credentials, request bodies or other tenants.
+function topChickenStaffHttpError(status,data){
+  const code=typeof data?.code==='string'&&/^[A-Z][A-Z0-9_]{2,100}$/.test(data.code)?data.code:'UNKNOWN';
+  const explanations={
+    STAFF_PIN_SECRET_UNCONFIGURED:'إعداد دخول الموظفين بالرقم السري غير مكتمل على سيرفر توب تشيكن. لم يتم تأكيد الحفظ.',
+    STAFF_BACKEND_UNCONFIGURED:'خدمة موظفي توب تشيكن غير مكتملة الإعداد على السيرفر.',
+    AUTH_VERIFICATION_UNAVAILABLE:'تعذر التحقق من جلسة الموظف مؤقتًا. لا تحفظ العملية مرة ثانية قبل المراجعة.',
+    STAFF_MANAGE_COMMIT_UNVERIFIED:'السيرفر لم يؤكد حفظ تعديل الصلاحيات؛ راجع السجل قبل إعادة المحاولة.',
+    STAFF_MANAGE_OUTCOME_UNCERTAIN:'نتيجة تعديل الصلاحيات غير مؤكدة؛ احتفظ بنفس المحاولة ولا تكرر تعديلًا جديدًا.',
+    STAFF_BACKEND_NOT_READY:'خدمة إنشاء الموظفين على Beta غير جاهزة بعد.',
+    STAFF_COMMIT_RECONCILIATION_REQUIRED:'إنشاء الموظف يحتاج مراجعة الإيصال قبل إعادة المحاولة.',
+    REQUEST_DIGEST_UNAVAILABLE:'تعذر تأمين بصمة الطلب؛ لا تكرر العملية قبل المراجعة.'
+  };
+  return new Error('Top Chicken Beta — '+String(status)+' ('+code+'): '+(explanations[code]||'تعذر إتمام طلب الموظفين؛ راجع رمز الخطأ مع الدعم.'));
+}
+async function req(path,opt={}){
+  const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
+  let d=null;try{d=await r.json()}catch{}
+  if(!r.ok){
+    if(path==='/functions/v1/top-chicken-staff'&&
+       String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'&&r.status===503)
+      throw topChickenStaffHttpError(r.status,d);
+    throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);
+  }
+  return d;
+}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 let topChickenStaffContextActive=false;
 async function isTopChickenStaffContext(){
