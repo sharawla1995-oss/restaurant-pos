@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {webcrypto} from 'node:crypto';
+import {signBody,verifyBody,requireBridgeKey,withinSeconds} from '../../supabase/functions/top-chicken-entitlement-bridge/hmac.mjs';
+const base='supabase/functions/';
+const central=fs.readFileSync(base+'top-chicken-commercial-proof/index.ts','utf8');
+const beta=fs.readFileSync(base+'top-chicken-commercial-sync/index.ts','utf8');
+const sql=fs.readFileSync('review-only/top-chicken-commercial-lease-bridge-NO-DEPLOY.sql','utf8');
+let checks=0;
+function pass(name,fn){const r=fn();checks++;console.log('PASS',name);return r}
+const secret='0a'.repeat(32),wrong='0b'.repeat(32),payload=JSON.stringify({business_id:'5358328c-9724-49aa-affc-1bce8be90f92',nonce:'c9f6341f-9884-4914-a1ea-0242e7df0bb6',issued_at:new Date().toISOString()});
+pass('explicit 256-bit server-only HMAC secret',()=>{
+ assert.doesNotThrow(()=>requireBridgeKey(secret));
+ for(const value of ['short',null,'zz'.repeat(32)])assert.throws(()=>requireBridgeKey(value));
+});
+const signature=await signBody(secret,payload);
+pass('valid signed request verifies, tampered payload and signatures fail',async()=>{});
+assert.equal(await verifyBody(secret,payload,signature),true);
+assert.equal(await verifyBody(secret,payload+' ',signature),false);
+assert.equal(await verifyBody(wrong,payload,signature),false);
+assert.equal(await verifyBody(secret,payload,'a'.repeat(64)),false);
+assert.equal(await verifyBody(secret,payload,'bad'),false);
+pass('time-bound request; 5-second future/stale denied',()=>{
+ const n=new Date('2026-10-16T00:02:00Z');
+ assert.equal(withinSeconds('2026-10-16T00:01:56Z',n,5),true);
+ assert.equal(withinSeconds('2026-10-16T00:01:54Z',n,5),false);
+ assert.equal(withinSeconds('2026-10-16T00:02:06Z',n,5),false);
+});
+pass('Central service only ever reads scoped five resolver codes',()=>{
+ assert.match(central,/const U='https:\/\/ikppryeavoabnugcijeq\.supabase\.co'/);
+ assert.match(central,/verifyBody\(key,raw/);
+ assert.match(central,/Promise\.all\(CODES\.map\(code=>/);
+ assert.match(central,/resolve_sharawla_commercial_entitlement_cloud_v1/);
+ assert.doesNotMatch(central,/business_paid_addons.*insert|grant_paid_addon|assign_base_package/i);
+});
+pass('Central admin JWT and Beta branch-22 staff JWT use separate signed proof modes',()=>{
+ assert.match(beta,/admin\.auth\.getUser\(bearer\.slice\(7\)\)/);
+ assert.match(beta,/\.eq\('business_id',BUSINESS\)\.eq\('branch_id',22\)\.eq\('active',true\)/);
+ assert.match(beta,/business_auth_memberships/);
+ assert.match(beta,/branches/);
+ assert.match(beta,/mode='beta_operator'/);
+ assert.match(beta,/mode:'beta_operator'\|'central_admin'/);
+ assert.match(beta,/snapshot\.mode!==mode/);
+ assert.match(beta,/snapshot\.actor_user_id!==beta_actor_id/);
+ assert.match(central,/mode==='beta_operator'/);
+ assert.match(central,/mode==='central_admin'/);
+ assert.match(central,/cloud\.auth\.getUser\(bearer\.slice\(7\)\)/);
+ assert.match(central,/sharawla_admins/);
+ assert.match(beta,/verifyBody\(secret,text/);
+ assert.match(beta,/buildTopChickenCentralLease\(snapshot/);
+ assert.match(beta,/top_chicken_commit_entitlement_lease_v1/);
+ assert.doesNotMatch(beta,/admin\.from\('operational_feature_entitlements_v1'\)/);
+});
+pass('Beta SQL function only five features and service-role access',()=>{
+ assert.match(sql,/NO-DEPLOY|DO NOT APPLY/);
+ assert.match(sql,/branch 22|branch 22/i);
+ assert.match(sql,/top_chicken_entitlement_sync_receipts_v1/);
+ assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
+ assert.match(sql,/REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC,anon,authenticated/);
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION[\s\S]*TO service_role/);
+ assert.match(sql,/HMAC-signed proof verified by the Beta Edge/);
+ assert.match(sql,/TC_EXACT_FIVE_FEATURES_REQUIRED/);
+ assert.match(sql,/TC_OLDER_OR_EQUAL_PROOF/);
+ assert.match(sql,/TC_PROOF_NONCE_REUSE_CHANGED/);
+ assert.match(sql,/TC_PROOF_STALE/);
+ assert.match(sql,/TC_FEATURE_ROW_INVALID/);
+ assert.match(sql,/cloud_business_id=c_business/);
+ assert(!/\b(?:DROP TABLE|TRUNCATE|DELETE FROM|ALTER TABLE public\.employees)\b/i.test(sql));
+ assert(sql.indexOf('TC_PROOF_NONCE_REUSE_CHANGED')<sql.indexOf('TC_PROOF_STALE'));
+});
+console.log('PASS: '+checks+' scope groups; no SQL was executed or Edge deployed.');

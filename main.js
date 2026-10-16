@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
 const topChickenUpdates = require('./top-chicken-update-channel');
+const {resetTopChickenTestQueue}=require('./top-chicken-test-queue-reset');
 let db, SQL, mainWindow;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
@@ -409,6 +410,11 @@ function registerIpc(){
  ipcMain.handle('ops:put',(_e,op)=>run(`insert into local_operations(client_tx_id,type,payload,status,updated_at) values(?,?,?,'pending',datetime('now')) on conflict(client_tx_id) do update set payload=excluded.payload,updated_at=datetime('now')`,[String(op.client_tx_id),String(op.type),JSON.stringify(op)]));
  ipcMain.handle('ops:list',(_e,status='pending')=>all('select * from local_operations where status=? order by id',[status]).map(r=>({...r,payload:JSON.parse(r.payload)})));
  ipcMain.handle('ops:status',(_e,id,status,error=null)=>run(`update local_operations set status=?,attempts=attempts+1,last_error=?,updated_at=datetime('now') where client_tx_id=?`,[status,error,String(id)]));
+ ipcMain.handle('tc:reset-test-queue',(_e,input={})=>resetTopChickenTestQueue({
+   db,one,persistDb,createBackup,license:readLicenseStateFile(),
+   fingerprintCandidates:deviceFingerprintCandidates(),branchId:input.branch_id
+ }));
+
  ipcMain.handle('backup:create',(_e,reason='manual')=>createBackup(String(reason||'manual').replace(/[^a-z0-9_-]/gi,'-')));
  ipcMain.handle('backup:saveJson',(_e,json,reason='full')=>saveJsonBackup(json,String(reason||'full').replace(/[^a-z0-9_-]/gi,'-')));
  ipcMain.handle('backup:list',()=>fs.readdirSync(backupDir()).filter(x=>x.endsWith('.sqlite')).sort().reverse());

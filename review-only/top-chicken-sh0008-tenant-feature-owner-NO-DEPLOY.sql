@@ -61,7 +61,12 @@ BEGIN
    );
  END IF;
 
- -- Preserve legacy Beta decision for every other business during Phase A.
+ -- No validated active tenant context: NEVER borrow legacy singleton grants.
+ -- Verified actors for legacy or other Beta businesses preserve their existing
+ -- fallback. A missing/forged/ambiguous selector cannot yield true here.
+ IF v_actor_business IS NULL THEN RETURN false; END IF;
+
+ -- Preserve legacy Beta decision for every OTHER VERIFIED business during Phase A.
  v_existing_legacy_business:=sharawla_internal.current_operational_business_id_v1();
  RETURN EXISTS(
     SELECT 1 FROM sharawla_internal.operational_feature_entitlements_v1 e

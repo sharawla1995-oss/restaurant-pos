@@ -226,8 +226,10 @@ BEGIN
  INSERT INTO public.employees(name,username,role,branch_id,active,auth_user_id,business_id)
  VALUES(v_name,v_username,v_role,22,coalesce(p_active,true),p_auth_user_id,v_business)
  RETURNING id INTO v_employee_id;
+ -- A disabled employee must never begin with an active tenant membership.
+ -- Source of effective authorization remains employee AND membership active.
  INSERT INTO public.business_auth_memberships(auth_user_id,business_id,active,source)
- VALUES(p_auth_user_id,v_business,true,'top-chicken-staff-v1');
+ VALUES(p_auth_user_id,v_business,coalesce(p_active,true),'top-chicken-staff-v1');
  INSERT INTO public.employee_branches(employee_id,branch_id,business_id)
  VALUES(v_employee_id,22,v_business);
  IF v_role<>'admin' THEN

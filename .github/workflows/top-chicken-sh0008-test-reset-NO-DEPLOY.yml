@@ -1,0 +1,48 @@
+name: Top Chicken SH-0008 test reset isolated regression (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'app.js'
+      - 'main.js'
+      - 'preload.js'
+      - 'top-chicken-test-queue-reset.js'
+      - 'top-chicken-update-channel.js'
+      - 'tests/top-chicken/test-queue-reset-regression.cjs'
+      - 'tests/top-chicken/pending-sync-diagnostics-regression.cjs'
+      - 'tests/top-chicken/customer-create-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-test-reset-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Parse changed SH-0008 entrypoints
+        run: |
+          node --check app.js
+          node --check main.js
+          node --check preload.js
+          node --check top-chicken-test-queue-reset.js
+          node --check tests/top-chicken/test-queue-reset-regression.cjs
+      - name: Install pinned SQL.js in disposable temporary folder only
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc-sql"
+          npm --prefix "$RUNNER_TEMP/tc-sql" install --no-save --ignore-scripts --no-audit --no-fund sql.js@1.8.0
+      - name: Run actual in-memory SQLite reset, backup, rollback and isolation tests
+        shell: bash
+        run: |
+          export NODE_PATH="$RUNNER_TEMP/tc-sql/node_modules"
+          node tests/top-chicken/test-queue-reset-regression.cjs
+          node tests/top-chicken/pending-sync-diagnostics-regression.cjs
+          node tests/top-chicken/customer-create-regression.cjs
+      - name: Guard against live release and cloud deployment
+        run: |
+          echo 'PASS source-only; no SQL, Edge, entitlement, server reset, device access or installer publication.'

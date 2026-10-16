@@ -1,0 +1,60 @@
+// SOURCE CANDIDATE — DO NOT DEPLOY without independent Central Edge approval.
+// Must deploy to Central ikppryeavoabnugcijeq ONLY with verify_jwt=false.
+// HMAC verified from trusted Beta Edge, with operator session verified on Beta or Central admin JWT on Central. Pinned tenant.
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+import {BUSINESS,CODES} from '../top-chicken-entitlement-bridge/central-decision.mjs';
+import {requireBridgeKey,verifyBody,signBody,withinSeconds} from '../top-chicken-entitlement-bridge/hmac.mjs';
+const U='https://ikppryeavoabnugcijeq.supabase.co';
+const key=Deno.env.get('TC_BRIDGE_HMAC_KEY')??'';
+const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')??'';
+if(Deno.env.get('SUPABASE_URL')!==U||!service)throw Error('WRONG_CENTRAL_PROJECT');
+requireBridgeKey(key);
+const cloud=createClient(U,service,{auth:{persistSession:false,autoRefreshToken:false}});
+const json=(body:unknown,code=200,signature?:string)=>new Response(JSON.stringify(body),{status:code,headers:{'content-type':'application/json','cache-control':'no-store',...(signature?{'x-tc-proof-signature':signature}:{})}});
+const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+Deno.serve(async req=>{
+ if(req.method!=='POST')return json({error:'METHOD_NOT_ALLOWED'},405);
+ try{
+  const raw=await req.text();
+  if(raw.length>1024||!await verifyBody(key,raw,req.headers.get('x-tc-request-signature')))return json({error:'UNAUTHORIZED'},403);
+  const body=JSON.parse(raw);
+  if(body?.business_id!==BUSINESS||!UUID.test(body?.nonce??'')||
+     !withinSeconds(body?.issued_at,new Date(),5))return json({error:'PROOF_REQUEST_INVALID'},403);
+  const mode=body?.mode;
+  let actor_user_id:string;
+  if(mode==='beta_operator'){
+    // Only the Beta Edge has the shared server-only HMAC key, and only after
+    // independently verifying its Beta Auth session, membership and branch 22.
+    if(!UUID.test(body?.beta_actor_id??'')||
+       Object.keys(body).sort().join(',')!=='beta_actor_id,business_id,issued_at,mode,nonce')
+       return json({error:'BETA_ACTOR_PROOF_INVALID'},403);
+    actor_user_id=body.beta_actor_id;
+  }else if(mode==='central_admin'){
+    if(Object.keys(body).sort().join(',')!=='business_id,issued_at,mode,nonce')
+       return json({error:'PROOF_REQUEST_INVALID'},403);
+    const bearer=req.headers.get('authorization')??'';
+    if(!/^Bearer [^\s]+$/.test(bearer))return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+    const user=await cloud.auth.getUser(bearer.slice(7));
+    if(user.error||!user.data.user?.id)return json({error:'CENTRAL_ADMIN_LOGIN_REQUIRED'},401);
+    actor_user_id=user.data.user.id;
+    const check=await cloud.from('sharawla_admins').select('user_id').eq('user_id',actor_user_id).eq('active',true).maybeSingle();
+    if(check.error||!check.data)return json({error:'CENTRAL_ADMIN_REQUIRED'},403);
+  }else return json({error:'INVALID_SYNC_MODE'},403);
+  const observed_at=new Date().toISOString();
+  // Evaluate all five codes at ONE Central timestamp concurrently, rather
+  // than risking expiration of the 5-second signed handoff window.
+  const results=await Promise.all(CODES.map(code=>
+    cloud.rpc('resolve_sharawla_commercial_entitlement_cloud_v1',
+      {p_business_id:BUSINESS,p_feature_code:code,p_at_time:observed_at})
+  ));
+  const data:Record<string,unknown>={};
+  for(let i=0;i<CODES.length;i++){
+   const r=results[i];
+   if(r.error||!r.data||Array.isArray(r.data))throw Error('CENTRAL_UNAVAILABLE');
+   data[CODES[i]]=r.data;
+  }
+  const responseBody=JSON.stringify({business_id:BUSINESS,actor_user_id,mode,observed_at,nonce:body.nonce,decisions:data});
+  const signature=await signBody(key,responseBody);
+  return new Response(responseBody,{status:200,headers:{'content-type':'application/json','cache-control':'no-store','x-tc-proof-signature':signature}});
+ }catch{return json({error:'CENTRAL_PROOF_UNAVAILABLE'},503)}
+});

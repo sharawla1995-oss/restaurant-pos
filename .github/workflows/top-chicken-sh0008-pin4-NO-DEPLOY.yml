@@ -1,0 +1,61 @@
+name: Top Chicken SH-0008 isolated PIN4 authentication candidate (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'supabase/functions/top-chicken-pin-login/**'
+      - 'supabase/functions/top-chicken-staff/**'
+      - 'review-only/top-chicken-sh0008-pin4-login-NO-DEPLOY.sql'
+      - 'tests/top-chicken/pin4-*.cjs'
+      - 'tests/top-chicken/pin4-*.sql'
+      - '.github/workflows/top-chicken-sh0008-pin4-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pin-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: |
+          node --check app.js
+          node --check supabase/functions/top-chicken-staff/pin-login-domain.mjs
+          node --check tests/top-chicken/pin4-staff-source-regression.cjs
+          node tests/top-chicken/pin4-staff-source-regression.cjs
+      - uses: denoland/setup-deno@v2
+        with: {deno-version: v2.x}
+      - name: Typecheck both candidate Edge Functions
+        run: |
+          deno check --allow-import supabase/functions/top-chicken-staff/index.ts
+          deno check --allow-import supabase/functions/top-chicken-pin-login/index.ts
+      - run: echo 'NO Edge deployment, no production device, no credential secrets.'
+  isolated-postgres17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-fixture-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: local-fixture-only
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Real disposable PG17 PIN lock and tenant/expiry tests
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/top-chicken/pin4-isolated-pg17.sql
+      - run: echo 'NO access to real Beta or Production database.'

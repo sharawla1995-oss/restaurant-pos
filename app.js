@@ -412,7 +412,33 @@ function headers(auth=true){
    ...(auth&&session?.access_token?{Authorization:`Bearer ${session.access_token}`}:{}),
    ...(tcSignedInScope?{'x-sharawla-business':'5358328c-9724-49aa-affc-1bce8be90f92'}:{})};
 }
-async function req(path,opt={}){const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});let d=null;try{d=await r.json()}catch{}if(!r.ok)throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);return d}
+// Diagnostic messages are intentionally limited to the Top Chicken Beta staff
+// endpoint; do not reveal headers, credentials, request bodies or other tenants.
+function topChickenStaffHttpError(status,data){
+  const code=typeof data?.code==='string'&&/^[A-Z][A-Z0-9_]{2,100}$/.test(data.code)?data.code:'UNKNOWN';
+  const explanations={
+    STAFF_PIN_SECRET_UNCONFIGURED:'إعداد دخول الموظفين بالرقم السري غير مكتمل على سيرفر توب تشيكن. لم يتم تأكيد الحفظ.',
+    STAFF_BACKEND_UNCONFIGURED:'خدمة موظفي توب تشيكن غير مكتملة الإعداد على السيرفر.',
+    AUTH_VERIFICATION_UNAVAILABLE:'تعذر التحقق من جلسة الموظف مؤقتًا. لا تحفظ العملية مرة ثانية قبل المراجعة.',
+    STAFF_MANAGE_COMMIT_UNVERIFIED:'السيرفر لم يؤكد حفظ تعديل الصلاحيات؛ راجع السجل قبل إعادة المحاولة.',
+    STAFF_MANAGE_OUTCOME_UNCERTAIN:'نتيجة تعديل الصلاحيات غير مؤكدة؛ احتفظ بنفس المحاولة ولا تكرر تعديلًا جديدًا.',
+    STAFF_BACKEND_NOT_READY:'خدمة إنشاء الموظفين على Beta غير جاهزة بعد.',
+    STAFF_COMMIT_RECONCILIATION_REQUIRED:'إنشاء الموظف يحتاج مراجعة الإيصال قبل إعادة المحاولة.',
+    REQUEST_DIGEST_UNAVAILABLE:'تعذر تأمين بصمة الطلب؛ لا تكرر العملية قبل المراجعة.'
+  };
+  return new Error('Top Chicken Beta — '+String(status)+' ('+code+'): '+(explanations[code]||'تعذر إتمام طلب الموظفين؛ راجع رمز الخطأ مع الدعم.'));
+}
+async function req(path,opt={}){
+  const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
+  let d=null;try{d=await r.json()}catch{}
+  if(!r.ok){
+    if(path==='/functions/v1/top-chicken-staff'&&
+       String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'&&r.status===503)
+      throw topChickenStaffHttpError(r.status,d);
+    throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);
+  }
+  return d;
+}
 async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?`?${query}`:''}`,opt)}
 let topChickenStaffContextActive=false;
 async function isTopChickenStaffContext(){
@@ -426,16 +452,26 @@ async function isTopChickenStaffContext(){
 }
 async function callFunction(name,payload={}){
   if(name==='smart-function' && await isTopChickenStaffContext())name='top-chicken-staff';
+  if(name==='top-chicken-staff'&&isTopChickenSyncDiagnosticsScope()&&session?.access_token)
+    await refreshTopChickenCommercialLease('core.permissions');
   return req(`/functions/v1/${name}`,{method:'POST',body:JSON.stringify(payload)})
 }
 async function mutateTopChickenStaff(payload){
   if(!await isTopChickenStaffContext()||!session?.user?.id)throw new Error('نشاط توب تشيكن التجريبي مطلوب');
   if(payload?.action==='create'){
     const username=String(payload.username||'').trim().toLowerCase();
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username))
-      throw new Error('إضافة موظف جديد تحتاج بريد إلكتروني كامل وصحيح، مثل name@example.com؛ اسم بدون @ ليس بريد دخول');
-    if(!String(payload.name||'').trim()||String(payload.password||'').length<8)
-      throw new Error('اسم الموظف وكلمة مرور من 8 أحرف على الأقل مطلوبان');
+    if(payload.auth_mode==='pin4'){
+      if(!/^[a-z][a-z0-9._-]{2,31}$/.test(username))
+        throw new Error('اسم الدخول يجب أن يكون 3 إلى 32 حرفًا إنجليزيًا أو أرقامًا، ويبدأ بحرف');
+      if(!/^[0-9]{4}$/.test(String(payload.password||'')))
+        throw new Error('الرقم السري يجب أن يكون 4 أرقام بالضبط');
+      if(!String(payload.name||'').trim())throw new Error('اكتب اسم الموظف');
+    }else{
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username))
+        throw new Error('تسجيل الدخول بالبريد يتطلب بريدًا صحيحًا');
+      if(!String(payload.name||'').trim()||String(payload.password||'').length<8)
+        throw new Error('اسم الموظف وكلمة مرور 8 أحرف مطلوبة');
+    }
     if(Number(payload.branch_id)!==22||(payload.branch_ids||[]).some(id=>Number(id)!==22))
       throw new Error('يمكن إضافة مستخدمي Top Chicken على الفرع 22 فقط');
     payload={...payload,username,branch_id:22,branch_ids:[22],
@@ -458,7 +494,89 @@ async function mutateTopChickenStaff(payload){
   if(payload.action==='create'&&result.permissions_persisted!==true)throw new Error('لم يؤكد السيرفر حفظ الصلاحيات');
   localStorage.removeItem(key);return result;
 }
-async function rpc(name,payload={}){return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})}
+// SH-0008 scoped, fail-closed Central entitlement lease refresh before the
+// five protected operational owners. No central Admin JWT or secret is exposed.
+// Beta Edge verifies Beta Auth + branch-22 membership and obtains signed proof.
+const TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS=Object.freeze({
+  offline_delivery_driver_save_v1:'commerce.delivery',
+  offline_delivery_zone_save_v1:'commerce.delivery',
+  offline_delivery_assign_driver_v1:'commerce.delivery',
+  offline_delivery_driver_settle_v1:'commerce.delivery',
+  food_supplier_save_v1:'inventory.suppliers',
+  offline_food_supplier_save_v1:'inventory.suppliers',
+  food_supplier_return_create_v1:'inventory.suppliers'
+});
+let topChickenCommercialLeaseCache=null;
+async function refreshTopChickenCommercialLease(feature){
+  if(!isTopChickenSyncDiagnosticsScope())return;
+  const uid=String(session?.user?.id||'');
+  const jwt=String(session?.access_token||'');
+  if(!uid||!jwt)throw new Error('مطلوب تسجيل دخول موظف توب تشيكن لتحديث الصلاحيات');
+  const now=Date.now(),cache=topChickenCommercialLeaseCache;
+  if(cache?.actor===uid&&cache?.jwt===jwt&&cache.expires>now+12000&&cache.features?.[feature]===true)return;
+  // In-flight refresh is not saved in the offline operation queue. A failed
+  // Central check refuses the subsequent operational write, without replaying.
+  let proof;
+  try{proof=await req('/functions/v1/top-chicken-commercial-sync',{method:'POST',body:'{}'})}
+  catch(e){topChickenCommercialLeaseCache=null;throw new Error('تعذر تحديث صلاحيات توب تشيكن من شراولة أدمن: '+String(e?.message||e))}
+  if(proof?.ok!==true||proof.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'
+    ||!Array.isArray(proof.features)||proof.features.length!==5){
+    topChickenCommercialLeaseCache=null;throw new Error('لم يتم تأكيد استحقاقات Top Chicken من السيرفر');
+  }
+  const entry=Object.fromEntries(proof.features.map(x=>[x.code,!!x.enabled]));
+  const until=Math.min(...proof.features.filter(x=>x.enabled).map(x=>Date.parse(x.valid_until)));
+  if(!Number.isFinite(until)||until<=now+5000){
+    topChickenCommercialLeaseCache=null;throw new Error('مدة صلاحيات Top Chicken غير صالحة');
+  }
+  topChickenCommercialLeaseCache={actor:uid,jwt,features:entry,expires:until};
+  if(entry[feature]!==true)throw new Error('صلاحية '+feature+' غير مفعلة لتوب تشيكن في شراولة أدمن');
+}
+// Top Chicken ONLY: use the existing authoritative durable supplier writer.
+// Canonical Beta RPC validates action entitlement, membership, tenant and
+// the idempotent request receipt; preserve the original owner for all others.
+async function topChickenDurableSupplierSave(payload){
+  if(!isTopChickenSyncDiagnosticsScope()||!session?.user?.id)
+    throw new Error('حفظ الموردين متاح لتوب تشيكن فرع 22 فقط');
+  if(!payload||typeof payload!=='object'||Array.isArray(payload))
+    throw new Error('بيانات المورد غير صحيحة');
+  const expected=['p_supplier_id','p_name','p_phone','p_email','p_tax_no','p_address','p_notes','p_active'];
+  if(Object.keys(payload).some(k=>!expected.includes(k)))throw new Error('مدخل مورد غير مصرح به');
+  const name=String(payload.p_name||'').trim();
+  if(!name)throw new Error('اسم المورد مطلوب');
+  const supplier_id=payload.p_supplier_id==null?null:Number(payload.p_supplier_id);
+  if(supplier_id!==null&&(!Number.isSafeInteger(supplier_id)||supplier_id<=0))
+    throw new Error('معرّف المورد غير صالح');
+  if(!globalThis.crypto?.subtle||!globalThis.crypto?.randomUUID)
+    throw new Error('تشفير الطلب غير متاح');
+  const actor=String(session.user.id),business='5358328c-9724-49aa-affc-1bce8be90f92';
+  const safe={p_supplier_id:supplier_id,p_name:name,
+    p_phone:payload.p_phone||null,p_email:payload.p_email||null,
+    p_tax_no:payload.p_tax_no||null,p_address:payload.p_address||null,
+    p_notes:payload.p_notes||null,p_active:payload.p_active!==false};
+  const src=JSON.stringify({business,branch:22,actor,operation:'supplier_save',payload:safe});
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(src));
+  const digest=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
+  const key=['tc-supplier-v1',business,actor,digest].join(':');
+  let tx=localStorage.getItem(key);
+  if(!tx){tx=crypto.randomUUID();localStorage.setItem(key,tx);
+    if(localStorage.getItem(key)!==tx)throw new Error('تعذر حفظ معرّف العملية قبل الإرسال')}
+  // Do not clear the tx on uncertain result; same exact payload is replayed.
+  const result=await rpc('offline_food_supplier_save_v1',{
+    ...safe,p_client_tx_id:tx,p_payload_digest:digest
+  });
+  if(result?.ok!==true||!Number.isSafeInteger(Number(result.supplier_id))||
+    Number(result.supplier_id)<=0||result.client_tx_id!==tx)
+    throw new Error('لم يؤكد السيرفر حفظ المورد بإيصال');
+  localStorage.removeItem(key);
+  return result.supplier_id;
+}
+async function rpc(name,payload={}){
+  if(name==='food_supplier_save_v1'&&isTopChickenSyncDiagnosticsScope())
+    return topChickenDurableSupplierSave(payload);
+  const feature=TOP_CHICKEN_COMMERCIAL_REFRESH_OWNERS[name];
+  if(feature&&isTopChickenSyncDiagnosticsScope())await refreshTopChickenCommercialLease(feature);
+  return req(`/rest/v1/rpc/${name}`,{method:'POST',body:JSON.stringify(payload)})
+}
 async function topChickenOrderOperation(name,payload){
   // Tenant and actor bind the durable retry key; a new login cannot reuse another actor's receipt.
   const business=String(state.employee?.business_id||'');
@@ -607,11 +725,32 @@ async function showTopChickenSyncDiagnostics(){
     ' — إعادة المحاولة: '+(isTopChickenSyncPaused()?'موقوفة للحماية':'مسموحة')+'</p>'+
     (lines||'<p>لا توجد حركات في الطابور الحالي؛ لو العداد قديم اقفل النافذة وحدّث الصفحة.</p>')+
     '<div class="modal-actions">'+
+    '<button class="danger" data-tc-sync-reset-test>تصفير بيانات الاختبار</button>'+
     '<button class="secondary" data-tc-sync-pause>'+ (isTopChickenSyncPaused()?'استئناف محاولات المزامنة':'إيقاف المحاولات مؤقتًا')+'</button>'+
     '<button class="secondary" data-tc-sync-close>إغلاق</button></div></div>';
   document.body.appendChild(m);
-  m.onclick=e=>{
+  m.onclick=async e=>{
     if(e.target===m||e.target.closest('[data-tc-sync-close]')){m.remove();return}
+    if(e.target.closest('[data-tc-sync-reset-test]')){
+      const button=e.target.closest('[data-tc-sync-reset-test]');
+      if(!confirm('سيتم تصفير حركات المزامنة التجريبية غير المتزامنة على SH-0008 / Top Chicken فقط. لن تُمس فواتير السيرفر أو العملاء. متابعة؟'))return;
+      button.disabled=true;
+      try{
+        // Prevent any existing test transaction being resent while cleaning.
+        localStorage.setItem(TOP_CHICKEN_SYNC_PAUSE_KEY,'1');
+        topChickenSyncResumeApprovedThisSession=false;
+        const reset=window.topBurgerDesktop?.topChickenTestQueue?.reset;
+        if(typeof reset!=='function')throw new Error('تصفير معاملات SH-0008 غير متاح في نسخة البرنامج الحالية');
+        const result=await reset({branch_id:22});
+        if(result?.ok!==true||result.scope!=='SH-0008/TOP-CHICKEN/22')
+          throw new Error('لم يؤكد الجهاز تصفير معاملات الاختبار');
+        await refreshPendingSyncBadge();
+        toast('تم تصفير معاملات الاختبار على الجهاز، مع الاحتفاظ بالحركات المتزامنة');
+        m.remove();
+        await showTopChickenSyncDiagnostics();
+      }catch(error){toast('لم يتم التصفير: '+String(error?.message||error));button.disabled=false}
+      return;
+    }
     if(e.target.closest('[data-tc-sync-pause]')){
       if(!isTopChickenSyncDiagnosticsScope()){m.remove();return}
       const paused=!isTopChickenSyncPaused();
@@ -675,15 +814,33 @@ async function rememberOfflineLogin(email,password){
 async function signIn(email,password){
   email=String(email||'').trim().toLowerCase();
   if(navigator.onLine){
-    // Current Top Chicken accounts are Supabase Auth email users. The Beta-only
-    // top-chicken-staff Edge Function has not been deployed, so never route
-    // working email logins to a nonexistent endpoint. Preserve ordinary tenants.
-    if(!email.includes('@') && await isTopChickenStaffContext())
-      throw new Error('تسجيل الدخول باسم المستخدم لتوب تشيكن غير متاح حتى نشر خدمة الموظفين؛ استخدم البريد الإلكتروني للحساب الحالي.');
+    if(!email.includes('@') && await isTopChickenStaffContext()){
+      if(!/^[a-z][a-z0-9._-]{2,31}$/.test(email)||!/^[0-9]{4}$/.test(String(password)))
+        throw new Error('اكتب اسم مستخدم صحيح ورقم سري 4 أرقام');
+      let reply;
+      try{reply=await req('/functions/v1/top-chicken-pin-login',{
+        method:'POST',auth:false,body:JSON.stringify({username:email,pin:String(password)})})}
+      catch(e){
+        if(/404|not.found/i.test(String(e?.message||e)))
+          throw new Error('خدمة دخول الموظفين بالرقم السري لم تُنشر بعد على Beta');
+        throw e;
+      }
+      const d=reply?.session;
+      if(reply?.ok!==true||reply.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'||
+         !d?.access_token||!d?.refresh_token||!d?.user?.id)
+        throw new Error('السيرفر لم يؤكد جلسة دخول الموظف');
+      session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+      // Online PIN verification is the authority; no offline fallback to a
+      // locally brute-forceable 4-digit verifier.
+      localStorage.removeItem('offlineLoginVerifier');
+      return d;
+    }
     const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
     session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
+  if(!email.includes('@') && await isTopChickenStaffContext())
+    throw new Error('دخول الموظف بالرقم السري يحتاج إنترنت لحماية الحساب من التخمين');
   const v=JSON.parse(localStorage.getItem('offlineLoginVerifier')||'null');
   if(!v||v.email!==email||await offlinePasswordHash(password,v.salt)!==v.hash)throw new Error('بيانات الدخول غير صحيحة أو لم يتم تسجيل هذا المستخدم على الجهاز أثناء وجود الإنترنت');
   if(!resumeSession?.access_token)throw new Error('لا توجد جلسة محفوظة للعمل بدون إنترنت على هذا الجهاز');
@@ -1005,6 +1162,7 @@ function renderPOS(){
    <select id="orderType"><option value="takeaway">تيك أواي</option>${state.settings.enable_delivery&&moduleEnabled('delivery')?`<option value="delivery">دليفري</option>`:''}<option value="dinein">صالة</option></select>
    <input id="customerPhone" inputmode="tel" placeholder="رقم العميل">
    <input id="customerName" placeholder="اسم العميل">
+   ${isTopChickenSyncDiagnosticsScope()?'<button type="button" class="secondary" id="newPosCustomer">+ إضافة عميل</button>':''}
   </div>
   <div id="deliveryFields" class="delivery-fields hidden">
    <select id="deliveryBranch" disabled><option value="${currentBranchId()}" selected>${esc(branchName(currentBranchId()))}</option></select>
@@ -1028,6 +1186,7 @@ function renderPOS(){
  </aside></div>`;
  $('#catTabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;state.cat=b.dataset.cat;$$('#catTabs button').forEach(x=>x.classList.toggle('active',x===b));drawProducts()};
  $('#productSearch').oninput=drawProducts;
+ if($('#newPosCustomer'))$('#newPosCustomer').onclick=()=>openTopChickenCustomerForm(async c=>{$('#customerPhone').value=c.phone;$('#customerName').value=c.name;await lookupCustomerByPhone()});
  if($('#discount'))$('#discount').oninput=drawCart;if($('#discountType'))$('#discountType').onchange=drawCart;if($('#applyPosPromo'))$('#applyPosPromo').onclick=applyPosPromo;
  $('#orderType').onchange=()=>{toggleDeliveryFields();drawCart()};
  $('#deliveryZone')?.addEventListener('change',e=>{
@@ -1658,10 +1817,60 @@ async function openCustomer360(customer){
  render();
 }
 
+// Top Chicken only: add customers from the customers screen or checkout.
+// The existing backend's branch/tenant RLS remains authoritative.
+async function topChickenCustomerCreate({name,phone,address='',area=''}){
+ if(!await isTopChickenStaffContext()||Number(currentBranchId())!==22)
+   throw new Error('إضافة العميل بهذه الطريقة متاحة لتوب تشيكن فقط');
+ name=String(name||'').trim();phone=normalizePhone(String(phone||''));
+ address=String(address||'').trim();area=String(area||'').trim();
+ if(!name||name.length>120)throw new Error('اكتب اسم العميل');
+ if(!/^01[0125]\d{8}$/.test(phone))throw new Error('رقم الموبايل لازم يكون 11 رقم مصري صحيح');
+ const prior=await rest('customers',`select=id,name,phone&phone=eq.${encodeURIComponent(phone)}&limit=1`);
+ if(prior?.length)throw new Error('رقم الموبايل مسجل بالفعل للعميل '+String(prior[0].name||''));
+ const rows=await rest('customers','select=id,name,phone',{method:'POST',
+   headers:{Prefer:'return=representation'},body:JSON.stringify([{name,phone,address:address||null,area:area||null}])});
+ const created=rows?.[0];
+ if(!created?.id)throw new Error('لم يؤكد السيرفر إضافة العميل');
+ if(address){
+   try{await rest('customer_addresses','',{method:'POST',body:JSON.stringify([
+     {customer_id:created.id,label:'العنوان الأساسي',address,area:area||null,is_default:true}])})}
+   catch(e){throw new Error('تم حفظ العميل لكن تعذر حفظ العنوان: '+String(e?.message||e))}
+ }
+ return created;
+}
+function openTopChickenCustomerForm(onSaved){
+ if(!isTopChickenSyncDiagnosticsScope())return toast('إضافة العميل متاحة لتوب تشيكن فرع 22');
+ const m=document.createElement('div');m.className='modal';
+ m.innerHTML=`<form class="modal-card" data-tc-add-customer>
+ <h2>+ إضافة عميل</h2><div class="form-grid">
+ <label>اسم العميل<input data-tc-customer-name required maxlength="120"></label>
+ <label>رقم الموبايل<input data-tc-customer-phone inputmode="tel" required maxlength="11"></label>
+ <label>العنوان<input data-tc-customer-address></label>
+ <label>المنطقة<input data-tc-customer-area></label></div>
+ <div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button>
+ <button type="submit" class="primary">حفظ العميل</button></div></form>`;
+ document.body.appendChild(m);
+ m.onclick=e=>{if(e.target===m||e.target.closest('[data-close]'))m.remove()};
+ m.querySelector('form').onsubmit=async e=>{
+   e.preventDefault();const b=m.querySelector('button[type="submit"]');if(b.disabled)return;b.disabled=true;
+   try{
+     const created=await topChickenCustomerCreate({
+       name:m.querySelector('[data-tc-customer-name]').value,
+       phone:m.querySelector('[data-tc-customer-phone]').value,
+       address:m.querySelector('[data-tc-customer-address]').value,
+       area:m.querySelector('[data-tc-customer-area]').value});
+     m.remove();toast('تم حفظ العميل');await onSaved?.(created);
+   }catch(error){toast(String(error?.message||error))}
+   finally{if(m.isConnected)b.disabled=false}
+ };
+}
+
 async function renderCustomers(){
  let rows=[];try{rows=await fetchAll('customers','select=*&order=created_at.desc');await odbSet('customersCache',rows)}catch(e){if(!isNetError(e))throw e;rows=(await odbGet('customersCache'))||[]}
- $('#page').innerHTML=`<div class="panel"><div class="toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
+ $('#page').innerHTML=`<div class="panel"><div class="toolbar"><h2>العملاء</h2><input id="customerSearch" placeholder="بحث بالاسم أو رقم الموبايل"><button id="newTopChickenCustomer" class="primary" style="display:${isTopChickenSyncDiagnosticsScope()?'':'none'}">+ إضافة عميل</button><button id="importCustomers" class="secondary">📥 استيراد Excel/CSV</button></div><div class="table-wrap"><table><thead><tr><th>الاسم</th><th>الموبايل</th><th>المنطقة</th><th>العنوان</th><th>إجراء</th></tr></thead><tbody id="customersBody"></tbody></table></div></div>`;
  const draw=()=>{const v=$('#customerSearch').value.trim().toLowerCase();$('#customersBody').innerHTML=rows.filter(c=>!v||String(c.name||'').toLowerCase().includes(v)||String(c.phone||'').includes(v)).slice(0,300).map(c=>`<tr><td>${esc(c.name||'')}</td><td>${esc(c.phone||'')}</td><td>${esc(c.area||'')}</td><td>${esc(c.address||'')}</td><td><button class="secondary" data-customer-file="${c.id}">📁 ملف العميل</button> <button class="secondary" data-edit-customer="${c.id}">✏️ تعديل</button> <button class="secondary" data-addresses="${c.id}">📍 العناوين</button></td></tr>`).join('')||'<tr><td colspan="5">لا توجد نتائج</td></tr>'};$('#customerSearch').oninput=draw;draw();$('#importCustomers').onclick=openCustomerImport;
+ $('#newTopChickenCustomer').onclick=()=>openTopChickenCustomerForm(()=>renderCustomers());
  $('#customersBody').onclick=async e=>{const fb=e.target.closest('[data-customer-file]'),eb=e.target.closest('[data-edit-customer]'),ab=e.target.closest('[data-addresses]');if(fb){const customer=rows.find(x=>String(x.id)===fb.dataset.customerFile);if(customer)return openCustomer360(customer)}if(eb){const c=rows.find(x=>String(x.id)===eb.dataset.editCustomer);const name=await uiPrompt('اسم العميل',c.name||'');if(name===null)return;const phone=await uiPrompt('رقم الموبايل',c.phone||'');if(phone===null)return;const area=await uiPrompt('المنطقة',c.area||'');if(area===null)return;const address=await uiPrompt('العنوان',c.address||'');if(address===null)return;const dup=rows.find(x=>x.id!==c.id&&normalizePhone(x.phone)===normalizePhone(phone));if(dup)return toast('رقم الموبايل مسجل لعميل آخر');await rest('customers',`id=eq.${c.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim(),phone:phone.trim(),area:area.trim()||null,address:address.trim()||null,updated_at:new Date().toISOString()})});toast('تم تعديل العميل');renderCustomers();return;}if(ab){openCustomerAddresses(Number(ab.dataset.addresses));}};
 }
 async function openCustomerAddresses(customerId){const rows=await rest('customer_addresses',`select=*&customer_id=eq.${customerId}&order=is_default.desc,id.desc`);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card"><h2>عناوين العميل</h2><div class="option-list">${rows.map(a=>`<div class="manage-row"><span>${esc(a.label||a.area||'عنوان')} — ${esc(a.address||'')}</span><span><button class="secondary" data-edit-address="${a.id}">✏️</button><button class="danger" data-delete-address="${a.id}">🗑️</button></span></div>`).join('')||'<div class="empty">لا توجد عناوين</div>'}</div><button class="secondary" data-add-address>+ إضافة عنوان</button><div class="modal-actions"><button class="primary" data-close>إغلاق</button></div></div>`;document.body.appendChild(m);m.onclick=async e=>{if(e.target.closest('[data-close]')||e.target===m){m.remove();return}const add=e.target.closest('[data-add-address]');if(add){const label=await uiPrompt('اسم العنوان','المنزل');if(label===null)return;const area=await uiPrompt('المنطقة','');if(area===null)return;const address=await uiPrompt('العنوان بالتفصيل','');if(address===null||!address.trim())return;await rest('customer_addresses','',{method:'POST',body:JSON.stringify([{customer_id:customerId,label,area,address,is_default:rows.length===0}])});m.remove();openCustomerAddresses(customerId);return}const ed=e.target.closest('[data-edit-address]');if(ed){const a=rows.find(x=>String(x.id)===ed.dataset.editAddress);const label=await uiPrompt('اسم العنوان',a.label||'');if(label===null)return;const area=await uiPrompt('المنطقة',a.area||'');if(area===null)return;const address=await uiPrompt('العنوان',a.address||'');if(address===null)return;await rest('customer_addresses',`id=eq.${a.id}`,{method:'PATCH',body:JSON.stringify({label,area,address})});m.remove();openCustomerAddresses(customerId);return}const del=e.target.closest('[data-delete-address]');if(del&&await uiConfirm('حذف هذا العنوان؟')){await rest('customer_addresses',`id=eq.${del.dataset.deleteAddress}`,{method:'DELETE'});m.remove();openCustomerAddresses(customerId)}}}
@@ -1669,6 +1878,12 @@ async function openCustomerAddresses(customerId){const rows=await rest('customer
 // SH-0008-only delivery reference writer. Existing Beta RPCs enforce the live
 // action entitlement, actor branch membership, tenant binding, audit, and replay.
 // Keep unrelated businesses on the exact original REST path.
+function topChickenDeliverySaveError(error){
+ const e=String(error?.message||error);
+ if(/DELIVERY_DRIVERS_MANAGE_DENIED|DELIVERY_ZONES_MANAGE_DENIED|ليس لديك صلاحية|FEATURE_NOT_ENTITLED/i.test(e))
+   return 'صلاحية commerce.delivery غير مفعلة لتوب تشيكن في Sharawla Admin. لم يتم حفظ المندوب أو المنطقة.';
+ return 'تعذر حفظ بيانات الدليفري: '+e;
+}
 async function topChickenDeliveryReferenceWrite(kind,input){
   if(!isTopChickenSyncDiagnosticsScope())throw new Error('إدارة الدليفري متاحة لتوب تشيكن بيتا فقط');
   if(kind!=='driver'&&kind!=='zone')throw new Error('نوع عملية الدليفري غير مدعوم');
@@ -1720,8 +1935,8 @@ async function renderDelivery(){
  <div class="panel"><h2>🛵 مناديب التوصيل</h2><div class="form-grid"><label>الاسم<input id="driverName" placeholder="اسم المندوب"></label><label>الموبايل<input id="driverPhone" inputmode="tel" placeholder="رقم الموبايل"></label><label>الفرع<select id="driverBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="chips">${drivers.map(d=>`<span class="chip">${d.name} • ${branchName(d.branch_id)}</span>`).join('')||'لا يوجد مناديب حتى الآن'}</div></div>
  <div class="panel"><h2>📍 مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName" placeholder="اسم المنطقة"></label><label>الفرع المسؤول<select id="zoneBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label><label>رسوم التوصيل<input id="zoneFee" type="number" min="0" step="0.01" value="0"></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="chips">${zones.map(z=>`<span class="chip">${z.name} • ${money(z.delivery_fee)} • ${branchName(z.branch_id)}</span>`).join('')||'لا توجد مناطق حتى الآن'}</div></div></div>
  <div class="panel"><h2>طلبات الدليفري الحالية</h2><div class="table-wrap"><table><thead><tr><th>الأوردر</th><th>الفرع</th><th>العميل</th><th>العنوان</th><th>الحالة</th><th>المندوب</th><th>إجراء</th></tr></thead><tbody>${outOrders.length?outOrders.map(o=>`<tr><td>${esc(bonDisplay(o))}</td><td>${branchName(o.branch_id)}</td><td>${o.customer_phone||'-'}</td><td>${o.delivery_address||'-'}</td><td>${statusLabel(o.status)}</td><td>${drivers.find(d=>String(d.id)===String(o.driver_id))?.name||'-'}</td><td>${o.status!=='out_for_delivery'?`<button class="secondary" data-assign="${o.id}">تسليم لمندوب</button>`:`<button class="primary" data-delivered="${o.id}">تم التسليم</button>`}</td></tr>`).join(''):'<tr><td colspan="7">لا توجد طلبات دليفري حالية</td></tr>'}</tbody></table></div></div>`;
- $('#addDriver').onclick=async()=>{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:null,branch_id:currentBranchId(),name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,active:true}):rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المندوب');renderDelivery()};
- $('#addZone').onclick=async()=>{const zoneNameValue=$('#zoneName').value.trim(),zoneFeeValue=Number($('#zoneFee')?.value||0);if(!zoneNameValue)return toast('اكتب اسم المنطقة');if(!Number.isFinite(zoneFeeValue)||zoneFeeValue<0)return toast('رسوم التوصيل غير صحيحة');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('zone',{id:null,branch_id:currentBranchId(),name:zoneNameValue,delivery_fee:zoneFeeValue,active:true}):rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:zoneNameValue,delivery_fee:zoneFeeValue,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المنطقة');renderDelivery()};
+ $('#addDriver').onclick=async()=>{try{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:null,branch_id:currentBranchId(),name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,active:true}):rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المندوب');renderDelivery()}catch(e){toast(topChickenDeliverySaveError(e))}};
+ $('#addZone').onclick=async()=>{try{const zoneNameValue=$('#zoneName').value.trim(),zoneFeeValue=Number($('#zoneFee')?.value||0);if(!zoneNameValue)return toast('اكتب اسم المنطقة');if(!Number.isFinite(zoneFeeValue)||zoneFeeValue<0)return toast('رسوم التوصيل غير صحيحة');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('zone',{id:null,branch_id:currentBranchId(),name:zoneNameValue,delivery_fee:zoneFeeValue,active:true}):rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:zoneNameValue,delivery_fee:zoneFeeValue,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المنطقة');renderDelivery()}catch(e){toast(topChickenDeliverySaveError(e))}};
  $('#page').onclick=async e=>{
    const a=e.target.closest('[data-assign]'); if(a){
      openDriverPicker(Number(a.dataset.assign),drivers,()=>renderDelivery());return;
@@ -2542,7 +2757,7 @@ function initDeveloperContact(){
 }
 initDeveloperContact();
 
-async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;if(await isTopChickenStaffContext()){const input=$('#email');input.type='email';input.parentElement.firstChild.textContent='البريد الإلكتروني';}show('loginView')}
+async function init(){if(!(await ensureSharawlaLicense()))return;if(!(await ensureSharawlaRuntimeConfig()))return;if(window.topBurgerDesktop?.isDesktop){if(!(await ensureSharawlaBusinessConnection()))return}else if(!cfg.url||!cfg.key)return show('setupView');await ensureSharawlaSupportCode();session=null;if(await isTopChickenStaffContext()){const input=$('#email');input.type='text';input.autocomplete='username';input.inputMode='text';input.parentElement.firstChild.textContent='اسم المستخدم أو البريد الإلكتروني';}show('loginView')}
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js?v=10.5.16-unified-1',{updateViaCache:'none'})
@@ -2786,8 +3001,8 @@ async function renderDeliverySettings(){
  const [drivers,zones]=await Promise.all([rest('delivery_drivers',`select=*&branch_id=eq.${currentBranchId()}&order=active.desc,name`),rest('delivery_zones',`select=*&branch_id=eq.${currentBranchId()}&order=active.desc,name`)]);
  state.drivers=drivers||[];state.deliveryZones=zones||[];
  $('#page').innerHTML=`<div class="grid delivery-admin-grid"><div class="panel"><h2>🛵 المناديب</h2><div class="form-grid"><label>الاسم<input id="driverName"></label><label>الموبايل<input id="driverPhone" inputmode="tel"></label><label>الفرع<select id="driverBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label></div><button id="addDriver" class="primary">إضافة مندوب</button><div class="manage-list">${drivers.filter(d=>d.active!==false).map(d=>`<div class="manage-row"><span>${esc(d.name)}${d.phone?` • ${esc(d.phone)}`:''}</span><span><button class="secondary" data-edit-driver="${d.id}">✏️</button><button class="danger" data-delete-driver="${d.id}">🗑️ حذف</button></span></div>`).join('')||'لا يوجد مناديب'}</div></div><div class="panel"><h2>📍 مناطق الدليفري</h2><div class="form-grid"><label>المنطقة<input id="zoneName"></label><label>الفرع المسؤول<select id="zoneBranch" disabled><option value="${currentBranchId()}">${esc(branchName(currentBranchId()))}</option></select></label><label>رسوم التوصيل<input id="zoneFee" type="number" min="0" step="0.01" value="0"></label></div><button id="addZone" class="primary">إضافة منطقة</button><div class="manage-list">${zones.map(z=>`<div class="manage-row ${z.active===false?'muted':''}"><span>${esc(z.name)} • ${money(z.delivery_fee)}</span><span><button class="secondary" data-edit-zone="${z.id}">✏️</button><button class="secondary" data-toggle-zone="${z.id}">${z.active===false?'تفعيل':'إيقاف'}</button></span></div>`).join('')||'لا توجد مناطق'}</div></div></div>`;
- $('#addDriver').onclick=async()=>{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:null,branch_id:currentBranchId(),name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,active:true}):rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المندوب');renderDeliverySettings()};
- $('#addZone').onclick=async()=>{const zoneNameValue=$('#zoneName').value.trim(),zoneFeeValue=Number($('#zoneFee')?.value||0);if(!zoneNameValue)return toast('اكتب اسم المنطقة');if(!Number.isFinite(zoneFeeValue)||zoneFeeValue<0)return toast('رسوم التوصيل غير صحيحة');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('zone',{id:null,branch_id:currentBranchId(),name:zoneNameValue,delivery_fee:zoneFeeValue,active:true}):rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:zoneNameValue,delivery_fee:zoneFeeValue,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المنطقة');renderDeliverySettings()};
+ $('#addDriver').onclick=async()=>{try{if(!$('#driverName').value.trim())return toast('اكتب اسم المندوب');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:null,branch_id:currentBranchId(),name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,active:true}):rest('delivery_drivers','',{method:'POST',body:JSON.stringify([{name:$('#driverName').value.trim(),phone:$('#driverPhone').value.trim()||null,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المندوب');renderDeliverySettings()}catch(e){toast(topChickenDeliverySaveError(e))}};
+ $('#addZone').onclick=async()=>{try{const zoneNameValue=$('#zoneName').value.trim(),zoneFeeValue=Number($('#zoneFee')?.value||0);if(!zoneNameValue)return toast('اكتب اسم المنطقة');if(!Number.isFinite(zoneFeeValue)||zoneFeeValue<0)return toast('رسوم التوصيل غير صحيحة');await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('zone',{id:null,branch_id:currentBranchId(),name:zoneNameValue,delivery_fee:zoneFeeValue,active:true}):rest('delivery_zones','',{method:'POST',body:JSON.stringify([{name:zoneNameValue,delivery_fee:zoneFeeValue,branch_id:currentBranchId(),active:true}])}));toast('تمت إضافة المنطقة');renderDeliverySettings()}catch(e){toast(topChickenDeliverySaveError(e))}};
  $('#page').onclick=async e=>{
   const ed=e.target.closest('[data-edit-driver]');if(ed){const d=drivers.find(x=>String(x.id)===ed.dataset.editDriver);const name=await uiPrompt('اسم المندوب',d.name);if(name===null||!name.trim())return toast('اكتب اسم المندوب');const phone=await uiPrompt('الموبايل',d.phone||'');if(phone===null)return;await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:d.id,branch_id:currentBranchId(),name:name.trim(),phone:phone.trim()||null,active:d.active!==false}):rest('delivery_drivers',`id=eq.${d.id}`,{method:'PATCH',body:JSON.stringify({name:name.trim(),phone:phone.trim()||null})}));toast('تم تعديل المندوب');return renderDeliverySettings()}
   const td=e.target.closest('[data-delete-driver]');if(td){const d=drivers.find(x=>String(x.id)===td.dataset.deleteDriver);if(!d)return;if(!await uiConfirm(`حذف المندوب ${d.name}؟\nسيختفي من المناديب الحالية مع الاحتفاظ باسمه في الطلبات والتسويات القديمة.`))return;await (isTopChickenSyncDiagnosticsScope()?topChickenDeliveryReferenceWrite('driver',{id:d.id,branch_id:currentBranchId(),name:d.name,phone:d.phone||null,active:false}):rest('delivery_drivers',`id=eq.${d.id}`,{method:'PATCH',body:JSON.stringify({active:false})}));toast('تم حذف المندوب');return renderDeliverySettings()}
@@ -2796,6 +3011,11 @@ async function renderDeliverySettings(){
  };
 }
 
+// Display only. Do not modify the canonical Beta employee.username or Auth email.
+function topChickenLoginHandle(internalId){
+ const match=String(internalId||'').match(/^tc_tc-sh0008-([a-z][a-z0-9._-]{2,31})_[a-f0-9]{12}$/i);
+ return match?match[1]:null;
+}
 async function renderUsers(){
  if(!isAdmin()){ $('#page').innerHTML='<div class="empty">المستخدمون متاحون للمدير فقط</div>';return; }
  let rows=[];
@@ -2812,14 +3032,14 @@ async function renderUsers(){
  const defaultPermissions=role=>runtimeRolePages(role).filter(x=>x!=='home'&&x!=='delivery'&&x!=='users');
  const permissionDefs=runtimePermissionDefs(), permissionGroups=runtimePermissionGroups();
  const permissionChecks=(selected=[],admin=false)=>admin?'<div class="empty">المدير لديه كل الصلاحيات تلقائيًا.</div>':permissionGroups.map(([title,keys])=>`<section class="permission-group" data-permission-group="${esc(title)}"><div class="permission-group-head"><h4>${title}</h4>${title.includes('الموارد البشرية')?'<button type="button" class="secondary permission-select-all" data-toggle-hr-all>اختيار كل صلاحيات HR</button>':''}</div><div class="permission-list">${keys.map(k=>{const d=permissionDefs.find(x=>x[0]===k);if(!d)return '';return `<label class="permission-row"><span>${d[1]}</span><input type="checkbox" class="user-permission permission-toggle" value="${k}" ${selected.includes(k)?'checked':''}></label>`}).join('')}</div></section>`).join('');
- $('#page').innerHTML=`<div class="panel users-admin-head"><div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>${state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'?'إضافة موظف تتطلب بريد دخول صحيح وكلمة مرور 8 أحرف على الأقل. المعرف الداخلي ليس بريد الدخول.':'حدد لكل مستخدم الفروع والشاشات المسموح له بها.'}</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div></div><div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}"><div class="user-main"><b>${esc(u.name)}</b><small>${state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'?'معرّف داخلي: ':''}${esc(u.email||u.username||'بدون بريد')} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الصلاحيات</span>':((u.permissions_configured?u.permissions:defaultPermissions(u.role)).map(k=>`<span class="tag">${esc(permissionDefs.find(x=>x[0]===k)?.[1]||k)}</span>`).join(''))}</div><div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div></div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
+ $('#page').innerHTML=`<div class="panel users-admin-head"><div class="section-head"><div><h2>👥 المستخدمون والصلاحيات</h2><p>${state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'?'توب تشيكن: اسم مستخدم إنجليزي عادي وPIN من 4 أرقام (الدخول يحتاج إنترنت). المدير القديم بالبريد يظل يعمل.':'حدد لكل مستخدم الفروع والشاشات المسموح له بها.'}</p></div><button id="newUserBtn" class="primary">+ مستخدم جديد</button></div></div><div class="user-cards user-management-list">${rows.map(u=>`<div class="user-card ${u.active===false?'muted':''}"><div class="user-main"><b>${esc(u.name)}</b><small>${state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'&&topChickenLoginHandle(u.email)?'اسم الدخول: ':''}${esc(state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'?(topChickenLoginHandle(u.email)||u.email||u.username||'بدون بريد'):(u.email||u.username||'بدون بريد'))} • ${roleLabel(u.role)} • ${u.active===false?'موقوف':'فعال'}</small></div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الفروع</span>':(u.branch_ids||[]).map(id=>`<span class="tag">${esc(branchName(id))}</span>`).join('')||'<span class="tag">بدون فرع</span>'}</div><div class="user-branch-tags">${u.role==='admin'?'<span class="tag">كل الصلاحيات</span>':((u.permissions_configured?u.permissions:defaultPermissions(u.role)).map(k=>`<span class="tag">${esc(permissionDefs.find(x=>x[0]===k)?.[1]||k)}</span>`).join(''))}</div><div class="row-actions"><button class="secondary" data-edit-user="${u.id}">✏️ تعديل</button><button class="secondary" data-toggle-user="${u.id}">${u.active===false?'✅ تفعيل':'⛔ إيقاف'}</button><button class="secondary" data-password-user="${u.id}">🔑 كلمة المرور</button></div></div>`).join('')||'<div class="empty">لا يوجد مستخدمون</div>'}</div>`;
  const savePermissions=async(employeeId,keys)=>{await rest('employee_permissions',`employee_id=eq.${employeeId}`,{method:'DELETE'});const rows=permissionDefs.map(([k])=>({employee_id:employeeId,permission_key:k,allowed:keys.includes(k)}));if(rows.length)await rest('employee_permissions','',{method:'POST',body:JSON.stringify(rows)})};
- const openForm=(u=null)=>{const editing=!!u,tcStaffUserForm=String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'&&currentBranchId()===22,role=u?.role||'cashier',ids=u?.branch_ids||[currentBranchId()],initialPerms=u?.permissions_configured?u.permissions:defaultPermissions(role);const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card user-edit-modal" id="userForm"><h2>${editing?'تعديل المستخدم':'إضافة مستخدم جديد'}</h2><div class="form-grid"><label>الاسم<input id="uName" value="${esc(u?.name||'')}" required></label><label>${editing&&tcStaffUserForm?'المعرّف الداخلي (ليس بريد تسجيل الدخول)':'بريد دخول الموظف'}<input id="uEmail" type="${editing&&tcStaffUserForm?'text':'email'}" value="${esc(u?.email||'')}" ${editing?'readonly':''} required><small>${editing&&tcStaffUserForm?'بريد الدخول محفوظ في حساب المصادقة، وهذا هو المعرّف الداخلي فقط.':'يجب كتابة بريد كامل مثل name@example.com، وليس اسم مستخدم فقط.'}</small></label>${editing?'':`<label>كلمة المرور<input id="uPassword" type="password" minlength="${state.employee?.business_id==='5358328c-9724-49aa-affc-1bce8be90f92'?8:6}" required></label>`}<label>الدور<select id="uRole"><option value="cashier" ${role==='cashier'?'selected':''}>كاشير</option><option value="callcenter" ${role==='callcenter'?'selected':''}>كول سنتر</option><option value="admin" ${role==='admin'?'selected':''}>مدير</option></select></label><label>الفرع الأساسي<select id="uHomeBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(u?.branch_id||currentBranchId())?'selected':''}>${esc(b.name)}</option>`).join('')}</select></label><label class="check-line"><input id="uActive" type="checkbox" ${u?.active===false?'':'checked'}> المستخدم فعال</label></div><div class="user-branches-box"><b>الفروع المسموح بها</b><div id="uBranchChecks" class="branch-checks">${branchChecks(ids,role==='admin')}</div><small id="uBranchHint">${role==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'}</small></div><div class="user-branches-box"><b>الصلاحيات</b><div id="uPermissionChecks" class="branch-checks">${permissionChecks(initialPerms,role==='admin')}</div><small>الدور يضع قالبًا افتراضيًا، وبعدها تقدر تزود أو تشيل أي صلاحية.</small></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ</button></div></form>`;document.body.appendChild(m);
+ const openForm=(u=null)=>{const editing=!!u,tcStaffUserForm=String(state.employee?.business_id||'')==='5358328c-9724-49aa-affc-1bce8be90f92'&&currentBranchId()===22,role=u?.role||'cashier',ids=u?.branch_ids||[currentBranchId()],initialPerms=u?.permissions_configured?u.permissions:defaultPermissions(role);const m=document.createElement('div');m.className='modal';m.innerHTML=`<form class="modal-card user-edit-modal" id="userForm"><h2>${editing?'تعديل المستخدم':'إضافة مستخدم جديد'}</h2><div class="form-grid"><label>الاسم<input id="uName" value="${esc(u?.name||'')}" required></label><label>${editing&&tcStaffUserForm?'اسم الدخول (للعرض فقط)':'اسم المستخدم / البريد'}<input id="uEmail" type="${tcStaffUserForm?'text':'email'}" value="${esc(editing&&tcStaffUserForm?(topChickenLoginHandle(u?.email)||u?.email||''):(u?.email||''))}" ${editing?'readonly':''} required><small>${editing&&tcStaffUserForm?'استخدم الاسم ده ورقم PIN من 4 أرقام للدخول. المعرّف الداخلي محفوظ بأمان ولا يحتاج كتابته.':tcStaffUserForm?'اكتب اسم مستخدم إنجليزي مثل ahmed (من غير إيميل).':'اكتب بريدًا إلكترونيًا صحيحًا.'}</small></label>${editing?'':`<label>كلمة المرور<input id="uPassword" type="password" minlength="${tcStaffUserForm?4:6}" ${tcStaffUserForm?'maxlength="4" inputmode="numeric" pattern="[0-9]{4}"':''} required></label>`}<label>الدور<select id="uRole"><option value="cashier" ${role==='cashier'?'selected':''}>كاشير</option><option value="callcenter" ${role==='callcenter'?'selected':''}>كول سنتر</option><option value="admin" ${role==='admin'?'selected':''}>مدير</option></select></label><label>الفرع الأساسي<select id="uHomeBranch">${state.branches.map(b=>`<option value="${b.id}" ${String(b.id)===String(u?.branch_id||currentBranchId())?'selected':''}>${esc(b.name)}</option>`).join('')}</select></label><label class="check-line"><input id="uActive" type="checkbox" ${u?.active===false?'':'checked'}> المستخدم فعال</label></div><div class="user-branches-box"><b>الفروع المسموح بها</b><div id="uBranchChecks" class="branch-checks">${branchChecks(ids,role==='admin')}</div><small id="uBranchHint">${role==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.'}</small></div><div class="user-branches-box"><b>الصلاحيات</b><div id="uPermissionChecks" class="branch-checks">${permissionChecks(initialPerms,role==='admin')}</div><small>الدور يضع قالبًا افتراضيًا، وبعدها تقدر تزود أو تشيل أي صلاحية.</small></div><div class="modal-actions"><button type="button" class="secondary" data-close>إلغاء</button><button type="submit" class="primary">حفظ</button></div></form>`;document.body.appendChild(m);
    m.addEventListener('click',e=>{const b=e.target.closest('[data-toggle-hr-all]');if(!b)return;const boxes=[...m.querySelectorAll('.user-permission')].filter(x=>String(x.value).startsWith('hr.'));const shouldCheck=boxes.some(x=>!x.checked);boxes.forEach(x=>x.checked=shouldCheck);b.textContent=shouldCheck?'إلغاء كل صلاحيات HR':'اختيار كل صلاحيات HR'});
    const redraw=()=>{const r=m.querySelector('#uRole').value;const currentBranches=[...m.querySelectorAll('.user-branch:checked')].map(x=>x.value);m.querySelector('#uBranchChecks').innerHTML=branchChecks(currentBranches.length?currentBranches:ids,r==='admin');m.querySelector('#uBranchHint').textContent=r==='admin'?'المدير لديه صلاحية كل الفروع تلقائيًا.':'حدد فرعًا واحدًا أو أكثر.';m.querySelector('#uPermissionChecks').innerHTML=permissionChecks(defaultPermissions(r),r==='admin')};
    m.querySelector('#uRole').onchange=redraw;m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove()};
    m.querySelector('#userForm').onsubmit=async e=>{e.preventDefault();const saveBtn=m.querySelector('button[type="submit"]');if(saveBtn?.disabled)return;saveBtn.disabled=true;const role=m.querySelector('#uRole').value;let branch_ids=role==='admin'?state.branches.map(b=>Number(b.id)):[...m.querySelectorAll('.user-branch:checked')].map(x=>Number(x.value));if(role!=='admin'&&!branch_ids.length){saveBtn.disabled=false;return toast('حدد فرعًا واحدًا على الأقل')}const branch_id=Number(m.querySelector('#uHomeBranch').value);branch_ids=[branch_id,...branch_ids.filter(x=>Number(x)!==branch_id)];const permissions=role==='admin'?runtimeAllPages():[...m.querySelectorAll('.user-permission:checked')].map(x=>x.value);const active=m.querySelector('#uActive').checked;try{if(!editing && await isTopChickenStaffContext()){
- await mutateTopChickenStaff({action:'create',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_id,branch_ids,permissions,active});
+ await mutateTopChickenStaff({action:'create',auth_mode:'pin4',name:m.querySelector('#uName').value.trim(),username:m.querySelector('#uEmail').value.trim(),password:m.querySelector('#uPassword').value,role,branch_id:22,branch_ids:[22],permissions,active});
  m.remove();toast('تم إنشاء المستخدم والصلاحيات');return renderUsers();
  }
  if(editing&&await isTopChickenStaffContext()){

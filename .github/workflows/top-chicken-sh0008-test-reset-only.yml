@@ -1,0 +1,35 @@
+name: Top Chicken SH-0008 Beta-style test reset (SOURCE ONLY)
+on:
+  push:
+    branches:
+      - codex/top-chicken-sh0008-rc9-prelaunch-no-deploy
+    paths:
+      - 'top-chicken-test-queue-reset.js'
+      - 'app.js'
+      - 'main.js'
+      - 'preload.js'
+      - 'tests/top-chicken/sh0008-test-queue-reset-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-test-reset-only.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reset-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax-check only changed Top Chicken reset surfaces
+        run: |
+          node --check top-chicken-test-queue-reset.js
+          node --check app.js
+          node --check main.js
+          node --check preload.js
+          node --check tests/top-chicken/sh0008-test-queue-reset-regression.cjs
+      - name: Test SH-0008 local-only scope, retention and rollback
+        run: node tests/top-chicken/sh0008-test-queue-reset-regression.cjs
+      - name: No DB / device / release write
+        run: echo "SOURCE ONLY - NO SQL, EDGE, DEVICE, PRODUCTION OR WINDOWS RELEASE"

@@ -107,5 +107,25 @@ BEGIN
  IF (SELECT count(*) FROM public.employees WHERE business_id='91826502-590e-4afa-8826-2c0f4b99c490')<>1 THEN
    RAISE EXCEPTION 'FAIL altered legacy tenant';
  END IF;
+ -- Inactive new employee: no tenant membership may be active on creation.
+ r:=public.top_chicken_staff_create_reserve_v1(actor,
+   '10000000-0000-4000-8000-000000000003',repeat('d',64),
+   'disabled@example.com');
+ IF r->>'new_reservation'<>'true' THEN RAISE EXCEPTION 'FAIL inactive reservation'; END IF;
+ r:=public.top_chicken_staff_create_finish_v1(actor,
+   '10000000-0000-4000-8000-000000000003',repeat('d',64),
+   'ffffffff-ffff-4fff-8fff-ffffffffffff',
+   'Initially inactive cashier','cashier',false,ARRAY['pos']);
+ IF r->>'ok'<>'true' THEN RAISE EXCEPTION 'FAIL inactive creation'; END IF;
+ IF EXISTS(SELECT 1 FROM public.business_auth_memberships
+   WHERE auth_user_id='ffffffff-ffff-4fff-8fff-ffffffffffff'
+     AND business_id=tc AND active IS TRUE) THEN
+   RAISE EXCEPTION 'FAIL inactive employee received active membership';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.employees
+   WHERE auth_user_id='ffffffff-ffff-4fff-8fff-ffffffffffff'
+     AND business_id=tc AND active IS FALSE) THEN
+   RAISE EXCEPTION 'FAIL inactive employee was activated';
+ END IF;
  RAISE NOTICE 'PASS isolated PG16: admin-only, tenant-bound, first reserve, pending replay, changed-payload denial, verified auth id, atomic employee+branch+membership+3 permissions+audit, completed replay, legacy parity';
 END $test$;

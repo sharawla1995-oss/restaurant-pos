@@ -1,0 +1,61 @@
+name: Top Chicken PIN username and lease bootstrap - SOURCE ONLY (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'app.js'
+      - 'supabase/functions/top-chicken-pin-login/**'
+      - 'supabase/functions/top-chicken-staff/entitlement-preflight.mjs'
+      - 'review-only/top-chicken-pin-login-lease-bootstrap-NO-DEPLOY.sql'
+      - 'tests/top-chicken/pin4-username-bootstrap-fix.cjs'
+      - 'tests/top-chicken/pin-username-pg17-*.sql'
+      - '.github/workflows/top-chicken-pin-username-bootstrap-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-and-PIN:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PIN login source syntax
+        run: |
+          node --check app.js
+          node --check supabase/functions/top-chicken-staff/entitlement-preflight.mjs
+          node tests/top-chicken/pin4-username-bootstrap-fix.cjs
+      - name: Safety
+        run: echo 'NO SQL/Edge deploy or staff write; source/fixture only.'
+  isolated-postgres17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    services:
+      pg17:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local_fixture_only
+          POSTGRES_DB: tc_pin_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tc_pin_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: local_fixture_only
+      PGDATABASE: tc_pin_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated employee/branch/lockout fixture
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/top-chicken/pin-username-pg17-fixture.sql
+      - name: Apply review-only PIN precheck migration to synthetic PostgreSQL 17
+        run: psql -X -v ON_ERROR_STOP=1 -f review-only/top-chicken-pin-login-lease-bootstrap-NO-DEPLOY.sql
+      - name: Check account lockout and tenant denial
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/top-chicken/pin-username-pg17-assertions.sql

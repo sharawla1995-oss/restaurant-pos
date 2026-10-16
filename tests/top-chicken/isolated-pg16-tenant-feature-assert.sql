@@ -35,6 +35,25 @@ BEGIN
  IF sharawla_internal.operational_feature_entitled_v1('commerce.delivery') THEN
    RAISE EXCEPTION 'FAIL forged TC selector allowed legacy actor';
  END IF;
+ -- A valid JWT with no verified tenant context must not borrow the
+ -- legacy singleton feature grants (missing or forged business selector).
+ PERFORM set_config('tc.fixture_selected_business','',false);
+ IF sharawla_internal.operational_feature_entitled_v1('commerce.delivery') THEN
+   RAISE EXCEPTION 'FAIL verified actor with missing tenant borrowed legacy feature';
+ END IF;
+ PERFORM set_config('tc.fixture_selected_business','00000000-0000-4000-8000-000000000001',false);
+ IF sharawla_internal.operational_feature_entitled_v1('commerce.delivery') THEN
+   RAISE EXCEPTION 'FAIL forged unknown tenant borrowed legacy feature';
+ END IF;
+ -- A real Top Chicken JWT with a revoked membership also may not borrow
+ -- the legacy tenant grant.
+ PERFORM set_config('tc.fixture_uid','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
+ PERFORM set_config('tc.fixture_selected_business','5358328c-9724-49aa-affc-1bce8be90f92',false);
+ UPDATE public.business_auth_memberships SET active=false
+ WHERE auth_user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+ IF sharawla_internal.operational_feature_entitled_v1('commerce.delivery') THEN
+   RAISE EXCEPTION 'FAIL revoked TC membership borrowed legacy grant';
+ END IF;
  PERFORM set_config('tc.fixture_uid','',false);
  IF sharawla_internal.operational_feature_entitled_v1('commerce.delivery') THEN
    RAISE EXCEPTION 'FAIL anonymous entitlement allowed';

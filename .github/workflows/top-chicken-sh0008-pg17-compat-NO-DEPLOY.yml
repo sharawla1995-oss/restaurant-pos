@@ -1,0 +1,83 @@
+name: Top Chicken Beta-compatible PostgreSQL 17 isolated gates (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-rc9-prelaunch-no-deploy]
+    paths:
+      - 'review-only/top-chicken-sh0008-*-NO-DEPLOY.sql'
+      - 'tests/top-chicken/isolated-pg16-*.sql'
+      - '.github/workflows/top-chicken-sh0008-pg17-compat-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  staff-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: local-only-fixture, POSTGRES_DB: tc17staff}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tc17staff"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove disposable PG17 and test full staff lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          CID="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)"
+          test -n "$CID"
+          VERSION="$(docker exec "$CID" psql -U postgres -d tc17staff -Atc 'show server_version_num')"
+          test "${VERSION:0:2}" = '17'
+          cat tests/top-chicken/isolated-pg16-staff-fixture.sql \
+              review-only/top-chicken-sh0008-staff-create-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-staff-assert.sql \
+              review-only/top-chicken-sh0008-staff-manage-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-staff-manage-assert.sql \
+          | docker exec -i "$CID" psql -U postgres -d tc17staff -v ON_ERROR_STOP=1
+      - name: Confirm no remotely linked database or user changes
+        run: echo 'PASS conditions concern a synthetic PostgreSQL17 fixture ONLY. No Supabase connection, backup/restore, permission grant, release, or device installation.'
+  quantity-feature-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: local-only-fixture, POSTGRES_DB: tc17modifiers}
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tc17modifiers"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove disposable PG17 and test additive quantity/tenant feature gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          CID="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)"
+          test -n "$CID"
+          VERSION="$(docker exec "$CID" psql -U postgres -d tc17modifiers -Atc 'show server_version_num')"
+          test "${VERSION:0:2}" = '17'
+          cat tests/top-chicken/isolated-pg16-base-fixture.sql \
+              review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-quantity-assert.sql \
+              review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql \
+              tests/top-chicken/isolated-pg16-tenant-feature-assert.sql \
+          | docker exec -i "$CID" psql -U postgres -d tc17modifiers -v ON_ERROR_STOP=1
+      - name: Require review after schema drift, never replay silently
+        shell: bash
+        run: |
+          set -euo pipefail
+          CID="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)"
+          if docker exec -i "$CID" psql -U postgres -d tc17modifiers -v ON_ERROR_STOP=1 \
+            < review-only/top-chicken-sh0008-quantity-additive-NO-DEPLOY.sql > /tmp/tc17repeat.log 2>&1; then
+            echo 'FAIL: quantity reapply unexpectedly accepted'; exit 1
+          fi
+          grep -q TC_QUANTITY_ALREADY_EXISTS_REVIEW_EXISTING_OWNER /tmp/tc17repeat.log
+          if docker exec -i "$CID" psql -U postgres -d tc17modifiers -v ON_ERROR_STOP=1 \
+            < review-only/top-chicken-sh0008-tenant-feature-owner-NO-DEPLOY.sql > /tmp/tc17feature.log 2>&1; then
+            echo 'FAIL: changed feature grant baseline unexpectedly accepted'; exit 1
+          fi
+          grep -q TC_FEATURE_OWNER_GRANTS_REQUIRE_SEPARATE_CURRENT_REVIEW /tmp/tc17feature.log
+          echo 'PASS: PostgreSQL17 isolated migration reapply and entitlement drift blocked'

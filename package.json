@@ -1,6 +1,6 @@
 {
   "name": "sharawla-pos-windows",
-  "version": "10.5.19-rc.8",
+  "version": "10.5.19-rc.9",
   "description": "Top Chicken SH-0008 primary in-place update candidate from Sharawla 10.5.18; cloud authorization pending",
   "main": "main.js",
   "author": "Sharawla POS",
