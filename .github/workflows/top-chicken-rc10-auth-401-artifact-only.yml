@@ -67,12 +67,19 @@ jobs:
           $files | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash)  $(Split-Path $_.Path -Leaf)"
           } | Set-Content "artifacts/RC10-AUTH-401-SHA256.txt" -Encoding utf8
-      - name: Upload isolated candidate artifacts (never GitHub Release)
+      - name: Upload isolated x64 installer (never GitHub Release)
         uses: actions/upload-artifact@v4
         with:
-          name: top-chicken-rc10-auth401-Windows-UNAPPROVED
+          name: Top-Chicken-RC10-Auth401-x64-ONLY-UNAPPROVED
           path: |
-            artifacts/Top-Chicken-SH0008-RC10-Auth401-*-UNAPPROVED.exe
+            artifacts/Top-Chicken-SH0008-RC10-Auth401-x64-UNAPPROVED.exe
             artifacts/RC10-AUTH-401-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload isolated ia32 installer (never GitHub Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Top-Chicken-RC10-Auth401-ia32-ONLY-UNAPPROVED
+          path: artifacts/Top-Chicken-SH0008-RC10-Auth401-ia32-UNAPPROVED.exe
           if-no-files-found: error
           retention-days: 7
