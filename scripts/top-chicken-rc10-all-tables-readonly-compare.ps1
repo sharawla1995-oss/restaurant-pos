@@ -29,7 +29,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
-public sealed class TCPostRC10LogicalCompare {
+public sealed class TCPostRC10AllTablesReadOnly {
  [DllImport("winsqlite3.dll",CharSet=CharSet.Ansi,CallingConvention=CallingConvention.Cdecl)]
  private static extern int sqlite3_open_v2(string path,out IntPtr db,int flags,IntPtr vfs);
  [DllImport("winsqlite3.dll",CharSet=CharSet.Ansi,CallingConvention=CallingConvention.Cdecl)]
@@ -180,15 +180,11 @@ public sealed class TCPostRC10LogicalCompare {
 '@
 }
 Write-Host 'RC10_ALL_TABLES_READ_ONLY_COMPARE'
-$result=[TCPostRC10LogicalCompare]::Compare($Before,$After)
+$result=[TCPostRC10AllTablesReadOnly]::CompareAll($Before,$After)
 Write-Host $result
-if($result -notmatch '(?m)^ALL_TABLE_ROWS_IDENTICAL
-  Write-Host 'NO CUSTOMER OR SETTINGS VALUES EXPOSED - NO FILES MODIFIED' -ForegroundColor Yellow
-}else{
+if ($result.Contains('ALL_TABLE_ROWS_IDENTICAL')) {
   Write-Host 'ALL_TABLES_MATCH_PASS - NO FILES MODIFIED' -ForegroundColor Green
-}
-){
-  Write-Host 'STOP: REVIEW TABLE DIFFERENCES BEFORE RESUMING OPERATIONS' -ForegroundColor Yellow
-}else{
-  Write-Host 'LOGICAL_DATA_MATCH_PASS - NO FILES MODIFIED' -ForegroundColor Green
+} else {
+  Write-Host 'TABLE_DIFFS_IDENTIFIED - NO CUSTOMER OR SETTINGS VALUES EXPOSED' -ForegroundColor Yellow
+  Write-Host 'NO FILES MODIFIED - NO SYNC OR RESTORE' -ForegroundColor Yellow
 }
