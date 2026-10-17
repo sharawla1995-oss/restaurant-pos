@@ -9,6 +9,8 @@ on:
       - 'tests/top-chicken/sqlite-rc10-all-tables-readonly-windows.cjs'
       - 'scripts/top-chicken-rc10-kv-change-privacy-readonly.ps1'
       - 'tests/top-chicken/sqlite-rc10-kv-privacy-readonly-windows.cjs'
+      - 'scripts/top-chicken-rc10-kv-metadata-readonly.ps1'
+      - 'tests/top-chicken/sqlite-rc10-kv-metadata-readonly-windows.cjs'
       - '.github/workflows/top-chicken-rc10-logical-compare-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -30,3 +32,5 @@ jobs:
         run: node tests/top-chicken/sqlite-rc10-all-tables-readonly-windows.cjs
       - name: Diagnose KV key/value/timestamp differences without exposing content
         run: node tests/top-chicken/sqlite-rc10-kv-privacy-readonly-windows.cjs
+      - name: Categorize changed KV without leaking private values or keys
+        run: node tests/top-chicken/sqlite-rc10-kv-metadata-readonly-windows.cjs
