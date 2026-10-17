@@ -25,3 +25,13 @@ STATUS: SOURCE + DISPOSABLE WINDOWS ONLY. Do not install automatically. This doc
 ## What isolated CI can/cannot prove
 - Windows 2022 runner can install pinned rc.9, seed synthetic KV + one pending local operation, upgrade rc.10, check same `%APPDATA%` state across a fresh process, fail closed on intentionally damaged test SQLite, rollback rc.9 and reupgrade rc.10.
 - No source/CI step has filesystem access to the owner's PC or its real offline queue. It cannot certify Cloud reconciliation or hardware power-loss survival. No physical install, release promotion or automatic feed change should occur without a separately reviewed owner-approved device operation.
+
+## Verified RC10 Windows evidence (2026-10-17)
+- [Windows x64 end-to-end CI run 38993139522 — **SUCCESS**](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38993139522). Tested source SHA **`b37874d9efbd508f78bdc0e1e06807ebe11d247d`**.
+- Distinct x64 candidate **`Top-Chicken-SH0008-Primary-10.5.19-rc.10.exe`**, **75,285,503 bytes**, **SHA-256 `ce39381f70ac66898338308771653cf4b64eff2f8cdfff9b2d6b8f0b033739e1`**.
+- Existing old RC9 artifact hash **`f82a63ea6509aadf36855330a974f8633d8dbcaa9de86b461c4bc0c4a9a4c927`** verified before installing on disposable runner.
+- Windows CI stage sequence: original RC9 boot and seed exactly one synthetic pending `local_operations` record + KV; in-place install RC10; new process with identical userData and pending record still exactly one; `PRAGMA integrity_check=ok` on main and lastgood; second complete exit/restart; intentionally corrupt disposable SQLite denied at startup preserving bytes and lastgood; old RC9 rollback and verification of both old and new KV and the single pending operation; RC10 reupgrade with the same checks. **All PASS**.
+- GitHub Actions temporary artifact **ID `12086310646`**, name **`TC-SH0008-SQLITE-DURABILITY-DO-NOT-INSTALL-b37874d9efbd508f78bdc0e1e06807ebe11d247d`**, expires **2026-10-31**, ZIP SHA256 `38106b0b6d3bb9135ea2e98f0992dfc2f666cd34c24486f7af4b3dea980fd503` (different from EXE SHA).
+- The source-only Linux/Windows fault-injection checks were previously PASS, but hardware power loss / owner's actual data and pending queue remain **NOT RUN**.
+- Operator-assisted read-only Windows pre-install diagnostic is added at [scripts/top-chicken-sqlite-preinstall-readonly.ps1](../scripts/top-chicken-sqlite-preinstall-readonly.ps1); not executed on real owner PC.
+- **No user-device installation, public GitHub release, update feed publication, Beta/production SQL/Edge change, or Top Burger change occurred.** The experimental installer must not be installed before current local queue backup/verification and explicit physical cutover approval.
