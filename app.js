@@ -1544,7 +1544,7 @@ function branchById(id){return state.branches.find(b=>Number(b.id)===Number(id))
 function fmtTopChickenReceiptDate(value){
   if(!isTopChickenBetaAuthScope())return fmtDate(value);
   const raw=String(value||'');
-  if(!/(?:Z|[+-]\\d{2}:?\\d{2})$/i.test(raw))return fmtDate(value);
+  if(!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw))return fmtDate(value);
   const instant=Date.parse(raw);
   if(!Number.isFinite(instant))return fmtDate(value);
   const year=new Date(instant).getUTCFullYear();
