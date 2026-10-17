@@ -1,0 +1,32 @@
+'use strict';
+// RC10 / Top Chicken Beta: offline static assertions; no network or database.
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const code=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
+const index=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+const version=JSON.parse(fs.readFileSync(path.join(__dirname,'../version.json'),'utf8')).version;
+assert(index.includes('V'+version),'UI badge must match RC10 candidate');
+for(const asset of ['styles.css','app.js','restaurant-engine.js','sharawla-runtime-core.js'])
+  assert(index.includes(asset+'?v='+version),'RC10 cache stamp missing: '+asset);
+const has=(value,why)=>assert(code.includes(value),why);
+new Function(code);
+has('function isTopChickenBetaAuthScope()', 'Beta auth scope missing');
+has("xihcxydjnzemflhedzor.supabase.co", 'Beta project missing');
+has('if(betaAuth){', 'preflight refresh missing');
+has('try{await refreshSessionIfNeeded()}', 'independent preflight refresh missing');
+has('let topChickenRejectedSessionToken=null;', 'quarantine rejected token missing');
+has('if(betaAuth&&topChickenRejectedSessionToken===session.access_token)', 'polling failure guard missing');
+has('topChickenRejectedSessionToken=null;localStorage.setItem', 'fresh login must clear quarantine');
+has('let sessionRefreshInFlight=null;', 'single flight refresh missing');
+has('if(sessionRefreshInFlight)return sessionRefreshInFlight', 'concurrent refresh guard missing');
+has("const safeToRetry=method==='GET'||(method==='POST'&&path==='/rest/v1/rpc/has_permission')", 'retry must be read-only');
+has('if(r.status===401&&betaAuth&&safeToRetry)', '401 retry must be read-only');
+assert(!code.includes("safeToRetry=method==='POST'"), 'unexpected POST retry');
+has('if(!Array.isArray(fetched))throw', 'shift response validation missing');
+has("if(isTopChickenSyncDiagnosticsScope()&&fetched.length===0)", 'empty list guard missing');
+has('unverifiedRead=isTopChickenSyncDiagnosticsScope()', 'auth fallback must be read-only');
+has('const open=unverifiedRead?null:rows.find', 'must not use stale open shift');
+has("if(unverifiedRead){for(const b of $('#page').querySelectorAll('[data-shift],#openShift,#closeShift'))b.disabled=true}", 'disable actions on stale shifts');
+has("if(!sh&&isTopChickenSyncDiagnosticsScope()&&(await cachedOpenShift()))throw", 'ambiguous open shift must be blocked');
+console.log('TOP_CHICKEN_RC10_AUTH_401_STATIC_PASS');

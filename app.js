@@ -428,13 +428,52 @@ function topChickenStaffHttpError(status,data){
   };
   return new Error('Top Chicken Beta — '+String(status)+' ('+code+'): '+(explanations[code]||'تعذر إتمام طلب الموظفين؛ راجع رمز الخطأ مع الدعم.'));
 }
+// RC10 Beta only: auth token lifetime must not depend on replaying offline sales.
+function isTopChickenBetaAuthScope(){
+  return String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co';
+}
+// Quarantine a rejected Beta bearer token so polling cannot flood the server.
+// A new, explicitly authenticated staff session resets the quarantine.
+let topChickenRejectedSessionToken=null;
 async function req(path,opt={}){
-  const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
-  let d=null;try{d=await r.json()}catch{}
+  const authenticated=opt.auth!==false&&!!session?.access_token;
+  const betaAuth=authenticated&&isTopChickenBetaAuthScope();
+  if(betaAuth&&topChickenRejectedSessionToken===session.access_token)
+    throw new Error('جلسة Top Chicken مرفوضة (401). يلزم تسجيل دخول جديد بعد حفظ وفحص البيانات المحلية.');
+  if(betaAuth){
+    try{await refreshSessionIfNeeded()}
+    catch(e){
+      if(navigator.onLine&&/401|403|invalid|refresh.token|جلسة/i.test(String(e?.message||e)))
+        topChickenRejectedSessionToken=session?.access_token;
+      throw e;
+    }
+  }
+  let sentAccessToken=null;
+  const send=async()=>{
+    sentAccessToken=session?.access_token||null;
+    const r=await fetch(cfg.url+path,{...opt,headers:{...headers(opt.auth!==false),...(opt.headers||{})}});
+    let d=null;try{d=await r.json()}catch{}
+    return {r,d};
+  };
+  let {r,d}=await send();
+  // A 401 can be retried only on read-only operations. Never replay a sale,
+  // shift close/open, payment or other write after an uncertain response.
+  const method=String(opt.method||'GET').toUpperCase();
+  const safeToRetry=method==='GET'||(method==='POST'&&path==='/rest/v1/rpc/has_permission');
+  if(r.status===401&&betaAuth&&safeToRetry){
+    try{
+      if(session?.access_token===sentAccessToken)await refreshSessionIfNeeded(true);
+    }catch(e){topChickenRejectedSessionToken=session?.access_token;throw e}
+    ({r,d}=await send());
+  }
   if(!r.ok){
     if(path==='/functions/v1/top-chicken-staff'&&
        String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'&&r.status===503)
       throw topChickenStaffHttpError(r.status,d);
+    if(betaAuth&&r.status===401){
+      topChickenRejectedSessionToken=session?.access_token;
+      throw new Error('انتهت صلاحية جلسة Top Chicken أو رفضها السيرفر (401). لا تفتح وردية جديدة ولا تكرر عملية مالية قبل مراجعة الاتصال.');
+    }
     throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);
   }
   return d;
@@ -790,12 +829,26 @@ async function saveOfflineShiftOpen(opening,providedClientTx=null){const q=await
 async function saveOfflineShiftClose(shift,metrics,actual,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),diff=Number(actual)-Number(metrics.expected||0);const local={...shift,closing_cash:Number(actual),closed_at:created,status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count,_offline:true};const job={type:'shift_close',client_tx_id:clientTx,created_at:created,p_shift_id:shift.id,p_closing_cash:Number(actual),p_metrics:{sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count},local_shift_id:shift.id,local_shift:local};q.push(job);await setOfflineQueue(q);await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,null);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
 async function remapQueuedShift(localId,serverId){let q=await offlineQueue();for(const j of q){if(j.p_shift_id===localId)j.p_shift_id=Number(serverId);if(j.p_order?.shift_id===localId)j.p_order.shift_id=Number(serverId);if(j.local_order?.shift_id===localId)j.local_order.shift_id=Number(serverId);if(j.local_expense?.shift_id===localId)j.local_expense.shift_id=Number(serverId);if(j.local_return?.shift_id===localId)j.local_return.shift_id=Number(serverId)}await setOfflineQueue(q);return q}
 function jwtExp(token){try{return Number(JSON.parse(atob(String(token||'').split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp||0)}catch{return 0}}
+let sessionRefreshInFlight=null;
 async function refreshSessionIfNeeded(force=false){
-  if(!session?.refresh_token)return session;
+  if(!session?.access_token)return session;
   const exp=jwtExp(session.access_token),soon=!exp||(exp*1000-Date.now()<120000);
   if(!force&&!soon)return session;
-  const d=await req('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:JSON.stringify({refresh_token:session.refresh_token})});
-  session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));return d
+  if(sessionRefreshInFlight)return sessionRefreshInFlight;
+  if(!session?.refresh_token)throw new Error('انتهت جلسة الدخول ولا يوجد رمز آمن لتجديدها.');
+  const refreshToken=session.refresh_token,actor=String(session.user?.id||'');
+  sessionRefreshInFlight=(async()=>{
+    const d=await req('/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',auth:false,body:JSON.stringify({refresh_token:refreshToken})
+    });
+    if(!d?.access_token||!d?.refresh_token||!d?.user?.id||String(d.user.id)!==actor)
+      throw new Error('لم يؤكد السيرفر تجديد جلسة الموظف نفسه.');
+    // Another login may have replaced the session while the refresh was pending.
+    if(session?.refresh_token!==refreshToken)return session;
+    session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+    return d;
+  })();
+  try{return await sessionRefreshInFlight}finally{sessionRefreshInFlight=null}
 }
 async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token||isTopChickenSyncPaused())return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){if(isTopChickenSyncPaused())break;try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
 window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
@@ -829,14 +882,14 @@ async function signIn(email,password){
       if(reply?.ok!==true||reply.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'||
          !d?.access_token||!d?.refresh_token||!d?.user?.id)
         throw new Error('السيرفر لم يؤكد جلسة دخول الموظف');
-      session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+      session=d;resumeSession=d;topChickenRejectedSessionToken=null;localStorage.setItem('sbResumeSession',JSON.stringify(d));
       // Online PIN verification is the authority; no offline fallback to a
       // locally brute-forceable 4-digit verifier.
       localStorage.removeItem('offlineLoginVerifier');
       return d;
     }
     const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
-    session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+    session=d;resumeSession=d;topChickenRejectedSessionToken=null;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
   if(!email.includes('@') && await isTopChickenStaffContext())
@@ -1027,7 +1080,7 @@ function esc(v){return String(v??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&l
 function localDateInput(d=new Date()){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function rangeISO(from,to){return {from:new Date(`${from}T00:00:00`).toISOString(),to:new Date(`${to}T23:59:59.999`).toISOString()}}
 async function fetchAll(table,query='',pageSize=1000){let out=[],offset=0;while(true){const join=query?`${query}&`:'';const rows=await rest(table,`${join}limit=${pageSize}&offset=${offset}`);out.push(...(rows||[]));if(!rows||rows.length<pageSize)break;offset+=pageSize}return out}
-async function getOpenShift(employeeId=state.employee.id,branchId=currentBranchId()){try{const rows=await rest('shifts',`select=*&employee_id=eq.${employeeId}&branch_id=eq.${branchId}&status=eq.open&closed_at=is.null&order=opened_at.desc&limit=1`);const sh=rows?.[0]||null;if(sh)await rememberOpenShift(sh);return sh}catch(e){if(isNetError(e))return cachedOpenShift();throw e}}
+async function getOpenShift(employeeId=state.employee.id,branchId=currentBranchId()){try{const rows=await rest('shifts',`select=*&employee_id=eq.${employeeId}&branch_id=eq.${branchId}&status=eq.open&closed_at=is.null&order=opened_at.desc&limit=1`);if(!Array.isArray(rows))throw new Error('لم يؤكد السيرفر حالة الوردية');const sh=rows[0]||null;if(sh)await rememberOpenShift(sh);if(!sh&&isTopChickenSyncDiagnosticsScope()&&(await cachedOpenShift()))throw new Error('السيرفر رجّع وردية فارغة رغم وجود وردية محفوظة محليًا؛ أوقف البيع لحين مراجعة الجلسة');return sh}catch(e){if(isNetError(e))return cachedOpenShift();throw e}}
 async function audit(action,entityType,entityId,details={}){try{await rest('audit_logs','',{method:'POST',body:JSON.stringify([{employee_id:state.employee.id,branch_id:currentBranchId(),action,entity_type:entityType,entity_id:entityId||null,details}])})}catch(e){}}
 
 async function bootstrap(){
@@ -2082,8 +2135,9 @@ function shiftReportHTML(sh,employees,mtr,data){
  <div class="r-totals"><div><span>افتتاحية الخزنة</span><b>${money(sh.opening_cash)}</b></div><div><span>الكاش المتوقع</span><b>${money(expected)}</b></div>${sh.closed_at?`<div><span>الكاش الفعلي</span><b>${money(sh.closing_cash)}</b></div><div class="grand-print"><span>العجز / الزيادة</span><b>${money(sh.cash_difference||0)}</b></div>`:''}</div><hr><div class="r-footer">تقرير الوردية • ${new Date().toLocaleString('ar-EG')}</div></div>`;
 }
 async function openShiftReport(sh,employees){const [mtr,data]=await Promise.all([shiftMetrics(sh),shiftReportData(sh)]);const html=shiftReportHTML(sh,employees,mtr,data);const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="modal-card shift-detail"><h2>تقرير وردية #${sh.id}</h2><div class="report-summary-list"><div>صافي المبيعات <b>${money(sh.closed_at?sh.sales_total:mtr.sales)}</b></div><div>المرتجعات <b>${money(data.returnTotal||mtr.returnTotal||0)}</b></div><div>الأوردرات <b>${data.valid.length}</b></div><div>المصروفات <b>${money(sh.closed_at?sh.expenses_total:mtr.exp)}</b></div><div>أصناف مباعة <b>${data.products.length}</b></div><div>إضافات داخلية <b>${(data.internalModifiers||[]).reduce((a,x)=>a+Number(x.qty||0),0)}</b></div><div>إضافات خارجية <b>${(data.externalExtras||[]).reduce((a,x)=>a+Number(x.qty||0),0)}</b></div><div>رسوم التوصيل <b>${money(data.deliveryFees)}</b></div><div>ملغي <b>${data.cancelled.length}</b></div></div><div class="modal-actions"><button class="secondary" data-close>إغلاق</button><button class="primary" data-print-shift>🖨️ طباعة تقرير الوردية</button></div></div>`;document.body.appendChild(m);m.onclick=e=>{if(e.target.closest('[data-close]')||e.target===m)m.remove();if(e.target.closest('[data-print-shift]'))printIsolated(html)}}
-async function renderShifts(){let employees=[],rows=[];try{employees=await rest('employees','select=id,name,branch_id,role,active&order=name');rows=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);await odbSet(`shiftHistory:${currentBranchId()}`,rows)}catch(e){if(!isNetError(e))throw e;employees=[state.employee];rows=(await odbGet(`shiftHistory:${currentBranchId()}`))||[];const cached=await cachedOpenShift();if(cached&&!rows.some(x=>String(x.id)===String(cached.id)))rows.unshift(cached)}const isAdmin=state.employee.role==='admin';const open=rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;$('#page').innerHTML=`${open?`<div class="panel shift-current"><div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div>${Object.entries(metrics.paymentTotals||{}).filter(([k,v])=>k!=='cash'&&Math.abs(Number(v||0))>0.005).map(([k,v])=>`<div>${esc(state.paymentMethods.find(x=>String(x.code)===String(k))?.name||k)} <b>${money(v)}</b></div>`).join('')}<div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
+async function renderShifts(){let employees=[],rows=[],unverifiedRead=false;try{employees=await rest('employees','select=id,name,branch_id,role,active&order=name');const fetched=await rest('shifts',`select=*&branch_id=eq.${currentBranchId()}&order=opened_at.desc&limit=100`);if(!Array.isArray(fetched))throw new Error('لم يؤكد السيرفر قائمة الورديات');const prior=await odbGet(`shiftHistory:${currentBranchId()}`);if(isTopChickenSyncDiagnosticsScope()&&fetched.length===0){rows=Array.isArray(prior)?prior:[];unverifiedRead=true}else{rows=fetched;await odbSet(`shiftHistory:${currentBranchId()}`,rows)}}catch(e){const authError=isTopChickenSyncDiagnosticsScope()&&/401|unauthoriz|jwt|جلسة|token/i.test(String(e?.message||e));if(!isNetError(e)&&!authError)throw e;employees=[state.employee];rows=(await odbGet(`shiftHistory:${currentBranchId()}`))||[];const cached=await cachedOpenShift();if(cached&&!rows.some(x=>String(x.id)===String(cached.id)))rows.unshift(cached);unverifiedRead=isTopChickenSyncDiagnosticsScope()}const isAdmin=state.employee.role==='admin';const open=unverifiedRead?null:rows.find(s=>String(s.employee_id)===String(state.employee.id)&&s.status==='open'&&!s.closed_at);let metrics=open?await shiftMetrics(open):null;const shiftReadNotice=unverifiedRead?'<div class="panel" role="alert"><b>⚠️ تعذر تأكيد الورديات من السيرفر.</b><p>البيانات الظاهرة محفوظة محليًا للعرض فقط. ممنوع فتح أو قفل وردية أو اعتماد الأرقام حتى تعود جلسة الدخول سليمة.</p></div>':'';$('#page').innerHTML=`${shiftReadNotice}${open?`<div class="panel shift-current"><div class="shift-title"><div><h2>🟢 الوردية الحالية</h2><p>${branchName(open.branch_id)} • بدأت ${fmtDate(open.opened_at)} • ${employeeName(open.employee_id,employees)}</p></div><span class="shift-duration">${Math.max(0,Math.floor((Date.now()-new Date(open.opened_at))/60000))} دقيقة</span></div><div class="grid kpis"><div class="card kpi"><small>إجمالي المبيعات</small><strong>${money(metrics.sales)}</strong></div><div class="card kpi"><small>عدد الأوردرات</small><strong>${metrics.count}</strong></div><div class="card kpi"><small>كاش</small><strong>${money(metrics.cash)}</strong></div><div class="card kpi"><small>مصروفات</small><strong>${money(metrics.exp)}</strong></div></div><div class="shift-pay-grid"><div>افتتاحية الخزنة <b>${money(open.opening_cash)}</b></div>${Object.entries(metrics.paymentTotals||{}).filter(([k,v])=>k!=='cash'&&Math.abs(Number(v||0))>0.005).map(([k,v])=>`<div>${esc(state.paymentMethods.find(x=>String(x.code)===String(k))?.name||k)} <b>${money(v)}</b></div>`).join('')}<div>الكاش المتوقع بالدرج <b>${money(metrics.expected)}</b></div></div><div class="toolbar close-shift-bar"><label>الكاش الفعلي عند القفل<input id="closingCash" type="number" min="0" step="0.01" placeholder="عدّ الدرج واكتب الرقم"></label><button id="closeShift" class="danger">إغلاق الوردية وعمل التسوية</button></div></div>`:`<div class="panel"><h2>فتح وردية جديدة</h2><p>أي مبيعات ومصروفات بعد الفتح هتتربط بالوردية دي تلقائيًا.</p><div class="toolbar"><label>عهدة بداية الوردية<input id="openingCash" type="number" min="0" step="0.01" value="0"></label><button id="openShift" class="primary">فتح الوردية</button></div></div>`}<div class="panel"><div class="shift-title"><h2>سجل الورديات</h2></div><div class="table-wrap"><table><thead><tr><th>#</th><th>الفرع</th><th>الموظف</th><th>الفتح</th><th>القفل</th><th>المبيعات</th><th>كاش</th><th>مصروفات</th><th>العجز/الزيادة</th><th>الحالة</th><th></th></tr></thead><tbody id="shiftRows"></tbody></table></div></div>`;
  const drawHistory=()=>{const list=rows;$('#shiftRows').innerHTML=list.map(x=>`<tr><td>${x.id}</td><td>${esc(branchName(x.branch_id))}</td><td>${esc(employeeName(x.employee_id,employees))}</td><td>${fmtDate(x.opened_at)}</td><td>${x.closed_at?fmtDate(x.closed_at):'-'}</td><td>${money(x.sales_total||0)}</td><td>${money(x.cash_sales||0)}</td><td>${money(x.expenses_total||0)}</td><td class="${Number(x.cash_difference||0)<0?'negative':'positive'}">${x.closed_at?money(x.cash_difference||0):'-'}</td><td><span class="tag">${x.status==='open'?'مفتوحة':'مقفولة'}</span></td><td><button class="secondary" data-shift="${x.id}">التفاصيل</button></td></tr>`).join('')||'<tr><td colspan="11">لا توجد ورديات</td></tr>'};drawHistory();
+ if(unverifiedRead){for(const b of $('#page').querySelectorAll('[data-shift],#openShift,#closeShift'))b.disabled=true}
  if(open)$('#closeShift').onclick=async()=>{const actual=Number($('#closingCash').value);if(!Number.isFinite(actual)||actual<0)return toast('اكتب الكاش الفعلي عند القفل بقيمة صفر أو أكبر');const pending=metrics.orders.filter(o=>(o.order_type==='delivery'&&!['delivered','cancelled','completed'].includes(o.status))||(String(o.source||'')==='website'&&o.order_type!=='delivery'&&!['completed','cancelled'].includes(o.status)));if(pending.length)return toast(`فيه ${pending.length} أوردر معلق — خلصه أو الغيه قبل القفل`);
  let branchUnsettled=null,settlementCheckFailed=false;
  try{branchUnsettled=await fetchAll('orders',`select=id,total,shift_id,driver_id,branch_id,status,order_type,payment_method,driver_settled_at&branch_id=eq.${currentBranchId()}&order_type=eq.delivery&status=eq.delivered&payment_method=eq.cash&driver_settled_at=is.null`)}
