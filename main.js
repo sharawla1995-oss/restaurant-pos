@@ -465,6 +465,8 @@ if(!app.requestSingleInstanceLock()){
     app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
   }).catch(err=>{
     console.error('Top Chicken SQLite startup blocked (no reset performed):',err);
+    // Disposable CI must terminate unattended while preserving the corrupt bytes.
+    if(process.env.TOP_CHICKEN_PRIMARY_CI_NO_NETWORK==='1'){app.exit(40);return}
     try{dialog.showErrorBox('Top Chicken: local database recovery required',
       'The local SQLite database failed its integrity check. Startup was stopped to protect your existing orders and pending operations. Do not reset or sync; preserve the data folder.')}
     finally{app.quit()}
