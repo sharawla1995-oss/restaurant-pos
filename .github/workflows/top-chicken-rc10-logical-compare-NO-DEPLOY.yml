@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/top-chicken-rc10-logical-data-readonly-compare.ps1'
       - 'tests/top-chicken/sqlite-rc10-logical-readonly-compare-windows.cjs'
+      - 'scripts/top-chicken-rc10-all-tables-readonly-compare.ps1'
+      - 'tests/top-chicken/sqlite-rc10-all-tables-readonly-windows.cjs'
       - '.github/workflows/top-chicken-rc10-logical-compare-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -22,3 +24,5 @@ jobs:
         run: npm install --no-save --package-lock=false --ignore-scripts --omit=dev --no-audit --no-fund sql.js@1.8.0
       - name: Compare full row values including blob; assert no DB writes
         run: node tests/top-chicken/sqlite-rc10-logical-readonly-compare-windows.cjs
+      - name: Compare ALL tables; mask values and ensure no input writes
+        run: node tests/top-chicken/sqlite-rc10-all-tables-readonly-windows.cjs
