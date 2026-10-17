@@ -35,3 +35,9 @@ STATUS: SOURCE + DISPOSABLE WINDOWS ONLY. Do not install automatically. This doc
 - The source-only Linux/Windows fault-injection checks were previously PASS, but hardware power loss / owner's actual data and pending queue remain **NOT RUN**.
 - Operator-assisted read-only Windows pre-install diagnostic is added at [scripts/top-chicken-sqlite-preinstall-readonly.ps1](../scripts/top-chicken-sqlite-preinstall-readonly.ps1); not executed on real owner PC.
 - **No user-device installation, public GitHub release, update feed publication, Beta/production SQL/Edge change, or Top Burger change occurred.** The experimental installer must not be installed before current local queue backup/verification and explicit physical cutover approval.
+
+## Read-only operator preflight CI
+- [Windows 2022 synthetic read-only preflight test 38993473548 — **SUCCESS**](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/38993473548), source SHA `378895c0325796c836379657d5985ff314065722`.
+- Used native read-only `winsqlite3.dll` against disposable healthy main/lastgood/rescue files, counted one pending operation and two total operations, SHA-verified all three inputs, and asserted the original file bytes were unchanged.
+- Old Windows PowerShell compatibility: SHA-256 via .NET streaming rather than the optional `Get-FileHash` cmdlet.
+- **NOT EXECUTED on the real Top Chicken PC.** Real pending-queue reconciliation is still a mandatory physical installation gate; no live device installation, remote files or online order operations have been touched.
