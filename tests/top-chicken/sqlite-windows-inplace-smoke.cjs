@@ -13,13 +13,14 @@ if(process.env.TOP_CHICKEN_PRIMARY_CI_NO_NETWORK!=='1')throw Error('Must block o
 const install=process.env.TC_SQLITE_TEST_INSTALL_DIR;
 if(!install||!install.includes('TC-SQLITE-INPLACE-TEST'))throw Error('Unsafe installation directory');
 const exe=path.join(install,'Sharawla POS.exe');
-const out=path.join('evidence','top-chicken','sqlite-windows-inplace.json');
+const mode=process.argv[2];
+const out=path.join('evidence','top-chicken',`sqlite-windows-${mode}.json`);
 fs.mkdirSync(path.dirname(out),{recursive:true});
 const report={status:'FAIL',scope:'Disposable Windows runner; no external device/hosted writes',steps:[]};
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 const mark=(step,detail)=>report.steps.push({step,...detail});
 
-async function withApp(label,action){
+async function withApp(label,action,expectedVersion='10.5.19-rc.10'){
   let instance;
   try{
     instance=await electron.launch({
@@ -31,7 +32,7 @@ async function withApp(label,action){
     const window=await instance.firstWindow({timeout:60000});
     await window.waitForFunction(()=>Boolean(window.topBurgerDesktop?.isDesktop),{timeout:30000});
     const appInfo=await instance.evaluate(({app})=>({userData:app.getPath('userData'),version:app.getVersion()}));
-    assert.equal(appInfo.version,'10.5.19-rc.9','same-version code replacement on isolated Windows');
+    assert.equal(appInfo.version,expectedVersion,'expected staged installer version on disposable Windows');
     const p=await window.evaluate(()=>window.topBurgerDesktop.paths());
     assert.equal(p.database,path.join(appInfo.userData,'data','topburger-pos.sqlite'));
     assert.ok(appInfo.userData.toLowerCase().includes('sharawla-pos-windows'),'legacy namespace intentionally unchanged');
@@ -57,7 +58,7 @@ async function seedBefore(){
   const startup=await withApp('original_rc9_first_run',async({window})=>{
     const r=await window.evaluate(()=>window.topBurgerDesktop.paths());
     assert.ok(fs.existsSync(r.database),'legacy local DB created');
-  });
+  },'10.5.19-rc.9');
   const filepath=startup.p.database;
   const db=await sqliteCheck(filepath);
   try{
@@ -129,15 +130,37 @@ async function verifyAfter(){
   const last=await sqliteCheck(currentDb);last.close();
   report.status='PASS';
 }
+async function verifyRollback(expectedVersion,label){
+  const original=JSON.parse(fs.readFileSync('evidence/top-chicken/sqlite-windows-before.json','utf8'));
+  const result=await withApp(label,async({window,appInfo,p})=>{
+    assert.equal(p.database,original.path,'rollback and reupgrade must preserve exact SQLite path');
+    assert.equal(appInfo.userData,original.userData,'rollback and reupgrade must preserve userData');
+    assert.deepEqual(await window.evaluate(()=>window.topBurgerDesktop.db.get('tc-ci-persistent-key')),{kind:'CI',amount:319},'old key must survive rollback');
+    assert.deepEqual(await window.evaluate(()=>window.topBurgerDesktop.db.get('tc-ci-after-upgrade')),{written:'candidate-only'},'new key must survive rollback');
+    const pending=await window.evaluate(()=>window.topBurgerDesktop.operations.list('pending'));
+    assert.equal(pending.filter(item=>item.client_tx_id==='TC-CI-ONLY-ORDER-1').length,1,'rollback keeps exactly one pending synthetic order');
+  },expectedVersion);
+  const db=await sqliteCheck(result.p.database);
+  try{
+    const rows=db.exec("select status from local_operations where client_tx_id='TC-CI-ONLY-ORDER-1'");
+    assert.deepEqual(rows[0].values,[['pending']],'pending queue must not replay during rollback/reupgrade');
+  }finally{db.close()}
+  const good=await sqliteCheck(path.join(path.dirname(result.p.database),'topburger-pos.lastgood.sqlite'));
+  good.close();
+  mark(label,{version:expectedVersion,mainSha256:sha(result.p.database)});
+  report.status='PASS';
+}
 (async()=>{
   try{
     if(!fs.existsSync(exe))throw Error('Installer executable missing at disposable target');
-    if(process.argv[2]==='before')await seedBefore();
-    else if(process.argv[2]==='after')await verifyAfter();
-    else throw Error('Expected before/after');
-    if(process.argv[2]==='before')report.status='PASS';
+    if(mode==='before')await seedBefore();
+    else if(mode==='after')await verifyAfter();
+    else if(mode==='rollback')await verifyRollback('10.5.19-rc.9','old_rc9_rollback');
+    else if(mode==='reupgrade')await verifyRollback('10.5.19-rc.10','patched_rc10_reupgrade');
+    else throw Error('Expected before/after/rollback/reupgrade');
+    if(mode==='before')report.status='PASS';
     fs.writeFileSync(out,JSON.stringify(report,null,2));
-    console.log('PASS TC SQLITE WINDOWS INPLACE '+process.argv[2]+' '+JSON.stringify(report));
+    console.log('PASS TC SQLITE WINDOWS INPLACE '+mode+' '+JSON.stringify(report));
   }catch(err){
     report.error=String(err&&err.stack||err);
     fs.writeFileSync(out,JSON.stringify(report,null,2));
