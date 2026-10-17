@@ -14,7 +14,7 @@ const install=process.env.TC_SQLITE_TEST_INSTALL_DIR;
 if(!install||!install.includes('TC-SQLITE-INPLACE-TEST'))throw Error('Unsafe installation directory');
 const exe=path.join(install,'Sharawla POS.exe');
 const mode=process.argv[2];
-const out=path.join('evidence','top-chicken',`sqlite-windows-${mode}.json`);
+const out=path.join('evidence','top-chicken',`sqlite-windows-report-${mode}.json`);
 fs.mkdirSync(path.dirname(out),{recursive:true});
 const report={status:'FAIL',scope:'Disposable Windows runner; no external device/hosted writes',steps:[]};
 const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
