@@ -1,0 +1,26 @@
+name: Top Chicken operator read-only Windows preflight test (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-sqlite-rc10-windows-20261017]
+    paths:
+      - 'scripts/top-chicken-sqlite-preinstall-readonly.ps1'
+      - 'tests/top-chicken/sqlite-preinstall-readonly-windows.cjs'
+      - '.github/workflows/top-chicken-sqlite-readonly-preflight-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-read-only-check:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install only SQL.js without Electron, build or install scripts
+        run: npm install --no-save --package-lock=false --ignore-scripts --omit=dev --no-audit --no-fund sql.js@1.8.0
+      - name: Verify read-only preflight against synthetic Windows SQLite files
+        run: node tests/top-chicken/sqlite-preinstall-readonly-windows.cjs
+      - name: No device, queue, SQL, Edge, remote service or installer writes
+        run: echo 'READ ONLY / TEST FIXTURES ONLY / NO DEPLOY'
