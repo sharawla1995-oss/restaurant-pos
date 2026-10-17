@@ -1,9 +1,23 @@
 'use strict';
-// Top Chicken RC10 offline-only regression checks, no network calls.
+// RC10 / Top Chicken Beta: offline static assertions; no network or database.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
-assert(src.includes('sessionRefreshInFlight'));
-assert(src.includes('unverifiedRead'));
+const code=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
+const has=(value,why)=>assert(code.includes(value),why);
+new Function(code);
+has('function isTopChickenBetaAuthScope()', 'Beta auth scope missing');
+has("xihcxydjnzemflhedzor.supabase.co", 'Beta project missing');
+has('if(betaAuth)await refreshSessionIfNeeded()', 'preflight refresh missing');
+has('let sessionRefreshInFlight=null;', 'single flight refresh missing');
+has('if(sessionRefreshInFlight)return sessionRefreshInFlight', 'concurrent refresh guard missing');
+has("const safeToRetry=method==='GET'||(method==='POST'&&path==='/rest/v1/rpc/has_permission')", 'retry must be read-only');
+has('if(r.status===401&&betaAuth&&safeToRetry)', '401 retry must be read-only');
+assert(!code.includes("safeToRetry=method==='POST'"), 'unexpected POST retry');
+has('if(!Array.isArray(fetched))throw', 'shift response validation missing');
+has("if(isTopChickenSyncDiagnosticsScope()&&fetched.length===0)", 'empty list guard missing');
+has('unverifiedRead=isTopChickenSyncDiagnosticsScope()', 'auth fallback must be read-only');
+has('const open=unverifiedRead?null:rows.find', 'must not use stale open shift');
+has("if(unverifiedRead){for(const b of $('#page').querySelectorAll('[data-shift],#openShift,#closeShift'))b.disabled=true}", 'disable actions on stale shifts');
+has("if(!sh&&isTopChickenSyncDiagnosticsScope()&&(await cachedOpenShift()))throw", 'ambiguous open shift must be blocked');
 console.log('TOP_CHICKEN_RC10_AUTH_401_STATIC_PASS');
