@@ -118,7 +118,8 @@ function key(db,key){
     const mainSource=fs.readFileSync(path.resolve(__dirname,'../../main.js'),'utf8');
     assert.match(mainSource,/app\.requestSingleInstanceLock\(\)/);
     assert.match(mainSource,/createProtectedSqliteStore/);
-    assert.doesNotMatch(mainSource,/fs\.copyFileSync\(tmp,p\)/);
+    const writerSource=mainSource.slice(mainSource.indexOf('function persistDb()'),mainSource.indexOf('async function openDb()'));
+    assert.doesNotMatch(writerSource,/fs\.copyFileSync\(/,'only SQLite writer must never truncate the live file');
     console.log('PASS TC SQLITE: fresh save, full integrity, lastgood, restart, ENOSPC, fsync, locked rename, zero stage leaks, fail-closed corrupted files, durable local operations, single instance');
   }finally{
     fs.rmSync(root,{recursive:true,force:true});
