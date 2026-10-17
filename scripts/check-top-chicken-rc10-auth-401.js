@@ -4,6 +4,11 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const code=fs.readFileSync(path.join(__dirname,'../app.js'),'utf8');
+const index=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+const version=JSON.parse(fs.readFileSync(path.join(__dirname,'../version.json'),'utf8')).version;
+assert(index.includes('V'+version),'UI badge must match RC10 candidate');
+for(const asset of ['styles.css','app.js','restaurant-engine.js','sharawla-runtime-core.js'])
+  assert(index.includes(asset+'?v='+version),'RC10 cache stamp missing: '+asset);
 const has=(value,why)=>assert(code.includes(value),why);
 new Function(code);
 has('function isTopChickenBetaAuthScope()', 'Beta auth scope missing');
