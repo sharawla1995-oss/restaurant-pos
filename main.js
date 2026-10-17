@@ -5,9 +5,10 @@ const os = require('os');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const initSqlJs = require('sql.js');
+const {createProtectedSqliteStore}=require('./top-chicken-sqlite-durability');
 const topChickenUpdates = require('./top-chicken-update-channel');
 const {resetTopChickenTestQueue}=require('./top-chicken-test-queue-reset');
-let db, SQL, mainWindow;
+let db, SQL, mainWindow, sqliteStore, sqliteFatalShown=false;
 function dataDir(){const d=path.join(app.getPath('userData'),'data');fs.mkdirSync(d,{recursive:true});return d}
 function dbPath(){return path.join(dataDir(),'topburger-pos.sqlite')}
 function lastGoodDbPath(){return path.join(dataDir(),'topburger-pos.lastgood.sqlite')}
@@ -44,13 +45,26 @@ function writeLicenseStateFile(v){
     if(wroteTmp)try{fs.unlinkSync(tmp)}catch{}
   }
 }
-function persistDb(){if(!db)return;const bytes=Buffer.from(db.export()),p=dbPath(),tmp=`${p}.tmp-${process.pid}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;try{if(fs.existsSync(p))fs.copyFileSync(p,lastGoodDbPath())}catch{}try{fs.writeFileSync(tmp,bytes,{flag:'wx'});try{const fd=fs.openSync(tmp,'r');fs.fsyncSync(fd);fs.closeSync(fd)}catch{}fs.copyFileSync(tmp,p)}finally{try{fs.unlinkSync(tmp)}catch{}}}
+function persistDb(){
+  if(!db)return;
+  try{return sqliteStore.persist(db)}
+  catch(err){
+    console.error('Top Chicken local SQLite persist blocked:',err);
+    if(!sqliteFatalShown){
+      sqliteFatalShown=true;
+      setImmediate(()=>{
+        try{dialog.showErrorBox('Top Chicken: SQLite save stopped',
+          'Local database save failed. Stop using POS and preserve the data folder. No automatic reset or sync will run.')}
+        finally{app.quit()}
+      });
+    }
+    throw err;
+  }
+}
 async function openDb(){
   SQL=await initSqlJs({locateFile:f=>path.join(__dirname,'node_modules','sql.js','dist',f)});
-  const p=dbPath();
-  if(fs.existsSync(p)){try{db=new SQL.Database(fs.readFileSync(p))}catch{try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}}
-  else if(fs.existsSync(lastGoodDbPath())){try{db=new SQL.Database(fs.readFileSync(lastGoodDbPath()))}catch{db=new SQL.Database()}}
-  else db=new SQL.Database();
+  sqliteStore=createProtectedSqliteStore({fs,SQL,mainPath:dbPath(),lastGoodPath:lastGoodDbPath()});
+  db=sqliteStore.open();
   db.run(`
 create table if not exists kv(key text primary key,value text not null,updated_at text not null default(datetime('now')));
 create table if not exists local_operations(id integer primary key autoincrement,client_tx_id text unique not null,type text not null,payload text not null,status text not null default 'pending',attempts integer not null default 0,last_error text,created_at text not null default(datetime('now')),updated_at text not null default(datetime('now')));
@@ -427,11 +441,34 @@ function registerIpc(){
  ipcMain.handle('print:html',async(_e,html,opts={})=>new Promise(async resolve=>{const w=new BrowserWindow({show:false,width:420,height:900,webPreferences:{sandbox:true}});try{let deviceName=String(opts.deviceName||'');if(deviceName){const ps=await w.webContents.getPrintersAsync();const wanted=deviceName.trim().toLowerCase();const hit=ps.find(p=>String(p.name||'').trim().toLowerCase()===wanted||String(p.displayName||'').trim().toLowerCase()===wanted);if(hit)deviceName=hit.name}const data='data:text/html;charset=utf-8,'+encodeURIComponent(String(html||''));await w.loadURL(data);setTimeout(()=>{if(w.isDestroyed())return resolve({ok:false,error:'print window closed'});w.webContents.print({silent:!!opts.silent,deviceName,printBackground:true,margins:{marginType:'none'}},(ok,reason)=>{try{w.close()}catch{}resolve({ok,error:reason||null,deviceName})})},300)}catch(err){try{w.close()}catch{}resolve({ok:false,error:String(err&&err.message||err)})}}));
 }
 function createWindow(){mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:700,autoHideMenuBar:true,backgroundColor:'#fff',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:false}});mainWindow.loadFile('index.html')}
-app.whenReady().then(async()=>{
-  // CI upgrade acceptance only; never activated by an installed production user.
-  if(process.env.TOP_CHICKEN_PRIMARY_CI_NO_NETWORK==='1'){
-    session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_details,done)=>done({cancel:true}));
-  }
-  await openDb();registerIpc();try{createBackup('startup');pruneBackups(30)}catch{}createWindow();startUpdateWatch();setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch{}},10*60*1000);app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})});
-app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
-app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
+// Reject a second Electron main process sharing this user's SQLite data.
+if(!app.requestSingleInstanceLock()){
+  app.quit();
+}else{
+  app.on('second-instance',()=>{
+    if(mainWindow){
+      if(mainWindow.isMinimized())mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+  app.whenReady().then(async()=>{
+    // CI upgrade acceptance only; never activated by an installed production user.
+    if(process.env.TOP_CHICKEN_PRIMARY_CI_NO_NETWORK==='1'){
+      session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_details,done)=>done({cancel:true}));
+    }
+    await openDb();
+    registerIpc();
+    try{createBackup('startup');pruneBackups(30)}catch(e){console.error('startup backup:',e)}
+    createWindow();
+    startUpdateWatch();
+    setInterval(()=>{try{createBackup('auto');pruneBackups(30)}catch(e){console.error('auto backup:',e)}},10*60*1000);
+    app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
+  }).catch(err=>{
+    console.error('Top Chicken SQLite startup blocked (no reset performed):',err);
+    try{dialog.showErrorBox('Top Chicken: local database recovery required',
+      'The local SQLite database failed its integrity check. Startup was stopped to protect your existing orders and pending operations. Do not reset or sync; preserve the data folder.')}
+    finally{app.quit()}
+  });
+  app.on('before-quit',()=>{try{createBackup('close');pruneBackups(30)}catch(e){console.error(e)}});
+  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
+}
