@@ -6,6 +6,7 @@ on:
       - 'main.js'
       - 'top-chicken-sqlite-durability.js'
       - 'tests/top-chicken/sqlite-windows-inplace-smoke.cjs'
+      - 'tests/top-chicken/sqlite-installer-artifact-check.cjs'
       - '.github/workflows/top-chicken-sqlite-windows-NO-DEPLOY.yml'
   workflow_dispatch:
 permissions:
@@ -40,29 +41,8 @@ jobs:
           node tests/top-chicken/sqlite-durability-regression.cjs
       - name: Build x64 Windows NSIS installer WITHOUT publishing
         run: npx electron-builder --win nsis --x64 --publish never
-      - name: Verify reviewed SQLite writer is physically in app.asar
-        shell: node {0}
-        run: |
-          const fs=require('fs'),path=require('path'),crypto=require('crypto'),assert=require('assert/strict');
-          const asar=require('asar');
-          const archive=path.join('dist','win-unpacked','resources','app.asar');
-          assert.ok(fs.existsSync(archive));
-          for(const file of ['main.js','top-chicken-sqlite-durability.js','preload.js']){
-            assert.deepEqual(asar.extractFile(archive,file),fs.readFileSync(file),file+' must match reviewed source');
-          }
-          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
-          const packed=JSON.parse(asar.extractFile(archive,'package.json').toString());
-          assert.equal(pkg.version,'10.5.19-rc.9');
-          assert.equal(packed.version,pkg.version);
-          assert.equal(pkg.build.appId,'com.topburger.pos');
-          assert.equal(pkg.name,'sharawla-pos-windows');
-          const candidates=fs.readdirSync('dist').filter(n=>/^Top-Chicken-SH0008-Primary-10\.5\.19-rc\.9-x64\.exe$/.test(n));
-          assert.equal(candidates.length,1,'exact reviewed installer name');
-          const exe=path.join('dist',candidates[0]);
-          fs.mkdirSync(path.join('evidence','top-chicken'),{recursive:true});
-          const info={result:'PASS',scope:'DISPOSABLE CI ONLY - NOT APPROVED TO INSTALL',commit:process.env.GITHUB_SHA,installer:candidates[0],bytes:fs.statSync(exe).size,sha256:crypto.createHash('sha256').update(fs.readFileSync(exe)).digest('hex')};
-          fs.writeFileSync('evidence/top-chicken/sqlite-installer.json',JSON.stringify(info,null,2));
-          console.log(JSON.stringify(info));
+      - name: Verify reviewed SQLite writer is physically in packaged NSIS EXE
+        run: node tests/top-chicken/sqlite-installer-artifact-check.cjs
       - name: Retrieve pinned existing RC9 installer artifact, verified SHA256
         shell: pwsh
         env:
@@ -95,7 +75,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $candidate=(Get-Item 'dist\Top-Chicken-SH0008-Primary-10.5.19-rc.9-x64.exe').FullName
+          $candidate=(Get-Item 'dist\Top-Chicken-SH0008-Primary-10.5.19-rc.9.exe').FullName
           $proc=Start-Process -FilePath $candidate -ArgumentList @('/S',"/D=$env:TC_SQLITE_TEST_INSTALL_DIR") -PassThru
           if (-not $proc.WaitForExit(180000)) { Stop-Process -Id $proc.Id -Force; throw 'Candidate installer timed out' }
           if ($proc.ExitCode -ne 0) { throw "Candidate installer exited $($proc.ExitCode)" }
@@ -112,5 +92,5 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
           path: |
-            dist/Top-Chicken-SH0008-Primary-10.5.19-rc.9-x64.exe
+            dist/Top-Chicken-SH0008-Primary-10.5.19-rc.9.exe
             evidence/top-chicken/sqlite-*.json
