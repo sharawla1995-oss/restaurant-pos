@@ -25,6 +25,6 @@ for(const [name,iso,hours] of cases){
 }
 assert.equal(fallback('2026-10-17T23:11:09Z'),'legacy:2026-10-17T23:11:09Z','non-Beta unchanged');
 assert.equal(fmt('2026-10-18 02:11:09'),'legacy:2026-10-18 02:11:09','naive timestamp unchanged');
-assert.equal((app.match(/fmtTopChickenReceiptDate\\(o\\.created_at/g)||[]).length,2,'customer and kitchen receipts only');
+assert.equal((app.match(/fmtTopChickenReceiptDate\(o\.created_at/g)||[]).length,2,'customer and kitchen receipts only');
 assert(app.includes('const fmtDate=s=>new Date(s).toLocaleString(\'ar-EG\')'),'other pages remain unchanged');
 console.log('TOP_CHICKEN_RC10_CAIRO_RECEIPT_TIMESTAMP_PASS (11 checks)');
