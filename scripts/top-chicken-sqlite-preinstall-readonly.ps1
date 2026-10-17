@@ -1,11 +1,15 @@
 # Top Chicken SH-0008 operator pre-install diagnostic — READ ONLY.
 # Never launches POS, copies/renames/writes SQLite, unpauses sync, or changes cloud state.
 # Run manually in Windows PowerShell on the Top Chicken PC with POS closed.
+param(
+  [string]$DataDirectory = (Join-Path $env:APPDATA 'sharawla-pos-windows\data'),
+  [string]$RescueDirectory = 'D:\TopChicken-Rescue-20261017-041937'
+)
 $ErrorActionPreference = 'Stop'
-$data = Join-Path $env:APPDATA 'sharawla-pos-windows\data'
+$data = $DataDirectory
 $main = Join-Path $data 'topburger-pos.sqlite'
 $last = Join-Path $data 'topburger-pos.lastgood.sqlite'
-$rescue = 'D:\TopChicken-Rescue-20261017-041937'
+$rescue = $RescueDirectory
 $candidate = Join-Path $rescue 'data\topburger-pos.sqlite.tmp-6612-1792195243919-6d90fd5a'
 
 if (Get-Process -Name 'Sharawla POS' -ErrorAction SilentlyContinue) {
