@@ -45,27 +45,34 @@ jobs:
         run: |
           npx electron-builder --win nsis --x64 --publish never
           if ($LASTEXITCODE -ne 0) { throw "x64 build failed" }
+          $exe = @(Get-ChildItem dist -File -Filter "Top-Chicken-SH0008-Primary-*.exe")
+          if ($exe.Count -ne 1) { throw "x64 installer output must be unique" }
+          New-Item -Path artifacts -ItemType Directory -Force | Out-Null
+          Copy-Item $exe[0].FullName "artifacts/Top-Chicken-SH0008-RC10-Auth401-x64-UNAPPROVED.exe"
       - name: Build Windows ia32 candidate without publishing
         shell: pwsh
         run: |
           npx electron-builder --win nsis --ia32 --publish never
           if ($LASTEXITCODE -ne 0) { throw "ia32 build failed" }
+          $exe = @(Get-ChildItem dist -File -Filter "Top-Chicken-SH0008-Primary-*.exe")
+          if ($exe.Count -ne 1) { throw "ia32 installer output must be unique" }
+          Copy-Item $exe[0].FullName "artifacts/Top-Chicken-SH0008-RC10-Auth401-ia32-UNAPPROVED.exe"
       - name: Verify candidate installers and calculate SHA256
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem "dist" -File -Filter "Top-Chicken-SH0008-Primary-*.exe")
+          $files = @(Get-ChildItem "artifacts" -File -Filter "Top-Chicken-SH0008-RC10-Auth401-*-UNAPPROVED.exe")
           if ($files.Count -lt 2) { throw "Missing x64 or ia32 candidate installers" }
           if (-not ($files.Name -match "x64")) { throw "Missing x64 installer" }
           if (-not ($files.Name -match "ia32")) { throw "Missing ia32 installer" }
           $files | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash)  $(Split-Path $_.Path -Leaf)"
-          } | Set-Content "dist/RC10-AUTH-401-SHA256.txt" -Encoding utf8
+          } | Set-Content "artifacts/RC10-AUTH-401-SHA256.txt" -Encoding utf8
       - name: Upload isolated candidate artifacts (never GitHub Release)
         uses: actions/upload-artifact@v4
         with:
           name: top-chicken-rc10-auth401-Windows-UNAPPROVED
           path: |
-            dist/Top-Chicken-SH0008-Primary-*.exe
-            dist/RC10-AUTH-401-SHA256.txt
+            artifacts/Top-Chicken-SH0008-RC10-Auth401-*-UNAPPROVED.exe
+            artifacts/RC10-AUTH-401-SHA256.txt
           if-no-files-found: error
           retention-days: 7
