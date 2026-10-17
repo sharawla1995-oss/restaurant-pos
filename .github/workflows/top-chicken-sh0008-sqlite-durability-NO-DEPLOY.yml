@@ -23,8 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Dependency installation without Electron binaries or install scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install only SQL.js test dependency; no Electron binaries or scripts
+        run: npm install --no-save --package-lock=false --ignore-scripts --omit=dev --no-audit --no-fund sql.js@1.8.0
       - name: Parse source and test files
         run: |
           node --check main.js
