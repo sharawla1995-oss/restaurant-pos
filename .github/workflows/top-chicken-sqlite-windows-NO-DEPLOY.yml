@@ -1,11 +1,14 @@
 name: Top Chicken SQLite Windows installer and in-place safety (NO DEPLOY)
 on:
   push:
-    branches: [codex/top-chicken-sh0008-sqlite-durability-20261017]
+    branches: [codex/top-chicken-sh0008-sqlite-rc10-windows-20261017]
     paths:
       - 'main.js'
+      - 'package.json'
+      - 'version.json'
       - 'top-chicken-sqlite-durability.js'
       - 'tests/top-chicken/sqlite-windows-inplace-smoke.cjs'
+      - 'tests/top-chicken/sqlite-durability-regression.cjs'
       - 'tests/top-chicken/sqlite-installer-artifact-check.cjs'
       - '.github/workflows/top-chicken-sqlite-windows-NO-DEPLOY.yml'
   workflow_dispatch:
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   disposable-windows-inplace:
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 50
     env:
       TOP_CHICKEN_PRIMARY_CI_NO_NETWORK: '1'
     steps:
@@ -71,17 +74,36 @@ jobs:
         run: npm install --no-save --no-package-lock playwright@1.58.2
       - name: Open ORIGINAL RC9 and preserve synthetic old order and KV
         run: node tests/top-chicken/sqlite-windows-inplace-smoke.cjs before
-      - name: Replace ORIGINAL installer in place with patched candidate on CI only
+      - name: Upgrade original rc.9 in place to distinct rc.10 patch on disposable CI only
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $candidate=(Get-Item 'dist\Top-Chicken-SH0008-Primary-10.5.19-rc.9.exe').FullName
+          $candidate=(Get-Item 'dist\Top-Chicken-SH0008-Primary-10.5.19-rc.10.exe').FullName
           $proc=Start-Process -FilePath $candidate -ArgumentList @('/S',"/D=$env:TC_SQLITE_TEST_INSTALL_DIR") -PassThru
           if (-not $proc.WaitForExit(180000)) { Stop-Process -Id $proc.Id -Force; throw 'Candidate installer timed out' }
           if ($proc.ExitCode -ne 0) { throw "Candidate installer exited $($proc.ExitCode)" }
           if (!(Test-Path -LiteralPath (Join-Path $env:TC_SQLITE_TEST_INSTALL_DIR 'Sharawla POS.exe'))) { throw 'Candidate executable missing' }
-      - name: Launch patched EXE; ensure persistent KV, queued order, restart and corrupt-main fail-closed
+      - name: Launch rc.10; verify original queue, fresh process and corrupt-main fail-closed
         run: node tests/top-chicken/sqlite-windows-inplace-smoke.cjs after
+      - name: Reinstall original verified rc.9 as DISPOSABLE rollback rehearsal
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $proc=Start-Process -FilePath $env:TC_SQLITE_ORIGINAL_EXE -ArgumentList @('/S',"/D=$env:TC_SQLITE_TEST_INSTALL_DIR") -PassThru
+          if (-not $proc.WaitForExit(180000)) { Stop-Process -Id $proc.Id -Force; throw 'Disposable rollback install timeout' }
+          if ($proc.ExitCode -ne 0) { throw "Disposable rollback install exited $($proc.ExitCode)" }
+      - name: Verify rc.9 rollback retained rc.10 data and exact pending queue
+        run: node tests/top-chicken/sqlite-windows-inplace-smoke.cjs rollback
+      - name: Reinstall candidate rc.10 after rollback, CI ONLY
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $candidate=(Get-Item 'dist\Top-Chicken-SH0008-Primary-10.5.19-rc.10.exe').FullName
+          $proc=Start-Process -FilePath $candidate -ArgumentList @('/S',"/D=$env:TC_SQLITE_TEST_INSTALL_DIR") -PassThru
+          if (-not $proc.WaitForExit(180000)) { Stop-Process -Id $proc.Id -Force; throw 'Disposable reupgrade timeout' }
+          if ($proc.ExitCode -ne 0) { throw "Disposable reupgrade exited $($proc.ExitCode)" }
+      - name: Final rc.10 reupgrade verifies same queue, identity and SQLite
+        run: node tests/top-chicken/sqlite-windows-inplace-smoke.cjs reupgrade
       - name: Never release, update feed, install on owner device or contact Supabase
         run: echo "NO DEPLOY - disposable Windows x64 synthetic data only; artifact is NOT APPROVED TO INSTALL."
       - name: Upload experimental Windows artifact and test report ONLY
@@ -92,5 +114,5 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
           path: |
-            dist/Top-Chicken-SH0008-Primary-10.5.19-rc.9.exe
+            dist/Top-Chicken-SH0008-Primary-10.5.19-rc.10.exe
             evidence/top-chicken/sqlite-*.json
