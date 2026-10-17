@@ -1,0 +1,71 @@
+name: Top Chicken RC10 Auth 401 - Windows Candidate (Artifact Only)
+
+on:
+  pull_request:
+    branches:
+      - codex/top-chicken-sh0008-sqlite-rc10-windows-20261017
+    paths:
+      - app.js
+      - index.html
+      - scripts/check-top-chicken-rc10-auth-401.js
+      - .github/workflows/top-chicken-rc10-auth-401-artifact-only.yml
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-only:
+    if: github.base_ref == 'codex/top-chicken-sh0008-sqlite-rc10-windows-20261017' && github.head_ref == 'codex/top-chicken-rc10-auth-401-shifts-recovery-20261017'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout isolated RC10 fix
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup pinned Node 16
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+      - name: Source syntax and focused 401 recovery regression
+        shell: pwsh
+        run: |
+          node --check app.js
+          if ($LASTEXITCODE -ne 0) { throw "App syntax failed" }
+          node --check main.js
+          if ($LASTEXITCODE -ne 0) { throw "Main syntax failed" }
+          node scripts/check-version.js
+          if ($LASTEXITCODE -ne 0) { throw "Version mismatch" }
+          node scripts/check-top-chicken-rc10-auth-401.js
+          if ($LASTEXITCODE -ne 0) { throw "401 safety assertions failed" }
+      - name: Build Windows x64 candidate without publishing
+        shell: pwsh
+        run: |
+          npx electron-builder --win nsis --x64 --publish never
+          if ($LASTEXITCODE -ne 0) { throw "x64 build failed" }
+      - name: Build Windows ia32 candidate without publishing
+        shell: pwsh
+        run: |
+          npx electron-builder --win nsis --ia32 --publish never
+          if ($LASTEXITCODE -ne 0) { throw "ia32 build failed" }
+      - name: Verify candidate installers and calculate SHA256
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem "dist" -File -Filter "Top-Chicken-SH0008-Primary-*.exe")
+          if ($files.Count -lt 2) { throw "Missing x64 or ia32 candidate installers" }
+          if (-not ($files.Name -match "x64")) { throw "Missing x64 installer" }
+          if (-not ($files.Name -match "ia32")) { throw "Missing ia32 installer" }
+          $files | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash)  $(Split-Path $_.Path -Leaf)"
+          } | Set-Content "dist/RC10-AUTH-401-SHA256.txt" -Encoding utf8
+      - name: Upload isolated candidate artifacts (never GitHub Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: top-chicken-rc10-auth401-Windows-UNAPPROVED
+          path: |
+            dist/Top-Chicken-SH0008-Primary-*.exe
+            dist/RC10-AUTH-401-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
