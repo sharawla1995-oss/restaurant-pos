@@ -432,10 +432,22 @@ function topChickenStaffHttpError(status,data){
 function isTopChickenBetaAuthScope(){
   return String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co';
 }
+// Quarantine a rejected Beta bearer token so polling cannot flood the server.
+// A new, explicitly authenticated staff session resets the quarantine.
+let topChickenRejectedSessionToken=null;
 async function req(path,opt={}){
   const authenticated=opt.auth!==false&&!!session?.access_token;
   const betaAuth=authenticated&&isTopChickenBetaAuthScope();
-  if(betaAuth)await refreshSessionIfNeeded();
+  if(betaAuth&&topChickenRejectedSessionToken===session.access_token)
+    throw new Error('جلسة Top Chicken مرفوضة (401). يلزم تسجيل دخول جديد بعد حفظ وفحص البيانات المحلية.');
+  if(betaAuth){
+    try{await refreshSessionIfNeeded()}
+    catch(e){
+      if(navigator.onLine&&/401|403|invalid|refresh.token|جلسة/i.test(String(e?.message||e)))
+        topChickenRejectedSessionToken=session?.access_token;
+      throw e;
+    }
+  }
   let sentAccessToken=null;
   const send=async()=>{
     sentAccessToken=session?.access_token||null;
@@ -449,15 +461,19 @@ async function req(path,opt={}){
   const method=String(opt.method||'GET').toUpperCase();
   const safeToRetry=method==='GET'||(method==='POST'&&path==='/rest/v1/rpc/has_permission');
   if(r.status===401&&betaAuth&&safeToRetry){
-    if(session?.access_token===sentAccessToken)await refreshSessionIfNeeded(true);
+    try{
+      if(session?.access_token===sentAccessToken)await refreshSessionIfNeeded(true);
+    }catch(e){topChickenRejectedSessionToken=session?.access_token;throw e}
     ({r,d}=await send());
   }
   if(!r.ok){
     if(path==='/functions/v1/top-chicken-staff'&&
        String(cfg.url||'').replace(/\/$/,'')==='https://xihcxydjnzemflhedzor.supabase.co'&&r.status===503)
       throw topChickenStaffHttpError(r.status,d);
-    if(betaAuth&&r.status===401)
+    if(betaAuth&&r.status===401){
+      topChickenRejectedSessionToken=session?.access_token;
       throw new Error('انتهت صلاحية جلسة Top Chicken أو رفضها السيرفر (401). لا تفتح وردية جديدة ولا تكرر عملية مالية قبل مراجعة الاتصال.');
+    }
     throw new Error(d?.message||d?.error_description||d?.hint||`خطأ ${r.status}`);
   }
   return d;
@@ -866,14 +882,14 @@ async function signIn(email,password){
       if(reply?.ok!==true||reply.business_id!=='5358328c-9724-49aa-affc-1bce8be90f92'||
          !d?.access_token||!d?.refresh_token||!d?.user?.id)
         throw new Error('السيرفر لم يؤكد جلسة دخول الموظف');
-      session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+      session=d;resumeSession=d;topChickenRejectedSessionToken=null;localStorage.setItem('sbResumeSession',JSON.stringify(d));
       // Online PIN verification is the authority; no offline fallback to a
       // locally brute-forceable 4-digit verifier.
       localStorage.removeItem('offlineLoginVerifier');
       return d;
     }
     const d=await req('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})});
-    session=d;resumeSession=d;localStorage.setItem('sbResumeSession',JSON.stringify(d));
+    session=d;resumeSession=d;topChickenRejectedSessionToken=null;localStorage.setItem('sbResumeSession',JSON.stringify(d));
     await rememberOfflineLogin(email,password);return d;
   }
   if(!email.includes('@') && await isTopChickenStaffContext())
