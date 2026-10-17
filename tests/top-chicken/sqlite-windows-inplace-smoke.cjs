@@ -81,7 +81,7 @@ async function verifyAfter(){
     assert.equal(p.database,original.path,'same SQLite absolute path');
     const val=await window.evaluate(()=>window.topBurgerDesktop.db.get('tc-ci-persistent-key'));
     assert.deepEqual(val,{kind:'CI',amount:319},'existing key must survive upgrade');
-    const jobs=await window.evaluate(()=>window.topBurgerDesktop.ops.list('pending'));
+    const jobs=await window.evaluate(()=>window.topBurgerDesktop.operations.list('pending'));
     assert.equal(jobs.filter(o=>o.client_tx_id==='TC-CI-ONLY-ORDER-1').length,1,'old pending offline order retained');
     await window.evaluate(()=>window.topBurgerDesktop.db.set('tc-ci-after-upgrade',{written:'candidate-only'}));
     const newVal=await window.evaluate(()=>window.topBurgerDesktop.db.get('tc-ci-after-upgrade'));
@@ -103,7 +103,7 @@ async function verifyAfter(){
   await withApp('candidate_second_fresh_process',async({window,p})=>{
     assert.equal(p.database,currentDb);
     assert.deepEqual(await window.evaluate(()=>window.topBurgerDesktop.db.get('tc-ci-after-upgrade')),{written:'candidate-only'});
-    const q=await window.evaluate(()=>window.topBurgerDesktop.ops.list('pending'));
+    const q=await window.evaluate(()=>window.topBurgerDesktop.operations.list('pending'));
     assert.equal(q.filter(x=>x.client_tx_id==='TC-CI-ONLY-ORDER-1').length,1);
   });
   // Corrupt a *disposable* copy of main; startup must reject without creating an empty DB.
