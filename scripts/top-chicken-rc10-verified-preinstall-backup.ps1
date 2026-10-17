@@ -36,7 +36,7 @@ function RequiredFolder([string]$filename) {
   if (($dir.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
     throw "STOP: SOURCE FOLDER IS A LINK: $filename"
   }
-  return $dir.FullName.TrimEnd('\')
+  return $dir.FullName
 }
 
 Check-PosStopped
