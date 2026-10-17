@@ -82,7 +82,14 @@ foreach ($name in @('current_main','current_lastgood','verified_restore_source')
     default { $candidate }
   }
   $info=[TCReadOnlyPreInstall]::Inspect($file)
-  $hash=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+  $stream=[System.IO.File]::OpenRead($file)
+  $algorithm=[System.Security.Cryptography.SHA256]::Create()
+  try {
+    $hash=[System.BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','')
+  } finally {
+    $stream.Dispose()
+    $algorithm.Dispose()
+  }
   $length=(Get-Item -LiteralPath $file).Length
   Write-Host "$name | $info | bytes=$length | SHA256=$hash"
 }
