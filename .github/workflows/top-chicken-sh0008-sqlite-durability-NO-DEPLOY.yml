@@ -1,0 +1,36 @@
+name: Top Chicken SH-0008 SQLite durability source tests (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-sqlite-durability-20261017]
+    paths:
+      - 'main.js'
+      - 'top-chicken-sqlite-durability.js'
+      - 'tests/top-chicken/sqlite-durability-regression.cjs'
+      - '.github/workflows/top-chicken-sh0008-sqlite-durability-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-sqlite-regression:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: \${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Dependency installation without Electron binaries or install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Parse source and test files
+        run: |
+          node --check main.js
+          node --check top-chicken-sqlite-durability.js
+          node --check tests/top-chicken/sqlite-durability-regression.cjs
+      - name: Test actual local SQLite on disposable CI data only
+        run: node tests/top-chicken/sqlite-durability-regression.cjs
+      - name: No deployment, installer or cloud credentials
+        run: echo "SOURCE ONLY; no hosted endpoints, release uploads, real devices, or sync operations"
