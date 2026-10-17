@@ -1,0 +1,24 @@
+name: Top Chicken RC10 strict readonly logical comparison (NO DEPLOY)
+on:
+  push:
+    branches: [codex/top-chicken-sh0008-sqlite-rc10-windows-20261017]
+    paths:
+      - 'scripts/top-chicken-rc10-logical-data-readonly-compare.ps1'
+      - 'tests/top-chicken/sqlite-rc10-logical-readonly-compare-windows.cjs'
+      - '.github/workflows/top-chicken-rc10-logical-compare-NO-DEPLOY.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-windows-readonly-diff:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install SQL.js for synthetic fixture only
+        run: npm install --no-save --package-lock=false --ignore-scripts --omit=dev --no-audit --no-fund sql.js@1.8.0
+      - name: Compare full row values including blob; assert no DB writes
+        run: node tests/top-chicken/sqlite-rc10-logical-readonly-compare-windows.cjs
