@@ -1,0 +1,43 @@
+name: Top Chicken Branch 22 PWA Preview - Static Bundle Only
+
+on:
+  pull_request:
+    branches:
+      - codex/top-chicken-rc10-receipt-cairo-time-20261018
+    paths:
+      - app.js
+      - top-chicken-pos/**
+      - scripts/build-top-chicken-pwa-preview.js
+      - scripts/check-top-chicken-pwa-preview.js
+      - .github/workflows/top-chicken-pwa-preview-bundle.yml
+
+permissions:
+  contents: read
+
+jobs:
+  preview-source-only:
+    if: github.head_ref == 'codex/top-chicken-branch22-full-pos-pwa-preview-20261018' && github.base_ref == 'codex/top-chicken-rc10-receipt-cairo-time-20261018'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout isolated Beta PWA candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Static tenant and no-write guards
+        run: |
+          node --check app.js
+          node scripts/check-top-chicken-pwa-preview.js
+      - name: Build static allowlisted PWA preview bundle
+        run: node scripts/build-top-chicken-pwa-preview.js
+      - name: Upload PWA artifact only - NOT DEPLOYED
+        uses: actions/upload-artifact@v4
+        with:
+          name: Top-Chicken-Branch22-PWA-PREVIEW-NOT-LIVE
+          path: dist-top-chicken-pwa-preview/
+          if-no-files-found: error
+          retention-days: 7
