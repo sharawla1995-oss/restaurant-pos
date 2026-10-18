@@ -1,6 +1,18 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const TOP_BURGER_WEB_CONNECTION={url:'https://kzokretuuigjhxjzdlmk.supabase.co',key:'sb_publishable_m8gAAZTKnOvCSWNvQijIXw_H1obE9vg'};
-let cfg=window.topBurgerDesktop?.isDesktop?{url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''}:{...TOP_BURGER_WEB_CONNECTION};
+// Dedicated Top Chicken full-POS PWA preview: must be bootstrapped by its own
+// index on a separate HTTPS origin. Never change the Top Burger web or Electron path.
+const TOP_CHICKEN_PWA_PREVIEW=!window.topBurgerDesktop?.isDesktop
+  && window.__TOP_CHICKEN_PWA_PREVIEW__==='top-chicken-branch22-preview-v1';
+const TOP_CHICKEN_PWA_BUSINESS_ID='5358328c-9724-49aa-affc-1bce8be90f92';
+const TOP_CHICKEN_PWA_BRANCH_ID=22;
+const TOP_CHICKEN_PWA_CONNECTION=Object.freeze({
+  url:'https://xihcxydjnzemflhedzor.supabase.co',
+  key:'sb_publishable_D8oSDUbbiw3ckn3XVO5QXw_hcnn-1UG'
+});
+let cfg=window.topBurgerDesktop?.isDesktop
+  ?{url:localStorage.getItem('sbUrl')||'',key:localStorage.getItem('sbKey')||''}
+  :{...(TOP_CHICKEN_PWA_PREVIEW?TOP_CHICKEN_PWA_CONNECTION:TOP_BURGER_WEB_CONNECTION)};
 let session=null;
 
 // ===== Sharawla Cloud device licensing V10.4.15 =====
@@ -110,8 +122,8 @@ async function ensureSharawlaRuntimeConfig(){
     if(!core)return false;
     try{
       sharawlaRuntimeConfig=core.prepareConfig({
-        business_id:'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7',
-        business_name:'Top Burger',
+        business_id:TOP_CHICKEN_PWA_PREVIEW?TOP_CHICKEN_PWA_BUSINESS_ID:'3e405b6f-feba-4d5c-a4bf-bebb77f2d5d7',
+        business_name:TOP_CHICKEN_PWA_PREVIEW?'Top Chicken':'Top Burger',
         pos_profile:'restaurant',
         profile_active:true,
         profile_implemented:true,
@@ -436,6 +448,19 @@ function isTopChickenBetaAuthScope(){
 // A new, explicitly authenticated staff session resets the quarantine.
 let topChickenRejectedSessionToken=null;
 async function req(path,opt={}){
+  // Preview is intentionally read-only until safe tenant-scoped financial
+  // flows, device-independent offline queue and real printing pass E2E.
+  // Authentication and permission checks are allowed; no operational writes.
+  if(TOP_CHICKEN_PWA_PREVIEW){
+    const method=String(opt.method||'GET').toUpperCase();
+    const authFlow=method==='POST'&&(
+      path==='/auth/v1/token?grant_type=password' ||
+      path==='/auth/v1/token?grant_type=refresh_token' ||
+      path==='/functions/v1/top-chicken-pin-login');
+    const permissionRead=method==='POST'&&path==='/rest/v1/rpc/has_permission';
+    if(method!=='GET'&&!authFlow&&!permissionRead)
+      throw new Error('Top Chicken PWA نسخة معاينة فقط: تم منع أي تعديل أو عملية مالية حتى اعتماد الاختبارات.');
+  }
   const authenticated=opt.auth!==false&&!!session?.access_token;
   const betaAuth=authenticated&&isTopChickenBetaAuthScope();
   if(betaAuth&&topChickenRejectedSessionToken===session.access_token)
@@ -482,6 +507,9 @@ async function rest(table,query='',opt={}){return req(`/rest/v1/${table}${query?
 let topChickenStaffContextActive=false;
 async function isTopChickenStaffContext(){
   if(String(cfg.url||'').replace(/\/$/,'')!=='https://xihcxydjnzemflhedzor.supabase.co')return false;
+  // Unauthenticated web PIN login still needs to select the Top Chicken
+  // login endpoint; any signed-in authorization below remains tenant-bound.
+  if(TOP_CHICKEN_PWA_PREVIEW&&!session?.access_token)return true;
   // A signed-in employee is authoritative; never let a stale local license
   // silently route a different tenant's staff operation into Top Chicken.
   if(state.employee?.business_id)return topChickenStaffContextActive=
@@ -820,13 +848,13 @@ async function cachedCustomerByPhone(raw){const normalized=normalizePhone(raw),a
 async function cachedAddressesForCustomer(id){return ((await odbGet('customerAddressesCache'))||[]).filter(a=>String(a.customer_id)===String(id)).sort((a,b)=>Number(b.is_default===true)-Number(a.is_default===true)||Number(b.id||0)-Number(a.id||0))}
 async function cachedOpenShift(){return await odbGet(`openShift:${state.employee?.id}:${currentBranchId()}`)}
 async function rememberOpenShift(sh){if(sh)await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,sh);return sh}
-async function saveOfflineSale(orderPayload,itemPayload,payRows,providedClientTx=null){const q=await offlineQueue(),n=offlineOrderNo(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();setOfflineOrderNo(n);const localId=`offline-${clientTx}`;const localOrder={...orderPayload,id:localId,client_tx_id:clientTx,invoice_number:`OFF-${n}`,bon_number:`OFF-${n}`,created_at:created,payment_status:'confirmed',_offline:true};const localItems=itemPayload.map((x,i)=>({...x,id:`${localId}-i${i+1}`,order_id:localId}));const job={type:'sale',client_tx_id:clientTx,created_at:created,p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows,local_order:localOrder,local_items:localItems};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {order:localOrder,items:localItems,client_tx_id:clientTx}}
+async function saveOfflineSale(orderPayload,itemPayload,payRows,providedClientTx=null){if(TOP_CHICKEN_PWA_PREVIEW)throw new Error('المعاينة لا تسمح بحفظ عمليات مالية أوفلاين');const q=await offlineQueue(),n=offlineOrderNo(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();setOfflineOrderNo(n);const localId=`offline-${clientTx}`;const localOrder={...orderPayload,id:localId,client_tx_id:clientTx,invoice_number:`OFF-${n}`,bon_number:`OFF-${n}`,created_at:created,payment_status:'confirmed',_offline:true};const localItems=itemPayload.map((x,i)=>({...x,id:`${localId}-i${i+1}`,order_id:localId}));const job={type:'sale',client_tx_id:clientTx,created_at:created,p_order:{...orderPayload,client_tx_id:clientTx},p_items:itemPayload,p_payments:payRows,local_order:localOrder,local_items:localItems};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {order:localOrder,items:localItems,client_tx_id:clientTx}}
 async function cacheOrderBundle(o,items=[]){if(!o?.id)return;const all=(await odbGet('cachedOrders'))||[];const next=[{order:o,items},...all.filter(x=>String(x.order?.id)!==String(o.id))].slice(0,250);await odbSet('cachedOrders',next)}
 async function cachedOrderBundles(){return (await odbGet('cachedOrders'))||[]}
-async function saveOfflineExpense(shift,description,amount,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();const local={id:`offline-exp-${clientTx}`,branch_id:currentBranchId(),employee_id:state.employee.id,shift_id:shift.id,description,amount,created_at:created,_offline:true};const job={type:'expense',client_tx_id:clientTx,created_at:created,p_shift_id:Number(shift.id),p_description:description,p_amount:Number(amount),local_expense:local};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
-async function saveOfflineReturn(o,selected,reason,notes,method,total,available,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),sh=await getOpenShift();const localReturn={id:`offline-ret-${clientTx}`,return_number:`OFF-${clientTx.slice(0,6)}`,branch_id:o.branch_id,order_id:o.id,shift_id:sh?.id,original_invoice_number:o.invoice_number,original_bon_number:o.bon_number,reason,notes,subtotal:total,total,created_at:created,_offline:true};const localItems=selected.map(x=>{const i=available.find(z=>String(z.id)===String(x.order_item_id));const unit=Number(i?.total||0)/Number(i?.quantity||1);return {return_id:localReturn.id,order_item_id:x.order_item_id,product_name:i?.product_name||'صنف',quantity:x.quantity,unit_refund:unit,total:unit*x.quantity}});const localPayments=[{return_id:localReturn.id,method,amount:total}];const job={type:'return',client_tx_id:clientTx,created_at:created,p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:[{method,amount:total}],local_return:localReturn,local_items:localItems,local_payments:localPayments};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {r:localReturn,items:localItems,payments:localPayments}}
-async function saveOfflineShiftOpen(opening,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),localId=`offline-shift-${clientTx}`;const local={id:localId,branch_id:currentBranchId(),employee_id:state.employee.id,opening_cash:Number(opening||0),status:'open',opened_at:created,_offline:true,client_tx_id:clientTx};const job={type:'shift_open',client_tx_id:clientTx,created_at:created,p_branch_id:Number(currentBranchId()),p_opening_cash:Number(opening||0),local_shift_id:localId,local_shift:local};q.push(job);await setOfflineQueue(q);await rememberOpenShift(local);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
-async function saveOfflineShiftClose(shift,metrics,actual,providedClientTx=null){const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),diff=Number(actual)-Number(metrics.expected||0);const local={...shift,closing_cash:Number(actual),closed_at:created,status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count,_offline:true};const job={type:'shift_close',client_tx_id:clientTx,created_at:created,p_shift_id:shift.id,p_closing_cash:Number(actual),p_metrics:{sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count},local_shift_id:shift.id,local_shift:local};q.push(job);await setOfflineQueue(q);await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,null);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
+async function saveOfflineExpense(shift,description,amount,providedClientTx=null){if(TOP_CHICKEN_PWA_PREVIEW)throw new Error('المعاينة لا تسمح بحفظ عمليات مالية أوفلاين');const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString();const local={id:`offline-exp-${clientTx}`,branch_id:currentBranchId(),employee_id:state.employee.id,shift_id:shift.id,description,amount,created_at:created,_offline:true};const job={type:'expense',client_tx_id:clientTx,created_at:created,p_shift_id:Number(shift.id),p_description:description,p_amount:Number(amount),local_expense:local};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
+async function saveOfflineReturn(o,selected,reason,notes,method,total,available,providedClientTx=null){if(TOP_CHICKEN_PWA_PREVIEW)throw new Error('المعاينة لا تسمح بحفظ عمليات مالية أوفلاين');const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),sh=await getOpenShift();const localReturn={id:`offline-ret-${clientTx}`,return_number:`OFF-${clientTx.slice(0,6)}`,branch_id:o.branch_id,order_id:o.id,shift_id:sh?.id,original_invoice_number:o.invoice_number,original_bon_number:o.bon_number,reason,notes,subtotal:total,total,created_at:created,_offline:true};const localItems=selected.map(x=>{const i=available.find(z=>String(z.id)===String(x.order_item_id));const unit=Number(i?.total||0)/Number(i?.quantity||1);return {return_id:localReturn.id,order_item_id:x.order_item_id,product_name:i?.product_name||'صنف',quantity:x.quantity,unit_refund:unit,total:unit*x.quantity}});const localPayments=[{return_id:localReturn.id,method,amount:total}];const job={type:'return',client_tx_id:clientTx,created_at:created,p_order_id:Number(o.id),p_reason:reason,p_notes:notes,p_items:selected,p_payments:[{method,amount:total}],local_return:localReturn,local_items:localItems,local_payments:localPayments};q.push(job);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return {r:localReturn,items:localItems,payments:localPayments}}
+async function saveOfflineShiftOpen(opening,providedClientTx=null){if(TOP_CHICKEN_PWA_PREVIEW)throw new Error('المعاينة لا تسمح بحفظ عمليات مالية أوفلاين');const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),localId=`offline-shift-${clientTx}`;const local={id:localId,branch_id:currentBranchId(),employee_id:state.employee.id,opening_cash:Number(opening||0),status:'open',opened_at:created,_offline:true,client_tx_id:clientTx};const job={type:'shift_open',client_tx_id:clientTx,created_at:created,p_branch_id:Number(currentBranchId()),p_opening_cash:Number(opening||0),local_shift_id:localId,local_shift:local};q.push(job);await setOfflineQueue(q);await rememberOpenShift(local);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
+async function saveOfflineShiftClose(shift,metrics,actual,providedClientTx=null){if(TOP_CHICKEN_PWA_PREVIEW)throw new Error('المعاينة لا تسمح بحفظ عمليات مالية أوفلاين');const q=await offlineQueue(),clientTx=providedClientTx||uuid(),created=new Date().toISOString(),diff=Number(actual)-Number(metrics.expected||0);const local={...shift,closing_cash:Number(actual),closed_at:created,status:'closed',closed_by_employee_id:state.employee.id,sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count,_offline:true};const job={type:'shift_close',client_tx_id:clientTx,created_at:created,p_shift_id:shift.id,p_closing_cash:Number(actual),p_metrics:{sales_total:metrics.sales,cash_sales:metrics.cash,wallet_sales:metrics.wallet,instapay_sales:metrics.instapay,expenses_total:metrics.exp,expected_cash:metrics.expected,cash_difference:diff,orders_count:metrics.count},local_shift_id:shift.id,local_shift:local};q.push(job);await setOfflineQueue(q);await odbSet(`openShift:${state.employee?.id}:${currentBranchId()}`,null);try{if(window.topBurgerDesktop?.operations?.put)await window.topBurgerDesktop.operations.put(job)}catch{}return local}
 async function remapQueuedShift(localId,serverId){let q=await offlineQueue();for(const j of q){if(j.p_shift_id===localId)j.p_shift_id=Number(serverId);if(j.p_order?.shift_id===localId)j.p_order.shift_id=Number(serverId);if(j.local_order?.shift_id===localId)j.local_order.shift_id=Number(serverId);if(j.local_expense?.shift_id===localId)j.local_expense.shift_id=Number(serverId);if(j.local_return?.shift_id===localId)j.local_return.shift_id=Number(serverId)}await setOfflineQueue(q);return q}
 function jwtExp(token){try{return Number(JSON.parse(atob(String(token||'').split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp||0)}catch{return 0}}
 let sessionRefreshInFlight=null;
@@ -850,7 +878,7 @@ async function refreshSessionIfNeeded(force=false){
   })();
   try{return await sessionRefreshInFlight}finally{sessionRefreshInFlight=null}
 }
-async function syncOfflineQueue(){if(!navigator.onLine||!session?.access_token||isTopChickenSyncPaused())return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){if(isTopChickenSyncPaused())break;try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
+async function syncOfflineQueue(){if(TOP_CHICKEN_PWA_PREVIEW)return;if(!navigator.onLine||!session?.access_token||isTopChickenSyncPaused())return;try{await refreshSessionIfNeeded()}catch(e){console.warn('session refresh before sync',e);return;}let q=await offlineQueue();if(!q.length)return;let done=0;for(const job of [...q]){if(isTopChickenSyncPaused())break;try{if(job.type==='shift_open'){const sh=await rpc('open_pos_shift_idempotent',{p_branch_id:job.p_branch_id,p_opening_cash:job.p_opening_cash,p_client_tx_id:job.client_tx_id});q=await remapQueuedShift(job.local_shift_id,sh.id);await rememberOpenShift(sh)}else if(job.type==='sale')await rpc('create_pos_order_atomic',{p_order:job.p_order,p_items:job.p_items,p_payments:job.p_payments});else if(job.type==='expense')await rpc('create_pos_expense_idempotent',{p_shift_id:Number(job.p_shift_id),p_description:job.p_description,p_amount:job.p_amount,p_client_tx_id:job.client_tx_id});else if(job.type==='return')await rpc('create_order_return_idempotent',{p_order_id:job.p_order_id,p_reason:job.p_reason,p_notes:job.p_notes,p_items:job.p_items,p_payments:job.p_payments,p_client_tx_id:job.client_tx_id});else if(job.type==='shift_close')await rpc('close_pos_shift_idempotent',{p_shift_id:Number(job.p_shift_id),p_closing_cash:job.p_closing_cash,p_metrics:job.p_metrics,p_client_tx_id:job.client_tx_id});q=(await offlineQueue()).filter(x=>x.client_tx_id!==job.client_tx_id);await setOfflineQueue(q);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'synced',null)}catch{}done++}catch(e){console.warn('sync stopped',e);try{if(window.topBurgerDesktop?.operations?.status)await window.topBurgerDesktop.operations.status(job.client_tx_id,'pending',String(e?.message||e))}catch{}break}}if(done){await refreshPendingSyncBadge();toast(`تمت مزامنة ${done} حركة أوفلاين`)}}
 window.addEventListener('online',()=>{showOfflineStatus();syncOfflineQueue()});window.addEventListener('offline',showOfflineStatus);setTimeout(refreshPendingSyncBadge,800);setInterval(()=>{if(navigator.onLine)syncOfflineQueue().catch(()=>{})},30000);
 
 function bytesHex(buf){return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
@@ -903,8 +931,8 @@ async function logout(){clearInterval(websiteOrderWatchTimer);websiteOrderWatchT
 function businessName(){return state.business?.business_name||sharawlaRuntimeConfig?.business_name||'Sharawla POS'}
 function businessTagline(){return state.business?.tagline||''}
 function applyBusinessBranding(){
-  document.title='Sharawla POS';
-  const n=$('#appBrandName');if(n)n.textContent='Sharawla POS';
+  document.title=TOP_CHICKEN_PWA_PREVIEW?'Top Chicken POS — Beta':'Sharawla POS';
+  const n=$('#appBrandName');if(n)n.textContent=TOP_CHICKEN_PWA_PREVIEW?'Top Chicken POS':'Sharawla POS';
   const logo=$('#appBrandLogo');if(logo){const u=state.business?.logo_url||'';logo.src=u;logo.classList.toggle('hidden',!u)}
   const root=document.documentElement;
   if(state.business?.primary_color)root.style.setProperty('--business-primary',state.business.primary_color);
@@ -1102,9 +1130,18 @@ async function bootstrap(){
     rest('branch_financial_settings','select=*').catch(()=>[])
   ]);
   if(!emps?.length)throw new Error('الحساب غير مربوط بموظف في النظام');
+  if(TOP_CHICKEN_PWA_PREVIEW){
+    const member=emps[0];
+    if(String(member.business_id)!==TOP_CHICKEN_PWA_BUSINESS_ID ||
+       Number(member.branch_id)!==TOP_CHICKEN_PWA_BRANCH_ID ||
+       !(branches||[]).some(b=>Number(b.id)===TOP_CHICKEN_PWA_BRANCH_ID))
+      throw new Error('حساب الدخول غير مصرح له بنشاط Top Chicken وفرع 22');
+  }
   try{const br=await rest('business_settings','select=*&id=eq.1&limit=1');if(br?.[0])state.business={...state.business,...br[0]}}catch(e){}
   try{const wr=await rest('website_settings','select=*&id=eq.1&limit=1');if(wr?.[0])state.websiteSettings=wr[0]}catch(e){state.websiteSettings=null}
-  state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=branches||[];state.categories=cats||[];state.products=products||[];state.branchProducts=branchProducts||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];state.branchPrintSettings=printSettings||[];state.paymentMethods=paymentMethods||[];state.branchPaymentMethods=branchPaymentMethods||[];state.branchFinancialSettings=branchFinancialSettings||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
+  state.employee=emps[0];state.homeBranchId=Number(emps[0].branch_id||0);state.branches=TOP_CHICKEN_PWA_PREVIEW
+    ?(branches||[]).filter(b=>Number(b.id)===TOP_CHICKEN_PWA_BRANCH_ID)
+    :(branches||[]);state.categories=cats||[];state.products=products||[];state.branchProducts=branchProducts||[];state.modifiers=modifiers||[];state.productModifiers=productModifiers||[];state.productVariants=productVariants||[];state.deliveryZones=zones||[];state.drivers=drivers||[];state.branchPrintSettings=printSettings||[];state.paymentMethods=paymentMethods||[];state.branchPaymentMethods=branchPaymentMethods||[];state.branchFinancialSettings=branchFinancialSettings||[];try{state.employeeBranches=await rest('employee_branches',`select=branch_id&employee_id=eq.${state.employee.id}`)}catch(e){state.employeeBranches=[]}try{state.userPermissions=await rest('employee_permissions',`select=permission_key,allowed&employee_id=eq.${state.employee.id}`)}catch(e){state.userPermissions=null}for(const r of (settingsRows||[])){if(r.key in state.settings)state.settings[r.key]=String(r.value)==='true';}
   applyBusinessBranding();
   $('#who').textContent=`${state.employee.name} • ${state.employee.role}`;
   const allowed=allowedBranches();
