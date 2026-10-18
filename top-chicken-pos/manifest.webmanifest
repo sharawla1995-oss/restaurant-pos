@@ -1,0 +1,28 @@
+{
+  "id": "./",
+  "name": "Top Chicken POS (Beta)",
+  "short_name": "Top Chicken",
+  "description": "Top Chicken Branch 22 — isolated POS preview (no live financial writes)",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fff7ed",
+  "theme_color": "#9f1239",
+  "icons": [
+    {
+      "src": "../icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
