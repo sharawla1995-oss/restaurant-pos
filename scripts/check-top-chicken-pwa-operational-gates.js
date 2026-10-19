@@ -61,6 +61,11 @@ const burger='https://kzokretuuigjhxjzdlmk.supabase.co';
     'if(TOP_CHICKEN_PWA_PREVIEW)return;if(!o?.id)return;',
     'if(TOP_CHICKEN_PWA_PREVIEW)localStorage.removeItem'
   ])assert(app.includes(signal),'Missing fail-closed offline guard: '+signal);
+  for(const phrase of [
+    "if(isTopChickenBetaAuthScope()&&!window.topBurgerDesktop?.isDesktop){toast('تم طلب فتح نافذة الطباعة",
+    "function autoPrintOrder(o,items){if(isTopChickenBetaAuthScope()&&!window.topBurgerDesktop?.isDesktop)return;",
+    "async function recordSuccessfulPrint(o,type,wasCopy){if(isTopChickenBetaAuthScope()&&!window.topBurgerDesktop?.isDesktop)return;"
+  ])assert(app.includes(phrase),'Missing web-only print honesty guard: '+phrase);
   assert(app.includes("String(member.business_id)!==TOP_CHICKEN_PWA_BUSINESS_ID"));
   assert(app.includes("Number(member.branch_id)!==TOP_CHICKEN_PWA_BRANCH_ID"));
   console.log('TOP_CHICKEN_PWA_SECURITY_GATE_PASS 8 destinations x 4 write methods blocked, offline denied');
