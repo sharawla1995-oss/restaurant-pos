@@ -25,7 +25,8 @@ assert(app.includes("async function syncOfflineQueue(){if(TOP_CHICKEN_PWA_PREVIE
 for(const writer of ['saveOfflineSale','saveOfflineExpense','saveOfflineReturn','saveOfflineShiftOpen','saveOfflineShiftClose'])
   assert(new RegExp('async function '+writer+'\\([^)]*\\)\\{if\\(TOP_CHICKEN_PWA_PREVIEW\\)').test(app),writer+' must be blocked in preview');
 assert(boot.includes('window.fetch=function(input,init)'));
-assert(boot.includes("requestUrl.origin===betaOrigin||requestUrl.origin===centralOrigin"));
+assert(boot.includes("if(method!=='GET'&&method!=='HEAD')")); // fail closed globally
+assert(!boot.includes("requestUrl.origin===betaOrigin||requestUrl.origin===centralOrigin"));
 assert(boot.includes('!authorizedAuthFlow&&!readonlyPermission'));
 assert(sw.includes("key.startsWith('tc-pwa-branch22-')"));
 assert(sw.includes("if(event.request.method!=='GET')return"));
