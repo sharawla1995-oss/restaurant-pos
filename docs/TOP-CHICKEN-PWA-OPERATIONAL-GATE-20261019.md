@@ -25,6 +25,14 @@ Queried `pg_proc`, `pg_policies` and selected `pg_get_functiondef` via the Supab
 - `open_pos_shift_idempotent`, `create_pos_expense_idempotent`, `create_order_return_idempotent`, `offline_delivery_assign_driver_v1`, and `order_status_apply_offline_v2` exist; signature presence is not E2E proof.
 - Legacy permissive OR-composed RLS policies for admin/branch access need adversarial real-JWT tests; policy summaries do not establish complete isolation.
 
+## Candidate online sale gateway — SOURCE ONLY / isolated PostgreSQL 16 PASS
+- Source-only draft: `sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql`.
+- Proposed RPC `top_chicken_pwa_create_order_v1` hard-binds the server-authenticated tenant, Branch 22 and acting employee, keeps `create_pos_order_atomic` as the canonical sale/payment writer, and uses a server-side SHA-256 payload digest plus transaction-scoped advisory lock.
+- Dedicated immutable receipt rows reject changed-payload replay, replay under a different actor, and unknown legacy transactions without a receipt.
+- PostgreSQL 16 **disposable CI** tests: exact replay, changed amount/payments, forged branch/tenant/actor, unauthorized grants, legacy key, plus simultaneous same/different-payload requests from two independent database sessions.
+- Automated run **39192535053**: both jobs `offline-safety-and-preview` and `pg16-order-gateway-contract` **SUCCESS** ([GitHub Actions](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/39192535053)).
+- These PG16 tests use stubbed actors/tenant functions and a mocked canonical writer. This **does not validate real Beta RLS, real pricing, stock, rewards, orders, shifts or real printout**. It is not permission to deploy or run financial writes.
+
 ## Operational go/no-go gates (all must PASS before opening writes)
 | Gate | Status | Evidence still needed |
 | --- | --- | --- |
@@ -32,7 +40,7 @@ Queried `pg_proc`, `pg_policies` and selected `pg_get_functiondef` via the Supab
 | Isolated Beta Branch 22 selected | STATIC + user visual | Confirm real JWT and DB result on each protected action |
 | Global network no-write guard | CODED | GitHub Actions test PASS |
 | Auth & tenant enforcement for each operation | PENDING | Real role matrix and negative tests using isolated Beta test identities |
-| Sale create/duplicate/replay/changed payload | FAIL-OPEN RISK | Add digest+lock in separately reviewed Beta-only authoritative server owner; concurrent tests |
+| Sale create/duplicate/replay/changed payload | DRAFT GATE PG16 PASS / BETA E2E PENDING | New source-only receipt gateway tested in disposable PG16; real Beta integration/auth/migrations not approved |
 | Server-authoritative shift closure | PENDING | Cash reconciliation & settlement end-to-end |
 | Delivery status/driver assignment | PENDING | Valid/invalid transitions and actor/branch checks |
 | Returns/expenses and manager approvals | PENDING | Auth/digest/duplicate/uncertain outcome |
