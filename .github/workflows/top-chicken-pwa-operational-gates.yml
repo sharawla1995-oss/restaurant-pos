@@ -1,0 +1,46 @@
+name: Top Chicken PWA Operational Safety Gates (No Deploy)
+
+on:
+  push:
+    branches:
+      - codex/top-chicken-pwa-operational-gates-20261019
+  pull_request:
+    branches:
+      - codex/top-chicken-branch22-full-pos-pwa-preview-20261018
+    paths:
+      - app.js
+      - top-chicken-pos/**
+      - scripts/check-top-chicken-pwa-operational-gates.js
+      - scripts/check-top-chicken-pwa-preview.js
+      - scripts/build-top-chicken-pwa-preview.js
+      - .github/workflows/top-chicken-pwa-operational-gates.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safety-and-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout branch 22 isolated source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run executable no-write security guard tests
+        run: |
+          node --check app.js
+          node --check top-chicken-pos/tc-pwa-boot.js
+          node scripts/check-top-chicken-pwa-preview.js
+          node scripts/check-top-chicken-pwa-operational-gates.js
+      - name: Bundle root-only preview without deployment
+        run: node scripts/build-top-chicken-pwa-preview.js
+      - name: Assert no write-ready build artifacts
+        run: |
+          test -f dist-top-chicken-pwa-preview/index.html
+          test -f dist-top-chicken-pwa-preview/tc-pwa-boot.js
+          test ! -f dist-top-chicken-pwa-preview/.env
