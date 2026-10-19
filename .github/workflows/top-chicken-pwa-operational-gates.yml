@@ -13,6 +13,8 @@ on:
       - scripts/check-top-chicken-pwa-operational-gates.js
       - scripts/check-top-chicken-pwa-preview.js
       - scripts/build-top-chicken-pwa-preview.js
+      - sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql
+      - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-*.sql
       - .github/workflows/top-chicken-pwa-operational-gates.yml
 
 permissions:
@@ -44,3 +46,30 @@ jobs:
           test -f dist-top-chicken-pwa-preview/index.html
           test -f dist-top-chicken-pwa-preview/tc-pwa-boot.js
           test ! -f dist-top-chicken-pwa-preview/.env
+
+  pg16-order-gateway-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout Beta source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Start disposable PostgreSQL 16 in CI (never Supabase)
+        run: |
+          docker run -d --rm --name tc-pwa-gate-db -e POSTGRES_PASSWORD=postgres postgres:16
+          for i in $(seq 1 40); do
+            if docker exec tc-pwa-gate-db pg_isready -U postgres; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Apply DRAFT only to disposable CI database and run negative assertions
+        run: |
+          cat \
+            scripts/fixtures/top-chicken-pwa-order-gateway-pg16-setup.sql \
+            sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql \
+            scripts/fixtures/top-chicken-pwa-order-gateway-pg16-test.sql \
+            | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+      - name: Destroy disposable database container
+        if: always()
+        run: docker rm -f tc-pwa-gate-db || true
