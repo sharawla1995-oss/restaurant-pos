@@ -15,7 +15,8 @@ CREATE TABLE public.shifts(
  closing_cash numeric,expected_cash numeric,client_close_tx_id text
 );
 INSERT INTO public.shifts(id,branch_id,employee_id,status,opening_cash)
-VALUES(5001,22,1001,'open',50),(5002,22,1001,'open',25),(5003,23,1001,'open',10);
+VALUES(5001,22,1001,'open',50),(5002,22,1001,'open',25),(5003,23,1001,'open',10),
+      (5004,22,1001,'open',40),(5005,22,1001,'open',45);
 
 -- Test fixture returns frozen metrics; production resolves through the
 -- existing real shift_cash_metrics_v2 instead of trusting browser figures.
@@ -35,6 +36,7 @@ CREATE OR REPLACE FUNCTION public.close_pos_shift_idempotent(
 ) RETURNS jsonb LANGUAGE plpgsql AS $fixture$
 DECLARE v_shift public.shifts%ROWTYPE;
 BEGIN
+ PERFORM pg_sleep(0.5); -- deliberate race window, disposable fixture only
  UPDATE public.shifts SET status='closed',closed_at=now(),closing_cash=p_closing_cash,
   expected_cash=(p_metrics->>'expected_cash')::numeric,client_close_tx_id=p_client_tx_id
  WHERE id=p_shift_id RETURNING * INTO v_shift;
