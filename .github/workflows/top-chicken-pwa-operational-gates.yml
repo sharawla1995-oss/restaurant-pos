@@ -51,6 +51,14 @@ jobs:
           test -f dist-top-chicken-pwa-preview/tc-pwa-boot.js
           test ! -f dist-top-chicken-pwa-preview/.env
 
+      - name: Upload hardened read-only QA artifact (never deploy)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Top-Chicken-PWA-HARDENED-READONLY-QA-NOT-LIVE
+          path: dist-top-chicken-pwa-preview/
+          if-no-files-found: error
+          retention-days: 7
+
   pg16-order-gateway-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 12
