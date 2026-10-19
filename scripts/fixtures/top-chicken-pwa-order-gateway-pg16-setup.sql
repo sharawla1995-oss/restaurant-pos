@@ -22,6 +22,8 @@ CREATE OR REPLACE FUNCTION public.create_pos_order_atomic(
 ) RETURNS jsonb LANGUAGE plpgsql AS $fixture$
 DECLARE v_order public.orders%ROWTYPE;
 BEGIN
+  -- Exaggerate overlap in the disposable PG16 concurrency tests only.
+  PERFORM pg_sleep(0.6);
   INSERT INTO public.orders(branch_id,employee_id,client_tx_id)
   VALUES ((p_order->>'branch_id')::bigint,
           (p_order->>'employee_id')::bigint,
