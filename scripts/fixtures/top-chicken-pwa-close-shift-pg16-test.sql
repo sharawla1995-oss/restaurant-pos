@@ -1,3 +1,8 @@
+-- Each CI psql invocation is its own session; reset the disposable actor scope.
+SELECT set_config('tc_test.uid','a1111111-1111-4111-8111-111111111111',false);
+SELECT set_config('tc_test.business','5358328c-9724-49aa-affc-1bce8be90f92',false);
+SELECT set_config('tc_test.employee','1001',false);
+SELECT set_config('tc_test.allow_branch','yes',false);
 -- Dedicated PG16 disposable shift-close assertions; no Beta database touched.
 DO $test$
 DECLARE
