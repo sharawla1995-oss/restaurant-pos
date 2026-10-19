@@ -16,6 +16,8 @@ on:
       - sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql
       - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-*.sql
       - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
+      - sql/top-chicken-pwa-close-shift-server-metrics-v1-DRAFT-NOT-DEPLOYED.sql
+      - scripts/fixtures/top-chicken-pwa-close-shift-pg16-*.sql
       - .github/workflows/top-chicken-pwa-operational-gates.yml
 
 permissions:
@@ -70,6 +72,13 @@ jobs:
             scripts/fixtures/top-chicken-pwa-order-gateway-pg16-setup.sql \
             sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql \
             scripts/fixtures/top-chicken-pwa-order-gateway-pg16-test.sql \
+            | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+      - name: Run isolated server-authoritative shift closure contract
+        run: |
+          cat \
+            scripts/fixtures/top-chicken-pwa-close-shift-pg16-setup.sql \
+            sql/top-chicken-pwa-close-shift-server-metrics-v1-DRAFT-NOT-DEPLOYED.sql \
+            scripts/fixtures/top-chicken-pwa-close-shift-pg16-test.sql \
             | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
       - name: Prove concurrent requests produce one order and changed-payload conflict
         run: bash scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
