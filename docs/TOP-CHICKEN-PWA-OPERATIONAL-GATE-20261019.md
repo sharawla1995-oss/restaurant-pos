@@ -33,18 +33,26 @@ Queried `pg_proc`, `pg_policies` and selected `pg_get_functiondef` via the Supab
 - Automated run **39192535053**: both jobs `offline-safety-and-preview` and `pg16-order-gateway-contract` **SUCCESS** ([GitHub Actions](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/39192535053)).
 - These PG16 tests use stubbed actors/tenant functions and a mocked canonical writer. This **does not validate real Beta RLS, real pricing, stock, rewards, orders, shifts or real printout**. It is not permission to deploy or run financial writes.
 
+## New draft shift-close gateway — separate, unapproved
+- `sql/top-chicken-pwa-close-shift-server-metrics-v1-DRAFT-NOT-DEPLOYED.sql` offers `top_chicken_pwa_close_shift_v1(shift_id,closing_cash,client_tx_id)`. It does **not** accept client-supplied sales totals, cash expectations, expenses or custody figures.
+- Authenticated Cloud membership, employee, Branch 22 and current open shift are checked under the server session. Server `shift_cash_metrics_v2` is the authoritative cash/driver-custody metric source. The accepted canonical `close_pos_shift_idempotent` remains the only financial writer.
+- Distinct payload digest receipts block replay with a different cash amount or actor. Duplicate and changed-payload **concurrent** close requests were tested on a **disposable PostgreSQL 16 mock**, not live Beta.
+- Browser receipt printing on the isolated PWA was corrected in source only: no browser background auto-print, no false "success" or audited print count if the OS printer outcome is unknown. Real paper printing must still be tested.
+- CI run [39193480816](https://github.com/sharawla1995-oss/restaurant-pos/actions/runs/39193480816): two jobs SUCCESS, including PG16 sale and shift close concurrency.
+- Validated the specific referenced table/column names exist in **Top Chicken Beta metadata read-only**, but did **not** test this draft using real Supabase functions, JWTs or payment/driver records. SQL was **not applied**.
+
 ## Operational go/no-go gates (all must PASS before opening writes)
 | Gate | Status | Evidence still needed |
 | --- | --- | --- |
 | User can open/login and view Top Chicken PWA | PASS (user observation) | Existing deployed Beta preview |
 | Isolated Beta Branch 22 selected | STATIC + user visual | Confirm real JWT and DB result on each protected action |
-| Global network no-write guard | CODED | GitHub Actions test PASS |
+| Global network no-write guard | PASS in isolated mock CI | Existing live PWA unchanged; hardened source guarded |
 | Auth & tenant enforcement for each operation | PENDING | Real role matrix and negative tests using isolated Beta test identities |
 | Sale create/duplicate/replay/changed payload | DRAFT GATE PG16 PASS / BETA E2E PENDING | New source-only receipt gateway tested in disposable PG16; real Beta integration/auth/migrations not approved |
-| Server-authoritative shift closure | PENDING | Cash reconciliation & settlement end-to-end |
+| Server-authoritative shift closure | DRAFT GATE PG16 PASS / BETA E2E PENDING | Server cash source, digest/replay/custody mock tests PASS; real role/settlement E2E not tested |
 | Delivery status/driver assignment | PENDING | Valid/invalid transitions and actor/branch checks |
 | Returns/expenses and manager approvals | PENDING | Auth/digest/duplicate/uncertain outcome |
-| Browser receipt printing | PENDING | Chrome/Android/iOS print + Cairo time, no duplicate printing |
+| Browser receipt printing | HONEST-STATUS GUARD CODED / PHYSICAL PENDING | Browser print dialog not counted as confirmed printed receipt; physical device and Cairo receipt tests still pending |
 | Offline sale/replay | DISABLED | Device-independent encrypted durable queue, power-loss and changed-payload tests; could defer to later |
 | Payment/website and live orders | DISABLED | No external traffic/real payments until explicit approved release |
 
