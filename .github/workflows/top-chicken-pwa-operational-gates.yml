@@ -15,6 +15,7 @@ on:
       - scripts/build-top-chicken-pwa-preview.js
       - sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql
       - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-*.sql
+      - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
       - .github/workflows/top-chicken-pwa-operational-gates.yml
 
 permissions:
@@ -70,6 +71,8 @@ jobs:
             sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql \
             scripts/fixtures/top-chicken-pwa-order-gateway-pg16-test.sql \
             | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+      - name: Prove concurrent requests produce one order and changed-payload conflict
+        run: bash scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
       - name: Destroy disposable database container
         if: always()
         run: docker rm -f tc-pwa-gate-db || true
