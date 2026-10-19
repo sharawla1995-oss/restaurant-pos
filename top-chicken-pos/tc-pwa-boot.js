@@ -16,7 +16,9 @@ if(window.__TOP_CHICKEN_PWA_PREVIEW__==='top-chicken-branch22-preview-v1'){
     const rawUrl=typeof input==='string'?input:input?.url;
     const requestUrl=new URL(String(rawUrl||''),window.location.href);
     const method=String(init?.method||input?.method||'GET').toUpperCase();
-    if(method!=='GET'&&(requestUrl.origin===betaOrigin||requestUrl.origin===centralOrigin)){
+    // Fail closed for ALL destinations, not only the known Supabase hosts.
+    // A wrongly configured module must never mutate Top Burger or a third-party.
+    if(method!=='GET'&&method!=='HEAD'){
       const path=requestUrl.pathname+requestUrl.search;
       const authorizedAuthFlow=requestUrl.origin===betaOrigin&&method==='POST'&&
         (path==='/auth/v1/token?grant_type=password' ||
@@ -29,6 +31,10 @@ if(window.__TOP_CHICKEN_PWA_PREVIEW__==='top-chicken-branch22-preview-v1'){
     }
     return originalFetch(input,init);
   };
+  // Avoid silent alternate transport paths for writes in preview.
+  if(typeof navigator!=='undefined'&&typeof navigator.sendBeacon==='function'){
+    navigator.sendBeacon=function(){return false};
+  }
 }
 (function(){
   let deferredInstall=null;

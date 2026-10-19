@@ -1,0 +1,98 @@
+name: Top Chicken PWA Operational Safety Gates (No Deploy)
+
+on:
+  push:
+    branches:
+      - codex/top-chicken-pwa-operational-gates-20261019
+  pull_request:
+    branches:
+      - codex/top-chicken-branch22-full-pos-pwa-preview-20261018
+    paths:
+      - app.js
+      - top-chicken-pos/**
+      - scripts/check-top-chicken-pwa-operational-gates.js
+      - scripts/check-top-chicken-pwa-preview.js
+      - scripts/build-top-chicken-pwa-preview.js
+      - sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql
+      - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-*.sql
+      - scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
+      - sql/top-chicken-pwa-close-shift-server-metrics-v1-DRAFT-NOT-DEPLOYED.sql
+      - scripts/fixtures/top-chicken-pwa-close-shift-pg16-*.sql
+      - scripts/fixtures/top-chicken-pwa-close-shift-pg16-concurrency.sh
+      - .github/workflows/top-chicken-pwa-operational-gates.yml
+
+permissions:
+  contents: read
+
+jobs:
+  offline-safety-and-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout branch 22 isolated source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run executable no-write security guard tests
+        run: |
+          node --check app.js
+          node --check top-chicken-pos/tc-pwa-boot.js
+          node scripts/check-top-chicken-pwa-preview.js
+          node scripts/check-top-chicken-pwa-operational-gates.js
+      - name: Bundle root-only preview without deployment
+        run: node scripts/build-top-chicken-pwa-preview.js
+      - name: Assert no write-ready build artifacts
+        run: |
+          test -f dist-top-chicken-pwa-preview/index.html
+          test -f dist-top-chicken-pwa-preview/tc-pwa-boot.js
+          test ! -f dist-top-chicken-pwa-preview/.env
+
+      - name: Upload hardened read-only QA artifact (never deploy)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Top-Chicken-PWA-HARDENED-READONLY-QA-NOT-LIVE
+          path: dist-top-chicken-pwa-preview/
+          if-no-files-found: error
+          retention-days: 7
+
+  pg16-order-gateway-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout Beta source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Start disposable PostgreSQL 16 in CI (never Supabase)
+        run: |
+          docker run -d --rm --name tc-pwa-gate-db -e POSTGRES_PASSWORD=postgres postgres:16
+          for i in $(seq 1 40); do
+            if docker exec tc-pwa-gate-db pg_isready -U postgres; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Apply DRAFT only to disposable CI database and run negative assertions
+        run: |
+          cat \
+            scripts/fixtures/top-chicken-pwa-order-gateway-pg16-setup.sql \
+            sql/top-chicken-pwa-create-order-gateway-v1-DRAFT-NOT-DEPLOYED.sql \
+            scripts/fixtures/top-chicken-pwa-order-gateway-pg16-test.sql \
+            | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+      - name: Run isolated server-authoritative shift closure contract
+        run: |
+          cat \
+            scripts/fixtures/top-chicken-pwa-close-shift-pg16-setup.sql \
+            sql/top-chicken-pwa-close-shift-server-metrics-v1-DRAFT-NOT-DEPLOYED.sql \
+            scripts/fixtures/top-chicken-pwa-close-shift-pg16-test.sql \
+            | docker exec -i tc-pwa-gate-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+      - name: Prove concurrent requests produce one order and changed-payload conflict
+        run: bash scripts/fixtures/top-chicken-pwa-order-gateway-pg16-concurrency.sh
+      - name: Prove concurrent close requests cannot duplicate or alter cash
+        run: bash scripts/fixtures/top-chicken-pwa-close-shift-pg16-concurrency.sh
+      - name: Destroy disposable database container
+        if: always()
+        run: docker rm -f tc-pwa-gate-db || true
