@@ -400,7 +400,7 @@ function startWebsiteOrderWatch(){
   websiteOrderWatchPrimed=false;
   knownWebsiteOrderIds=new Set();
   checkWebsiteOrders();
-  websiteOrderWatchTimer=setInterval(checkWebsiteOrders,5000);
+  websiteOrderWatchTimer=setInterval(()=>{if(!document.hidden&&navigator.onLine)checkWebsiteOrders()},TOP_CHICKEN_PWA_PREVIEW?15000:5000);
 }
 
 // لو رجع للشاشة أو فتح التبويب بعد ما كان بالخلفية، افحص فورًا بدل انتظار المؤقت.
@@ -1679,7 +1679,7 @@ function startReturnApprovalWatch(){
  stopReturnApprovalWatch();
  if(!(isAdmin()||hasFeaturePermission('returnApprovals'))||!state.employee)return;
  refreshReturnApprovalWatch();
- returnApprovalWatchTimer=setInterval(refreshReturnApprovalWatch,5000);
+ returnApprovalWatchTimer=setInterval(()=>{if(!document.hidden&&navigator.onLine)refreshReturnApprovalWatch()},TOP_CHICKEN_PWA_PREVIEW?15000:5000);
 }
 async function showApprovedReturnReceipt(returnId){
  const [rr,ri,rp]=await Promise.all([
