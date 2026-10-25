@@ -16,6 +16,15 @@ if(window.__TOP_CHICKEN_PWA_PREVIEW__==='top-chicken-branch22-preview-v1'){
     const rawUrl=typeof input==='string'?input:input?.url;
     const requestUrl=new URL(String(rawUrl||''),window.location.href);
     const method=String(init?.method||input?.method||'GET').toUpperCase();
+    // Beta does not have this optional notification table. Avoid a known 404
+    // rather than issuing a failing PostgREST read on every startup/poll.
+    if(requestUrl.origin===betaOrigin&&
+       requestUrl.pathname==='/rest/v1/app_notifications_v1'&&
+       (method==='GET'||method==='HEAD')){
+      return Promise.resolve(new Response(method==='HEAD'?null:'[]',{
+        status:200,headers:{'content-type':'application/json','x-tc-beta-optional-disabled':'1'}
+      }));
+    }
     // Fail closed for ALL destinations, not only the known Supabase hosts.
     // A wrongly configured module must never mutate Top Burger or a third-party.
     if(method!=='GET'&&method!=='HEAD'){
