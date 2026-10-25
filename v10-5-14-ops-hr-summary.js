@@ -23,6 +23,14 @@ function topChickenNotificationsScope(){
  try{return typeof global.isTopChickenSyncDiagnosticsScope==='function'&&global.isTopChickenSyncDiagnosticsScope()}catch{return false}
 }
 async function refreshNotifications(){
+ if(topChickenNotificationsScope()){
+   // This optional table is absent in Beta; don't issue 404 once per app launch.
+   topChickenNotificationBackendMissing=true;
+   global.__sharawlaV14Notifications=[];
+   const badge=$('#v14NotificationBadge');
+   if(badge)badge.classList.add('hidden');
+   return;
+ }
  if(!navigator.onLine||(topChickenNotificationBackendMissing&&topChickenNotificationsScope()))return;
  try{
   const rows=await global.rest('app_notifications_v1','select=id,kind,title,body,entity_type,entity_id,action_page,read_at,created_at&order=created_at.desc&limit=100');

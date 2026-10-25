@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/top-chicken-pwa-operational-gates-20261019
+      - codex/top-chicken-pwa-stability-errors-20261026
   pull_request:
     branches:
       - codex/top-chicken-branch22-full-pos-pwa-preview-20261018

@@ -7,6 +7,8 @@ const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const boot=fs.readFileSync(path.join(root,'top-chicken-pos/tc-pwa-boot.js'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const notifications=fs.readFileSync(path.join(root,'v10-5-14-ops-hr-summary.js'),'utf8');
+assert(notifications.includes('if(topChickenNotificationsScope()){'),'Windows Beta must skip missing notification table before request');
 const installedFetches=[];
 let beaconInvocations=0;
 const navigator={sendBeacon(){beaconInvocations++;return true}};
@@ -18,7 +20,7 @@ const win={
 };
 vm.runInNewContext(boot,{
   window:win,navigator,
-  document:{getElementById:()=>null},URL,Promise,Error,console
+  document:{getElementById:()=>null},URL,Response,Promise,Error,console
 },{filename:'tc-pwa-boot.js'});
 assert.equal(win.__TOP_CHICKEN_PWA_PREVIEW__,'top-chicken-branch22-preview-v1');
 const beta='https://xihcxydjnzemflhedzor.supabase.co';
@@ -34,6 +36,11 @@ const burger='https://kzokretuuigjhxjzdlmk.supabase.co';
   ])await win.fetch(beta+uri,{method:'POST'});
   await win.fetch(beta+'/rest/v1/products',{method:'GET'});
   await win.fetch(beta+'/rest/v1/products',{method:'HEAD'});
+  const missing=await win.fetch(beta+'/rest/v1/app_notifications_v1?select=*',{method:'GET'});
+  assert.equal(missing.status,200);
+  assert.deepEqual(await missing.json(),[]);
+  assert.equal(installedFetches.length,6,'Missing optional table must not hit Beta');
+  assert(app.includes('TOP_CHICKEN_PWA_PREVIEW?15000:5000'));
   // Every operational mutation, including alternate destinations, must fail.
   for(const url of [
     beta+'/rest/v1/rpc/create_pos_order_atomic',
