@@ -7,6 +7,8 @@ const vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const boot=fs.readFileSync(path.join(root,'top-chicken-pos/tc-pwa-boot.js'),'utf8');
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+const notifications=fs.readFileSync(path.join(root,'v10-5-14-ops-hr-summary.js'),'utf8');
+assert(notifications.includes('if(topChickenNotificationsScope()){'),'Windows Beta must skip missing notification table before request');
 const installedFetches=[];
 let beaconInvocations=0;
 const navigator={sendBeacon(){beaconInvocations++;return true}};
